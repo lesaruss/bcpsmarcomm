@@ -148,31 +148,37 @@ const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytic
 
 interface NavItem { id: PageId; label: string }
 
-const MAIN_NAV: NavItem[] = [
-  { id: 'dashboard', label: 'Passport' },
-  { id: 'queue', label: 'Queue' },
-  { id: 'notes', label: 'Meeting Notes' },
-  { id: 'departments', label: 'Departments' },
-  { id: 'analytics', label: 'Analytics' },
-  { id: 'documents', label: 'Documents' },
-  { id: 'profile', label: 'My Profile' },
-  { id: 'superadmin', label: 'SuperAdmin' },
-  { id: 'permissions', label: 'Permissions' },
-]
+interface NavSection { label: string; items: NavItem[] }
 
-const CARTRIDGES: NavItem[] = [
-  { id: 'marcomm', label: 'MarComm' },
-  { id: 'graphics', label: 'Graphics' },
-  { id: 'minutes', label: 'Minutes' },
-  { id: 'wcm', label: 'WCM' },
-  { id: 'reports', label: 'Reports' },
-]
-
-const BCPS_DOCS: NavItem[] = [
-  { id: 'bcps-google-governance', label: 'Google Governance' },
-  { id: 'bcps-assignments', label: 'Web Team Assignments' },
-  { id: 'bcps-certification', label: 'Department Certification' },
-  { id: 'employee-records', label: 'My Records' },
+const SECTIONS: NavSection[] = [
+  { label: 'Platform', items: [
+    { id: 'dashboard', label: 'Passport' },
+    { id: 'queue', label: 'Queue' },
+    { id: 'notes', label: 'Meeting Notes' },
+    { id: 'departments', label: 'Departments' },
+    { id: 'analytics', label: 'Analytics' },
+    { id: 'documents', label: 'Documents' },
+    { id: 'profile', label: 'My Profile' },
+  ] },
+  { label: 'MarComm', items: [
+    { id: 'marcomm', label: 'Newsroom' },
+    { id: 'graphics', label: 'Graphics & Printing' },
+  ] },
+  { label: 'Web Content Managers', items: [
+    { id: 'bcps-assignments', label: 'Web Team Assignments' },
+    { id: 'bcps-certification', label: 'Department Certification' },
+    { id: 'bcps-google-governance', label: 'Google Governance' },
+    { id: 'wcm', label: 'WCM Hub' },
+  ] },
+  { label: 'SuperAdmin', items: [
+    { id: 'superadmin', label: 'Overview' },
+    { id: 'permissions', label: 'Permissions' },
+  ] },
+  { label: 'Other', items: [
+    { id: 'minutes', label: 'Minutes' },
+    { id: 'reports', label: 'Reports' },
+    { id: 'employee-records', label: 'My Records' },
+  ] },
 ]
 
 function canSee(effectiveRole: UserRole, pageId: PageId): boolean {
@@ -258,41 +264,25 @@ export default function Sidebar({
 
         {/* Nav */}
         <nav className="sidebar-nav">
-          <div className="sidebar-section-label">Platform</div>
-          {MAIN_NAV.filter(item => canSee(effectiveRole, item.id)).map((item) => (
-            <button
-              key={item.id}
-              className={`sidebar-link${activePage === item.id ? ' active' : ''}`}
-              onClick={() => nav(item.id)}
-            >
-              <span className="sidebar-icon">{Icons[item.id]}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-
-          <div className="sidebar-section-label" style={{ marginTop: '1.5rem' }}>Consoles</div>
-          {CARTRIDGES.filter(item => canSee(effectiveRole, item.id)).map((item) => (
-            <button
-              key={item.id}
-              className={`sidebar-link${activePage === item.id ? ' active' : ''}`}
-              onClick={() => nav(item.id)}
-            >
-              <span className="sidebar-icon">{Icons[item.id]}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-
-          <div className="sidebar-section-label" style={{ marginTop: '1.5rem' }}>BCPS</div>
-          {BCPS_DOCS.map((item) => (
-            <button
-              key={item.id}
-              className={`sidebar-link${activePage === item.id ? ' active' : ''}`}
-              onClick={() => nav(item.id)}
-            >
-              <span className="sidebar-icon">{Icons[item.id]}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {SECTIONS.map((section, si) => {
+            const items = section.items.filter(item => canSee(effectiveRole, item.id))
+            if (items.length === 0) return null
+            return (
+              <div key={section.label}>
+                <div className="sidebar-section-label" style={si === 0 ? undefined : { marginTop: '1.5rem' }}>{section.label}</div>
+                {items.map((item) => (
+                  <button
+                    key={item.id}
+                    className={`sidebar-link${activePage === item.id ? ' active' : ''}`}
+                    onClick={() => nav(item.id)}
+                  >
+                    <span className="sidebar-icon">{Icons[item.id]}</span>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )
+          })}
         </nav>
 
         {/* Footer - user switcher for SuperAdmin, static display for users */}
