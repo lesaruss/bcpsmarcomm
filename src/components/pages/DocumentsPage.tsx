@@ -16,6 +16,16 @@ interface Document {
 
 const DOCUMENTS: Document[] = [
   {
+    id: 'wcm-kickoff-planning',
+    title: 'WCM Kickoff Event: Planning Session',
+    description: 'Planning session minutes for the Web Content Manager Kickoff Event, covering decisions on schedule, theme, venue, and format, plus assigned action items and open issues.',
+    type: 'Minutes',
+    date: 'June 2026',
+    url: '/briefs/bcps-wcm-kickoff-planning-2026-06-25',
+    icon: '📝',
+    restricted: ['contact@lesaruss.com', 'sean.russell@browardschools.com', 'farrah.wilson@browardschools.com', 'felicia.hicks@browardschools.com', 'rodolfo.carril@browardschools.com', 'tricia.allen@browardschools.com', 'vanessa.deslandes@browardschools.com', 'yaco.abuelafia@browardschools.com'],
+  },
+  {
     id: 'governance',
     title: 'Website Governance Plan',
     description: 'Strategic governance framework for the BCPS website, including roles, responsibilities, and decision-making processes.',
