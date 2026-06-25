@@ -35,10 +35,11 @@ export async function GET(req: NextRequest) {
   const user = await requireSuperadmin(req)
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const [groups, members, objects, grants, links] = await Promise.all([
+  const [groups, members, pages, myDocs, grants, links] = await Promise.all([
     svc.from('acl_groups').select('*').eq('brand', BRAND).order('name'),
     svc.from('acl_member_roles').select('user_id, role').eq('brand', BRAND),
-    svc.from('acl_objects').select('*').eq('brand', BRAND).order('kind').order('title'),
+    svc.from('acl_objects').select('*').eq('brand', BRAND).eq('kind', 'page').order('title'),
+    svc.from('acl_objects').select('*').eq('brand', BRAND).eq('kind', 'document').eq('owner_id', user.id).order('title'),
     svc.from('acl_grants').select('*'),
     svc.from('acl_public_links').select('*').eq('revoked', false),
   ])
@@ -65,7 +66,8 @@ export async function GET(req: NextRequest) {
     ok: true,
     groups: groups.data ?? [],
     members: memberList,
-    objects: objects.data ?? [],
+    pages: pages.data ?? [],
+    myDocuments: myDocs.data ?? [],
     grants: grants.data ?? [],
     links: links.data ?? [],
   })

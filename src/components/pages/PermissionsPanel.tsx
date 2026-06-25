@@ -12,8 +12,8 @@ type Link = { id: string; object_id: string; token: string; role: string; expire
 const ROLE_OPTS = ['view', 'comment', 'edit', 'manage']
 const BLUE = '#1672A7'
 const C = {
-  card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 20, marginBottom: 14 } as React.CSSProperties,
-  h2: { fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280', margin: '28px 0 12px' } as React.CSSProperties,
+  card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 18, marginBottom: 12 } as React.CSSProperties,
+  h2: { fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280', margin: '30px 0 12px' } as React.CSSProperties,
   btn: { padding: '6px 12px', border: '1px solid #d1d5db', background: '#fff', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' } as React.CSSProperties,
   chip: (on: boolean): React.CSSProperties => ({ padding: '4px 10px', border: on ? `1.5px solid ${BLUE}` : '1px solid #d1d5db', background: on ? BLUE : '#fff', color: on ? '#fff' : '#374151', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }),
   sel: { padding: '6px 8px', border: '1px solid #d1d5db', borderRadius: 7, fontSize: 12, fontFamily: 'inherit', background: '#fff' } as React.CSSProperties,
@@ -23,53 +23,47 @@ export default function PermissionsPanel() {
   const supabase = createClient()
   const [groups, setGroups] = useState<Group[]>([])
   const [members, setMembers] = useState<Member[]>([])
-  const [objects, setObjects] = useState<Obj[]>([])
+  const [pages, setPages] = useState<Obj[]>([])
+  const [myDocuments, setMyDocuments] = useState<Obj[]>([])
   const [grants, setGrants] = useState<Grant[]>([])
   const [links, setLinks] = useState<Link[]>([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const token = useCallback(async () => {
-    const { data } = await supabase.auth.getSession()
-    return data.session?.access_token || ''
-  }, [supabase])
+  const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
 
   const load = useCallback(async () => {
     setLoading(true); setErr('')
-    const t = await token()
-    const r = await fetch('/api/bcps/permissions', { headers: { Authorization: `Bearer ${t}` } })
+    const r = await fetch('/api/bcps/permissions', { headers: { Authorization: `Bearer ${await token()}` } })
     const j = await r.json()
     if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
-    setGroups(j.groups); setMembers(j.members); setObjects(j.objects); setGrants(j.grants); setLinks(j.links)
+    setGroups(j.groups); setMembers(j.members); setPages(j.pages); setMyDocuments(j.myDocuments); setGrants(j.grants); setLinks(j.links)
     setLoading(false)
   }, [token])
 
   useEffect(() => { load() }, [load])
 
-  async function act(payload: any) {
+  const act = useCallback(async (payload: any) => {
     setBusy(true); setErr('')
-    const t = await token()
-    const r = await fetch('/api/bcps/permissions', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-    const j = await r.json()
-    setBusy(false)
+    const r = await fetch('/api/bcps/permissions', { method: 'POST', headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    const j = await r.json(); setBusy(false)
     if (!r.ok) { setErr(j.error || 'Action failed'); return null }
-    await load()
-    return j
-  }
+    await load(); return j
+  }, [token, load])
 
-  const memberName = (uid: string) => members.find(m => m.user_id === uid)?.name || 'Unknown'
   const groupName = (gid: string) => groups.find(g => g.id === gid)?.name || 'Group'
+  const memberName = (uid: string) => members.find(m => m.user_id === uid)?.name || 'Unknown'
 
   if (loading) return <div style={{ padding: 32 }}>Loading permissions...</div>
 
   return (
     <div style={{ padding: 32, maxWidth: 1100, fontFamily: 'inherit' }}>
       <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Permissions Console</h1>
-      <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 8px' }}>Manage who belongs to which group, who is an administrator, and what each group or person can access. Deny-by-default: nothing is shared unless granted here.</p>
+      <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 8px' }}>Manage who belongs to which group, who is an administrator, and which groups or people can reach each page. Document sharing is handled on each document by its owner; the documents you create appear under My Documents below. Deny-by-default: nothing is shared unless granted.</p>
       {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '12px 0' }}>{err}</div>}
 
-      {/* MEMBERS */}
+      {/* PEOPLE */}
       <h2 style={C.h2}>People ({members.length})</h2>
       {members.map(m => (
         <div key={m.user_id} style={C.card}>
@@ -79,11 +73,9 @@ export default function PermissionsPanel() {
               <div style={{ fontSize: 12, color: '#6b7280' }}>{m.email}{m.last_sign_in_at ? '' : ' (never signed in)'}</div>
             </div>
             {m.role !== 'superadmin' && (
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button disabled={busy} style={C.chip(m.role === 'admin')} onClick={() => act({ action: 'member_set_role', user_id: m.user_id, role: m.role === 'admin' ? 'user' : 'admin' })}>
-                  {m.role === 'admin' ? 'Administrator' : 'Make administrator'}
-                </button>
-              </div>
+              <button disabled={busy} style={C.chip(m.role === 'admin')} onClick={() => act({ action: 'member_set_role', user_id: m.user_id, role: m.role === 'admin' ? 'user' : 'admin' })}>
+                {m.role === 'admin' ? 'Administrator' : 'Make administrator'}
+              </button>
             )}
           </div>
           {m.role !== 'superadmin' && (
@@ -106,7 +98,7 @@ export default function PermissionsPanel() {
             <div><span style={{ fontWeight: 700, fontSize: 13 }}>{g.name}</span> <span style={{ fontSize: 11, color: '#9ca3af' }}>{g.slug}</span></div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button style={C.btn} disabled={busy} onClick={() => { const n = prompt('Rename group', g.name); if (n) act({ action: 'group_rename', group_id: g.id, name: n }) }}>Rename</button>
-              <button style={{ ...C.btn, color: '#b91c1c', borderColor: '#fecaca' }} disabled={busy} onClick={() => { if (confirm(`Delete group "${g.name}"? Members lose access granted via this group.`)) act({ action: 'group_delete', group_id: g.id }) }}>Delete</button>
+              <button style={{ ...C.btn, color: '#b91c1c', borderColor: '#fecaca' }} disabled={busy} onClick={() => { if (confirm(`Delete group "${g.name}"?`)) act({ action: 'group_delete', group_id: g.id }) }}>Delete</button>
             </div>
           </div>
         ))}
@@ -116,70 +108,95 @@ export default function PermissionsPanel() {
         </button>
       </div>
 
-      {/* OBJECTS & SHARING */}
-      <h2 style={C.h2}>Pages &amp; Documents ({objects.length})</h2>
-      {objects.length === 0 && <div style={{ ...C.card, color: '#6b7280', fontSize: 13 }}>No items registered yet. Sensitive documents and pages appear here as they are added to the engine.</div>}
-      {objects.map(o => {
-        const og = grants.filter(g => g.object_id === o.id)
-        const link = links.find(l => l.object_id === o.id)
-        return (
-          <div key={o.id} style={C.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 800 }}>{o.title || o.slug} {o.sensitive && <span style={{ fontSize: 10, color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 12, padding: '1px 7px' }}>SENSITIVE</span>}</div>
-                <div style={{ fontSize: 11, color: '#9ca3af' }}>{o.kind} &middot; {o.slug} &middot; owner {o.owner_id ? memberName(o.owner_id) : 'none'}</div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <label style={{ fontSize: 11, color: '#6b7280' }}>Visibility</label>
-                <select style={C.sel} value={o.visibility} disabled={busy}
-                  onChange={e => act({ action: 'object_upsert', kind: o.kind, slug: o.slug, title: o.title, visibility: e.target.value })}>
-                  <option value="private">Private (owner only)</option>
-                  <option value="restricted">Restricted (granted)</option>
-                  <option value="public" disabled={o.sensitive}>Public link</option>
-                </select>
-                <label style={{ fontSize: 11, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <input type="checkbox" checked={o.sensitive} disabled={busy}
-                    onChange={e => act({ action: 'object_upsert', kind: o.kind, slug: o.slug, title: o.title, sensitive: e.target.checked })} /> Sensitive
-                </label>
-              </div>
+      {/* PAGES */}
+      <h2 style={C.h2}>Pages ({pages.length})</h2>
+      <p style={{ fontSize: 12, color: '#9ca3af', margin: '-4px 0 12px' }}>Set who can reach each page. &ldquo;All members&rdquo; means any signed-in BCPS member; &ldquo;Restricted&rdquo; means only the groups and people you grant.</p>
+      {pages.map(o => (
+        <ObjectRow key={o.id} o={o} kind="page" grants={grants.filter(g => g.object_id === o.id)} link={undefined}
+          groups={groups} members={members} busy={busy} act={act} groupName={groupName} memberName={memberName} />
+      ))}
+
+      {/* MY DOCUMENTS */}
+      <h2 style={C.h2}>My Documents ({myDocuments.length})</h2>
+      <p style={{ fontSize: 12, color: '#9ca3af', margin: '-4px 0 12px' }}>Documents you own. Everyone manages sharing for their own documents from the document itself; yours are mirrored here for convenience.</p>
+      {myDocuments.length === 0 && <div style={{ ...C.card, color: '#6b7280', fontSize: 13 }}>You have not created any documents yet. Documents you create will appear here, and you can also manage sharing from the document&rsquo;s own Share button.</div>}
+      {myDocuments.map(o => (
+        <ObjectRow key={o.id} o={o} kind="document" grants={grants.filter(g => g.object_id === o.id)} link={links.find(l => l.object_id === o.id)}
+          groups={groups} members={members} busy={busy} act={act} groupName={groupName} memberName={memberName} />
+      ))}
+    </div>
+  )
+}
+
+function ObjectRow({ o, kind, grants, link, groups, members, busy, act, groupName, memberName }: {
+  o: Obj; kind: 'page' | 'document'; grants: Grant[]; link: Link | undefined; groups: Group[]; members: Member[]; busy: boolean
+  act: (p: any) => Promise<any>; groupName: (id: string) => string; memberName: (id: string) => string
+}) {
+  return (
+    <div style={C.card}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 800 }}>{o.title || o.slug} {o.sensitive && <span style={{ fontSize: 10, color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 12, padding: '1px 7px' }}>SENSITIVE</span>}</div>
+          <div style={{ fontSize: 11, color: '#9ca3af' }}>{o.slug}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label style={{ fontSize: 11, color: '#6b7280' }}>Access</label>
+          {kind === 'page' ? (
+            <select style={C.sel} value={o.visibility === 'private' ? 'restricted' : o.visibility} disabled={busy}
+              onChange={e => act({ action: 'object_upsert', kind: 'page', slug: o.slug, title: o.title, visibility: e.target.value })}>
+              <option value="public">All members</option>
+              <option value="restricted">Restricted</option>
+            </select>
+          ) : (
+            <>
+              <select style={C.sel} value={o.visibility} disabled={busy}
+                onChange={e => act({ action: 'object_upsert', kind: 'document', slug: o.slug, title: o.title, visibility: e.target.value })}>
+                <option value="private">Private (only me)</option>
+                <option value="restricted">Restricted (granted)</option>
+                <option value="public" disabled={o.sensitive}>Public link</option>
+              </select>
+              <label style={{ fontSize: 11, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input type="checkbox" checked={o.sensitive} disabled={busy}
+                  onChange={e => act({ action: 'object_upsert', kind: 'document', slug: o.slug, title: o.title, sensitive: e.target.checked })} /> Sensitive
+              </label>
+            </>
+          )}
+        </div>
+      </div>
+
+      {o.visibility === 'restricted' && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f1f1' }}>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 8 }}>Shared with</div>
+          {grants.length === 0 && <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>No one yet. Add a group or person below.</div>}
+          {grants.map(g => (
+            <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>{g.subject_type === 'group' ? groupName(g.subject_id) : memberName(g.subject_id)}</span>
+              <span style={{ fontSize: 10, color: '#9ca3af' }}>{g.subject_type}</span>
+              <select style={C.sel} value={g.role} disabled={busy}
+                onChange={e => act({ action: 'grant_set', grant: true, object_id: o.id, subject_type: g.subject_type, subject_id: g.subject_id, role: e.target.value })}>
+                {ROLE_OPTS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <button style={{ ...C.btn, padding: '3px 8px', color: '#b91c1c', borderColor: '#fecaca' }} disabled={busy}
+                onClick={() => act({ action: 'grant_set', grant: false, object_id: o.id, subject_type: g.subject_type, subject_id: g.subject_id })}>Remove</button>
             </div>
+          ))}
+          <AddGrant groups={groups} members={members} disabled={busy}
+            onAdd={(st, sid, role) => act({ action: 'grant_set', grant: true, object_id: o.id, subject_type: st, subject_id: sid, role })} />
+        </div>
+      )}
 
-            {o.visibility === 'restricted' && (
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f1f1' }}>
-                <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 8 }}>Shared with</div>
-                {og.length === 0 && <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>No one yet. Add a group or person below.</div>}
-                {og.map(g => (
-                  <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>{g.subject_type === 'group' ? groupName(g.subject_id) : memberName(g.subject_id)}</span>
-                    <span style={{ fontSize: 10, color: '#9ca3af' }}>{g.subject_type}</span>
-                    <select style={C.sel} value={g.role} disabled={busy}
-                      onChange={e => act({ action: 'grant_set', grant: true, object_id: o.id, subject_type: g.subject_type, subject_id: g.subject_id, role: e.target.value })}>
-                      {ROLE_OPTS.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                    <button style={{ ...C.btn, padding: '3px 8px', color: '#b91c1c', borderColor: '#fecaca' }} disabled={busy}
-                      onClick={() => act({ action: 'grant_set', grant: false, object_id: o.id, subject_type: g.subject_type, subject_id: g.subject_id })}>Remove</button>
-                  </div>
-                ))}
-                <AddGrant groups={groups} members={members} disabled={busy}
-                  onAdd={(subject_type, subject_id, role) => act({ action: 'grant_set', grant: true, object_id: o.id, subject_type, subject_id, role })} />
-              </div>
-            )}
-
-            {o.visibility === 'public' && !o.sensitive && (
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f1f1' }}>
-                {link ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <code style={{ fontSize: 12, background: '#f3f4f6', padding: '4px 8px', borderRadius: 6 }}>{`https://bcpsmarcomm.com/share/${link.token}`}</code>
-                    <button style={{ ...C.btn, color: '#b91c1c', borderColor: '#fecaca' }} disabled={busy} onClick={() => act({ action: 'link_revoke', link_id: link.id, object_id: o.id })}>Revoke link</button>
-                  </div>
-                ) : (
-                  <button style={{ ...C.btn, borderColor: BLUE, color: BLUE }} disabled={busy} onClick={() => act({ action: 'link_create', object_id: o.id, role: 'view' })}>Create public link</button>
-                )}
-              </div>
-            )}
-          </div>
-        )
-      })}
+      {kind === 'document' && o.visibility === 'public' && !o.sensitive && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f1f1' }}>
+          {link ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <code style={{ fontSize: 12, background: '#f3f4f6', padding: '4px 8px', borderRadius: 6 }}>{`https://bcpsmarcomm.com/share/${link.token}`}</code>
+              <button style={{ ...C.btn, color: '#b91c1c', borderColor: '#fecaca' }} disabled={busy} onClick={() => act({ action: 'link_revoke', link_id: link.id, object_id: o.id })}>Revoke link</button>
+            </div>
+          ) : (
+            <button style={{ ...C.btn, borderColor: BLUE, color: BLUE }} disabled={busy} onClick={() => act({ action: 'link_create', object_id: o.id, role: 'view' })}>Create public link</button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
