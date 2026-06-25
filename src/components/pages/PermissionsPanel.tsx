@@ -1,199 +1,202 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 
-const GROUPS = [
-  { id: '1b815c37-490e-4559-bf97-e1548bb97f1a', slug: 'ooc', name: 'OOC (Office of Communications)' },
-  { id: '616a67cb-cdc4-4b05-84aa-f5c8a48036f9', slug: 'dwt', name: 'DWT (District Web Team)' },
-  { id: '8454d61f-af8b-486f-a25d-37af7f1ec0a0', slug: 'superadmin', name: 'SuperAdmin' }
-]
+type Group = { id: string; slug: string; name: string; description: string | null }
+type Member = { user_id: string; email: string; name: string; role: string; last_sign_in_at: string | null; groups: string[] }
+type Obj = { id: string; kind: string; slug: string; title: string; owner_id: string | null; visibility: string; sensitive: boolean }
+type Grant = { id: string; object_id: string; subject_type: string; subject_id: string; role: string }
+type Link = { id: string; object_id: string; token: string; role: string; expires_at: string | null }
 
-const PAGES = [
-  // OOC/DWT restricted
-  { slug: 'marcomm', name: 'MarComm Console', restrictedTo: ['ooc', 'dwt'] },
-  { slug: 'graphics', name: 'Graphics', restrictedTo: ['ooc'] },
-  { slug: 'minutes', name: 'Minutes', restrictedTo: ['ooc', 'dwt'] },
-  { slug: 'reports', name: 'Reports', restrictedTo: ['ooc', 'dwt'] },
-  { slug: 'wcm', name: 'WCM Portal', restrictedTo: ['dwt'] },
-  // SuperAdmin only
-  { slug: 'superadmin', name: 'SuperAdmin Console', restrictedTo: ['superadmin'] },
-  { slug: 'permissions', name: 'Permissions', restrictedTo: ['superadmin'] },
-  // Everyone else = open access (no restriction)
-]
-
-const DOCUMENTS = [
-  { slug: 'appas-self-eval', name: 'APPAS Self-Evaluation', specialAccess: 'sean-farrah' },
-  { slug: 'appas-evaluation', name: 'APPAS Evaluation', specialAccess: 'sean-farrah' },
-]
-
-const USERS = [
-  { id: '04faac9c-bb37-406e-ae16-0c347e2aa55c', name: 'Vanessa Deslandes', email: 'vanessa.deslandes@browardschools.com', group: null },
-  { id: '5e17d08d-aa9d-499d-99d6-41ead37a7b41', name: 'Yaco Abuelafia', email: 'yaco.abuelafia@browardschools.com', group: null },
-  { id: '79009b0b-e963-40a0-8857-dc3f23a809a6', name: 'Rodolfo Carril', email: 'rodolfo.carril@browardschools.com', group: null },
-  { id: 'a390ff47-562a-484a-9295-2d1e7ddcf7db', name: 'Tricia Allen', email: 'tricia.allen@browardschools.com', group: null },
-  { id: 'de7d9477-5a83-422f-b381-ca8734a1d6da', name: 'Felicia Hicks', email: 'felicia.hicks@browardschools.com', group: null },
-]
-
-const SPECIAL_USERS = [
-  { name: 'Sean Russell', email: 'contact@lesaruss.com', id: '12404ad5-3e28-457b-9439-992eaaecf01d', hasAppasAccess: true },
-  { name: 'Farrah Wilson', email: 'farrah.wilson@browardschools.com', id: null, hasAppasAccess: true, note: 'Account creation pending' },
-]
+const ROLE_OPTS = ['view', 'comment', 'edit', 'manage']
+const BLUE = '#1672A7'
+const C = {
+  card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 20, marginBottom: 14 } as React.CSSProperties,
+  h2: { fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6b7280', margin: '28px 0 12px' } as React.CSSProperties,
+  btn: { padding: '6px 12px', border: '1px solid #d1d5db', background: '#fff', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' } as React.CSSProperties,
+  chip: (on: boolean): React.CSSProperties => ({ padding: '4px 10px', border: on ? `1.5px solid ${BLUE}` : '1px solid #d1d5db', background: on ? BLUE : '#fff', color: on ? '#fff' : '#374151', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }),
+  sel: { padding: '6px 8px', border: '1px solid #d1d5db', borderRadius: 7, fontSize: 12, fontFamily: 'inherit', background: '#fff' } as React.CSSProperties,
+}
 
 export default function PermissionsPanel() {
-  const [pagePerms, setPagePerms] = useState<any[]>([])
-  const [docPerms, setDocPerms] = useState<any[]>([])
-  const [userGroups, setUserGroups] = useState<any[]>([])
+  const supabase = createClient()
+  const [groups, setGroups] = useState<Group[]>([])
+  const [members, setMembers] = useState<Member[]>([])
+  const [objects, setObjects] = useState<Obj[]>([])
+  const [grants, setGrants] = useState<Grant[]>([])
+  const [links, setLinks] = useState<Link[]>([])
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
-    load()
-  }, [])
+  const token = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    return data.session?.access_token || ''
+  }, [supabase])
 
-  async function load() {
-    const supabase = createClient()
-    const { data: pageData } = await supabase.from('bcps_page_permissions').select('*')
-    const { data: docData } = await supabase.from('bcps_document_permissions').select('*')
-    const { data: ugData } = await supabase.from('bcps_user_groups').select('*')
-    setPagePerms(pageData || [])
-    setDocPerms(docData || [])
-    setUserGroups(ugData || [])
+  const load = useCallback(async () => {
+    setLoading(true); setErr('')
+    const t = await token()
+    const r = await fetch('/api/bcps/permissions', { headers: { Authorization: `Bearer ${t}` } })
+    const j = await r.json()
+    if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
+    setGroups(j.groups); setMembers(j.members); setObjects(j.objects); setGrants(j.grants); setLinks(j.links)
+    setLoading(false)
+  }, [token])
+
+  useEffect(() => { load() }, [load])
+
+  async function act(payload: any) {
+    setBusy(true); setErr('')
+    const t = await token()
+    const r = await fetch('/api/bcps/permissions', { method: 'POST', headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    const j = await r.json()
+    setBusy(false)
+    if (!r.ok) { setErr(j.error || 'Action failed'); return null }
+    await load()
+    return j
   }
 
-  async function togglePageAccess(pageSlug: string, groupId: string) {
-    const supabase = createClient()
-    const exists = pagePerms.some(p => p.page_slug === pageSlug && p.group_id === groupId)
+  const memberName = (uid: string) => members.find(m => m.user_id === uid)?.name || 'Unknown'
+  const groupName = (gid: string) => groups.find(g => g.id === gid)?.name || 'Group'
 
-    if (exists) {
-      await supabase.from('bcps_page_permissions').delete().eq('page_slug', pageSlug).eq('group_id', groupId)
-    } else {
-      await supabase.from('bcps_page_permissions').insert({ page_slug: pageSlug, group_id: groupId })
-    }
-    load()
-  }
-
-  async function toggleDocAccess(docSlug: string, groupId: string) {
-    const supabase = createClient()
-    const exists = docPerms.some(p => p.document_slug === docSlug && p.group_id === groupId)
-
-    if (exists) {
-      await supabase.from('bcps_document_permissions').delete().eq('document_slug', docSlug).eq('group_id', groupId)
-    } else {
-      await supabase.from('bcps_document_permissions').insert({ document_slug: docSlug, group_id: groupId })
-    }
-    load()
-  }
-
-  async function toggleUser(userId: string, groupId: string) {
-    const supabase = createClient()
-    const exists = userGroups.some(ug => ug.user_id === userId && ug.group_id === groupId)
-
-    if (exists) {
-      await supabase.from('bcps_user_groups').delete().eq('user_id', userId).eq('group_id', groupId)
-    } else {
-      await supabase.from('bcps_user_groups').insert({ user_id: userId, group_id: groupId })
-    }
-    load()
-  }
+  if (loading) return <div style={{ padding: 32 }}>Loading permissions...</div>
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1200px' }}>
-      <h1 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '8px', textTransform: 'uppercase' }}>Permissions</h1>
-      <p style={{ fontSize: '13px', color: '#666', marginBottom: '32px' }}>Manage page and document access by user group</p>
+    <div style={{ padding: 32, maxWidth: 1100, fontFamily: 'inherit' }}>
+      <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Permissions Console</h1>
+      <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 8px' }}>Manage who belongs to which group, who is an administrator, and what each group or person can access. Deny-by-default: nothing is shared unless granted here.</p>
+      {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '12px 0' }}>{err}</div>}
 
-      {/* USER TO GROUP ASSIGNMENT */}
-      <div style={{ marginBottom: '48px' }}>
-        <h2 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase', color: '#1672A7' }}>Assign BCPS Staff to Groups</h2>
-        <div style={{ display: 'grid', gap: '8px' }}>
-          {USERS.map(user => (
-            <div key={user.id} style={{ padding: '12px', border: '1px solid #e4e4e4', borderRadius: '8px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>{user.name}</div>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {GROUPS.map(g => {
-                  const isAssigned = userGroups.some(ug => ug.user_id === user.id && ug.group_id === g.id)
-                  return (
-                    <button
-                      key={g.id}
-                      onClick={() => toggleUser(user.id, g.id)}
-                      style={{
-                        padding: '4px 8px',
-                        border: isAssigned ? '2px solid #1672A7' : '1px solid #e4e4e4',
-                        background: isAssigned ? '#1672A7' : '#fff',
-                        color: isAssigned ? '#fff' : '#000',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '10px',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {isAssigned ? '✓ ' : ''}{g.slug.toUpperCase()}
-                    </button>
-                  )
-                })}
-              </div>
+      {/* MEMBERS */}
+      <h2 style={C.h2}>People ({members.length})</h2>
+      {members.map(m => (
+        <div key={m.user_id} style={C.card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800 }}>{m.name} {m.role === 'superadmin' && <span style={{ fontSize: 10, color: BLUE }}>SUPERADMIN</span>}</div>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>{m.email}{m.last_sign_in_at ? '' : ' (never signed in)'}</div>
             </div>
-          ))}
+            {m.role !== 'superadmin' && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button disabled={busy} style={C.chip(m.role === 'admin')} onClick={() => act({ action: 'member_set_role', user_id: m.user_id, role: m.role === 'admin' ? 'user' : 'admin' })}>
+                  {m.role === 'admin' ? 'Administrator' : 'Make administrator'}
+                </button>
+              </div>
+            )}
+          </div>
+          {m.role !== 'superadmin' && (
+            <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginRight: 4 }}>Groups</span>
+              {groups.map(g => {
+                const on = m.groups.includes(g.id)
+                return <button key={g.id} disabled={busy} style={C.chip(on)} onClick={() => act({ action: 'member_set_group', user_id: m.user_id, group_id: g.id, member: !on })}>{g.name}</button>
+              })}
+            </div>
+          )}
         </div>
+      ))}
+
+      {/* GROUPS */}
+      <h2 style={C.h2}>Groups ({groups.length})</h2>
+      <div style={C.card}>
+        {groups.map(g => (
+          <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f1f1' }}>
+            <div><span style={{ fontWeight: 700, fontSize: 13 }}>{g.name}</span> <span style={{ fontSize: 11, color: '#9ca3af' }}>{g.slug}</span></div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button style={C.btn} disabled={busy} onClick={() => { const n = prompt('Rename group', g.name); if (n) act({ action: 'group_rename', group_id: g.id, name: n }) }}>Rename</button>
+              <button style={{ ...C.btn, color: '#b91c1c', borderColor: '#fecaca' }} disabled={busy} onClick={() => { if (confirm(`Delete group "${g.name}"? Members lose access granted via this group.`)) act({ action: 'group_delete', group_id: g.id }) }}>Delete</button>
+            </div>
+          </div>
+        ))}
+        <button style={{ ...C.btn, marginTop: 10, borderColor: BLUE, color: BLUE }} disabled={busy}
+          onClick={() => { const name = prompt('New group name'); if (!name) return; const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); act({ action: 'group_create', name, slug }) }}>
+          + New group
+        </button>
       </div>
 
-      {/* SPECIAL USERS WITH APPAS ACCESS */}
-      <div style={{ marginBottom: '48px' }}>
-        <h2 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase', color: '#F69820' }}>Special Access (APPAS Documents)</h2>
-        <div style={{ display: 'grid', gap: '8px' }}>
-          {SPECIAL_USERS.map(user => (
-            <div key={user.email} style={{ padding: '12px', border: '1px solid #ffd9b3', borderRadius: '8px', background: '#fffaf5' }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>
-                {user.name}
-                {user.note && <span style={{ fontSize: '10px', color: '#999', marginLeft: '8px' }}>({user.note})</span>}
+      {/* OBJECTS & SHARING */}
+      <h2 style={C.h2}>Pages &amp; Documents ({objects.length})</h2>
+      {objects.length === 0 && <div style={{ ...C.card, color: '#6b7280', fontSize: 13 }}>No items registered yet. Sensitive documents and pages appear here as they are added to the engine.</div>}
+      {objects.map(o => {
+        const og = grants.filter(g => g.object_id === o.id)
+        const link = links.find(l => l.object_id === o.id)
+        return (
+          <div key={o.id} style={C.card}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800 }}>{o.title || o.slug} {o.sensitive && <span style={{ fontSize: 10, color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 12, padding: '1px 7px' }}>SENSITIVE</span>}</div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>{o.kind} &middot; {o.slug} &middot; owner {o.owner_id ? memberName(o.owner_id) : 'none'}</div>
               </div>
-              <div style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>{user.email}</div>
-              <div style={{ fontSize: '10px', fontStyle: 'italic', color: '#F69820' }}>
-                ✓ APPAS Self-Evaluation & APPAS Evaluation access
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <label style={{ fontSize: 11, color: '#6b7280' }}>Visibility</label>
+                <select style={C.sel} value={o.visibility} disabled={busy}
+                  onChange={e => act({ action: 'object_upsert', kind: o.kind, slug: o.slug, title: o.title, visibility: e.target.value })}>
+                  <option value="private">Private (owner only)</option>
+                  <option value="restricted">Restricted (granted)</option>
+                  <option value="public" disabled={o.sensitive}>Public link</option>
+                </select>
+                <label style={{ fontSize: 11, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <input type="checkbox" checked={o.sensitive} disabled={busy}
+                    onChange={e => act({ action: 'object_upsert', kind: o.kind, slug: o.slug, title: o.title, sensitive: e.target.checked })} /> Sensitive
+                </label>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* PAGE ACCESS BY GROUP */}
-      <div style={{ marginBottom: '48px' }}>
-        <h2 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '16px', textTransform: 'uppercase', color: '#1672A7' }}>Page Access by Group</h2>
-        <div style={{ display: 'grid', gap: '8px' }}>
-          {PAGES.map(page => (
-            <div key={page.slug} style={{ padding: '12px', border: '1px solid #e4e4e4', borderRadius: '8px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>{page.name}</div>
-              <div style={{ fontSize: '10px', color: '#999', marginBottom: '8px' }}>
-                {page.restrictedTo.length === 0 ? 'Open to everyone' : `Restricted to: ${page.restrictedTo.join(', ')}`}
+            {o.visibility === 'restricted' && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f1f1' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 8 }}>Shared with</div>
+                {og.length === 0 && <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>No one yet. Add a group or person below.</div>}
+                {og.map(g => (
+                  <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600 }}>{g.subject_type === 'group' ? groupName(g.subject_id) : memberName(g.subject_id)}</span>
+                    <span style={{ fontSize: 10, color: '#9ca3af' }}>{g.subject_type}</span>
+                    <select style={C.sel} value={g.role} disabled={busy}
+                      onChange={e => act({ action: 'grant_set', grant: true, object_id: o.id, subject_type: g.subject_type, subject_id: g.subject_id, role: e.target.value })}>
+                      {ROLE_OPTS.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                    <button style={{ ...C.btn, padding: '3px 8px', color: '#b91c1c', borderColor: '#fecaca' }} disabled={busy}
+                      onClick={() => act({ action: 'grant_set', grant: false, object_id: o.id, subject_type: g.subject_type, subject_id: g.subject_id })}>Remove</button>
+                  </div>
+                ))}
+                <AddGrant groups={groups} members={members} disabled={busy}
+                  onAdd={(subject_type, subject_id, role) => act({ action: 'grant_set', grant: true, object_id: o.id, subject_type, subject_id, role })} />
               </div>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {GROUPS.map(g => {
-                  const hasAccess = pagePerms.some(p => p.page_slug === page.slug && p.group_id === g.id)
-                  const isRestricted = page.restrictedTo.includes(g.slug)
-                  return (
-                    <button
-                      key={g.id}
-                      onClick={() => togglePageAccess(page.slug, g.id)}
-                      style={{
-                        padding: '4px 8px',
-                        border: hasAccess ? '2px solid #16750C' : '1px solid #e4e4e4',
-                        background: hasAccess ? '#16750C' : isRestricted ? '#f0f0f0' : '#fff',
-                        color: hasAccess ? '#fff' : '#000',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        opacity: isRestricted && !hasAccess ? 0.5 : 1,
-                      }}
-                      title={isRestricted ? `Default for ${g.slug}` : ''}
-                    >
-                      {hasAccess ? '✓ ' : ''}{g.slug.toUpperCase()}
-                    </button>
-                  )
-                })}
+            )}
+
+            {o.visibility === 'public' && !o.sensitive && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f1f1' }}>
+                {link ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <code style={{ fontSize: 12, background: '#f3f4f6', padding: '4px 8px', borderRadius: 6 }}>{`https://bcpsmarcomm.com/share/${link.token}`}</code>
+                    <button style={{ ...C.btn, color: '#b91c1c', borderColor: '#fecaca' }} disabled={busy} onClick={() => act({ action: 'link_revoke', link_id: link.id, object_id: o.id })}>Revoke link</button>
+                  </div>
+                ) : (
+                  <button style={{ ...C.btn, borderColor: BLUE, color: BLUE }} disabled={busy} onClick={() => act({ action: 'link_create', object_id: o.id, role: 'view' })}>Create public link</button>
+                )}
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function AddGrant({ groups, members, disabled, onAdd }: { groups: Group[]; members: Member[]; disabled: boolean; onAdd: (st: string, sid: string, role: string) => void }) {
+  const [pick, setPick] = useState('')
+  const [role, setRole] = useState('view')
+  return (
+    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+      <select style={C.sel} value={pick} onChange={e => setPick(e.target.value)}>
+        <option value="">Add group or person...</option>
+        <optgroup label="Groups">{groups.map(g => <option key={g.id} value={`group:${g.id}`}>{g.name}</option>)}</optgroup>
+        <optgroup label="People">{members.map(m => <option key={m.user_id} value={`user:${m.user_id}`}>{m.name}</option>)}</optgroup>
+      </select>
+      <select style={C.sel} value={role} onChange={e => setRole(e.target.value)}>{ROLE_OPTS.map(r => <option key={r} value={r}>{r}</option>)}</select>
+      <button style={{ ...C.btn, borderColor: BLUE, color: BLUE }} disabled={disabled || !pick}
+        onClick={() => { const [st, sid] = pick.split(':'); onAdd(st, sid, role); setPick('') }}>Add</button>
     </div>
   )
 }
