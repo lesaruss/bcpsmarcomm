@@ -1,8 +1,47 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Documents that contain personal/sensitive evaluation data.
+// Access is restricted to the named individuals only (server-enforced).
+const SENSITIVE_DOC = /bcps-appas-evaluation\.html$|bcps-appas-self-eval/i
+const SENSITIVE_DOC_ALLOWED = new Set([
+  'contact@lesaruss.com',
+  'farrah.wilson@browardschools.com',
+])
+
+function readOnlyClient(request: NextRequest) {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll() },
+        setAll() { /* read-only */ },
+      },
+    }
+  )
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // ── Sensitive document gate (runs before everything else) ────────────────
+  // Personal APPAS evaluation files are owner/supervisor only. Block all others
+  // (including authenticated staff) and serve the real static file to the few
+  // authorized accounts.
+  if (SENSITIVE_DOC.test(pathname)) {
+    const supabase = readOnlyClient(request)
+    const { data: { user } } = await supabase.auth.getUser()
+    const email = (user?.email || '').toLowerCase()
+    if (!user || !SENSITIVE_DOC_ALLOWED.has(email)) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/bcps'
+      url.search = '?page=documents&denied=1'
+      return NextResponse.redirect(url)
+    }
+    // Authorized: serve the real static file at its public-root path (no rewrite).
+    return NextResponse.next()
+  }
 
   // ── Standalone BCPS property (bcpsmarcomm.com) ───────────────────────────
   // The entire domain is BCPS. Rewrite all non-prefixed paths to /bcps/*.

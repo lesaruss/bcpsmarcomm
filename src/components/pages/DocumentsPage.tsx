@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase'
 
 interface Document {
   id: string
@@ -10,6 +11,7 @@ interface Document {
   date: string
   url: string
   icon: string
+  restricted?: string[]
 }
 
 const DOCUMENTS: Document[] = [
@@ -39,6 +41,7 @@ const DOCUMENTS: Document[] = [
     date: '2024-2025',
     url: '/bcps-appas-self-eval-2024-2025.html',
     icon: '📊',
+    restricted: ['contact@lesaruss.com', 'farrah.wilson@browardschools.com'],
   },
   {
     id: 'appas',
@@ -48,6 +51,7 @@ const DOCUMENTS: Document[] = [
     date: '2026',
     url: '/bcps-appas-evaluation.html',
     icon: '✓',
+    restricted: ['contact@lesaruss.com', 'farrah.wilson@browardschools.com'],
   },
   {
     id: 'impl-plan',
@@ -62,6 +66,13 @@ const DOCUMENTS: Document[] = [
 
 export default function DocumentsPage() {
   const [preview, setPreview] = useState<Document | null>(null)
+  const [email, setEmail] = useState<string>('')
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => setEmail((data.user?.email || '').toLowerCase()))
+  }, [])
+
+  const visibleDocs = DOCUMENTS.filter(d => !d.restricted || d.restricted.includes(email))
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -263,7 +274,7 @@ export default function DocumentsPage() {
         </div>
 
         <div className="docs-grid">
-          {DOCUMENTS.map(doc => (
+          {visibleDocs.map(doc => (
             <button
               key={doc.id}
               className="doc-card"
