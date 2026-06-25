@@ -172,7 +172,7 @@ const SECTIONS: NavSection[] = [
     { id: 'wcm', label: 'WCM Hub' },
   ] },
   { label: 'SuperAdmin', items: [
-    { id: 'superadmin', label: 'Overview' },
+    { id: 'superadmin', label: 'Platform Management' },
     { id: 'permissions', label: 'Permissions' },
   ] },
   { label: 'Other', items: [

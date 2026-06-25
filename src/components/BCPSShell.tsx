@@ -28,7 +28,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   profile:                  { title: 'My Profile',              sub: 'Account & Settings' },
   departments:              { title: 'Departments',             sub: 'Directory & Profiles' },
   analytics:                { title: 'Analytics',               sub: 'Performance Insights' },
-  superadmin:               { title: 'Overview',                sub: 'SuperAdmin' },
+  superadmin:               { title: 'Platform Management',      sub: 'SuperAdmin' },
   permissions:              { title: 'Permissions Console',     sub: 'Access & Sharing' },
   marcomm:                  { title: 'MarComm Console',         sub: 'Marketing & Communications' },
   graphics:                 { title: 'Graphics & Printing',      sub: 'Request Queue' },
