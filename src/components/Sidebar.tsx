@@ -23,6 +23,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
 interface SidebarProps {
   activePage: PageId
   onNavigate: (page: PageId) => void
+  allowedPages?: string[]
   role?: UserRole
   isOpen?: boolean
   onClose?: () => void
@@ -198,6 +199,7 @@ export default function Sidebar({
   role = 'user',
   isOpen = false, onClose = () => {},
   viewAs = null, onViewAs,
+  allowedPages,
 }: SidebarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false)
 
@@ -265,7 +267,9 @@ export default function Sidebar({
         {/* Nav */}
         <nav className="sidebar-nav">
           {SECTIONS.map((section, si) => {
-            const items = section.items.filter(item => canSee(effectiveRole, item.id))
+            const items = (allowedPages && !viewAs)
+              ? section.items.filter(item => allowedPages.includes(item.id))
+              : section.items.filter(item => canSee(effectiveRole, item.id))
             if (items.length === 0) return null
             return (
               <div key={section.label}>

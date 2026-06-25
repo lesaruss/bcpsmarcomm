@@ -66,13 +66,26 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [role, setRole] = useState<UserRole>('user')
   const [viewAs, setViewAs] = useState<TeamMember | null>(null)
+  const [allowedPages, setAllowedPages] = useState<string[] | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      const email = data.user?.email ?? ''
+    ;(async () => {
+      const { data: sess } = await supabase.auth.getSession()
+      const token = sess.session?.access_token
+      const email = sess.session?.user?.email ?? ''
+      if (!token) return
+      try {
+        const r = await fetch('/api/bcps/my-access', { headers: { Authorization: `Bearer ${token}` } })
+        if (r.ok) {
+          const j = await r.json()
+          setRole(j.role === 'superadmin' || SUPERADMIN_EMAILS.has(email) ? 'superadmin' : 'user')
+          setAllowedPages(j.pages as string[])
+          return
+        }
+      } catch { /* fall through to safe default */ }
       setRole(SUPERADMIN_EMAILS.has(email) ? 'superadmin' : 'user')
-    })
+    })()
   }, [])
 
   // Active page: cert routes and department route use pathname; others read ?page=
@@ -83,6 +96,15 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   }, [pathname, searchParams])
 
   const { title, sub } = PAGE_TITLES[activePage] ?? PAGE_TITLES['dashboard']
+
+  // Engine-driven page enforcement: if the user lands on a page they may not reach, send to dashboard.
+  useEffect(() => {
+    if (!allowedPages || viewAs) return
+    const pathRouted = pathname.startsWith('/bcps/certification') || pathname.startsWith('/bcps/department')
+    if (!pathRouted && activePage !== 'dashboard' && !allowedPages.includes(activePage)) {
+      router.replace('/bcps?page=dashboard', { scroll: false })
+    }
+  }, [allowedPages, activePage, pathname, viewAs, router])
 
   // Called by Sidebar for all pages; route special cases here
   const handleNavigate = useCallback((page: PageId) => {
@@ -122,6 +144,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           onClose={() => setSidebarOpen(false)}
           viewAs={viewAs}
           onViewAs={handleViewAs}
+          allowedPages={allowedPages ?? undefined}
         />
 
         <div className="main-area">
