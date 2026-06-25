@@ -16,16 +16,6 @@ interface Document {
 
 const DOCUMENTS: Document[] = [
   {
-    id: 'wcm-kickoff-planning',
-    title: 'WCM Kickoff Event: Planning Session',
-    description: 'Planning session minutes for the Web Content Manager Kickoff Event, covering decisions on schedule, theme, venue, and format, plus assigned action items and open issues.',
-    type: 'Minutes',
-    date: 'June 2026',
-    url: '/briefs/bcps-wcm-kickoff-planning-2026-06-25',
-    icon: '📝',
-    restricted: ['contact@lesaruss.com', 'sean.russell@browardschools.com', 'farrah.wilson@browardschools.com', 'felicia.hicks@browardschools.com', 'rodolfo.carril@browardschools.com', 'tricia.allen@browardschools.com', 'vanessa.deslandes@browardschools.com', 'yaco.abuelafia@browardschools.com'],
-  },
-  {
     id: 'governance',
     title: 'Website Governance Plan',
     description: 'Strategic governance framework for the BCPS website, including roles, responsibilities, and decision-making processes.',
@@ -77,12 +67,30 @@ const DOCUMENTS: Document[] = [
 export default function DocumentsPage() {
   const [preview, setPreview] = useState<Document | null>(null)
   const [email, setEmail] = useState<string>('')
+  const [engineDocs, setEngineDocs] = useState<Document[]>([])
 
   useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => setEmail((data.user?.email || '').toLowerCase()))
+    const supabase = createClient()
+    ;(async () => {
+      const { data: sess } = await supabase.auth.getSession()
+      setEmail((sess.session?.user?.email || '').toLowerCase())
+      const token = sess.session?.access_token
+      if (!token) return
+      try {
+        const r = await fetch('/api/bcps/my-documents', { headers: { Authorization: `Bearer ${token}` } })
+        if (r.ok) {
+          const j = await r.json()
+          setEngineDocs((j.documents || []).map((d: { slug: string; title: string; url: string }) => ({
+            id: 'eng-' + d.slug, title: d.title, description: 'Shared with you', type: 'Document', date: '', url: d.url, icon: '',
+          })))
+        }
+      } catch { /* ignore */ }
+    })()
   }, [])
 
-  const visibleDocs = DOCUMENTS.filter(d => !d.restricted || d.restricted.includes(email))
+  const staticVisible = DOCUMENTS.filter(d => !d.restricted || d.restricted.includes(email))
+  const staticUrls = new Set(staticVisible.map(d => d.url))
+  const visibleDocs = [...staticVisible, ...engineDocs.filter(d => !staticUrls.has(d.url))]
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
