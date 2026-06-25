@@ -65,77 +65,86 @@ export default function BCPSLoginPage() {
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '11px 14px', borderRadius: '8px',
-    background: '#0f1923', border: '1px solid rgba(255,255,255,0.1)',
-    color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+    background: '#f8fafc', border: '1px solid #d1d5db',
+    color: '#111827', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
     fontFamily: "'Montserrat', sans-serif",
+  }
+
+  const linkStyle: React.CSSProperties = {
+    background: 'none', border: 'none', color: '#0e4e73', cursor: 'pointer',
+    fontSize: '13px', fontWeight: 700, fontFamily: "'Montserrat', sans-serif", padding: 0,
   }
 
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0a1628 0%, #0e2a45 100%)',
+      background: 'linear-gradient(135deg, #f4f7fb 0%, #e7eef6 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: "'Montserrat', sans-serif", padding: '24px',
     }}>
       <div style={{ width: '100%', maxWidth: '420px' }}>
 
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <img
             src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"
             alt="Broward County Public Schools"
             style={{ height: '52px', width: 'auto', marginBottom: '16px' }}
           />
-          <h1 style={{ color: '#fff', fontSize: '18px', fontWeight: '800', margin: '0 0 4px', letterSpacing: '-0.01em' }}>
+          <h1 style={{ color: '#111827', fontSize: '18px', fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.01em' }}>
             BCPS Web Team Portal
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '12px', margin: 0, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-            K12 Unlocked - Broward County Public Schools
+          <p style={{ color: '#5b6675', fontSize: '12px', margin: 0, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+            Broward County Public Schools
           </p>
         </div>
 
         {/* Card */}
         <div style={{
-          background: '#132030', borderRadius: '16px', padding: '32px',
-          border: '1px solid rgba(255,255,255,0.07)',
-          boxShadow: '0 24px 48px rgba(0,0,0,0.4)',
+          background: '#ffffff', borderRadius: '16px', padding: '32px',
+          border: '1px solid #e5e7eb',
+          boxShadow: '0 12px 32px rgba(15,41,69,0.10)',
         }}>
 
           {resetSent ? (
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
-              <div style={{ fontSize: '40px', marginBottom: '16px' }}>📬</div>
-              <h2 style={{ color: '#fff', fontSize: '16px', fontWeight: '700', marginBottom: '10px' }}>Check your email</h2>
-              <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px', lineHeight: '1.7', marginBottom: '24px' }}>
-                A password reset link has been sent to <strong style={{ color: '#fff' }}>{email}</strong>.
+              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }} aria-hidden="true">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0e4e73" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="m22 7-10 6L2 7" />
+                </svg>
+              </div>
+              <h2 style={{ color: '#111827', fontSize: '16px', fontWeight: 700, marginBottom: '10px' }}>Check your email</h2>
+              <p style={{ color: '#4b5563', fontSize: '13px', lineHeight: '1.7', marginBottom: '24px' }}>
+                A password reset link has been sent to <strong style={{ color: '#111827' }}>{email}</strong>.
                 Click the link in the email to set a new password.
               </p>
-              <button onClick={() => { setMode('signin'); setResetSent(false) }}
-                style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}>
+              <button onClick={() => { setMode('signin'); setResetSent(false) }} style={linkStyle}>
                 Back to Sign In
               </button>
             </div>
           ) : mode === 'forgot' ? (
             <>
-              <h2 style={{ color: '#fff', fontSize: '17px', fontWeight: '700', margin: '0 0 6px' }}>Reset your password</h2>
-              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', margin: '0 0 24px', lineHeight: '1.6' }}>
+              <h2 style={{ color: '#111827', fontSize: '17px', fontWeight: 700, margin: '0 0 6px' }}>Reset your password</h2>
+              <p style={{ color: '#5b6675', fontSize: '13px', margin: '0 0 24px', lineHeight: '1.6' }}>
                 Enter your BCPS email and we will send a reset link.
               </p>
               <form onSubmit={handleForgotPassword}>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '11px', marginBottom: '6px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                <label style={{ display: 'block', color: '#374151', fontSize: '11px', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   BCPS Email Address
                 </label>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                   required placeholder="you@browardschools.com" style={{ ...inputStyle, marginBottom: '16px' }} />
 
                 {error && (
-                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px 14px', color: '#fca5a5', fontSize: '13px', marginBottom: '16px' }}>
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', color: '#b91c1c', fontSize: '13px', marginBottom: '16px' }}>
                     {error}
                   </div>
                 )}
 
                 <button type="submit" disabled={loading} style={{
                   width: '100%', padding: '12px', background: 'linear-gradient(135deg, #1672A7, #0e4e73)',
-                  border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: '800',
+                  border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 800,
                   textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer',
                   opacity: loading ? 0.7 : 1, fontFamily: "'Montserrat', sans-serif",
                 }}>
@@ -143,23 +152,22 @@ export default function BCPSLoginPage() {
                 </button>
               </form>
               <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px' }}>
-                <button onClick={() => { setMode('signin'); setError('') }}
-                  style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '13px', fontWeight: '700', fontFamily: "'Montserrat', sans-serif" }}>
+                <button onClick={() => { setMode('signin'); setError('') }} style={linkStyle}>
                   Back to Sign In
                 </button>
               </p>
             </>
           ) : (
             <>
-              <h2 style={{ color: '#fff', fontSize: '17px', fontWeight: '700', margin: '0 0 24px' }}>Sign in to your account</h2>
+              <h2 style={{ color: '#111827', fontSize: '17px', fontWeight: 700, margin: '0 0 24px' }}>Sign in to your account</h2>
 
               {/* Google SSO */}
               <button onClick={handleGoogle} disabled={loading} style={{
                 width: '100%', padding: '12px', borderRadius: '10px',
-                background: '#fff', border: 'none', cursor: 'pointer',
+                background: '#fff', border: '1px solid #d1d5db', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: '10px', fontSize: '13px', fontWeight: '700', color: '#1e293b',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.2)', transition: 'opacity 0.15s',
+                gap: '10px', fontSize: '13px', fontWeight: 700, color: '#1e293b',
+                transition: 'opacity 0.15s',
                 opacity: loading ? 0.7 : 1, fontFamily: "'Montserrat', sans-serif",
                 marginBottom: '20px',
               }}>
@@ -173,39 +181,39 @@ export default function BCPSLoginPage() {
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.08em' }}>or email</span>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+                <span style={{ color: '#9ca3af', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>or email</span>
+                <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
               </div>
 
               <form onSubmit={handleSignIn}>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '11px', marginBottom: '6px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                <label style={{ display: 'block', color: '#374151', fontSize: '11px', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   BCPS Email Address
                 </label>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                   required placeholder="you@browardschools.com" style={{ ...inputStyle, marginBottom: '14px' }} />
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  <label style={{ color: '#374151', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     Password
                   </label>
                   <button type="button" onClick={() => { setMode('forgot'); setError('') }}
-                    style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '12px', fontWeight: '600', fontFamily: "'Montserrat', sans-serif", padding: 0 }}>
+                    style={{ ...linkStyle, fontSize: '12px', fontWeight: 600 }}>
                     Forgot password?
                   </button>
                 </div>
                 <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                  required placeholder="••••••••" style={{ ...inputStyle, marginBottom: '20px', letterSpacing: '0.15em' }} />
+                  required placeholder="********" style={{ ...inputStyle, marginBottom: '20px', letterSpacing: '0.15em' }} />
 
                 {error && (
-                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px 14px', color: '#fca5a5', fontSize: '13px', marginBottom: '16px' }}>
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', color: '#b91c1c', fontSize: '13px', marginBottom: '16px' }}>
                     {error}
                   </div>
                 )}
 
                 <button type="submit" disabled={loading} style={{
                   width: '100%', padding: '12px', background: 'linear-gradient(135deg, #1672A7, #0e4e73)',
-                  border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: '800',
+                  border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 800,
                   textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer',
                   opacity: loading ? 0.7 : 1, fontFamily: "'Montserrat', sans-serif",
                 }}>
@@ -213,7 +221,7 @@ export default function BCPSLoginPage() {
                 </button>
               </form>
 
-              <p style={{ textAlign: 'center', marginTop: '20px', color: 'rgba(255,255,255,0.3)', fontSize: '12px', lineHeight: '1.6' }}>
+              <p style={{ textAlign: 'center', marginTop: '20px', color: '#6b7280', fontSize: '12px', lineHeight: '1.6' }}>
                 Access is limited to the BCPS district web team.<br />
                 Contact Sean Russell if you need access.
               </p>

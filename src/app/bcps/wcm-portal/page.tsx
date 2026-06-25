@@ -201,7 +201,7 @@ export default function WCMPortalPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 32, height: 32, background: '#F4A300', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 16, color: '#2B5F8F' }}>K</div>
           <div>
-            <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>K12 Unlocked</div>
+            <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>Broward County Public Schools</div>
             <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>WCM Audit Portal</div>
           </div>
         </div>

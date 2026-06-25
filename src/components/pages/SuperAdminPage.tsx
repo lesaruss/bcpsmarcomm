@@ -342,7 +342,7 @@ function PlatformTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
       <div className="admin-section-header">
         <div>
           <h3>Platform Settings</h3>
-          <p>Global configuration for the K-12 Unlocked platform.</p>
+          <p>Global configuration for the Broward County Public Schools portal.</p>
         </div>
       </div>
 
@@ -397,7 +397,7 @@ export default function SuperAdminPage({ onShowToast }: SuperAdminPageProps) {
       <div className="superadmin-hero">
         <span className="superadmin-badge">🛡️ SuperAdmin</span>
         <h2>Platform Management</h2>
-        <p>Manage access, invitations, domain rules, and platform settings for K-12 Unlocked.</p>
+        <p>Manage access, invitations, domain rules, and platform settings for Broward County Public Schools.</p>
       </div>
 
       <div className="admin-tabs">

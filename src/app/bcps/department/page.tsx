@@ -179,7 +179,7 @@ function DepartmentContent() {
         setAudit(auditRes.data || null)
         setHistory(histRes.data || [])
         setAnalytics(analyticsRes.data || [])
-        document.title = deptRes.data.name + ' - Audit Profile | K12 Unlocked'
+        document.title = deptRes.data.name + ' - Audit Profile | Broward County Public Schools'
       } catch { setError('Failed to load department data. Please refresh.') }
       finally { setLoading(false) }
     }

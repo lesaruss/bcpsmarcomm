@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'K-12 Unlocked | Broward County Public Schools',
+  title: 'Broward County Public Schools',
   description: 'The communications platform for Broward County Public Schools',
 }
 
