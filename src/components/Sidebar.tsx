@@ -144,7 +144,7 @@ const Icons: Record<string, React.ReactNode> = {
 }
 
 // ── Nav config ─────────────────────────────────────────────────────────────
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm', 'reports'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'wcm', 'reports'])
 
 interface NavItem { id: PageId; label: string }
 
@@ -157,6 +157,7 @@ const MAIN_NAV: NavItem[] = [
   { id: 'documents', label: 'Documents' },
   { id: 'profile', label: 'My Profile' },
   { id: 'superadmin', label: 'SuperAdmin' },
+  { id: 'permissions', label: 'Permissions' },
 ]
 
 const CARTRIDGES: NavItem[] = [
