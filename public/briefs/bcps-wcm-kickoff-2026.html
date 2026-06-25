@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BCPS WCM Kickoff: Connect - Learn - Lead 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(26px, 4vw, 44px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 18px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  /* AUDIENCE TOGGLE */
+  .audience-toggle-wrapper { margin-bottom: 36px; }
+  .toggle-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); margin-bottom: 12px; }
+  .toggle-pills { display: inline-flex; background: #e8e8e8; border-radius: 10px; padding: 4px; gap: 4px; }
+  .toggle-pill {
+    font-family: "Montserrat", sans-serif;
+    font-size: 12px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.12em; padding: 10px 28px; border-radius: 8px;
+    border: none; cursor: pointer; background: transparent;
+    color: var(--text-50); transition: all 0.18s ease;
+  }
+  .toggle-pill.active { background: var(--bcps-blue); color: #ffffff; box-shadow: 0 2px 8px rgba(22,114,167,0.28); }
+  .toggle-pill:hover:not(.active) { background: rgba(22,114,167,0.10); color: var(--bcps-blue-dark); }
+  .audience-context-banner {
+    margin-top: 14px;
+    background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22);
+    border-radius: 8px; padding: 14px 20px;
+    font-size: 13px; color: var(--text-75);
+  }
+  .audience-context-banner strong { color: var(--bcps-blue-dark); }
+
+  /* CONTENT PANELS */
+  .audience-panel { display: none; }
+  .audience-panel.active { display: block; }
+
+  /* THEME BANNER */
+  .theme-banner {
+    background: linear-gradient(135deg, var(--bcps-blue-dark) 0%, var(--bcps-blue) 100%);
+    border-radius: 12px; padding: 36px 40px; margin-bottom: 32px;
+    color: white; position: relative; overflow: hidden;
+  }
+  .theme-banner::before {
+    content: ''; position: absolute; top: -40px; right: -40px;
+    width: 200px; height: 200px; background: rgba(255,255,255,0.05); border-radius: 50%;
+  }
+  .theme-eyebrow { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.28em; color: rgba(255,255,255,0.65); margin-bottom: 10px; }
+  .theme-title { font-size: clamp(28px, 4vw, 42px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; color: #ffffff; margin-bottom: 14px; }
+  .theme-subtitle { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.80); margin: 0; line-height: 1.6; }
+
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .outcome-banner p strong { color: var(--text); }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+  .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
+
+  /* SESSION AGENDA */
+  .session-item { display: flex; gap: 20px; align-items: flex-start; padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .session-item:last-child { border-bottom: none; }
+  .session-time { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-blue); min-width: 90px; padding-top: 2px; }
+  .session-body { flex: 1; }
+  .session-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+  .session-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; margin-bottom: 6px; }
+  .session-tag {
+    display: inline-block; font-size: 9px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    padding: 3px 9px; border-radius: 4px; margin-right: 6px;
+  }
+  .session-tag.training { background: rgba(22,114,167,0.10); color: var(--bcps-blue-dark); border: 1px solid rgba(22,114,167,0.22); }
+  .session-tag.hands-on { background: rgba(22,117,12,0.10); color: var(--bcps-green); border: 1px solid rgba(22,117,12,0.28); }
+  .session-tag.community { background: rgba(197,83,38,0.08); color: var(--bcps-orange); border: 1px solid rgba(197,83,38,0.24); }
+  .session-tag.keynote { background: rgba(14,78,115,0.10); color: var(--bcps-blue-dark); border: 1px solid rgba(14,78,115,0.22); }
+
+  /* COUNTDOWN */
+  .countdown-list { margin: 0; }
+  .countdown-item { display: flex; gap: 20px; align-items: flex-start; padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .countdown-item:last-child { border-bottom: none; }
+  .countdown-num {
+    font-size: 28px; font-weight: 900; color: var(--bcps-blue);
+    min-width: 52px; line-height: 1; padding-top: 2px;
+    letter-spacing: -0.03em;
+  }
+  .countdown-num.top { color: var(--bcps-orange); }
+  .countdown-body { flex: 1; }
+  .countdown-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+  .countdown-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+
+  /* ACTIVITY BREAK */
+  .activity-break {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: rgba(22,117,12,0.06); border: 1px solid rgba(22,117,12,0.22);
+    border-radius: 8px; padding: 14px 18px; margin: 6px 0;
+  }
+  .activity-badge {
+    font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--bcps-green); white-space: nowrap; padding-top: 2px;
+  }
+  .activity-text { font-size: 13px; color: var(--text-75); line-height: 1.55; }
+  .activity-text strong { color: var(--text); }
+
+  /* SCAVENGER HUNT */
+  .scavenger-callout {
+    background: rgba(197,83,38,0.06); border: 1px solid rgba(197,83,38,0.22);
+    border-radius: 8px; padding: 22px 24px; margin-bottom: 20px;
+  }
+  .scavenger-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-orange); margin-bottom: 8px; }
+  .scavenger-title { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+  .scavenger-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .prize-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .prize-tag {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 5px 12px; border-radius: 5px;
+    background: rgba(197,83,38,0.10); border: 1px solid rgba(197,83,38,0.28);
+    color: var(--bcps-orange);
+  }
+
+  /* TOOLKIT CARDS */
+  .toolkit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 4px; }
+  @media (max-width: 700px) { .toolkit-grid { grid-template-columns: 1fr; } }
+  .toolkit-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; }
+  .toolkit-name { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--bcps-blue); margin-bottom: 6px; }
+  .toolkit-desc { font-size: 12px; color: var(--text-75); line-height: 1.5; }
+
+  /* OBJECTIVES */
+  .objective-item { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .objective-item:last-child { border-bottom: none; }
+  .objective-num { font-size: 13px; font-weight: 900; color: var(--bcps-blue); min-width: 24px; padding-top: 1px; }
+  .objective-text { font-size: 13px; color: var(--text-75); line-height: 1.55; }
+  .objective-text strong { color: var(--text); }
+
+  /* ACTION ITEMS */
+  .action-item { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .action-item:last-child { border-bottom: none; }
+  .action-num { font-size: 20px; font-weight: 900; color: var(--bcps-blue); min-width: 32px; line-height: 1; }
+  .action-body .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .action-body .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .action-body .action-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); margin-top: 6px; }
+  .action-body .action-deadline { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); margin-top: 4px; }
+
+  .action-group-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.18em; color: var(--bcps-blue); padding: 14px 0 4px; border-top: 1px solid var(--border); margin-top: 8px; }
+  .action-group-label:first-child { border-top: none; margin-top: 0; padding-top: 4px; }
+
+  .tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 4px; margin: 2px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .tag.open { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.28); color: var(--bcps-blue-dark); }
+  .tag.resolved { background: rgba(22,117,12,0.10); border-color: rgba(22,117,12,0.30); color: var(--bcps-green); }
+  .tag.pending { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.28); color: var(--bcps-orange); }
+
+  .timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 110px; padding-top: 2px; }
+  .timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .timeline-text strong { color: var(--text); }
+  .timeline-row.highlight .timeline-date { color: var(--bcps-green); }
+  .timeline-row.highlight .timeline-text { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">BCPS - WCM Kickoff 2026</span>
+</header>
+
+<main>
+
+  <h1>WCM Kickoff 2026</h1>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Event</span>
+      <span class="meta-value">Web Content Manager Kickoff</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">School Year</span>
+      <span class="meta-value">2026 - 2027</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Time</span>
+      <span class="meta-value">8:00 AM - 11:00 AM</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Format</span>
+      <span class="meta-value">In-Person</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Audience</span>
+      <span class="meta-value">Schools + Departments</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value">v2 - June 18, 2026</span>
+    </div>
+  </div>
+
+  <!-- AUDIENCE TOGGLE -->
+  <div class="audience-toggle-wrapper">
+    <div class="toggle-label">Select your audience</div>
+    <div class="toggle-pills" role="tablist" aria-label="Audience selector">
+      <button class="toggle-pill active" role="tab" aria-selected="true" aria-controls="panel-schools" id="tab-schools" onclick="switchAudience('schools')">Schools</button>
+      <button class="toggle-pill" role="tab" aria-selected="false" aria-controls="panel-departments" id="tab-departments" onclick="switchAudience('departments')">Departments</button>
+    </div>
+    <div class="audience-context-banner" id="audience-banner">
+      <strong>You are viewing: Schools.</strong> This session is for school webmasters and office staff who manage school website content on Finalsite. Date: Friday, TBD.
+    </div>
+  </div>
+
+  <!-- ============================== -->
+  <!-- SCHOOLS PANEL                  -->
+  <!-- ============================== -->
+  <div class="audience-panel active" id="panel-schools" role="tabpanel" aria-labelledby="tab-schools">
+
+    <div class="theme-banner">
+      <div class="theme-eyebrow">2026 WCM Kickoff Theme - Schools</div>
+      <div class="theme-title">Connect - Learn - Lead</div>
+      <p class="theme-subtitle">Strengthening Our WCM Community. Together we connect, learn, and lead - and tell the story of BCPS.</p>
+    </div>
+
+    <div class="outcome-banner">
+      <div class="outcome-label">Goal for the Day</div>
+      <p>Every school-based WCM leaves with the confidence, tools, and community to publish accurate, accessible, and family-friendly content from day one of the school year.</p>
+    </div>
+
+    <h2>Kickoff Objectives</h2>
+    <div class="section-block">
+      <div class="objective-item">
+        <div class="objective-num">1</div>
+        <div class="objective-text"><strong>Celebrate the WCM community</strong> and build new connections across schools in the district.</div>
+      </div>
+      <div class="objective-item">
+        <div class="objective-num">2</div>
+        <div class="objective-text"><strong>Share the Top 10 most impactful web content updates</strong> for the 2026-27 school year.</div>
+      </div>
+      <div class="objective-item">
+        <div class="objective-num">3</div>
+        <div class="objective-text"><strong>Introduce and demo the three core toolkits:</strong> Marketing, ADA, and WCM.</div>
+      </div>
+      <div class="objective-item">
+        <div class="objective-num">4</div>
+        <div class="objective-text"><strong>Make it fun</strong> - scavenger hunt, prizes, interactive activities, and community recognition.</div>
+      </div>
+      <div class="objective-item">
+        <div class="objective-num">5</div>
+        <div class="objective-text"><strong>Build confidence and clarity</strong> around Finalsite and district web standards heading into the new year.</div>
+      </div>
+      <div class="objective-item">
+        <div class="objective-num">6</div>
+        <div class="objective-text"><strong>Leave with commitments, connections, and a clear game plan</strong> for the year ahead.</div>
+      </div>
+    </div>
+
+    <!-- SCAVENGER HUNT CALLOUT -->
+    <div class="scavenger-callout">
+      <div class="scavenger-label">Today's Challenge</div>
+      <div class="scavenger-title">Scavenger Hunt</div>
+      <div class="scavenger-detail">Your scavenger hunt card is included in your welcome packet. Hidden throughout today's program are icons and phrases - find them all and turn in your completed card at the Closing Celebration for a chance to win. Multiple winners. Grand prize included.</div>
+      <div class="prize-row">
+        <span class="prize-tag">Gift Cards</span>
+        <span class="prize-tag">BCPS Swag</span>
+        <span class="prize-tag">Grand Prize</span>
+      </div>
+    </div>
+
+    <h2>Program - Schools | Friday, TBD</h2>
+    <div class="section-block">
+
+      <!-- WELCOME -->
+      <div class="session-item">
+        <div class="session-time">8:00 AM</div>
+        <div class="session-body">
+          <div class="session-title">Welcome + Community Kickoff</div>
+          <div class="session-detail">Icebreaker activity, theme reveal, recognition of returning WCMs, and the energy you need to start the year right. Music included.</div>
+          <span class="session-tag keynote">Keynote</span>
+          <span class="session-tag community">Community</span>
+        </div>
+      </div>
+
+      <!-- TOP 10 COUNTDOWN -->
+      <div class="session-item">
+        <div class="session-time">8:30 AM</div>
+        <div class="session-body">
+          <div class="session-title">Top 10 Countdown</div>
+          <div class="session-detail">Ten things every school WCM needs to know for the 2026-27 school year - counted down from 10 to 1. Interactive activities woven throughout.</div>
+          <span class="session-tag training">Training</span>
+        </div>
+      </div>
+
+    </div>
+
+    <h2>The Top 10 Countdown - Schools</h2>
+    <div class="section-block countdown-list">
+
+      <div class="countdown-item">
+        <div class="countdown-num">#10</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Content Cleanup and Audit</div>
+          <div class="countdown-detail">A fresh start means a clean site. Review outdated pages, broken links, archived documents, and stale staff listings. We will walk through the content audit process and the district tools available to identify what needs to go before the year begins.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num">#9</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Accessibility and ADA Compliance</div>
+          <div class="countdown-detail">Accessible content is not optional. We will cover the key requirements that apply to every school page - what the most common failures are, and how to fix them before they become issues.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num">#8</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Calendar Connections</div>
+          <div class="countdown-detail">Your calendar is one of the highest-traffic elements on any BCPS school page. We will cover how to connect events, sync with district calendars, format entries for readability, and make sure families never miss a date.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="activity-break">
+      <div class="activity-badge">Activity Break</div>
+      <div class="activity-text"><strong>Quick Networking Prop:</strong> Turn to someone you have not met today and share your biggest web content challenge from last year. You have 90 seconds. Go.</div>
+    </div>
+
+    <div class="section-block countdown-list">
+
+      <div class="countdown-item">
+        <div class="countdown-num">#7</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Photography and Media Standards</div>
+          <div class="countdown-detail">Images and video make or break a first impression. We will review the district photo standards, what makes a good school photo, how to format and compress images for the web, and the proper use of student media in line with district policy.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num">#6</div>
+        <div class="countdown-body">
+          <div class="countdown-title">School News and Announcements</div>
+          <div class="countdown-detail">Timely, well-written announcements keep families informed and reduce phone and email overload. We will cover the announcement format, how to use the news module effectively, and best practices for headlines, summaries, and calls to action.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num">#5</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Home Page Banner Best Practices</div>
+          <div class="countdown-detail">The banner is the first thing anyone sees. We will cover what belongs in a banner, what never should be there, how to write effective banner copy, and how to rotate content strategically throughout the year.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="activity-break">
+      <div class="activity-badge">Activity Break</div>
+      <div class="activity-text"><strong>Stretch Break + Mini Poll:</strong> Stand up, stretch, then cast your vote on today's most surprising countdown item so far.</div>
+    </div>
+
+    <div class="section-block countdown-list">
+
+      <div class="countdown-item">
+        <div class="countdown-num">#4</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Home Page and Media Best Practices</div>
+          <div class="countdown-detail">Beyond the banner - we will walk through the full school homepage and how to structure it for families coming in for the first time. Covers layout, essential modules, the sidebar, and media placement that works.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num">#3</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Marketing Toolkit Integration</div>
+          <div class="countdown-detail">The Marketing Toolkit is your shortcut to on-brand, district-approved content. We will do a live walkthrough of everything in the toolkit - templates, graphic standards, copy guidelines, and how to request support from the communications team.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="activity-break">
+      <div class="activity-badge">Team Challenge</div>
+      <div class="activity-text"><strong>60-Second Challenge:</strong> Your table has 60 seconds to name as many BCPS website modules as possible. Team with the most wins a prize.</div>
+    </div>
+
+    <div class="section-block countdown-list">
+
+      <div class="countdown-item">
+        <div class="countdown-num">#2</div>
+        <div class="countdown-body">
+          <div class="countdown-title">WCM Community and Collaboration</div>
+          <div class="countdown-detail">You are not in this alone. We will spotlight the WCM peer network, introduce this year's shared resource channels, and give everyone a chance to meet and connect with WCMs from schools across the district.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num top">#1</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Future of BCPS Digital Communications</div>
+          <div class="countdown-detail">The most important countdown spot. We will share what is coming in the year ahead - new tools, new district web initiatives, and what WCMs need to know to stay ahead of the curve. The future is bright and you are part of it.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- REST OF PROGRAM -->
+    <div class="section-block">
+
+      <div class="session-item">
+        <div class="session-time">10:00 AM</div>
+        <div class="session-body">
+          <div class="session-title">Toolkit Showcase</div>
+          <div class="session-detail">Live demo of all three toolkits you will use this year. Know where to find them, how to use them, and who to contact when you need support.</div>
+          <span class="session-tag hands-on">Hands-On</span>
+        </div>
+      </div>
+
+      <div class="session-item">
+        <div class="session-time">10:30 AM</div>
+        <div class="session-body">
+          <div class="session-title">Community Commitments</div>
+          <div class="session-detail">Before we close, every WCM shares one commitment for the year. What will you do differently on your site? What will you bring back to your school?</div>
+          <span class="session-tag community">Community</span>
+        </div>
+      </div>
+
+      <div class="session-item">
+        <div class="session-time">10:45 AM</div>
+        <div class="session-body">
+          <div class="session-title">Closing Celebration</div>
+          <div class="session-detail">Scavenger hunt prize drawings, recognition for outstanding WCM contributions from last year, and your next steps heading into the school year.</div>
+          <span class="session-tag community">Community</span>
+        </div>
+      </div>
+
+    </div>
+
+    <h2>Toolkits You Will Leave With</h2>
+    <div class="toolkit-grid">
+      <div class="toolkit-card">
+        <div class="toolkit-name">Marketing Toolkit</div>
+        <div class="toolkit-desc">Brand assets, templates, and copy guidelines for all BCPS school content. Your shortcut to on-brand publishing.</div>
+      </div>
+      <div class="toolkit-card">
+        <div class="toolkit-name">ADA Toolkit</div>
+        <div class="toolkit-desc">Accessibility checklist, remediation tools, and compliance resources. Stay WCAG 2.2 AA compliant all year.</div>
+      </div>
+      <div class="toolkit-card">
+        <div class="toolkit-name">WCM Toolkit</div>
+        <div class="toolkit-desc">Finalsite guides, video tutorials, and the WCM quick reference card. Everything you need, in one place.</div>
+      </div>
+    </div>
+
+    <h2>Planning Action Items</h2>
+    <div class="section-block">
+      <div class="action-group-label">Sean A. Russell - Website Governance Consultant</div>
+      <div class="action-item">
+        <div class="action-num">1</div>
+        <div class="action-body">
+          <div class="action-title">Finalize the Top 10 countdown framework and content</div>
+          <div class="action-detail">Build out the full script and supporting content for each of the 10 countdown items. Confirm school-specific details for #4 through #6.</div>
+          <div class="action-owner">Owner: Sean A. Russell</div>
+          <div class="action-deadline">Due: TBD</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-num">2</div>
+        <div class="action-body">
+          <div class="action-title">Prepare the Marketing Toolkit walkthrough for #3</div>
+          <div class="action-detail">Build the live demo of the Marketing Toolkit to be used during the countdown and Toolkit Showcase segments.</div>
+          <div class="action-owner">Owner: Sean A. Russell</div>
+          <div class="action-deadline">Due: TBD</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-num">3</div>
+        <div class="action-body">
+          <div class="action-title">Build the Toolkit Showcase demo for all three toolkits</div>
+          <div class="action-detail">Prepare a live walkthrough of the Marketing Toolkit, ADA Toolkit, and WCM Toolkit for the 10:00 AM showcase segment.</div>
+          <div class="action-owner">Owner: Sean A. Russell</div>
+          <div class="action-deadline">Due: TBD</div>
+        </div>
+      </div>
+
+      <div class="action-group-label">Vanessa</div>
+      <div class="action-item">
+        <div class="action-num">4</div>
+        <div class="action-body">
+          <div class="action-title">Contact Farrah to confirm room availability</div>
+          <div class="action-detail">Confirm venue for the Schools session (Friday date) and the Departments session (Thursday date). Room at current location confirmed as having projector and multi-screen capability.</div>
+          <div class="action-owner">Owner: Vanessa</div>
+          <div class="action-deadline">Due: Monday / Upon Return</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-num">5</div>
+        <div class="action-body">
+          <div class="action-title">Set up Rad Lab registration</div>
+          <div class="action-detail">Coordinate with Rudy and Erica to create registration sessions in Rad Lab. Two separate sections (one per day), 60-person limit per session. Invitation to go to ALL WCMs - including those not yet assigned by their principal.</div>
+          <div class="action-owner">Owner: Vanessa / Rudy</div>
+          <div class="action-deadline">Due: Start of Next Week</div>
+        </div>
+      </div>
+
+      <div class="action-group-label">Team</div>
+      <div class="action-item">
+        <div class="action-num">6</div>
+        <div class="action-body">
+          <div class="action-title">Design the scavenger hunt card and place items throughout the program</div>
+          <div class="action-detail">Create the scavenger hunt card with icons and phrases hidden throughout the kickoff program. Determine placement for Schools session.</div>
+          <div class="action-owner">Owner: Team</div>
+          <div class="action-deadline">Due: TBD</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-num">7</div>
+        <div class="action-body">
+          <div class="action-title">Source prizes for scavenger hunt and team challenges</div>
+          <div class="action-detail">Procure gift cards, BCPS swag, and a grand prize for the closing celebration drawings.</div>
+          <div class="action-owner">Owner: Team</div>
+          <div class="action-deadline">Due: TBD</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-num">8</div>
+        <div class="action-body">
+          <div class="action-title">Assign speakers to countdown topics</div>
+          <div class="action-detail">Determine who presents each countdown item. Identify comfort levels across the team. Note: Marketing Toolkit (#3) to be led by Sean unless otherwise decided.</div>
+          <div class="action-owner">Owner: Team</div>
+          <div class="action-deadline">Due: Next Meeting</div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Next Steps - Schools</h2>
+    <div class="section-block">
+      <div class="timeline-row">
+        <div class="timeline-date">Now</div>
+        <div class="timeline-text"><strong>Venue and date confirmed.</strong> Vanessa contacts Farrah to lock Schools session (Friday) and Departments session (Thursday) at the current location.</div>
+      </div>
+      <div class="timeline-row">
+        <div class="timeline-date">Next Week</div>
+        <div class="timeline-text"><strong>Registration opens via Rad Lab.</strong> All WCMs invited - including those not yet formally assigned by their principal. 60-person limit per session.</div>
+      </div>
+      <div class="timeline-row">
+        <div class="timeline-date">1 Week Before</div>
+        <div class="timeline-text"><strong>Pre-kickoff communications go out.</strong> WCMs confirm Finalsite access. Scavenger hunt cards and program materials finalized.</div>
+      </div>
+      <div class="timeline-row highlight">
+        <div class="timeline-date">Kickoff Day</div>
+        <div class="timeline-text"><strong>Schools Kickoff - Friday, TBD.</strong> 8:00 AM - 11:00 AM. WCMs leave with three toolkits, a scavenger hunt win, new connections, and a clear plan for the year.</div>
+      </div>
+      <div class="timeline-row">
+        <div class="timeline-date">30 Days After</div>
+        <div class="timeline-text"><strong>Post-kickoff follow-up.</strong> Office of Communications reviews a sample of school sites for back-to-school readiness. Results shared at the first quarterly check-in.</div>
+      </div>
+    </div>
+
+  </div>
+  <!-- END SCHOOLS PANEL -->
+
+  <!-- ============================== -->
+  <!-- DEPARTMENTS PANEL              -->
+  <!-- ============================== -->
+  <div class="audience-panel" id="panel-departments" role="tabpanel" aria-labelledby="tab-departments">
+
+    <div class="theme-banner">
+      <div class="theme-eyebrow">2026 WCM Kickoff Theme - Departments</div>
+      <div class="theme-title">Connect - Learn - Lead</div>
+      <p class="theme-subtitle">Strengthening Our WCM Community. Together we connect, learn, and lead - and tell the story of BCPS.</p>
+    </div>
+
+    <div class="outcome-banner">
+      <div class="outcome-label">Goal for the Day</div>
+      <p>Every department-based WCM leaves with a clear understanding of 2026-27 district standards, a stronger governance workflow, and a peer network across central office departments.</p>
+    </div>
+
+    <h2>Kickoff Objectives</h2>
+    <div class="section-block">
+      <div class="objective-item">
+        <div class="objective-num">1</div>
+        <div class="objective-text"><strong>Celebrate the WCM community</strong> and build new connections across departments in the district.</div>
+      </div>
+      <div class="objective-item">
+        <div class="objective-num">2</div>
+        <div class="objective-text"><strong>Share the Top 10 most impactful web content updates</strong> for the 2026-27 school year.</div>
+      </div>
+      <div class="objective-item">
+        <div class="objective-num">3</div>
+        <div class="objective-text"><strong>Introduce and demo the three core toolkits:</strong> Marketing, ADA, and WCM.</div>
+      </div>
+      <div class="objective-item">
+        <div class="objective-num">4</div>
+        <div class="objective-text"><strong>Make it fun</strong> - scavenger hunt, prizes, interactive activities, and community recognition.</div>
+      </div>
+      <div class="objective-item">
+        <div class="objective-num">5</div>
+        <div class="objective-text"><strong>Build confidence and clarity</strong> around Finalsite, district web standards, and compliance heading into the new year.</div>
+      </div>
+      <div class="objective-item">
+        <div class="objective-num">6</div>
+        <div class="objective-text"><strong>Leave with commitments, connections, and a clear game plan</strong> for the year ahead.</div>
+      </div>
+    </div>
+
+    <!-- SCAVENGER HUNT CALLOUT -->
+    <div class="scavenger-callout">
+      <div class="scavenger-label">Today's Challenge</div>
+      <div class="scavenger-title">Scavenger Hunt</div>
+      <div class="scavenger-detail">Your scavenger hunt card is included in your welcome packet. Hidden throughout today's program are icons and phrases - find them all and turn in your completed card at the Closing Celebration for a chance to win. Multiple winners. Grand prize included.</div>
+      <div class="prize-row">
+        <span class="prize-tag">Gift Cards</span>
+        <span class="prize-tag">BCPS Swag</span>
+        <span class="prize-tag">Grand Prize</span>
+      </div>
+    </div>
+
+    <h2>Program - Departments | Thursday, TBD</h2>
+    <div class="section-block">
+
+      <div class="session-item">
+        <div class="session-time">8:00 AM</div>
+        <div class="session-body">
+          <div class="session-title">Welcome + Community Kickoff</div>
+          <div class="session-detail">Icebreaker activity, theme reveal, recognition of returning WCMs, and the energy you need to start the year right. Music included.</div>
+          <span class="session-tag keynote">Keynote</span>
+          <span class="session-tag community">Community</span>
+        </div>
+      </div>
+
+      <div class="session-item">
+        <div class="session-time">8:30 AM</div>
+        <div class="session-body">
+          <div class="session-title">Top 10 Countdown</div>
+          <div class="session-detail">Ten things every department WCM needs to know for the 2026-27 school year - counted down from 10 to 1. Interactive activities woven throughout.</div>
+          <span class="session-tag training">Training</span>
+        </div>
+      </div>
+
+    </div>
+
+    <h2>The Top 10 Countdown - Departments</h2>
+    <div class="section-block countdown-list">
+
+      <div class="countdown-item">
+        <div class="countdown-num">#10</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Content Cleanup and Audit</div>
+          <div class="countdown-detail">A fresh start means a clean site. Review outdated pages, broken links, archived documents, and stale listings. We will walk through the content audit process and the district tools available to identify what needs to go before the year begins.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num">#9</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Accessibility and ADA Compliance</div>
+          <div class="countdown-detail">Accessible content is not optional. We will cover the key requirements that apply to every department page - what the most common compliance failures are, and how to remediate them before they become district-level issues.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num">#8</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Calendar Connections</div>
+          <div class="countdown-detail">Your calendar drives traffic and internal coordination. We will cover how to connect departmental events, sync with district calendars, format entries for readability, and make sure nothing critical falls through the cracks.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="activity-break">
+      <div class="activity-badge">Activity Break</div>
+      <div class="activity-text"><strong>Quick Networking Prop:</strong> Turn to someone you have not met today and share your biggest web content challenge from last year. You have 90 seconds. Go.</div>
+    </div>
+
+    <div class="section-block countdown-list">
+
+      <div class="countdown-item">
+        <div class="countdown-num">#7</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Photography and Media Standards</div>
+          <div class="countdown-detail">Department pages set the visual standard for the district. We will review the district photo standards, image formatting and compression requirements, document standards, and the proper use of media in line with district policy.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num">#6</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Department News and Announcements</div>
+          <div class="countdown-detail">Department announcements reach staff, families, and the public. We will cover the announcement format, how to use the news module effectively, and best practices for headlines, summaries, and calls to action that serve a district-wide audience.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num">#5</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Home Page Banner Best Practices</div>
+          <div class="countdown-detail">The banner is the first thing anyone sees on your department page. We will cover what belongs in a department banner, what should never be there, how to write effective banner copy, and how to rotate content throughout the year.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="activity-break">
+      <div class="activity-badge">Activity Break</div>
+      <div class="activity-text"><strong>Stretch Break + Mini Poll:</strong> Stand up, stretch, then cast your vote on today's most surprising countdown item so far.</div>
+    </div>
+
+    <div class="section-block countdown-list">
+
+      <div class="countdown-item">
+        <div class="countdown-num">#4</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Overview Page and Media Best Practices</div>
+          <div class="countdown-detail">Your overview page is your department's front door. We will walk through what belongs at the top, how to organize resources for internal and external audiences, and the media and document standards unique to department-level publishing.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num">#3</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Marketing Toolkit Integration</div>
+          <div class="countdown-detail">The Marketing Toolkit is your shortcut to on-brand, district-approved content. We will do a live walkthrough of everything in the toolkit - templates, graphic standards, copy guidelines, and how to coordinate with the communications team on department content needs.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="activity-break">
+      <div class="activity-badge">Team Challenge</div>
+      <div class="activity-text"><strong>60-Second Challenge:</strong> Your table has 60 seconds to name as many BCPS website modules as possible. Team with the most wins a prize.</div>
+    </div>
+
+    <div class="section-block countdown-list">
+
+      <div class="countdown-item">
+        <div class="countdown-num">#2</div>
+        <div class="countdown-body">
+          <div class="countdown-title">WCM Community and Collaboration</div>
+          <div class="countdown-detail">You are not in this alone. We will spotlight the department WCM peer network, introduce this year's shared resource channels, and give everyone a chance to meet and connect with WCMs from departments across the district.</div>
+        </div>
+      </div>
+
+      <div class="countdown-item">
+        <div class="countdown-num top">#1</div>
+        <div class="countdown-body">
+          <div class="countdown-title">Future of BCPS Digital Communications</div>
+          <div class="countdown-detail">The most important countdown spot. We will share what is coming in the year ahead - new tools, new standards, new district web initiatives - and what WCMs need to know to stay ahead of the curve. The future is bright and you are part of it.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- REST OF PROGRAM -->
+    <div class="section-block">
+
+      <div class="session-item">
+        <div class="session-time">10:00 AM</div>
+        <div class="session-body">
+          <div class="session-title">Toolkit Showcase</div>
+          <div class="session-detail">Live demo of all three toolkits you will use this year. Know where to find them, how to use them, and who to contact when you need support.</div>
+          <span class="session-tag hands-on">Hands-On</span>
+        </div>
+      </div>
+
+      <div class="session-item">
+        <div class="session-time">10:30 AM</div>
+        <div class="session-body">
+          <div class="session-title">Community Commitments</div>
+          <div class="session-detail">Before we close, every WCM shares one commitment for the year. What will you do differently on your department page? What will you bring back to your team?</div>
+          <span class="session-tag community">Community</span>
+        </div>
+      </div>
+
+      <div class="session-item">
+        <div class="session-time">10:45 AM</div>
+        <div class="session-body">
+          <div class="session-title">Closing Celebration</div>
+          <div class="session-detail">Scavenger hunt prize drawings, recognition for outstanding WCM contributions from last year, and your next steps heading into the school year.</div>
+          <span class="session-tag community">Community</span>
+        </div>
+      </div>
+
+    </div>
+
+    <h2>Toolkits You Will Leave With</h2>
+    <div class="toolkit-grid">
+      <div class="toolkit-card">
+        <div class="toolkit-name">Marketing Toolkit</div>
+        <div class="toolkit-desc">Brand assets, templates, and copy guidelines for all BCPS department content. Your shortcut to on-brand publishing.</div>
+      </div>
+      <div class="toolkit-card">
+        <div class="toolkit-name">ADA Toolkit</div>
+        <div class="toolkit-desc">Accessibility checklist, remediation tools, and compliance resources. Stay WCAG 2.2 AA compliant all year.</div>
+      </div>
+      <div class="toolkit-card">
+        <div class="toolkit-name">WCM Toolkit</div>
+        <div class="toolkit-desc">Finalsite guides, video tutorials, and the WCM quick reference card. Everything you need, in one place.</div>
+      </div>
+    </div>
+
+    <h2>Planning Action Items</h2>
+    <div class="section-block">
+      <div class="action-group-label">Sean A. Russell - Website Governance Consultant</div>
+      <div class="action-item">
+        <div class="action-num">1</div>
+        <div class="action-body">
+          <div class="action-title">Finalize the Top 10 countdown framework and content</div>
+          <div class="action-detail">Build out the full script and supporting content for each of the 10 countdown items. Confirm department-specific details for #4 through #6.</div>
+          <div class="action-owner">Owner: Sean A. Russell</div>
+          <div class="action-deadline">Due: TBD</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-num">2</div>
+        <div class="action-body">
+          <div class="action-title">Prepare the Marketing Toolkit walkthrough for #3</div>
+          <div class="action-detail">Build the live demo of the Marketing Toolkit to be used during the countdown and Toolkit Showcase segments.</div>
+          <div class="action-owner">Owner: Sean A. Russell</div>
+          <div class="action-deadline">Due: TBD</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-num">3</div>
+        <div class="action-body">
+          <div class="action-title">Build the Toolkit Showcase demo for all three toolkits</div>
+          <div class="action-detail">Prepare a live walkthrough of the Marketing Toolkit, ADA Toolkit, and WCM Toolkit for the 10:00 AM showcase segment.</div>
+          <div class="action-owner">Owner: Sean A. Russell</div>
+          <div class="action-deadline">Due: TBD</div>
+        </div>
+      </div>
+
+      <div class="action-group-label">Vanessa</div>
+      <div class="action-item">
+        <div class="action-num">4</div>
+        <div class="action-body">
+          <div class="action-title">Contact Farrah to confirm room availability</div>
+          <div class="action-detail">Confirm venue for the Departments session (Thursday) and the Schools session (Friday). Room at current location confirmed as having projector and multi-screen capability.</div>
+          <div class="action-owner">Owner: Vanessa</div>
+          <div class="action-deadline">Due: Monday / Upon Return</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-num">5</div>
+        <div class="action-body">
+          <div class="action-title">Set up Rad Lab registration</div>
+          <div class="action-detail">Coordinate with Rudy and Erica to create registration sessions in Rad Lab. Two separate sections (one per day), 60-person limit per session. Invitation to go to ALL WCMs - including those not yet formally assigned by their principal.</div>
+          <div class="action-owner">Owner: Vanessa / Rudy</div>
+          <div class="action-deadline">Due: Start of Next Week</div>
+        </div>
+      </div>
+
+      <div class="action-group-label">Team</div>
+      <div class="action-item">
+        <div class="action-num">6</div>
+        <div class="action-body">
+          <div class="action-title">Design the scavenger hunt card and place items throughout the program</div>
+          <div class="action-detail">Create the scavenger hunt card with icons and phrases hidden throughout the kickoff program. Determine placement for Departments session.</div>
+          <div class="action-owner">Owner: Team</div>
+          <div class="action-deadline">Due: TBD</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-num">7</div>
+        <div class="action-body">
+          <div class="action-title">Source prizes for scavenger hunt and team challenges</div>
+          <div class="action-detail">Procure gift cards, BCPS swag, and a grand prize for the closing celebration drawings.</div>
+          <div class="action-owner">Owner: Team</div>
+          <div class="action-deadline">Due: TBD</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-num">8</div>
+        <div class="action-body">
+          <div class="action-title">Assign speakers to countdown topics</div>
+          <div class="action-detail">Determine who presents each countdown item. Identify comfort levels across the team. Note: Marketing Toolkit (#3) to be led by Sean unless otherwise decided.</div>
+          <div class="action-owner">Owner: Team</div>
+          <div class="action-deadline">Due: Next Meeting</div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Next Steps - Departments</h2>
+    <div class="section-block">
+      <div class="timeline-row">
+        <div class="timeline-date">Now</div>
+        <div class="timeline-text"><strong>Venue and date confirmed.</strong> Vanessa contacts Farrah to lock Departments session (Thursday) and Schools session (Friday) at the current location.</div>
+      </div>
+      <div class="timeline-row">
+        <div class="timeline-date">Next Week</div>
+        <div class="timeline-text"><strong>Registration opens via Rad Lab.</strong> All WCMs invited - including those not yet formally assigned by their principal. 60-person limit per session.</div>
+      </div>
+      <div class="timeline-row">
+        <div class="timeline-date">1 Week Before</div>
+        <div class="timeline-text"><strong>Pre-kickoff communications go out.</strong> WCMs confirm Finalsite access. Scavenger hunt cards and program materials finalized.</div>
+      </div>
+      <div class="timeline-row highlight">
+        <div class="timeline-date">Kickoff Day</div>
+        <div class="timeline-text"><strong>Departments Kickoff - Thursday, TBD.</strong> 8:00 AM - 11:00 AM. WCMs leave with three toolkits, a scavenger hunt win, new connections, and a clear plan for the year.</div>
+      </div>
+      <div class="timeline-row">
+        <div class="timeline-date">30 Days After</div>
+        <div class="timeline-text"><strong>Post-kickoff follow-up.</strong> Office of Communications reviews department site standards compliance. Results shared at the first quarterly department WCM check-in.</div>
+      </div>
+    </div>
+
+  </div>
+  <!-- END DEPARTMENTS PANEL -->
+
+</main>
+
+<script>
+  var bannerText = {
+    schools: '<strong>You are viewing: Schools.</strong> This session is for school webmasters and office staff who manage school website content on Finalsite. Date: Friday, TBD.',
+    departments: '<strong>You are viewing: Departments.</strong> This session is for central office staff managing department pages. Date: Thursday, TBD.'
+  };
+
+  function switchAudience(audience) {
+    document.querySelectorAll('.audience-panel').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.toggle-pill').forEach(function(b) {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    document.getElementById('panel-' + audience).classList.add('active');
+    document.getElementById('tab-' + audience).classList.add('active');
+    document.getElementById('tab-' + audience).setAttribute('aria-selected', 'true');
+    document.getElementById('audience-banner').innerHTML = bannerText[audience];
+  }
+</script>
+
+</body>
+</html>

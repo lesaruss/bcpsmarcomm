@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BCPS Website Governance Plan - K12 Unlocked</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+--bcps-blue: #1672A7; --bcps-blue-dark: #0e4e73; --bcps-green: #16750C; --bcps-orange: #C55326;
+--bg: #f5f5f5; --surface: #ffffff; --surface2: #fafafa;
+--border: rgba(0,0,0,0.08); --text: #1a1a1a;
+--text-75: rgba(26,26,26,0.78); --text-50: rgba(26,26,26,0.55);
+--text-30: rgba(26,26,26,0.35);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+header.bcps-header { position: fixed; top: 0; left: 0; right: 0; z-index: 200; height: 64px; background: #ffffff; border-bottom: 3px solid var(--bcps-blue); display: flex; align-items: center; padding: 0 28px; gap: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+.bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+.bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+main { max-width: 1060px; margin: 0 auto; padding: 100px 28px 80px; }
+.doc-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin-bottom: 12px; }
+h1 { font-size: clamp(26px, 4vw, 44px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 20px; color: var(--text); }
+h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+p { font-size: 14px; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+p strong { color: var(--text); font-weight: 700; }
+.meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; padding-bottom: 32px; border-bottom: 2px solid var(--bcps-blue); }
+.meta-item { display: flex; flex-direction: column; gap: 4px; }
+.meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+.meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+.audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.25); border-left: 4px solid var(--bcps-blue); border-radius: 4px; padding: 16px 20px; margin-bottom: 32px; }
+.audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+.audience-banner p strong { color: var(--bcps-blue-dark); }
+.source-card { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--bcps-blue); border-radius: 4px; padding: 18px 22px; margin-bottom: 14px; }
+.source-card .source-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: var(--bcps-blue); margin-bottom: 6px; }
+.source-card .source-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.source-card .source-meta { font-size: 12px; color: var(--text-50); }
+.raci-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+.raci-table th { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: #ffffff; text-align: left; padding: 10px 14px; background: var(--bcps-blue); }
+.raci-table td { font-size: 13px; color: var(--text-75); padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.raci-table tr:last-child td { border-bottom: none; }
+.raci-table td:first-child { font-weight: 600; color: var(--text); }
+.raci-table tr:nth-child(even) td { background: var(--surface2); }
+.action-item { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.action-item:last-child { border-bottom: none; }
+.action-num { font-size: 20px; font-weight: 900; color: var(--bcps-blue); min-width: 32px; line-height: 1; }
+.action-body .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.action-body .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+.action-body .action-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); margin-top: 6px; }
+.section-block { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--bcps-blue); border-radius: 4px; padding: 24px; margin-bottom: 20px; }
+.section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
+.tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 3px; margin: 2px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+.tag.open { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.3); color: var(--bcps-blue-dark); }
+.timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+.timeline-row:last-child { border-bottom: none; }
+.timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 110px; padding-top: 2px; }
+.timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+.timeline-text strong { color: var(--text); }
+footer.site-footer { border-top: 3px solid var(--bcps-blue); padding: 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; background: var(--bcps-blue-dark); }
+.footer-mark { font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.6); }
+.footer-copy { font-size: 10px; color: rgba(255,255,255,0.4); }
+@media (max-width: 768px) { main { padding: 80px 16px 60px; } .meta-row { gap: 16px; } }
+</style>
+</head>
+<body>
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">Website Governance Plan</span>
+</header>
+<main>
+<p class="doc-label">BCPS / Internal Working Document</p>
+<h1>Website Governance Plan</h1>
+<div class="meta-row">
+<div class="meta-item"><span class="meta-label">Prepared</span><span class="meta-value">May 21, 2026</span></div>
+<div class="meta-item"><span class="meta-label">Prepared by</span><span class="meta-value">Sean A. Russell</span></div>
+<div class="meta-item"><span class="meta-label">Version</span><span class="meta-value">Draft v2, Internal Staff</span></div>
+<div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">BCPS School Website Templates, Finalsite, WCM Program</span></div>
+</div>
+<div class="audience-banner">
+<p><strong>Audience: Enterprise Application Services Team</strong> - Farrah Wilson, Vanessa Deslandes, Felicia Hicks, Tricia Allen, Charlene Collins, and school-level content editors. This document covers operational website governance only. Google Workspace and district-level platform governance are addressed in a separate document for district and school board leadership.</p>
+</div>
+<h2>Source Meetings</h2>
+<div class="source-card">
+<div class="source-label">Primary Source</div>
+<div class="source-title">Call with Farrah and Vanessa (and Felicia Hicks)</div>
+<div class="source-meta">May 6, 2026 -- 10:34 AM, Microsoft Teams -- 47 minutes -- Participants: Sean A. Russell, Farrah A. Wilson, Vanessa C. Deslandes, Felicia C. Hicks</div>
+</div>
+<div class="source-card">
+<div class="source-label">Supporting Source</div>
+<div class="source-title">WCM Certification Pilot</div>
+<div class="source-meta">May 6, 2026 -- Microsoft Teams -- Organized by Vanessa C. Deslandes -- Web Content Manager certification pilot for school-level content editors</div>
+</div>
+<h2>Overview</h2>
+<p>This document establishes the governance framework for BCPS school websites managed through the Finalsite platform. It captures decisions and agreed actions from the May 6 working session with Farrah Wilson and Vanessa Deslandes, covering website template standards, the school template change request process, and the WCM certification program for school content editors.</p>
+<p>The core governance challenge is that individual schools are requesting custom template deviations - the immediate example being Pompano Beach High School's Magnet Program focus request - while the district maintains a standardized template system under an IT contract. Any template changes require alignment across multiple stakeholders before implementation, and that alignment process was not clearly defined until this working session.</p>
+<h2>Open Issues</h2>
+<div class="section-block">
+<h3>Active Items Requiring Team Decisions</h3>
+<div class="action-item">
+<div class="action-num">01</div>
+<div class="action-body">
+<div class="action-title">Pompano Beach High School - Magnet Program Template Request</div>
+<div class="action-detail">Pompano Beach High reached out requesting a new template or custom option that allows them to spotlight their Magnet Program more prominently. The current standard Finalsite template does not accommodate this level of customization without a broader template policy decision. No response has been given to the school yet - this is on hold until the team aligns.</div>
+<div class="action-owner">Owner: Vanessa C. Deslandes -- Status: <span class="tag open">Pending team decision</span></div>
+</div>
+</div>
+<div class="action-item">
+<div class="action-num">02</div>
+<div class="action-body">
+<div class="action-title">Activities / Athletics Button - Middle and High Schools</div>
+<div class="action-detail">Pending decision: is the Activities/Athletics button being added to all middle and high school templates? The group did not reach a conclusion in the May 6 call. Key questions: does this affect all middle and high schools or selected ones, who needs to sign off, and does it require a Finalsite contract amendment? This is being brought to the Friday team meeting.</div>
+<div class="action-owner">Owner: Farrah A. Wilson -- Status: <span class="tag open">Pending Friday team meeting</span></div>
+</div>
+</div>
+<div class="action-item">
+<div class="action-num">03</div>
+<div class="action-body">
+<div class="action-title">Homepage Video / Banner - Back-to-School</div>
+<div class="action-detail">Homepage video and banner for back-to-school need to be finalized and confirmed as tested. Flagged in the May 12 Enterprise Application Services meeting as an active workstream with a completion confirmation still outstanding.</div>
+<div class="action-owner">Owner: Enterprise Application Services Team -- Status: <span class="tag open">Finalization in progress</span></div>
+</div>
+</div>
+<div class="action-item">
+<div class="action-num">04</div>
+<div class="action-body">
+<div class="action-title">WCM Certification Program - Rollout and Coverage</div>
+<div class="action-detail">Vanessa ran the WCM Certification Pilot on May 6. Next steps for rolling out the certification to remaining school content editors need to be confirmed: which schools are covered, what the timeline is, and how certification status is tracked and enforced for access to template editing tools.</div>
+<div class="action-owner">Owner: Vanessa C. Deslandes -- Status: <span class="tag open">Pilot complete, rollout TBD</span></div>
+</div>
+</div>
+</div>
+<h2>Governance Structure</h2>
+<div class="section-block">
+<h3>RACI: School Website Template Management</h3>
+<table class="raci-table" aria-label="RACI chart for BCPS website template governance">
+<thead>
+<tr><th>Area</th><th>Responsible</th><th>Accountable</th><th>Consulted</th><th>Informed</th></tr>
+</thead>
+<tbody>
+<tr><td>Template Design Standards</td><td>Vanessa C. Deslandes</td><td>Farrah A. Wilson</td><td>Tricia Allen, Charlene Collins</td><td>Sean A. Russell, School Admins</td></tr>
+<tr><td>Template Change Requests (Schools)</td><td>Vanessa C. Deslandes</td><td>Farrah A. Wilson</td><td>Sean A. Russell, Tricia Allen</td><td>School Principals, Charlene Collins</td></tr>
+<tr><td>Finalsite Contract (IT)</td><td>Charlene A. Collins</td><td>Charlene A. Collins</td><td>Farrah A. Wilson, Tricia Allen</td><td>All stakeholders</td></tr>
+<tr><td>WCM Certification Program</td><td>Vanessa C. Deslandes</td><td>Tricia A. Allen</td><td>Farrah A. Wilson</td><td>School Content Editors, IT Dept.</td></tr>
+<tr><td>Homepage and District-Wide Updates</td><td>Enterprise Application Services Team</td><td>Farrah A. Wilson</td><td>Sean A. Russell, Communications</td><td>School Admins, District Leadership</td></tr>
+</tbody>
+</table>
+</div>
+<h2>Template Change Request Process</h2>
+<div class="section-block">
+<h3>How Schools Request Template Changes</h3>
+<p>This process was defined in the May 6 working session. All school template requests follow this path before any implementation begins.</p>
+<div class="action-item">
+<div class="action-num">1</div>
+<div class="action-body">
+<div class="action-title">School submits request to Vanessa Deslandes</div>
+<div class="action-detail">Schools communicate template requests through the WCM program. The request must include the specific need, the business or educational justification, and the proposed scope of the change.</div>
+</div>
+</div>
+<div class="action-item">
+<div class="action-num">2</div>
+<div class="action-body">
+<div class="action-title">Vanessa reviews against current Finalsite contract scope</div>
+<div class="action-detail">Vanessa determines whether the request falls within the existing contract or requires a contract amendment. If there is any question about contract scope, Charlene Collins is consulted before the request advances.</div>
+</div>
+</div>
+<div class="action-item">
+<div class="action-num">3</div>
+<div class="action-body">
+<div class="action-title">Farrah Wilson approves or escalates</div>
+<div class="action-detail">Farrah makes the call. If the change is within contract scope and does not affect other schools or district-wide template standards, she can approve directly. If the change would affect the district-wide template or set a precedent, it escalates to the team meeting.</div>
+</div>
+</div>
+<div class="action-item">
+<div class="action-num">4</div>
+<div class="action-body">
+<div class="action-title">Give Tricia and Charlene a heads-up before team meeting (if escalated)</div>
+<div class="action-detail">Vanessa emphasized this in the May 6 call: Charlene Collins and Tricia Allen must be informed before any team discussion. The website template contract falls under IT and impacts broader decisions. This heads-up is not optional.</div>
+</div>
+</div>
+<div class="action-item">
+<div class="action-num">5</div>
+<div class="action-body">
+<div class="action-title">Friday team meeting alignment</div>
+<div class="action-detail">Escalated requests are presented at the Friday Enterprise Application Services meeting. Sean presents the request, stakeholders weigh in, and a decision is made. No commitments are given to the requesting school until after this step.</div>
+</div>
+</div>
+<div class="action-item">
+<div class="action-num">6</div>
+<div class="action-body">
+<div class="action-title">Implementation and school communication</div>
+<div class="action-detail">Upon approval, Vanessa coordinates implementation with the Finalsite team. The school is notified of the outcome. If the change requires WCM re-certification for the school's editors, Vanessa handles that alongside implementation.</div>
+</div>
+</div>
+</div>
+<h2>Immediate Next Steps</h2>
+<div class="section-block">
+<h3>Agreed Actions from the May 6 Call</h3>
+<div class="action-item">
+<div class="action-num">01</div>
+<div class="action-body">
+<div class="action-title">Present website template governance at Friday team meeting</div>
+<div class="action-detail">Sean presents the May 6 discussion to the broader Enterprise Application Services team for feedback and alignment before any template decisions are finalized. The Activities/Athletics button question and the Pompano Beach request are both on the agenda.</div>
+<div class="action-owner">Owner: Sean A. Russell -- Status: <span class="tag open">Pending</span></div>
+</div>
+</div>
+<div class="action-item">
+<div class="action-num">02</div>
+<div class="action-body">
+<div class="action-title">Give Tricia Allen and Charlene Collins a heads-up before Friday</div>
+<div class="action-detail">Vanessa's explicit instruction from the May 6 call: Charlene and Tricia must be informed before the team meeting. Not after. The contract ownership and IT implications need to be flagged to them in advance so they can come prepared.</div>
+</div>
+</div>
+<div class="action-item">
+<div class="action-num">03</div>
+<div class="action-body">
+<div class="action-title">Distribute these meeting notes to all May 6 attendees</div>
+<div class="action-detail">Sean committed on the May 6 call to capturing and distributing notes so all attendees have a shared baseline going into the Friday discussion. This document fulfills that commitment. Distribute to Farrah, Vanessa, and Felicia.</div>
+<div class="action-owner">Owner: Sean A. Russell -- Status: <span class="tag open">This document</span></div>
+</div>
+</div>
+<div class="action-item">
+<div class="action-num">04</div>
+<div class="action-body">
+<div class="action-title">Hold on Pompano Beach response until team decides</div>
+<div class="action-detail">No response goes to Pompano Beach High School until after the Friday team meeting. Vanessa follows up with the school once the team has aligned on the template change request policy.</div>
+<div class="action-owner">Owner: Vanessa C. Deslandes -- Status: <span class="tag open">Pending team decision</span></div>
+</div>
+</div>
+</div>
+<h2>WCM Certification Program</h2>
+<div class="section-block">
+<h3>Web Content Manager Certification</h3>
+<p>Vanessa Deslandes runs the WCM Certification Program, which trains and certifies school-level content editors to use the Finalsite template system correctly. The certification pilot ran May 6, 2026. Certified editors are the only staff with access to template editing functions for their school's site.</p>
+<p>The certification program is the primary mechanism for ensuring schools use templates within approved standards. Schools that have not certified their editors cannot make template changes independently. This is enforced at the access level, not just policy.</p>
+<p>Next steps: confirm which schools have certified editors, which are scheduled for upcoming cohorts, and which have no active certified editors and are currently relying on Vanessa's team for all content updates.</p>
+</div>
+<h2>Timeline</h2>
+<div class="section-block">
+<h3>Key Milestones</h3>
+<div class="timeline-row"><div class="timeline-date">May 6, 2026</div><div class="timeline-text"><strong>Working session</strong> with Farrah, Vanessa, and Felicia. Website template governance and Pompano Beach request reviewed. WCM Certification Pilot held same day. Three immediate actions agreed.</div></div>
+<div class="timeline-row"><div class="timeline-date">Before Friday meeting</div><div class="timeline-text"><strong>Tricia Allen and Charlene Collins</strong> receive heads-up about template governance discussion. Meeting notes distributed to May 6 attendees.</div></div>
+<div class="timeline-row"><div class="timeline-date">Friday team meeting</div><div class="timeline-text"><strong>Enterprise Application Services team</strong> reviews and aligns on template governance framework, Activities/Athletics button scope, and Pompano Beach response.</div></div>
+<div class="timeline-row"><div class="timeline-date">After team alignment</div><div class="timeline-text"><strong>Pompano Beach High School</strong> receives response from Vanessa. Template change request process formalized and communicated to all schools.</div></div>
+<div class="timeline-row"><div class="timeline-date">Ongoing</div><div class="timeline-text"><strong>WCM Certification</strong> rollout continues. Remaining schools are certified. Homepage video and banner for back-to-school finalized and deployed.</div></div>
+</div>
+<h2>Key Stakeholders</h2>
+<div class="section-block">
+<h3>Who Is in This Work</h3>
+<table class="raci-table" aria-label="Stakeholder directory">
+<thead>
+<tr><th>Name</th><th>Role</th><th>Responsibility in Website Governance</th></tr>
+</thead>
+<tbody>
+<tr><td>Farrah A. Wilson</td><td>BCPS - Enterprise Application Services</td><td>Decision authority on template changes and site standards</td></tr>
+<tr><td>Vanessa C. Deslandes</td><td>BCPS - Web Content Management</td><td>Day-to-day template governance, school intake, WCM certification program</td></tr>
+<tr><td>Felicia C. Hicks</td><td>BCPS</td><td>Participant in May 6 working session</td></tr>
+<tr><td>Tricia A. Allen</td><td>BCPS - Enterprise Application Services</td><td>Must be consulted on IT contract alignment before any team meeting</td></tr>
+<tr><td>Charlene A. Collins</td><td>BCPS - IT</td><td>Holds the Finalsite contract; consulted on contract scope questions</td></tr>
+<tr><td>Sean A. Russell</td><td>BCPS / LESARUSS</td><td>Facilitated May 6 session, presents to Friday team meeting, distributes notes</td></tr>
+</tbody>
+</table>
+</div>
+</main>
+<footer style="border-top:1px solid var(--border);padding:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;" role="contentinfo"><span style="font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-50);">BCPS / K12 Unlocked</span><span style="font-size:10px;color:var(--text-50);">&copy; 2026 LESARUSS</span></footer>
+</body>
+</html>

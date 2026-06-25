@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>District Web Team Assignments - Living Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+  .bcps-header-spacer { flex: 1; }
+  .version-pill { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; background: rgba(22,114,167,0.10); color: var(--bcps-blue); border: 1px solid rgba(22,114,167,0.25); border-radius: 20px; padding: 4px 12px; white-space: nowrap; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(22px, 3.5vw, 38px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 6px; }
+  .doc-subtitle { font-size: 13px; font-weight: 600; color: var(--text-50); margin-bottom: 24px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 14px 18px; margin-bottom: 28px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  .version-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 32px; padding: 16px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .version-bar-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-30); margin-right: 4px; white-space: nowrap; }
+  .version-btn { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.10em; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-50); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .version-btn:hover { border-color: var(--bcps-blue); color: var(--bcps-blue); }
+  .version-btn.active { background: var(--bcps-blue); border-color: var(--bcps-blue); color: #fff; }
+  .version-note { font-size: 11px; color: var(--text-30); margin-left: auto; font-style: italic; }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0; margin-bottom: 24px; overflow: hidden; }
+  .section-header { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .section-header h3 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); }
+  .section-count { font-size: 10px; font-weight: 800; background: rgba(22,114,167,0.10); color: var(--bcps-blue); border-radius: 10px; padding: 2px 8px; }
+
+  .col-header-row { display: grid; grid-template-columns: 1fr 160px 120px 120px 80px; gap: 12px; padding: 10px 22px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .col-header-row span { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-30); }
+
+  .assignment-row { display: grid; grid-template-columns: 1fr 160px 120px 120px 80px; gap: 12px; align-items: start; padding: 14px 22px; border-bottom: 1px solid var(--border); transition: background 0.1s; cursor: pointer; }
+  .assignment-row:last-child { border-bottom: none; }
+  .assignment-row:hover { background: rgba(22,114,167,0.04); }
+  .assignment-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .assignment-detail { font-size: 11px; color: var(--text-50); line-height: 1.55; }
+  .assignment-next { font-size: 11px; color: var(--text-75); font-style: italic; line-height: 1.5; }
+  .assignment-desc { font-size: 11px; color: var(--text-50); line-height: 1.55; margin-top: 2px; }
+  .assignment-lead { font-size: 11px; font-weight: 700; color: var(--text); }
+  .assignment-support { font-size: 10px; color: var(--text-50); margin-top: 3px; }
+  .assignment-deadline { font-size: 11px; font-weight: 700; color: var(--bcps-orange); }
+  .assignment-deadline.past { color: #b91c1c; }
+  .assignment-deadline.none { color: var(--text-30); font-weight: 400; }
+
+  .status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+  .status-badge.in-progress { background: rgba(22,114,167,0.10); border: 1px solid rgba(22,114,167,0.25); color: var(--bcps-blue-dark); }
+  .status-badge.not-started { background: rgba(26,26,26,0.06); border: 1px solid rgba(26,26,26,0.12); color: var(--text-50); }
+  .status-badge.pending { background: rgba(197,83,38,0.08); border: 1px solid rgba(197,83,38,0.25); color: var(--bcps-orange); }
+  .status-badge.completed { background: rgba(22,117,12,0.10); border: 1px solid rgba(22,117,12,0.28); color: var(--bcps-green); }
+  .status-badge.ongoing { background: rgba(22,114,167,0.06); border: 1px solid rgba(22,114,167,0.18); color: var(--bcps-blue); }
+  .status-badge::before { content: ""; display: block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* NOTES BUTTON */
+  .notes-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; color: var(--text-50); background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; cursor: pointer; transition: all 0.15s; white-space: nowrap; width: fit-content; }
+  .notes-btn:hover { border-color: var(--bcps-blue); color: var(--bcps-blue); background: rgba(22,114,167,0.05); }
+  .notes-btn .note-count { font-size: 9px; font-weight: 900; background: var(--bcps-blue); color: #fff; border-radius: 8px; padding: 1px 6px; display: none; }
+  .notes-btn .note-count.has-notes { display: inline-block; }
+  .notes-icon { font-size: 12px; line-height: 1; }
+
+  /* COMPLETED TABLE */
+  .completed-grid { display: grid; grid-template-columns: 1fr 120px 140px; gap: 0; }
+  .completed-header { display: contents; }
+  .completed-header > div { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-30); padding: 12px 22px; border-bottom: 1px solid var(--border); }
+  .completed-row { display: contents; cursor: pointer; }
+  .completed-row > div { padding: 12px 22px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-75); }
+  .completed-row:last-child > div { border-bottom: none; }
+  .completed-name { font-weight: 700; color: var(--text); }
+
+  .snapshot { display: none; }
+  .snapshot.active { display: block; }
+
+  /* MODAL OVERLAY */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+
+  .modal { background: #fff; border-radius: 12px; width: 100%; max-width: 580px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.18); overflow: hidden; }
+
+  .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; }
+  .modal-header-text { flex: 1; min-width: 0; }
+  .modal-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 4px; line-height: 1.3; }
+  .modal-subtitle { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--bcps-blue); }
+  .modal-close { font-size: 20px; color: var(--text-30); cursor: pointer; padding: 2px 6px; border-radius: 4px; border: none; background: none; line-height: 1; flex-shrink: 0; }
+  .modal-close:hover { color: var(--text); background: var(--surface2); }
+
+  .modal-notes { flex: 1; overflow-y: auto; padding: 0; }
+
+  .note-item { padding: 14px 24px; border-bottom: 1px solid var(--border); }
+  .note-item:last-child { border-bottom: none; }
+  .note-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .note-author { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; color: var(--bcps-blue); }
+  .note-time { font-size: 10px; color: var(--text-30); }
+  .note-text { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .notes-empty { padding: 32px 24px; text-align: center; color: var(--text-30); font-size: 12px; font-style: italic; }
+  .notes-loading { padding: 24px; text-align: center; color: var(--text-30); font-size: 12px; }
+
+  .modal-input { padding: 16px 24px; border-top: 2px solid var(--bcps-blue); background: var(--surface2); display: flex; flex-direction: column; gap: 10px; }
+  .modal-input-row { display: flex; gap: 8px; }
+  .modal-author-input { width: 130px; font-family: inherit; font-size: 12px; font-weight: 600; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text); outline: none; }
+  .modal-author-input:focus { border-color: var(--bcps-blue); }
+  .modal-text-input { flex: 1; font-family: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text); outline: none; resize: none; line-height: 1.5; min-height: 60px; }
+  .modal-text-input:focus { border-color: var(--bcps-blue); }
+  .modal-submit { font-family: inherit; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; padding: 9px 18px; background: var(--bcps-blue); color: #fff; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; transition: background 0.15s; align-self: flex-end; }
+  .modal-submit:hover { background: var(--bcps-blue-dark); }
+  .modal-submit:disabled { background: var(--text-30); cursor: not-allowed; }
+
+  /* RECORDER */
+  .recorder-bar { display: flex; align-items: center; gap: 10px; padding: 10px 0 2px; }
+  .mic-btn { display: inline-flex; align-items: center; gap: 7px; font-family: inherit; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-50); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .mic-btn:hover { border-color: var(--bcps-blue); color: var(--bcps-blue); }
+  .mic-btn.recording { background: #fef2f2; border-color: #dc2626; color: #dc2626; animation: pulse-border 1.2s ease-in-out infinite; }
+  .mic-btn .mic-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .mic-btn.recording .mic-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  @keyframes pulse-border { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.25)} 50%{box-shadow:0 0 0 4px rgba(220,38,38,0.10)} }
+  .live-transcript { flex: 1; font-size: 11px; color: var(--text-50); font-style: italic; line-height: 1.5; min-height: 16px; }
+  .live-transcript.active { color: #dc2626; font-style: normal; }
+  .no-speech-note { font-size: 10px; color: var(--text-30); }
+
+  @media (max-width: 700px) {
+    .assignment-row { grid-template-columns: 1fr 1fr; }
+    .col-header-row { grid-template-columns: 1fr 1fr; }
+    .completed-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">BCPS - Living Team Tracker</span>
+  <div class="bcps-header-spacer"></div>
+  <span class="version-pill" id="current-version-pill">Version 1 - June 10, 2026</span>
+</header>
+
+<main>
+  <h1>District Web Team Assignments</h1>
+  <p class="doc-subtitle">Living tracker - click any row to view or add notes</p>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Last Updated</span>
+      <span class="meta-value" id="meta-last-updated">June 10, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Source</span>
+      <span class="meta-value">District Web Team Assignments (SharePoint)</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Active Assignments</span>
+      <span class="meta-value">28</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Completed</span>
+      <span class="meta-value">24</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value" id="meta-version">v1 - June 10, 2026</span>
+    </div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> Sean A. Russell (District Webmaster), Tricia (Web Team Lead), Vanessa, Felicia, Nakesha, Rudy, Andrea, Melanie, Charlene - District Web Content Management core team</p>
+  </div>
+
+  <h2>Meeting Versions</h2>
+  <div class="version-bar">
+    <span class="version-bar-label">View As Of:</span>
+    <button class="version-btn active" onclick="switchVersion('v1')" data-v="v1">June 10, 2026</button>
+    <span class="version-note">New versions added after each meeting. Click any row to view or add notes.</span>
+  </div>
+
+  <div class="snapshot active" id="snap-v1">
+
+    <!-- GENERAL -->
+    <h2>General</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>General Initiatives</h3><span class="section-count">11 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="wcm-guidelines" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Guidelines</div><div class="assignment-desc">Standards for all WCM contributors. Covers Athletics, Centers, and district-wide sections. Final item before publishing to the WCM Community Hub.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Andrea, Nakesha</div></div>
+        <div><span class="assignment-deadline">June 24, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-wcm-guidelines"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="analytics-dashboard" onclick="openNotes(this)">
+        <div><div class="assignment-name">Analytics Dashboard (Google Governance)</div><div class="assignment-desc">District-wide Google Analytics performance dashboard. Dependent on the Google Governance framework, currently in development by Sean.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 19, 2026</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-analytics-dashboard"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="back-to-school" onclick="openNotes(this)">
+        <div><div class="assignment-name">Back to School</div><div class="assignment-desc">Annual back-to-school campaign web update. Includes banners, shared app content, and landing pages. June 22 internal kickoff; July 13 go-live target.</div></div>
+        <div><div class="assignment-lead">Felicia</div><div class="assignment-support">Vanessa, Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 12, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-back-to-school"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="wcm-audits-schools" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Audits - Schools</div><div class="assignment-desc">School-level WCM compliance audits. Currently tracking a 9% failure rate. JT and Rudy reviewing findings; Nakesha manages dashboards and status emails.</div></div>
+        <div><div class="assignment-lead">Nakesha</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-wcm-audits-schools"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="wcm-audits-departments" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Audits - Departments</div><div class="assignment-desc">Compliance audits for all district departments. Goal is full audit completion or delivery to individual WCMs for self-remediation.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline">June 14, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-wcm-audits-departments"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="department-audit-dashboards" onclick="openNotes(this)">
+        <div><div class="assignment-name">Department Audit Dashboards</div><div class="assignment-desc">Dashboards tracking department audit completion. Needs embed element added to WCM Hub. Brannon to match school dashboard colors. Deadline: June 15.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Vanessa, Brannon</div></div>
+        <div><span class="assignment-deadline">June 15, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-department-audit-dashboards"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="security-concerns" onclick="openNotes(this)">
+        <div><div class="assignment-name">Security Concerns</div><div class="assignment-desc">Evaluating WCM Hub lockdown and access control options. Vanessa and Sean working session June 10. FinalSite has a passcode/lockdown feature under review.</div></div>
+        <div><div class="assignment-lead">Tricia</div><div class="assignment-support">Vanessa, Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">Aug 10, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-security-concerns"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="google-governance" onclick="openNotes(this)">
+        <div><div class="assignment-name">Google Governance</div><div class="assignment-desc">Governance framework for all Google tools used across the district. Draft to be authored by Sean and shared with the team before the Analytics Dashboard can advance.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 17, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-google-governance"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="school-department-changes" onclick="openNotes(this)">
+        <div><div class="assignment-name">School and Department Changes</div><div class="assignment-desc">Coordinating web updates for structural changes across schools and departments. Team huddle scheduled to align on response details and next steps.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-school-department-changes"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="kick-off" onclick="openNotes(this)">
+        <div><div class="assignment-name">Kick Off</div><div class="assignment-desc">Annual team kickoff event at Pompano Beach HS auditorium. September 11 target date. ~$1,000 venue cost. Morning: schools; afternoon: departments. Planning doc due Sept 1.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Vanessa, Farrah</div></div>
+        <div><span class="assignment-deadline">Sept 1, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-kick-off"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="qa-process" onclick="openNotes(this)">
+        <div><div class="assignment-name">QA Process</div><div class="assignment-desc">Defining and rolling out a formal quality assurance process for all district web content. Framework to be documented and shared across the team.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 24, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-qa-process"></span></button></div>
+      </div>
+    </div>
+
+    <!-- CERTIFICATION -->
+    <h2>Certification</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Certification Tracks</h3><span class="section-count">4 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="audioeye" onclick="openNotes(this)">
+        <div><div class="assignment-name">AudioEye</div><div class="assignment-desc">Accessibility certification program using AudioEye tooling. Tricia and Sean co-lead with Vanessa and Rudy completing their certification requirements.</div></div>
+        <div><div class="assignment-lead">Tricia / Sean A. Russell</div><div class="assignment-support">Vanessa, Rudy</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-audioeye"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="bcps-central" onclick="openNotes(this)">
+        <div><div class="assignment-name">BCPS Central</div><div class="assignment-desc">Certification training initiative for the BCPS Central platform. Ensures all team members are trained and certified to manage district content.</div></div>
+        <div><div class="assignment-lead">Tricia / Sean A. Russell</div><div class="assignment-support">Vanessa, Rudy</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-bcps-central"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="canvas-course-pilot" onclick="openNotes(this)">
+        <div><div class="assignment-name">Canvas Course Pilot Launch</div><div class="assignment-desc">Pilot launch of Canvas-based WCM training course. 19 enrolled, 2 completed. Intro video being trimmed to 1:30. Target: live by July 1.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell / Rudy</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline">July 1, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-canvas-course-pilot"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="wcm-communication-plan" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Communication Plan</div><div class="assignment-desc">Structured plan for WCM-wide announcements, updates, and team messaging. Sean and Tricia co-leading the framework design and rollout cadence.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell / Tricia</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-wcm-communication-plan"></span></button></div>
+      </div>
+    </div>
+
+    <!-- WCM DEPARTMENTS -->
+    <h2>WCM Departments</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Department Web Content Management</h3><span class="section-count">3 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="k12-department-pages" onclick="openNotes(this)">
+        <div><div class="assignment-name">K-12 Department Pages</div><div class="assignment-desc">Creating redirect pages for legacy K-12 department websites, routing users to current district web properties and active content.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-k12-department-pages"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="embed-page-powerapps" onclick="openNotes(this)">
+        <div><div class="assignment-name">Way to Embed a Page into PowerApps</div><div class="assignment-desc">Enabling FinalSite pages to be embedded in PowerApps portals. FinalSite has allowlisted the domain; functional testing required before closing.</div></div>
+        <div><div class="assignment-lead">Tricia</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-embed-page-powerapps"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="audit-ooc-pages" onclick="openNotes(this)">
+        <div><div class="assignment-name">Audit OOC Pages</div><div class="assignment-desc">Auditing pages managed by Out-of-Classroom staff. Starting with the Academic section at Crystal Lake Middle School to assess compliance and content accuracy.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-audit-ooc-pages"></span></button></div>
+      </div>
+    </div>
+
+    <!-- WCM SCHOOLS -->
+    <h2>WCM Schools</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>School Web Content Management</h3><span class="section-count">2 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="left-navigation-structure" onclick="openNotes(this)">
+        <div><div class="assignment-name">Left Navigation Structure</div><div class="assignment-desc">Defining and standardizing the left navigation structure used across all school websites. Vanessa leading the design and implementation work.</div></div>
+        <div><div class="assignment-lead">Vanessa</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge completed">Completed</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-left-navigation-structure"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="automate-rejected-banners" onclick="openNotes(this)">
+        <div><div class="assignment-name">Automate Message For Rejected Banner Images</div><div class="assignment-desc">Automated rejection notification when school banner images fail to meet standards. Tricia leading; interns to assist. Banner form stays open via Teams - archive data, clear, reuse.</div></div>
+        <div><div class="assignment-lead">Tricia</div><div class="assignment-support">Melanie, Interns</div></div>
+        <div><span class="assignment-deadline">July 1, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-automate-rejected-banners"></span></button></div>
+      </div>
+    </div>
+
+    <!-- FINALSITE / MINIBASES -->
+    <h2>Finalsite Support &amp; Minibases</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Finalsite Platform &amp; Minibase Work</h3><span class="section-count">4 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="school-choice-minibase" onclick="openNotes(this)">
+        <div><div class="assignment-name">School Choice (Minibase)</div><div class="assignment-desc">Minibase supporting the district School Choice program. Pending initial outreach to minibase owners from Sean, with Tricia to follow up as needed.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-school-choice-minibase"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="minibase-training" onclick="openNotes(this)">
+        <div><div class="assignment-name">Minibase Training</div><div class="assignment-desc">Training minibase owners on content and file management. Decision pending on whether files will be hosted on Finalsite or through the District server.</div></div>
+        <div><div class="assignment-lead">Tricia</div><div class="assignment-support">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-minibase-training"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="school-board-records" onclick="openNotes(this)">
+        <div><div class="assignment-name">School Board Records</div><div class="assignment-desc">Managing School Board records access and publishing on Finalsite. Tricia has access; meeting with Noemi and Christine to be scheduled to move forward.</div></div>
+        <div><div class="assignment-lead">Tricia / Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-school-board-records"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="charter-schools" onclick="openNotes(this)">
+        <div><div class="assignment-name">Charter Schools (Matthew Cordova)</div><div class="assignment-desc">Web coordination and outreach for charter schools via Matthew Cordova. Initial contact and scoping conversation still pending from the district side.</div></div>
+        <div><div class="assignment-lead">-</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-charter-schools"></span></button></div>
+      </div>
+    </div>
+
+    <!-- COMMUNICATIONS -->
+    <h2>Communications</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>WCM Communications</h3><span class="section-count">3 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="wcm-communique-may12" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Communique - May 12</div><div class="assignment-desc">WCM newsletter edition for May 12. Collaborative effort across the web team with Vanessa, Sean, Andrea, and Felicia contributing content.</div></div>
+        <div><div class="assignment-lead">Vanessa / Sean A. Russell</div><div class="assignment-support">Andrea, Felicia</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-wcm-communique-may12"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="department-hot-labs" onclick="openNotes(this)">
+        <div><div class="assignment-name">Department Hot Labs</div><div class="assignment-desc">Twice-weekly open lab sessions providing live support and troubleshooting for department Web Content Managers. Standing recurring cadence.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline none">Ongoing</span></div>
+        <div><span class="status-badge ongoing">Ongoing</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-department-hot-labs"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="school-hot-labs" onclick="openNotes(this)">
+        <div><div class="assignment-name">School Hot Labs</div><div class="assignment-desc">Twice-weekly open lab sessions providing live support and troubleshooting for school Web Content Managers. Led by Rudy with Vanessa in support.</div></div>
+        <div><div class="assignment-lead">Rudy</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline none">Ongoing</span></div>
+        <div><span class="status-badge ongoing">Ongoing</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-school-hot-labs"></span></button></div>
+      </div>
+    </div>
+
+    <!-- PENDING -->
+    <h2>Pending Tasks</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Pending - Awaiting Action</h3><span class="section-count">3 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="school-maps-district-server" onclick="openNotes(this)">
+        <div><div class="assignment-name">Program School Maps on District Server</div><div class="assignment-desc">Programming and hosting interactive school maps on the District server. Assigned to Charlene; scope and timeline to be confirmed.</div></div>
+        <div><div class="assignment-lead">Charlene</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-school-maps-district-server"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="sharepoint-all-school-list" onclick="openNotes(this)">
+        <div><div class="assignment-name">SharePoint All School Master List</div><div class="assignment-desc">Master school directory in SharePoint with principals, assistant principals, and updated logos. Summer refresh in progress with Andrea in support.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Andrea</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-sharepoint-all-school-list"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="old-dillard-museum" onclick="openNotes(this)">
+        <div><div class="assignment-name">Old Dillard Museum</div><div class="assignment-desc">Web content project for the Old Dillard Museum. Pending content delivery from Edison, who did not meet the original deadline.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-old-dillard-museum"></span></button></div>
+      </div>
+    </div>
+
+    <!-- COMPLETED -->
+    <h2>Completed Tasks</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Completed</h3><span class="section-count">24 items</span></div>
+      <div class="completed-grid">
+        <div class="completed-header"><div>Assignment</div><div>Lead</div><div>Completed</div></div>
+        <div class="completed-row" data-slug="assign-tasks-leads-support" onclick="openNotes(this)"><div class="completed-name">Assign Tasks for Leads and Support</div><div>Tricia / Sean A. Russell</div><div><span class="status-badge completed">Done</span></div></div>
+        <div class="completed-row" data-slug="wcm-communique-jan15" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Jan 15</div><div>Vanessa / Sean A. Russell</div><div>Jan 14, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-communique-feb11" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Feb 11</div><div>Vanessa / Sean A. Russell</div><div>Feb 10, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-dept-feb12" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Departments (Feb 12)</div><div>Sean A. Russell / Tricia</div><div>Feb 10, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-schools-feb20" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Schools (Feb 20)</div><div>Tricia / Sean A. Russell</div><div>Feb 20, 2026</div></div>
+        <div class="completed-row" data-slug="magnet-innovative-feb18" onclick="openNotes(this)"><div class="completed-name">Magnet/Innovative Online Info Session (Feb 18)</div><div>Vanessa / Rudy</div><div>Feb 20, 2026</div></div>
+        <div class="completed-row" data-slug="dual-languages" onclick="openNotes(this)"><div class="completed-name">Dual Languages</div><div>Vanessa</div><div>Feb 27, 2026</div></div>
+        <div class="completed-row" data-slug="hot-lab-calendar" onclick="openNotes(this)"><div class="completed-name">Create New Hot Lab Calendar</div><div>Sean A. Russell / Vanessa</div><div>Feb 27, 2026</div></div>
+        <div class="completed-row" data-slug="popups-dept-pages" onclick="openNotes(this)"><div class="completed-name">Pop-ups on Individual Department Pages</div><div>Sean A. Russell</div><div>Mar 6, 2026</div></div>
+        <div class="completed-row" data-slug="issues-with-caption" onclick="openNotes(this)"><div class="completed-name">Issues with Caption</div><div>Andrea</div><div>Mar 9, 2026</div></div>
+        <div class="completed-row" data-slug="email-errors-teams" onclick="openNotes(this)"><div class="completed-name">Email Errors from Canceling Teams Meeting</div><div>Sean A. Russell</div><div>Mar 9, 2026</div></div>
+        <div class="completed-row" data-slug="bsc-minibase" onclick="openNotes(this)"><div class="completed-name">Business Support Center (Minibase)</div><div>Tricia / Charlene</div><div>Mar 27, 2026</div></div>
+        <div class="completed-row" data-slug="launch-wcm-hub" onclick="openNotes(this)"><div class="completed-name">Launch WCM Hub (Website)</div><div>Vanessa / Sean A. Russell</div><div>Apr 1, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-communique-mar26" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Mar 26</div><div>Sean A. Russell / Vanessa</div><div>Mar 25, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-dept-apr9" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Departments (Apr 9)</div><div>Sean A. Russell / Tricia</div><div>Apr 13, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-schools-apr10" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Schools (Apr 10)</div><div>Tricia / Sean A. Russell</div><div>Mar 31, 2026</div></div>
+        <div class="completed-row" data-slug="missing-profile-image" onclick="openNotes(this)"><div class="completed-name">Missing Profile Image in Contact Info</div><div>Sean A. Russell</div><div>Mar 25, 2026</div></div>
+        <div class="completed-row" data-slug="popup-formatting-issues" onclick="openNotes(this)"><div class="completed-name">Multiple Pop-up Formatting Issues</div><div>Sean A. Russell</div><div>Mar 25, 2026</div></div>
+        <div class="completed-row" data-slug="ppo-minibase" onclick="openNotes(this)"><div class="completed-name">PPO Minibase</div><div>Tricia</div><div>Mar 27, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-communique-apr15" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Apr 15</div><div>Vanessa / Sean A. Russell</div><div>Apr 3, 2026</div></div>
+        <div class="completed-row" data-slug="maintenance-update-process" onclick="openNotes(this)"><div class="completed-name">Find Process for Maintenance Update</div><div>Tricia</div><div>-</div></div>
+        <div class="completed-row" data-slug="streamvu" onclick="openNotes(this)"><div class="completed-name">StreamVu</div><div>Sean A. Russell, Nakesha</div><div>May 19, 2026</div></div>
+        <div class="completed-row" data-slug="combination-schools-menu" onclick="openNotes(this)"><div class="completed-name">Combination Schools in Menu</div><div>Felicia</div><div>May 20, 2026</div></div>
+        <div class="completed-row" data-slug="confirm-lab-courses" onclick="openNotes(this)"><div class="completed-name">Confirm Lab Courses</div><div>Rudy</div><div><span class="status-badge completed">Done</span></div></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- NOTES MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <div class="modal-header-text">
+        <div class="modal-title" id="modal-title">Assignment Notes</div>
+        <div class="modal-subtitle">Notes Trail</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-notes" id="modal-notes-body">
+      <div class="notes-loading">Loading notes...</div>
+    </div>
+    <div class="modal-input">
+      <div class="recorder-bar">
+        <button class="mic-btn" id="mic-btn" type="button">
+          <span class="mic-dot"></span>
+          <span id="mic-label">Record</span>
+        </button>
+        <span class="live-transcript" id="live-transcript">Press Record to transcribe speech into a note.</span>
+      </div>
+      <textarea class="modal-text-input" id="note-input" placeholder="Type a note, or use Record above to speak it..." rows="2"></textarea>
+      <div class="modal-input-row">
+        <input class="modal-author-input" id="author-input" type="text" placeholder="Your name" value="">
+        <button class="modal-submit" id="submit-btn" onclick="addNote()">Add Note</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+
+  let currentSlug = null;
+  let noteCounts = {};
+
+  // Load all note counts on page load
+  async function loadAllCounts() {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/bcps_assignment_notes?select=assignment_slug`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+      );
+      const rows = await res.json();
+      const counts = {};
+      rows.forEach(r => { counts[r.assignment_slug] = (counts[r.assignment_slug] || 0) + 1; });
+      noteCounts = counts;
+      Object.entries(counts).forEach(([slug, count]) => {
+        const el = document.getElementById('nc-' + slug);
+        if (el) { el.textContent = count; el.classList.add('has-notes'); }
+      });
+    } catch(e) { /* silent fail */ }
+  }
+
+  function openNotes(rowEl) {
+    const slug = rowEl.getAttribute('data-slug');
+    const nameEl = rowEl.querySelector('.assignment-name, .completed-name');
+    const name = nameEl ? nameEl.textContent : slug;
+    currentSlug = slug;
+    document.getElementById('modal-title').textContent = name;
+    document.getElementById('modal-overlay').classList.add('open');
+    document.getElementById('note-input').value = '';
+    loadNotes();
+    setTimeout(() => document.getElementById('note-input').focus(), 100);
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  }
+
+  async function loadNotes() {
+    const body = document.getElementById('modal-notes-body');
+    body.innerHTML = '<div class="notes-loading">Loading...</div>';
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/bcps_assignment_notes?assignment_slug=eq.${currentSlug}&order=created_at.asc`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+      );
+      const notes = await res.json();
+      if (!notes.length) {
+        body.innerHTML = '<div class="notes-empty">No notes yet. Add the first one below.</div>';
+        return;
+      }
+      body.innerHTML = notes.map(n => `
+        <div class="note-item">
+          <div class="note-meta">
+            <span class="note-author">${escHtml(n.author)}</span>
+            <span class="note-time">${formatDate(n.created_at)}</span>
+          </div>
+          <div class="note-text">${escHtml(n.note_text)}</div>
+        </div>
+      `).join('');
+      body.scrollTop = body.scrollHeight;
+    } catch(e) {
+      body.innerHTML = '<div class="notes-empty">Could not load notes. Check connection.</div>';
+    }
+  }
+
+  async function addNote() {
+    const text = document.getElementById('note-input').value.trim();
+    const author = document.getElementById('author-input').value.trim() || 'Team';
+    if (!text || !currentSlug) return;
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/bcps_assignment_notes`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ assignment_slug: currentSlug, note_text: text, author: author })
+      });
+      document.getElementById('note-input').value = '';
+      // Update count badge
+      noteCounts[currentSlug] = (noteCounts[currentSlug] || 0) + 1;
+      const el = document.getElementById('nc-' + currentSlug);
+      if (el) { el.textContent = noteCounts[currentSlug]; el.classList.add('has-notes'); }
+      await loadNotes();
+    } catch(e) {
+      alert('Could not save note. Please try again.');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Add Note';
+  }
+
+  // Submit on Cmd/Ctrl+Enter
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') addNote();
+  });
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function switchVersion(v) {
+    document.querySelectorAll('.snapshot').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.version-btn').forEach(b => b.classList.remove('active'));
+    const snap = document.getElementById('snap-' + v);
+    if (snap) snap.classList.add('active');
+    const btn = document.querySelector('[data-v="' + v + '"]');
+    if (btn) btn.classList.add('active');
+  }
+
+  // ---- VOICE RECORDER ----
+  (function() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    var recog = null;
+    var isRecording = false;
+    var accumulated = '';
+    var committed = false;
+
+    function micBtn()  { return document.getElementById('mic-btn'); }
+    function micLbl()  { return document.getElementById('mic-label'); }
+    function liveEl()  { return document.getElementById('live-transcript'); }
+    function noteEl()  { return document.getElementById('note-input'); }
+
+    function setUI(recording) {
+      var b = micBtn(), l = micLbl();
+      if (b) b.classList.toggle('recording', recording);
+      if (l) l.textContent = recording ? 'Stop' : 'Record';
+    }
+
+    function setMsg(msg, active) {
+      var el = liveEl();
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.toggle('active', !!active);
+    }
+
+    function clean(t) {
+      t = t.trim();
+      if (!t) return '';
+      t = t.charAt(0).toUpperCase() + t.slice(1);
+      if (t.length > 15 && !/[.!?]$/.test(t)) t += '.';
+      return t;
+    }
+
+    function commit() {
+      if (committed) return;
+      committed = true;
+      var text = accumulated.trim();
+      accumulated = '';
+      if (!text) { setMsg('Nothing captured - try speaking again.', false); return; }
+      var inp = noteEl();
+      if (inp) {
+        inp.value = inp.value.trimEnd() ? inp.value.trimEnd() + ' ' + text : text;
+        inp.focus();
+        inp.setSelectionRange(inp.value.length, inp.value.length);
+      }
+      setMsg('Transcript added. Edit below and click Add Note.', false);
+    }
+
+    function runSession() {
+      if (!isRecording || !SR) return;
+      recog = new SR();
+      recog.continuous = false;
+      recog.interimResults = true;
+      recog.lang = 'en-US';
+
+      recog.onstart = function() {
+        setMsg('Listening...', true);
+      };
+
+      recog.onresult = function(e) {
+        var interim = '';
+        for (var i = 0; i < e.results.length; i++) {
+          var t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            var c = clean(t);
+            if (c) accumulated += (accumulated ? ' ' : '') + c;
+          } else {
+            interim += t;
+          }
+        }
+        if (interim) {
+          setMsg(interim, true);
+        } else if (accumulated) {
+          var preview = accumulated.length > 60 ? '...' + accumulated.slice(-57) : accumulated;
+          setMsg(preview, true);
+        }
+      };
+
+      recog.onerror = function(e) {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          isRecording = false;
+          setUI(false);
+          setMsg('Mic blocked. Click the lock icon in your browser address bar and allow microphone.', false);
+        } else if (e.error === 'network') {
+          isRecording = false;
+          setUI(false);
+          setMsg('Network error - speech service unavailable.', false);
+        }
+        // no-speech / aborted: let onend handle restart
+      };
+
+      recog.onend = function() {
+        if (isRecording) {
+          setTimeout(runSession, 100);
+        } else {
+          commit();
+        }
+      };
+
+      try {
+        recog.start();
+      } catch (err) {
+        setTimeout(function() { if (isRecording) runSession(); }, 250);
+      }
+    }
+
+    function startRecording() {
+      if (!SR) {
+        setMsg('Voice input requires Chrome or Edge.', false);
+        return;
+      }
+      accumulated = '';
+      committed = false;
+      isRecording = true;
+      setUI(true);
+      setMsg('Starting...', true);
+      runSession();
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      committed = false;
+      setUI(false);
+      if (recog) { try { recog.stop(); } catch (err) {} }
+      // Fallback: if onend never fires, commit after 500ms
+      setTimeout(function() {
+        if (!committed) commit();
+      }, 500);
+    }
+
+    // Wire up button via JS (not inline onclick)
+    document.addEventListener('DOMContentLoaded', function() {
+      var btn = document.getElementById('mic-btn');
+      if (btn) {
+        btn.addEventListener('click', function() {
+          if (isRecording) { stopRecording(); } else { startRecording(); }
+        });
+      }
+    });
+
+    // Expose stopRecording so closeModal can call it
+    window._recorderStop = function() {
+      if (isRecording) stopRecording();
+      setMsg('Press Record to transcribe speech into a note.', false);
+    };
+  })();
+
+  // ---- END VOICE RECORDER ----
+
+  function closeModal() {
+    if (window._recorderStop) window._recorderStop();
+    document.getElementById('modal-overlay').classList.remove('open');
+    currentSlug = null;
+  }
+
+  // Save author name in localStorage
+  window.addEventListener('load', () => {
+    const saved = localStorage.getItem('bcps_author');
+    if (saved) document.getElementById('author-input').value = saved;
+    loadAllCounts();
+  });
+  document.getElementById('author-input').addEventListener('change', e => {
+    localStorage.setItem('bcps_author', e.target.value);
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WCM Certification - Department Course Design Brief - June 11, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(22px, 3.5vw, 38px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 18px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .outcome-banner p strong { color: var(--text); }
+
+  .decision-item { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .decision-item:last-child { border-bottom: none; }
+  .decision-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .decision-detail { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+  .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
+
+  .action-item { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .action-item:last-child { border-bottom: none; }
+  .action-num { font-size: 20px; font-weight: 900; color: var(--bcps-blue); min-width: 32px; line-height: 1; }
+  .action-body .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .action-body .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .action-body .action-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); margin-top: 6px; }
+  .action-body .action-deadline { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); margin-top: 4px; }
+
+  .tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 4px; margin: 2px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .tag.open { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.28); color: var(--bcps-blue-dark); }
+  .tag.resolved { background: rgba(22,117,12,0.10); border-color: rgba(22,117,12,0.30); color: var(--bcps-green); }
+  .tag.pending { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.28); color: var(--bcps-orange); }
+
+  .timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 110px; padding-top: 2px; }
+  .timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .timeline-text strong { color: var(--text); }
+  .timeline-row.highlight .timeline-date { color: var(--bcps-green); }
+  .timeline-row.highlight .timeline-text { color: var(--text); }
+
+  .module-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .module-table th { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-50); padding: 8px 12px; text-align: left; border-bottom: 2px solid var(--border); background: var(--surface2); }
+  .module-table td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text-75); line-height: 1.55; }
+  .module-table tr:last-child td { border-bottom: none; }
+  .module-table td:first-child { font-weight: 700; color: var(--text); white-space: nowrap; }
+  .badge-new { display: inline-block; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 7px; border-radius: 3px; background: rgba(197,83,38,0.10); border: 1px solid rgba(197,83,38,0.28); color: var(--bcps-orange); margin-left: 6px; vertical-align: middle; }
+  .badge-adapt { display: inline-block; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 7px; border-radius: 3px; background: rgba(22,114,167,0.08); border: 1px solid rgba(22,114,167,0.22); color: var(--bcps-blue); margin-left: 6px; vertical-align: middle; }
+  .badge-keep { display: inline-block; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 7px; border-radius: 3px; background: rgba(22,117,12,0.08); border: 1px solid rgba(22,117,12,0.25); color: var(--bcps-green); margin-left: 6px; vertical-align: middle; }
+
+  .boss-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; margin-bottom: 16px; }
+  .boss-letter { font-size: 32px; font-weight: 900; color: var(--bcps-blue); line-height: 1; margin-bottom: 6px; }
+  .boss-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: var(--text-50); margin-bottom: 10px; }
+  .boss-body { font-size: 13px; color: var(--text-75); line-height: 1.7; }
+  .boss-body strong { color: var(--text); }
+
+  .bench-item { padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .bench-item:last-child { border-bottom: none; }
+  .bench-district { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .bench-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .bench-verdict { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 6px; }
+  .bench-verdict.ahead { color: var(--bcps-green); }
+  .bench-verdict.gap { color: var(--bcps-orange); }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">BCPS - Course Design Brief</span>
+</header>
+
+<main>
+  <h1>WCM Certification - Department<br>Course Design Brief</h1>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Date</span>
+      <span class="meta-value">June 11, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Project</span>
+      <span class="meta-value">WCM Certification - Department</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Platform</span>
+      <span class="meta-value">Canvas LMS (Broward Schools)</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Produced By</span>
+      <span class="meta-value">Sean A. Russell + Claude</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value">v1 - June 11, 2026</span>
+    </div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> Sean A. Russell (Website Governance Consultant, BCPS) and the BCPS WCM Core Team. This brief is the working reference document for building the Department version of the WCM Certification course in Canvas. It contains the confirmed course outline, source material map, BOSS analysis, competitive benchmarking, and 3-day work plan.</p>
+  </div>
+
+  <!-- PROJECT SUMMARY -->
+  <h2>Project Summary</h2>
+  <div class="section-block">
+    <p>Broward County Public Schools currently operates a WCM Certification course in Canvas for school-level Web Content Managers. The goal of this project is to adapt and expand that course into a parallel <strong>Department version</strong> - one that addresses the distinct responsibilities, content standards, and governance expectations of BCPS department WCMs.</p>
+    <p>Department WCMs serve a fundamentally different function than school WCMs. Department pages are the <strong>source of truth</strong> for district-wide policies, forms, and guidance used by 200+ schools, thousands of families, and internal staff. This course reflects that elevated responsibility.</p>
+    <p>All source content has been gathered, reviewed, and mapped to modules. The course is ready for content writing beginning June 11, 2026.</p>
+  </div>
+
+  <!-- KEY DECISIONS -->
+  <h2>Key Decisions</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title">12-Module structure confirmed</div>
+      <div class="decision-detail">The Department course will have 12 modules plus Final Assignments, up from 6 in the Schools version. Modules 1 and 9-12 adapt existing content with terminology updates. Modules 2-8 are new or fully rewritten for department framing. This structure ensures full coverage of both Finalsite CMS skills and BCPS department content governance standards.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Outline-first approach: confirm before writing</div>
+      <div class="decision-detail">Content writing begins only after outline approval. This brief is the outline. Once approved, modules will be written in order: Modules 1-2 on Day 1, Modules 3-8 on Day 2, Modules 9-12 and mastery checks on Day 3.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Source material fully identified - three documents plus live site</div>
+      <div class="decision-detail">All module content has confirmed sources: Department WCM Standards.docx (Modules 3-8), Department WCM Guidelines.docx (Modules 10-11), the live Standards and Guidelines sub-pages on browardschools.com (supplemental detail for Modules 3-8), and the existing Canvas course (Modules 1 and 9-12 adaptation base).</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">No Fridays - work plan runs Thu/Mon/Tue</div>
+      <div class="decision-detail">Target completion is Tuesday, June 16, 2026. Work days are June 12 (Thursday), June 15 (Monday), and June 16 (Tuesday). No work on June 13-14.</div>
+    </div>
+  </div>
+
+  <!-- COURSE OUTLINE -->
+  <h2>Confirmed Course Outline - 12 Modules</h2>
+  <div class="section-block">
+    <table class="module-table" aria-label="Course modules">
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Title</th>
+          <th>Type</th>
+          <th>Key Pages</th>
+          <th>Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Welcome and Overview <span class="badge-adapt">Adapt</span></td>
+          <td>Orientation</td>
+          <td>Welcome; Purpose of Training; Course Overview; What is a Department WCM; Resources</td>
+          <td>Existing Module 1 - update "school" to "department" throughout</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Department Standards and Design Expectations <span class="badge-new">New</span></td>
+          <td>Standards</td>
+          <td>Department Website Standards Overview; Required Homepage Structure; Interior Pages; Quick Access Buttons for Dept Services</td>
+          <td>Standards and Guidelines website (Layout page) + browardschools.com</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Layout and Structure <span class="badge-new">New</span></td>
+          <td>Standards</td>
+          <td>Why Layout Matters; WCM Role; Content Maintenance; Visual Consistency; Homepage Structure; Interior Page Standards; QA Checklist</td>
+          <td>Department WCM Standards.docx - Layout and Structure module</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Content Quality <span class="badge-new">New</span></td>
+          <td>Standards</td>
+          <td>Why Content Quality Matters; Writing Standards; Approval Workflows; Accessible Content Practices; Common Issues Checklist</td>
+          <td>Department WCM Standards.docx - Content Quality module</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Navigation <span class="badge-new">New</span></td>
+          <td>Standards</td>
+          <td>Why Navigation Matters; Top-Level Standards; Dropdown Structure; Labeling for Dept Sites; WCM Responsibilities</td>
+          <td>Department WCM Standards.docx - Navigation module</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Post Boards <span class="badge-new">New</span></td>
+          <td>Standards</td>
+          <td>Why Post Boards Matter; Publishing Standards; Timeliness; Image and Accessibility Requirements; Categorization</td>
+          <td>Department WCM Standards.docx - Post Boards module</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Resource Elements <span class="badge-new">New</span></td>
+          <td>Standards</td>
+          <td>What Are Resource Elements; When to Use Them; Link and Document Standards; PDF Management; Accessibility</td>
+          <td>Department WCM Standards.docx - Resource Elements module</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td>Style Guideline and Enhancements <span class="badge-new">New</span></td>
+          <td>Standards</td>
+          <td>Why Style Matters; Font and Text Standards; Color and Visual Standards; Strategic Use of Enhancements; WCM Role in Style Stewardship</td>
+          <td>Department WCM Standards.docx - Style Guidelines module</td>
+        </tr>
+        <tr>
+          <td>9</td>
+          <td>Required Information: ADA Compliance, Copyright and Legal Notices <span class="badge-keep">Keep</span></td>
+          <td>Compliance</td>
+          <td>All existing ADA pages; Assignment: Creating an Accessible PDF; Copyright and Legal pages</td>
+          <td>Existing Module 3 - carry over as-is, minor terminology only</td>
+        </tr>
+        <tr>
+          <td>10</td>
+          <td>Introduction to Finalsite <span class="badge-adapt">Adapt</span></td>
+          <td>CMS Skills</td>
+          <td>Navigating Your New Site; Website Terminology; Resources vs Galleries; Layout Pages; Sandbox Activity</td>
+          <td>Existing Module 4 + Department WCM Guidelines.docx (Navigating Your Site, Layout Page sections)</td>
+        </tr>
+        <tr>
+          <td>11</td>
+          <td>Finalsite Tools and Features <span class="badge-adapt">Adapt</span></td>
+          <td>CMS Skills</td>
+          <td>Page Management; Accessibility Checker; Galleries; Images and Alt Text; Tables; Posts; Content Editing Tips; File Uploads; Paragraph Styles; Calendar Refresh</td>
+          <td>Existing Module 5 + Department WCM Guidelines.docx (all how-to sections)</td>
+        </tr>
+        <tr>
+          <td>12</td>
+          <td>Building Accessible Webpages <span class="badge-keep">Keep</span></td>
+          <td>Accessibility</td>
+          <td>Adding Alt Text; Link Language; all existing accessibility pages</td>
+          <td>Existing Module 6 - carry over as-is</td>
+        </tr>
+        <tr>
+          <td>Final</td>
+          <td>Final Assignments <span class="badge-adapt">Adapt</span></td>
+          <td>Assessment</td>
+          <td>Final Quiz (dept version); Final Assignment (dept-specific scenario); Submit Badge Evidence</td>
+          <td>Adapt existing final assignments to department scenarios</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="outcome-banner">
+    <div class="outcome-label">Writing Scope Summary</div>
+    <p><strong>6 fully new modules</strong> (Modules 2-8 excluding 2 which is a rewrite): Modules 3-8 use the Department WCM Standards.docx as primary source - content is largely written and needs Canvas formatting. <strong>Module 2</strong> is a rewrite of the Schools standards page. <strong>Modules 1, 10-11</strong> need light edits and source integration. <strong>Modules 9, 12</strong> carry over as-is. Approximately 30 new or updated Canvas pages total.</p>
+  </div>
+
+  <!-- BOSS ANALYSIS -->
+  <h2>BOSS Analysis</h2>
+  <p style="font-size:13px; color: var(--text-50); margin-bottom: 20px;">BOSS = Best Practice first, Outcome first, Scientific method, then Simplify. Applied to the question: Is this course the right approach for providing standards training to BCPS department WCMs?</p>
+
+  <div class="boss-block">
+    <div class="boss-letter">B</div>
+    <div class="boss-label">Best Practice First</div>
+    <div class="boss-body">
+      <p>Best practice for large-district WCM training (confirmed through research): tiered certification with mandatory ADA compliance; LMS delivery with assessments and badge awards; separation of CMS tool skills from content governance standards; role-specific content for different site types; regular audit cycles built into the curriculum.</p>
+      <p><strong>BCPS already meets all of these criteria.</strong> The additional best practice finding: no other comparable district has a department-specific version of their WCM training. Most programs treat all content managers as equivalent. BCPS recognizing that department WCMs operate at a higher governance level - serving as source of truth for 200+ schools - is itself best-practice differentiation.</p>
+      <p>One gap vs. best practice: NYC DOE has an explicit video accessibility certification tier (captioning, screencasts). BCPS should consider adding this as a future module. Not blocking for this build.</p>
+    </div>
+  </div>
+
+  <div class="boss-block">
+    <div class="boss-letter">O</div>
+    <div class="boss-label">Outcome First (Top-Down)</div>
+    <div class="boss-body">
+      <p><strong>The outcome:</strong> A BCPS department WCM who completes this course can independently maintain a department website that passes a BCPS content audit, meets ADA compliance, and functions as a reliable district source of truth.</p>
+      <p>Measured by: WCM earns the certification badge AND passes a Phase 1 audit review with no critical findings. Working backward from that outcome confirms the 12-module structure is correct - every module maps to an auditable competency. No module is decorative. Content quality, navigation, layout, post boards, resource elements, and style are all audit categories in the existing QA checklist, which means the course structure and the audit rubric are now aligned.</p>
+    </div>
+  </div>
+
+  <div class="boss-block">
+    <div class="boss-letter">S</div>
+    <div class="boss-label">Scientific Method (Hypothesis, Test, Iterate)</div>
+    <div class="boss-body">
+      <p><strong>Hypothesis:</strong> Department WCMs trained on department-specific content and governance framing will perform better on content audits and require fewer corrections than department WCMs trained on the school-focused version.</p>
+      <p><strong>Test:</strong> Track audit scores and common failure categories for department WCMs before and after the course launches. Compare against school WCM audit performance as a baseline.</p>
+      <p><strong>Iterate:</strong> Modules where audit failures remain high after certification indicate content gaps. The per-module mastery checks (Modules 3-8) will surface knowledge gaps before WCMs go live. Update module content each semester based on the most common audit failure patterns.</p>
+    </div>
+  </div>
+
+  <div class="boss-block">
+    <div class="boss-letter">S</div>
+    <div class="boss-label">Simplify (Cut Against the Evidence)</div>
+    <div class="boss-body">
+      <p><strong>What to keep:</strong> The 12-module structure is justified by the audit - each module maps to a real competency gap. Do not collapse modules.</p>
+      <p><strong>What to cut or defer:</strong> Modules 9 and 12 (ADA and Building Accessible Webpages) carry over as-is - no rewrite needed, evidence shows ADA requirements are universal. The Finalsite modules (10-11) need integration of the Guidelines doc but are not rebuilds. Video accessibility is a future module, not a Day 1 requirement. Plain language writing could be folded into Module 4 (Content Quality) rather than added as a standalone - this keeps scope tight.</p>
+      <p><strong>Net result:</strong> New writing effort is concentrated in Modules 2-8. Everything else is light editing. This is the right scope allocation.</p>
+    </div>
+  </div>
+
+  <!-- BENCHMARKING -->
+  <h2>Competitive Benchmarking - How BCPS Stacks Up</h2>
+  <p style="font-size:13px; color: var(--text-50); margin-bottom: 20px;">Research conducted June 11, 2026. Comparable large public school districts with identifiable WCM training programs.</p>
+
+  <div class="section-block">
+    <div class="bench-item">
+      <div class="bench-district">NYC Department of Education (1.1M students - largest district in the US)</div>
+      <div class="bench-detail">Three-tier Digital Accessibility Certification via OTIS/Teq: Digital Accessibility Basics for All Staff (3.5 hrs, 10 modules), Webmasters and Application Developers (1.6 hrs, 4 modules), and Video Creators (1.5 hrs, 3 modules). Mandatory for all webmasters. Badge issued. Hosted on a third-party platform (OTIS/Teq), not Canvas. Coverage is almost entirely accessibility-focused. No CMS how-to training. No content governance or department vs. school differentiation. No layout, navigation, post boards, or resource element standards.</div>
+      <div class="bench-verdict ahead">BCPS ADVANTAGE: BCPS course is significantly more comprehensive. NYC covers only ADA. BCPS covers ADA plus CMS skills, content quality, layout, navigation, post boards, resource elements, and style - plus both school and department versions.</div>
+    </div>
+    <div class="bench-item">
+      <div class="bench-district">Houston ISD (200,000+ students - second largest single-district in US)</div>
+      <div class="bench-detail">HISD Web Services manages 280+ campus sites and previously provided webmaster training. As of research date, webmaster training is paused during a platform transition. No public certification program or badge system identified. Department vs. school distinction not publicly addressed.</div>
+      <div class="bench-verdict ahead">BCPS ADVANTAGE: BCPS has an active, structured program. HISD currently has none.</div>
+    </div>
+    <div class="bench-item">
+      <div class="bench-district">Los Angeles Unified (LAUSD, 400,000+ students)</div>
+      <div class="bench-detail">No publicly identifiable WCM certification or standards training program found. LAUSD uses a variety of CMS platforms across schools and departments. Web governance is decentralized.</div>
+      <div class="bench-verdict ahead">BCPS ADVANTAGE: BCPS has a centralized, standardized WCM program. LAUSD does not.</div>
+    </div>
+    <div class="bench-item">
+      <div class="bench-district">National Standard - School Webmasters / Finalsite Community</div>
+      <div class="bench-detail">Finalsite's own training covers platform how-to but not district content governance. No Finalsite-delivered certification for department vs. school distinctions exists. The Finalsite community blog covers governance roles and permission tiers but does not publish curriculum or certifications. School Webmasters (a national organization) offers website accessibility training but not a district-level governance certification.</div>
+      <div class="bench-verdict ahead">BCPS ADVANTAGE: No comparable district-delivered, CMS-plus-governance certification on the Finalsite platform exists publicly. BCPS is building what may be the most comprehensive K-12 WCM certification in the country for a Finalsite district.</div>
+    </div>
+    <div class="bench-item">
+      <div class="bench-district">Gap vs. Best Practice: Video Accessibility</div>
+      <div class="bench-detail">NYC DOE's Video Creators certification (captioning, translated captions, accessible screencasts) addresses a gap BCPS does not currently cover. As departments publish more video content, this will become a compliance issue. WCAG 2.1 AA requires captions and audio descriptions for all pre-recorded video content. Federal deadline for large districts was April 24, 2026.</div>
+      <div class="bench-verdict gap">GAP - FUTURE MODULE: Add a Video Accessibility module in a future course iteration. Not blocking for the current build, but flag for the next course update cycle.</div>
+    </div>
+  </div>
+
+  <!-- ACTION ITEMS -->
+  <h2>Action Items</h2>
+  <div class="section-block">
+    <div class="action-item">
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <div class="action-title">Confirm course outline and approve this brief</div>
+        <div class="action-detail">Review the 12-module outline in this document. Approve to proceed with content writing. Any module adjustments should be made before writing begins to avoid rework.</div>
+        <div class="action-owner">Owner: Sean A. Russell, Website Governance Consultant</div>
+        <div class="action-deadline">Due: June 12, 2026 (start of Day 1)</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">2</div>
+      <div class="action-body">
+        <div class="action-title">Write Modules 1 and 2 - Welcome, Overview, Department Standards</div>
+        <div class="action-detail">Module 1: adapt existing welcome and overview pages, update all "school" references to "department." Module 2: write new department standards and design expectations pages using the Layout and Structure source from browardschools.com. Write all mastery check questions for Modules 1 and 2.</div>
+        <div class="action-owner">Owner: Sean A. Russell + Claude</div>
+        <div class="action-deadline">Due: June 12, 2026 (Thursday)</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">3</div>
+      <div class="action-body">
+        <div class="action-title">Write Modules 3 through 8 - All six Department Standards modules</div>
+        <div class="action-detail">Source is Department WCM Standards.docx, which contains full content for all six modules (Content Quality, Layout and Structure, Navigation, Post Boards, Resource Elements, Style Guidelines). Each module needs Canvas-formatted pages, intro text, and a mastery check. This is the majority of new writing.</div>
+        <div class="action-owner">Owner: Sean A. Russell + Claude</div>
+        <div class="action-deadline">Due: June 15, 2026 (Monday)</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">4</div>
+      <div class="action-body">
+        <div class="action-title">Adapt Modules 9 through 12 and write Final Assignments</div>
+        <div class="action-detail">Modules 9 and 12 carry over as-is - verify no school-specific references remain. Modules 10 and 11 integrate Department WCM Guidelines.docx content into existing Finalsite pages. Rewrite the Final Assignment scenario for a department site context. Update the Final Quiz with department-specific questions. Verify the badge submission process.</div>
+        <div class="action-owner">Owner: Sean A. Russell + Claude</div>
+        <div class="action-deadline">Due: June 16, 2026 (Tuesday)</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">5</div>
+      <div class="action-body">
+        <div class="action-title">Flag Video Accessibility as a future module addition</div>
+        <div class="action-detail">Log an item in the course backlog to add a Video Accessibility module (captioning, translated captions, accessible screencasts) in a future update cycle. NYC DOE requires this for webmaster certification. WCAG 2.1 AA compliance for video content is federally required for large districts. Priority: high for the next course update.</div>
+        <div class="action-owner">Owner: Sean A. Russell</div>
+        <div class="action-deadline">Due: Next course update cycle (post-launch)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPEN ISSUES -->
+  <h2>Open Issues</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title"><span class="tag pending">Pending</span> Department WCM Standards.docx "Hype Summary" placeholder</div>
+      <div class="decision-detail">The Standards doc has a placeholder: "Hype Summary Goes Here" at the top. This intro paragraph needs to be written before Module 3 begins. Sean to provide or approve a drafted version.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title"><span class="tag open">Open</span> Module 12 full page list not yet confirmed</div>
+      <div class="decision-detail">Module 12 (Building Accessible Webpages) was only partially visible in the Canvas course crawl - the first two pages (Adding Alt Text, Link Language) were confirmed. Additional pages may exist. Verify full page list before writing Module 12 adaptations.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title"><span class="tag open">Open</span> SharePoint Standards doc (first link) not yet read</div>
+      <div class="decision-detail">The first SharePoint link shared (Department WCM Standards.docx, different from the one retrieved) was not accessible via browser. The version retrieved via SharePoint connector (updated 3/17/26) was used for this brief. Confirm this is the current version before writing Modules 3-8.</div>
+    </div>
+  </div>
+
+  <!-- WORK PLAN / TIMELINE -->
+  <h2>3-Day Work Plan</h2>
+  <div class="section-block">
+    <div class="timeline-row">
+      <div class="timeline-date">Jun 11, 2026</div>
+      <div class="timeline-text"><strong>Today - Brief approved and published.</strong> All source material gathered and confirmed. Course outline locked. Brief live at HQ.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Jun 12, 2026</div>
+      <div class="timeline-text"><strong>Thursday - Day 1.</strong> Confirm outline approval. Write Modules 1 and 2. Write mastery check questions for Modules 1-2. Target: 8-10 Canvas-ready pages complete.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Jun 13-14, 2026</div>
+      <div class="timeline-text"><strong>Weekend - No work scheduled.</strong></div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Jun 15, 2026</div>
+      <div class="timeline-text"><strong>Monday - Day 2.</strong> Write Modules 3 through 8 (all six standards modules from Department WCM Standards.docx). Write mastery check questions for Modules 3-8. Target: 18-20 Canvas-ready pages complete.</div>
+    </div>
+    <div class="timeline-row highlight">
+      <div class="timeline-date">Jun 16, 2026</div>
+      <div class="timeline-text"><strong>Tuesday - Day 3 (Target Completion).</strong> Adapt Modules 9-12. Rewrite Final Assignment scenario. Update Final Quiz. Complete all remaining mastery checks. Final review pass across all 12 modules. Course ready for review and publishing in Canvas.</div>
+    </div>
+  </div>
+
+  <!-- SOURCE MATERIAL INVENTORY -->
+  <h2>Source Material Inventory</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title">Department WCM Standards.docx (SharePoint - updated 3/17/26)</div>
+      <div class="decision-detail">Primary source for Modules 3-8. Contains fully written content for all six standards modules: Content Quality, Layout and Structure, Navigation, Post Boards, Resource Elements, and Style Guidelines and Enhancements. Each section includes Purpose, Key Audit Areas, Best Practices, Common Mistakes, Strategic Impact, and Quick Checklist. Path: Canvas Course/Departments/Department Standards/</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Department WCM Guidelines.docx (SharePoint - updated 3/10/26)</div>
+      <div class="decision-detail">Primary source for Modules 10-11. Covers Finalsite CMS how-to for departments: Navigating Your New Site, How to Add Content to a Page, Setting Up Galleries, Setting Up Layout Pages, Content Editing Tips, and Uploading and Displaying Files. All written in department framing. Path: Canvas Course/Departments/Department Guidelines/</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">browardschools.com - Standards and Guidelines (6 sub-pages)</div>
+      <div class="decision-detail">Supplemental source for Modules 2-8. Live public pages covering Layout and Structure, Content Quality, Navigation, Post Boards, Resource Elements, and Style Guideline and Enhancements. Includes accordion-expanded content, video guidance references, and QA checklists. Crawled and extracted June 11, 2026.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Existing Canvas Course - WCM Certification - Department (Course ID 2000209)</div>
+      <div class="decision-detail">Base course for adaptation. All existing modules visible and mapped. Modules 1, 9, 10, 11, and 12 carry over with edits. Module 2 is replaced by the new department standards structure. Modules 3-8 are fully new additions.</div>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

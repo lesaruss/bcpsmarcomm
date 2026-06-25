@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marketing Specialist Queue | BCPS MarComm</title>
+<style>
+  :root{--blue:#0F567E;--blue2:#1672A7;--orange:#F69820;--ink:#1a1a1a;--sec:#555;--muted:#767676;--line:#dfe7ec;--ltblue:#eef6fb;--ltblue2:#f6fafd;--green:#167512;}
+  *{box-sizing:border-box}
+  body{margin:0;background:#f5f7f9;color:var(--ink);font-family:"Open Sans",Arial,sans-serif;line-height:1.5}
+  .top{background:#fff;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--blue2);padding:14px 22px}
+  .top .t{font-weight:800;color:var(--blue);font-size:16px}
+  .top .s{font-size:12px;color:var(--muted);font-weight:600}
+  .top button{font:inherit;font-weight:700;border:1.5px solid var(--blue2);background:#fff;color:var(--blue);border-radius:8px;padding:8px 14px;cursor:pointer}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px 20px 60px;display:grid;grid-template-columns:340px 1fr;gap:18px}
+  .list{display:flex;flex-direction:column;gap:10px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 15px;cursor:pointer}
+  .card:hover{border-color:var(--blue2)}
+  .card.sel{border-color:var(--blue2);box-shadow:0 0 0 2px rgba(22,114,167,.18)}
+  .card .sn{font-weight:800;color:var(--blue);font-size:15px}
+  .card .meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .badge{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 9px;border-radius:10px;text-transform:uppercase;letter-spacing:.03em;margin-top:8px}
+  .b-submitted{background:#fde7c9;color:#7d4a00}
+  .b-in_review{background:#d9ebf7;color:#0F567E}
+  .b-approved{background:#d7efd9;color:#155c12}
+  .b-delivered{background:#e4e4ea;color:#3a3a44}
+  .detail{background:#fff;border:1px solid var(--line);border-radius:12px;padding:0;min-height:360px;overflow:hidden}
+  .empty{color:var(--muted);padding:60px 24px;text-align:center}
+  .dh{background:var(--blue);color:#fff;padding:16px 20px}
+  .dh .dn{font-size:19px;font-weight:800}
+  .dh .dm{font-size:12.5px;opacity:.9}
+  .db{padding:16px 20px}
+  .ctrls{display:grid;grid-template-columns:1fr 1fr;gap:12px;background:var(--ltblue);border-radius:10px;padding:14px;margin-bottom:16px}
+  .ctrls label{font-size:12px;font-weight:800;color:var(--blue);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+  .ctrls .full{grid-column:1/3}
+  select,input[type=text],textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+  textarea{min-height:64px;resize:vertical}
+  .save{background:var(--blue2);color:#fff;border:0;border-radius:9px;padding:11px 20px;font-weight:800;cursor:pointer;margin-top:4px}
+  .save:hover{background:var(--blue)}
+  h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--blue2);margin:18px 0 7px;font-weight:800}
+  .ans{font-size:13.5px;margin:0 0 6px}
+  .ans b{color:var(--ink)}
+  .gate{max-width:420px;margin:80px auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:28px;text-align:center}
+  .gate input{margin:12px 0}
+  .msg{font-size:12.5px;margin-top:8px;min-height:16px}
+  .ok{color:var(--green)} .bad{color:#a11}
+  .planbox{border:1px solid var(--line);border-radius:10px;padding:4px 16px;margin-top:8px}
+  @media(max-width:820px){.wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div><div class="t">Marketing Specialist Queue</div><div class="s">BCPS MarComm &middot; School Marketing Guide submissions</div></div>
+    <button onclick="load()">Refresh</button>
+  </div>
+  <div id="app"></div>
+
+<script>
+const qs = new URLSearchParams(location.search);
+let KEY = qs.get('key') || '';
+let subs = []; let selId = null;
+
+const $ = id => document.getElementById(id);
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function fmt(d){try{return new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}catch(e){return d}}
+
+function gate(){
+  $("app").innerHTML = `<div class="gate">
+    <div style="font-weight:800;color:#0F567E;font-size:18px">Specialist access</div>
+    <p style="font-size:13.5px;color:#555">Enter the access key from your share link.</p>
+    <input type="text" id="k" placeholder="access key" style="text-align:center">
+    <div><button class="save" onclick="setKey()">Open queue</button></div>
+    <div class="msg bad" id="gm"></div>
+  </div>`;
+}
+function setKey(){ KEY=$("k").value.trim(); if(KEY) load(); }
+
+async function load(){
+  if(!KEY){ gate(); return; }
+  try{
+    const r = await fetch('/api/bcps/marketing-queue?key='+encodeURIComponent(KEY));
+    if(r.status===401){ gate(); if($("gm"))$("gm").textContent='That key was not accepted.'; return; }
+    const j = await r.json();
+    subs = j.submissions||[];
+    shell();
+  }catch(e){ $("app").innerHTML='<div class="empty">Could not load the queue. '+esc(e.message)+'</div>'; }
+}
+
+function shell(){
+  $("app").innerHTML = `<div class="wrap">
+    <div class="list" id="list"></div>
+    <div class="detail" id="detail"><div class="empty">Select a submission to review.</div></div>
+  </div>`;
+  renderList();
+  if(selId) renderDetail();
+}
+function renderList(){
+  const L=$("list");
+  if(!subs.length){ L.innerHTML='<div class="empty" style="padding:30px 14px">No submissions yet. Schools that finish the guide will appear here.</div>'; return; }
+  L.innerHTML = subs.map(s=>`<div class="card ${s.id===selId?'sel':''}" onclick="sel('${s.id}')">
+    <div class="sn">${esc(s.school_name)||'(no name)'}</div>
+    <div class="meta">${esc(s.contact_name)||'—'} &middot; ${fmt(s.created_at)}</div>
+    <div class="meta">${s.assigned_specialist?('Assigned: '+esc(s.assigned_specialist)):'Unassigned'}</div>
+    <span class="badge b-${esc(s.status)}">${esc((s.status||'').replace('_',' '))}</span>
+  </div>`).join('');
+}
+function sel(id){ selId=id; renderList(); renderDetail(); }
+
+function answersHtml(a){
+  if(!a) return '';
+  const s1=a.s1||{},s2=a.s2||{},s3=a.s3||{},s4=a.s4||{};
+  const arr=x=>Array.isArray(x)&&x.length?x.map(esc).join(', '):'—';
+  return `<h3>Story and message</h3>
+    <p class="ans"><b>Message:</b> ${esc(s1.msg)||'—'}</p>
+    <p class="ans"><b>What is special:</b> ${esc(s1.story)||'—'}</p>
+    <p class="ans"><b>Proud points:</b> ${esc(s1.proud)||'—'}</p>
+    <p class="ans"><b>Audiences:</b> ${arr(s1.aud)}</p>
+    <h3>Website</h3>
+    <p class="ans"><b>Has:</b> ${arr(s2.site)}</p>
+    <p class="ans"><b>Program pages:</b> ${esc(s2.programs)||'—'} &middot; <b>Proud Points:</b> ${esc(s2.proudpts)||'—'}</p>
+    <p class="ans"><b>Flagged:</b> ${esc(s2.work)||'—'}</p>
+    <h3>Social</h3>
+    <p class="ans"><b>Platforms:</b> ${arr(s3.plat)} &middot; <b>Cadence:</b> ${esc(s3.cadence)||'—'}</p>
+    <p class="ans"><b>Themes:</b> ${arr(s3.themes)} &middot; <b>CTA:</b> ${esc(s3.cta)||'—'}</p>
+    <h3>Enrollment</h3>
+    <p class="ans"><b>Owner:</b> ${esc(s4.owner)||'—'} &middot; <b>Response goal:</b> ${esc(s4.time)||'—'}</p>
+    <p class="ans"><b>Tours:</b> ${esc(s4.tour)||'—'} &middot; <b>Contact info ok:</b> ${esc(s4.contactok)||'—'}</p>`;
+}
+function renderDetail(){
+  const s = subs.find(x=>x.id===selId); if(!s) return;
+  const statuses=['submitted','in_review','approved','delivered'];
+  const planHtml = (s.generated_plan&&s.generated_plan.html)?s.generated_plan.html:'<p style="color:#767676;padding:10px 0">No generated plan stored.</p>';
+  $("detail").innerHTML = `
+    <div class="dh"><div class="dn">${esc(s.school_name)||'(no name)'}</div>
+      <div class="dm">${esc(s.contact_name)||'—'} &middot; ${esc(s.contact_email)||'no email'} &middot; submitted ${fmt(s.created_at)}</div></div>
+    <div class="db">
+      <div class="ctrls">
+        <div><label>Status</label><select id="st">${statuses.map(x=>`<option ${x===s.status?'selected':''} value="${x}">${x.replace('_',' ')}</option>`).join('')}</select></div>
+        <div><label>Assigned specialist</label><input type="text" id="asg" value="${esc(s.assigned_specialist)}" placeholder="specialist name"></div>
+        <div class="full"><label>Specialist notes / adjustments</label><textarea id="nt" placeholder="What you changed or confirmed before delivering...">${esc(s.specialist_notes)}</textarea></div>
+        <div class="full"><button class="save" onclick="saveReview()">Save review</button> <span class="msg" id="sm"></span></div>
+      </div>
+      <h3 style="margin-top:4px">School answers</h3>
+      ${answersHtml(s.answers)}
+      <h3>Generated draft plan</h3>
+      <div class="planbox">${planHtml}</div>
+    </div>`;
+}
+async function saveReview(){
+  const sm=$("sm"); sm.textContent='Saving...'; sm.className='msg';
+  try{
+    const r=await fetch('/api/bcps/marketing-queue',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({key:KEY,id:selId,status:$("st").value,assigned_specialist:$("asg").value.trim(),specialist_notes:$("nt").value})});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.error||'Save failed');
+    const s=subs.find(x=>x.id===selId);
+    s.status=$("st").value; s.assigned_specialist=$("asg").value.trim(); s.specialist_notes=$("nt").value;
+    sm.textContent='Saved.'; sm.className='msg ok'; renderList();
+  }catch(e){ sm.textContent=e.message; sm.className='msg bad'; }
+}
+load();
+</script>
+</body>
+</html>

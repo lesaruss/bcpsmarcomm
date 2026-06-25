@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>District Website Audit - June 14, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue:#1672A7; --bcps-blue-dark:#0e4e73; --bcps-green:#16750C; --bcps-orange:#C55326;
+    --bg:#f5f5f5; --surface:#ffffff; --surface2:#fafafa; --border:rgba(0,0,0,0.09);
+    --text:#1a1a1a; --text-75:rgba(26,26,26,0.78); --text-50:rgba(26,26,26,0.55); --text-30:rgba(26,26,26,0.35);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); font-weight:400; line-height:1.6; }
+  :focus-visible { outline:3px solid var(--bcps-blue); outline-offset:3px; }
+  a { color:var(--bcps-blue-dark); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  header.bcps-header { position:fixed; top:0; left:0; right:0; z-index:200; height:64px; background:#fff; border-bottom:3px solid var(--bcps-blue); display:flex; align-items:center; padding:0 28px; gap:20px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+  .bcps-logo { height:44px; width:auto; display:block; }
+  .bcps-header-divider { width:1px; height:32px; background:var(--border); }
+  .bcps-header-title { font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.16em; color:var(--bcps-blue); }
+  main { max-width:1100px; margin:0 auto; padding:100px 28px 80px; }
+  h1 { font-size:clamp(26px,4vw,44px); font-weight:900; line-height:1.0; letter-spacing:-0.02em; text-transform:uppercase; margin-bottom:18px; }
+  h2 { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.22em; color:var(--bcps-blue); margin:44px 0 16px; }
+  p { font-size:15px; color:var(--text-75); line-height:1.75; margin-bottom:14px; }
+  p strong { color:var(--text); font-weight:700; }
+  .meta-row { display:flex; gap:24px; flex-wrap:wrap; margin-bottom:36px; padding-bottom:28px; border-bottom:1px solid var(--border); }
+  .meta-item { display:flex; flex-direction:column; gap:4px; }
+  .meta-label { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.22em; color:var(--text-30); }
+  .meta-value { font-size:13px; font-weight:600; color:var(--text); }
+  .audience-banner { background:rgba(22,114,167,0.07); border:1px solid rgba(22,114,167,0.22); border-radius:8px; padding:16px 20px; margin-bottom:28px; }
+  .audience-banner p { font-size:13px; color:var(--text-75); margin:0; }
+  .audience-banner p strong { color:var(--bcps-blue-dark); }
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:8px; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .kpi .l { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.18em; color:var(--text-30); margin-bottom:8px; }
+  .kpi .v { font-size:26px; font-weight:900; line-height:1; }
+  .kpi .s { font-size:11px; color:var(--text-50); margin-top:6px; font-weight:600; }
+  .section-block { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:20px; }
+  table.data { width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  table.data th { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; color:var(--text-50); text-align:left; padding:11px 14px; border-bottom:1px solid var(--border); background:var(--surface2); }
+  table.data td { font-size:13px; padding:10px 14px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
+  table.data tr:last-child td { border-bottom:none; }
+  table.data td.num { color:var(--text-30); font-weight:800; width:42px; }
+  table.data td.r { text-align:right; font-weight:700; white-space:nowrap; }
+  table.data th.r { text-align:right; }
+  td .sub { font-size:10px; color:var(--text-30); margin-top:2px; word-break:break-all; }
+  .outcome-banner { background:rgba(22,117,12,0.07); border:1px solid rgba(22,117,12,0.30); border-radius:8px; padding:16px 20px; margin-bottom:20px; }
+  .outcome-banner .outcome-label { font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:0.22em; color:var(--bcps-green); margin-bottom:6px; }
+  .outcome-banner p { font-size:13px; color:var(--text-75); margin:0; }
+  .finding { border-left:3px solid var(--bcps-orange); padding:6px 0 6px 16px; margin-bottom:18px; }
+  .finding h3 { font-size:14px; font-weight:800; margin-bottom:6px; }
+  .finding .count { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--bcps-orange); }
+  .chips { margin-top:10px; line-height:2.2; }
+  .chip { display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:5px; background:var(--surface2); border:1px solid var(--border); color:var(--text-75); margin:0 3px 3px 0; }
+  .action-item { display:flex; gap:16px; align-items:flex-start; padding:16px 0; border-bottom:1px solid var(--border); }
+  .action-item:last-child { border-bottom:none; }
+  .action-num { font-size:20px; font-weight:900; color:var(--bcps-blue); min-width:30px; line-height:1; }
+  .action-title { font-size:14px; font-weight:700; margin-bottom:4px; }
+  .action-detail { font-size:13px; color:var(--text-75); line-height:1.6; }
+  .action-owner { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-50); margin-top:6px; }
+  .timeline-row { display:flex; gap:16px; padding:14px 0; border-bottom:1px solid var(--border); align-items:flex-start; }
+  .timeline-row:last-child { border-bottom:none; }
+  .timeline-date { font-size:11px; font-weight:700; color:var(--bcps-blue); min-width:130px; }
+  .timeline-text { font-size:13px; color:var(--text-75); }
+  .timeline-text strong { color:var(--text); }
+  .foot { font-size:10px; color:var(--text-30); margin-top:30px; text-align:right; }
+  @media (max-width:680px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } td .sub { display:none; } }
+</style>
+</head>
+<body>
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">BCPS - District Web Audit</span>
+</header>
+<main>
+  <h1>District Website Audit</h1>
+
+  <div class="meta-row">
+    <div class="meta-item"><span class="meta-label">Audit Date</span><span class="meta-value">June 14, 2026</span></div>
+    <div class="meta-item"><span class="meta-label">Data Window</span><span class="meta-value">Last 30 Days</span></div>
+    <div class="meta-item"><span class="meta-label">Source</span><span class="meta-value">GA4 Property 527326342</span></div>
+    <div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">36 Departments, 100 Programs</span></div>
+    <div class="meta-item"><span class="meta-label">Version</span><span class="meta-value">v1 - June 14, 2026</span></div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> Sean A. Russell, District Webmaster, Office of Communications, and Felicia Hicks, Communications Lead. This audit is the working baseline for the page by page optimization review and for the summer page improvement assignments.</p>
+  </div>
+
+  <h2>Purpose</h2>
+  <p>This is the first edition of a recurring audit of the Broward County Public Schools district website. The goal is simple: rank every department and every program and service page by real visitor traffic over the last 30 days, so that effort goes to the pages people actually use. The audit gives an objective, repeatable baseline. Each page can then be reviewed one at a time and improved for clarity, accuracy, and ease of use.</p>
+  <p>The audit runs in two halves. The <strong>computer side</strong> pulls and ranks the analytics for the department pages automatically. The <strong>district side</strong> is Sean completing the review of the public facing program and service pages. Together they produce a single prioritized list of pages to optimize, which becomes the basis for clear, page level assignments.</p>
+
+  <h2>At A Glance</h2>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="l">Departments Ranked</div><div class="v">36</div><div class="s">291,629 sessions</div></div>
+    <div class="kpi"><div class="l">Programs Ranked</div><div class="v">100</div><div class="s">45 with traffic</div></div>
+    <div class="kpi"><div class="l">Top Page</div><div class="v">94.5k</div><div class="s">Calendar</div></div>
+    <div class="kpi"><div class="l">Tracking Gaps</div><div class="v">55</div><div class="s">flagged below</div></div>
+  </div>
+
+  <h2>Methodology</h2>
+  <div class="section-block">
+    <p style="margin:0">Traffic is pulled from Google Analytics 4 (property 527326342, browardschools.com) for the trailing 30 days. Department figures aggregate every sub page under each department folder, so a department total reflects its full section, not a single landing page. Program and service figures come from the official <a href="https://www.browardschools.com/directory/programs-and-services-63" target="_blank" rel="noopener">Programs and Services directory</a>, with each listed page measured against analytics. Engagement is the GA4 engagement rate. Pages on separate domains, for example Broward Virtual School and the parent payment portals, are outside this property and are not included.</p>
+  </div>
+
+  <h2>Department Traffic Ranking</h2>
+  <table class="data">
+    <thead><tr><th>#</th><th>Department</th><th class="r">Sessions</th><th class="r">Active Users</th><th class="r">Engagement</th></tr></thead>
+    <tbody>
+<tr><td class="num">1</td><td><a href="https://www.browardschools.com/bcps-departments/school-choice123" target="_blank" rel="noopener">Charter Schools Management/Support</a><div class="sub">/bcps-departments/school-choice123</div></td><td class="r">58,676</td><td class="r">35,379</td><td class="r" style="color:#16750C;font-weight:700">80%</td></tr>
+<tr><td class="num">2</td><td><a href="https://www.browardschools.com/bcps-departments/information-systems" target="_blank" rel="noopener">Information Systems</a><div class="sub">/bcps-departments/information-systems</div></td><td class="r">36,624</td><td class="r">26,034</td><td class="r" style="color:#1672A7;font-weight:700">60%</td></tr>
+<tr><td class="num">3</td><td><a href="https://www.browardschools.com/bcps-departments/strategy-innovation" target="_blank" rel="noopener">Strategic Initiatives &amp; Performance Management</a><div class="sub">/bcps-departments/strategy-innovation</div></td><td class="r">28,936</td><td class="r">18,737</td><td class="r" style="color:#16750C;font-weight:700">70%</td></tr>
+<tr><td class="num">4</td><td><a href="https://www.browardschools.com/bcps-departments/student-transportation-fleet-services" target="_blank" rel="noopener">Student Transportation &amp; Fleet Services</a><div class="sub">/bcps-departments/student-transportation-fleet-services</div></td><td class="r">22,244</td><td class="r">14,850</td><td class="r" style="color:#1672A7;font-weight:700">55%</td></tr>
+<tr><td class="num">5</td><td><a href="https://www.browardschools.com/bcps-departments/human-resources" target="_blank" rel="noopener">Talent Acquisition</a><div class="sub">/bcps-departments/human-resources</div></td><td class="r">19,005</td><td class="r">12,798</td><td class="r" style="color:#16750C;font-weight:700">72%</td></tr>
+<tr><td class="num">6</td><td><a href="https://www.browardschools.com/bcps-departments/applied-learning-academic-electives-specials-extra-curricular" target="_blank" rel="noopener">Applied Learning Academic Electives Specials Extra Curricular</a><div class="sub">/bcps-departments/applied-learning-academic-electives-specials-extra-curricular</div></td><td class="r">16,547</td><td class="r">10,025</td><td class="r" style="color:#1672A7;font-weight:700">65%</td></tr>
+<tr><td class="num">7</td><td><a href="https://www.browardschools.com/bcps-departments/school-counseling" target="_blank" rel="noopener">School Counseling</a><div class="sub">/bcps-departments/school-counseling</div></td><td class="r">15,151</td><td class="r">10,982</td><td class="r" style="color:#1672A7;font-weight:700">61%</td></tr>
+<tr><td class="num">8</td><td><a href="https://www.browardschools.com/bcps-departments/early-childhood-education" target="_blank" rel="noopener">Early Childhood Education</a><div class="sub">/bcps-departments/early-childhood-education</div></td><td class="r">13,353</td><td class="r">8,679</td><td class="r" style="color:#1672A7;font-weight:700">69%</td></tr>
+<tr><td class="num">9</td><td><a href="https://www.browardschools.com/bcps-departments/food-and-nutrition-services" target="_blank" rel="noopener">Food &amp; Nutrition Services</a><div class="sub">/bcps-departments/food-and-nutrition-services</div></td><td class="r">12,538</td><td class="r">8,065</td><td class="r" style="color:#C55326;font-weight:700">46%</td></tr>
+<tr><td class="num">10</td><td><a href="https://www.browardschools.com/bcps-departments/finance-office" target="_blank" rel="noopener">Finance Office</a><div class="sub">/bcps-departments/finance-office</div></td><td class="r">10,196</td><td class="r">7,346</td><td class="r" style="color:#16750C;font-weight:700">80%</td></tr>
+<tr><td class="num">11</td><td><a href="https://www.browardschools.com/bcps-departments/records-retention" target="_blank" rel="noopener">Records Retention</a><div class="sub">/bcps-departments/records-retention</div></td><td class="r">7,059</td><td class="r">4,886</td><td class="r" style="color:#16750C;font-weight:700">71%</td></tr>
+<tr><td class="num">12</td><td><a href="https://www.browardschools.com/bcps-departments/office-of-communications-legislative-affairs" target="_blank" rel="noopener">Legislative Affairs</a><div class="sub">/bcps-departments/office-of-communications-legislative-affairs</div></td><td class="r">6,945</td><td class="r">5,508</td><td class="r" style="color:#1672A7;font-weight:700">67%</td></tr>
+<tr><td class="num">13</td><td><a href="https://www.browardschools.com/bcps-departments/school-culture-student-support" target="_blank" rel="noopener">School Culture &amp; Student Support</a><div class="sub">/bcps-departments/school-culture-student-support</div></td><td class="r">5,754</td><td class="r">3,620</td><td class="r" style="color:#C55326;font-weight:700">49%</td></tr>
+<tr><td class="num">14</td><td><a href="https://www.browardschools.com/bcps-departments/business-support-center" target="_blank" rel="noopener">Business Support Center</a><div class="sub">/bcps-departments/business-support-center</div></td><td class="r">4,986</td><td class="r">3,664</td><td class="r" style="color:#1672A7;font-weight:700">61%</td></tr>
+<tr><td class="num">15</td><td><a href="https://www.browardschools.com/bcps-departments/exceptional-student-education" target="_blank" rel="noopener">Exceptional Student Education</a><div class="sub">/bcps-departments/exceptional-student-education</div></td><td class="r">4,806</td><td class="r">3,393</td><td class="r" style="color:#1672A7;font-weight:700">63%</td></tr>
+<tr><td class="num">16</td><td><a href="https://www.browardschools.com/bcps-departments/student-services" target="_blank" rel="noopener">Student Services &amp; Mental Health</a><div class="sub">/bcps-departments/student-services</div></td><td class="r">4,488</td><td class="r">3,638</td><td class="r" style="color:#1672A7;font-weight:700">57%</td></tr>
+<tr><td class="num">17</td><td><a href="https://www.browardschools.com/bcps-departments/student-activities" target="_blank" rel="noopener">Student Activities</a><div class="sub">/bcps-departments/student-activities</div></td><td class="r">3,937</td><td class="r">2,774</td><td class="r" style="color:#1672A7;font-weight:700">52%</td></tr>
+<tr><td class="num">18</td><td><a href="https://www.browardschools.com/bcps-departments/procurement" target="_blank" rel="noopener">Procurement &amp; Logistics</a><div class="sub">/bcps-departments/procurement</div></td><td class="r">3,077</td><td class="r">1,874</td><td class="r" style="color:#16750C;font-weight:700">75%</td></tr>
+<tr><td class="num">19</td><td><a href="https://www.browardschools.com/bcps-departments/professional-learning-development" target="_blank" rel="noopener">Professional Learning Development</a><div class="sub">/bcps-departments/professional-learning-development</div></td><td class="r">2,828</td><td class="r">1,729</td><td class="r" style="color:#1672A7;font-weight:700">62%</td></tr>
+<tr><td class="num">20</td><td><a href="https://www.browardschools.com/bcps-departments/secondary-learning" target="_blank" rel="noopener">Secondary Learning</a><div class="sub">/bcps-departments/secondary-learning</div></td><td class="r">2,788</td><td class="r">2,295</td><td class="r" style="color:#1672A7;font-weight:700">67%</td></tr>
+<tr><td class="num">21</td><td><a href="https://www.browardschools.com/bcps-departments/educational-assessment-analysis-research" target="_blank" rel="noopener">Educational Assessment, Analysis &amp; Research</a><div class="sub">/bcps-departments/educational-assessment-analysis-research</div></td><td class="r">1,688</td><td class="r">1,275</td><td class="r" style="color:#1672A7;font-weight:700">64%</td></tr>
+<tr><td class="num">22</td><td><a href="https://www.browardschools.com/bcps-departments/safety-security-and-emergency-preparedness" target="_blank" rel="noopener">Behavioral Threat Management</a><div class="sub">/bcps-departments/safety-security-and-emergency-preparedness</div></td><td class="r">1,535</td><td class="r">1,225</td><td class="r" style="color:#1672A7;font-weight:700">63%</td></tr>
+<tr><td class="num">23</td><td><a href="https://www.browardschools.com/bcps-departments/coordinated-student-health-services" target="_blank" rel="noopener">Coordinated Student Health Services</a><div class="sub">/bcps-departments/coordinated-student-health-services</div></td><td class="r">1,514</td><td class="r">1,230</td><td class="r" style="color:#16750C;font-weight:700">73%</td></tr>
+<tr><td class="num">24</td><td><a href="https://www.browardschools.com/bcps-departments/mental-health-services" target="_blank" rel="noopener">Mental Health Services</a><div class="sub">/bcps-departments/mental-health-services</div></td><td class="r">1,175</td><td class="r">935</td><td class="r" style="color:#1672A7;font-weight:700">52%</td></tr>
+<tr><td class="num">25</td><td><a href="https://www.browardschools.com/bcps-departments/athletics" target="_blank" rel="noopener">Athletics &amp; Student Activities</a><div class="sub">/bcps-departments/athletics</div></td><td class="r">1,035</td><td class="r">786</td><td class="r" style="color:#1672A7;font-weight:700">69%</td></tr>
+<tr><td class="num">26</td><td><a href="https://www.browardschools.com/bcps-departments/payroll" target="_blank" rel="noopener">Payroll</a><div class="sub">/bcps-departments/payroll</div></td><td class="r">924</td><td class="r">660</td><td class="r" style="color:#16750C;font-weight:700">72%</td></tr>
+<tr><td class="num">27</td><td><a href="https://www.browardschools.com/bcps-departments/elementary-learning" target="_blank" rel="noopener">Elementary Learning</a><div class="sub">/bcps-departments/elementary-learning</div></td><td class="r">782</td><td class="r">617</td><td class="r" style="color:#1672A7;font-weight:700">69%</td></tr>
+<tr><td class="num">28</td><td><a href="https://www.browardschools.com/bcps-departments/bilingualesol" target="_blank" rel="noopener">Bilingual / ESOL</a><div class="sub">/bcps-departments/bilingualesol</div></td><td class="r">719</td><td class="r">616</td><td class="r" style="color:#16750C;font-weight:700">77%</td></tr>
+<tr><td class="num">29</td><td><a href="https://www.browardschools.com/bcps-departments/budget" target="_blank" rel="noopener">Budget</a><div class="sub">/bcps-departments/budget</div></td><td class="r">461</td><td class="r">253</td><td class="r" style="color:#1672A7;font-weight:700">59%</td></tr>
+<tr><td class="num">30</td><td><a href="https://www.browardschools.com/bcps-departments/hr-operations" target="_blank" rel="noopener">Hr Operations</a><div class="sub">/bcps-departments/hr-operations</div></td><td class="r">353</td><td class="r">290</td><td class="r" style="color:#16750C;font-weight:700">77%</td></tr>
+<tr><td class="num">31</td><td><a href="https://www.browardschools.com/bcps-departments/talent-acquisition" target="_blank" rel="noopener">Talent Acquisition</a><div class="sub">/bcps-departments/talent-acquisition</div></td><td class="r">303</td><td class="r">189</td><td class="r" style="color:#1672A7;font-weight:700">62%</td></tr>
+<tr><td class="num">32</td><td><a href="https://www.browardschools.com/bcps-departments/economic-development-opportunities-compliance-edoc" target="_blank" rel="noopener">Economic Development, Opportunities &amp; Compliance</a><div class="sub">/bcps-departments/economic-development-opportunities-compliance-edoc</div></td><td class="r">294</td><td class="r">176</td><td class="r" style="color:#1672A7;font-weight:700">61%</td></tr>
+<tr><td class="num">33</td><td><a href="https://www.browardschools.com/bcps-departments/innovative-learning" target="_blank" rel="noopener">Instructional Innovation &amp; Digital Learning</a><div class="sub">/bcps-departments/innovative-learning</div></td><td class="r">269</td><td class="r">202</td><td class="r" style="color:#16750C;font-weight:700">70%</td></tr>
+<tr><td class="num">34</td><td><a href="https://www.browardschools.com/bcps-departments/broward-educational-communications-network-becon" target="_blank" rel="noopener">BECON</a><div class="sub">/bcps-departments/broward-educational-communications-network-becon</div></td><td class="r">258</td><td class="r">228</td><td class="r" style="color:#16750C;font-weight:700">83%</td></tr>
+<tr><td class="num">35</td><td><a href="https://www.browardschools.com/bcps-departments/risk-management" target="_blank" rel="noopener">Risk Management</a><div class="sub">/bcps-departments/risk-management</div></td><td class="r">196</td><td class="r">105</td><td class="r" style="color:#C55326;font-weight:700">19%</td></tr>
+<tr><td class="num">36</td><td><a href="https://www.browardschools.com/bcps-departments/leadership-development" target="_blank" rel="noopener">Leadership Development</a><div class="sub">/bcps-departments/leadership-development</div></td><td class="r">185</td><td class="r">134</td><td class="r" style="color:#16750C;font-weight:700">70%</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Programs &amp; Services Ranking</h2>
+  <p>The 45 programs below recorded traffic in the last 30 days, ranked by sessions. The remaining 55 programs from the directory returned zero and are explained in Findings.</p>
+  <table class="data">
+    <thead><tr><th>#</th><th>Program / Service</th><th class="r">Sessions</th><th class="r">Active Users</th><th class="r">Engagement</th></tr></thead>
+    <tbody>
+<tr><td class="num">1</td><td><a href="https://www.browardschools.com/calendar-e3" target="_blank" rel="noopener">Calendar</a><div class="sub">/calendar-e3</div></td><td class="r">94,539</td><td class="r">52,143</td><td class="r" style="color:#C55326;font-weight:700">39%</td></tr>
+<tr><td class="num">2</td><td><a href="https://www.browardschools.com/bcps-departments/school-choice123" target="_blank" rel="noopener">School Choice</a><div class="sub">/bcps-departments/school-choice123</div></td><td class="r">58,889</td><td class="r">35,559</td><td class="r" style="color:#16750C;font-weight:700">80%</td></tr>
+<tr><td class="num">3</td><td><a href="https://www.browardschools.com/school-board/meeting-agendas" target="_blank" rel="noopener">Watch Live Board Meetings</a><div class="sub">/school-board/meeting-agendas</div></td><td class="r">24,049</td><td class="r">5,513</td><td class="r" style="color:#1672A7;font-weight:700">63%</td></tr>
+<tr><td class="num">4</td><td><a href="https://www.browardschools.com/bcps-departments/strategy-innovation/demographics-enrollment-planning/find-my-school" target="_blank" rel="noopener">School Locator</a><div class="sub">/bcps-departments/strategy-innovation/demographics-enrollment-planning/find-my-school</div></td><td class="r">10,597</td><td class="r">5,984</td><td class="r" style="color:#1672A7;font-weight:700">66%</td></tr>
+<tr><td class="num">5</td><td><a href="https://www.browardschools.com/bcps-departments/school-counseling/register-my-child" target="_blank" rel="noopener">Register for School</a><div class="sub">/bcps-departments/school-counseling/register-my-child</div></td><td class="r">6,340</td><td class="r">4,098</td><td class="r" style="color:#1672A7;font-weight:700">65%</td></tr>
+<tr><td class="num">6</td><td><a href="https://www.browardschools.com/bcps-departments/records-retention/transcripts" target="_blank" rel="noopener">Transcripts</a><div class="sub">/bcps-departments/records-retention/transcripts</div></td><td class="r">3,586</td><td class="r">2,393</td><td class="r" style="color:#1672A7;font-weight:700">68%</td></tr>
+<tr><td class="num">7</td><td><a href="https://www.browardschools.com/about-us/news-room" target="_blank" rel="noopener">Newsroom</a><div class="sub">/about-us/news-room</div></td><td class="r">3,581</td><td class="r">3,082</td><td class="r" style="color:#1672A7;font-weight:700">65%</td></tr>
+<tr><td class="num">8</td><td><a href="https://www.browardschools.com/community/volunteer" target="_blank" rel="noopener">Volunteer</a><div class="sub">/community/volunteer</div></td><td class="r">2,919</td><td class="r">2,107</td><td class="r" style="color:#1672A7;font-weight:700">58%</td></tr>
+<tr><td class="num">9</td><td><a href="https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus" target="_blank" rel="noopener">Breakfast and Lunch Menus</a><div class="sub">/bcps-departments/food-and-nutrition-services/power-up-menus</div></td><td class="r">2,790</td><td class="r">1,519</td><td class="r" style="color:#1672A7;font-weight:700">53%</td></tr>
+<tr><td class="num">10</td><td><a href="https://www.browardschools.com/school-board/school-board-policies" target="_blank" rel="noopener">Policies</a><div class="sub">/school-board/school-board-policies</div></td><td class="r">2,623</td><td class="r">1,821</td><td class="r" style="color:#16750C;font-weight:700">70%</td></tr>
+<tr><td class="num">11</td><td><a href="https://www.browardschools.com/bcps-departments/student-services/attendance" target="_blank" rel="noopener">Attendance</a><div class="sub">/bcps-departments/student-services/attendance</div></td><td class="r">2,023</td><td class="r">1,611</td><td class="r" style="color:#1672A7;font-weight:700">61%</td></tr>
+<tr><td class="num">12</td><td><a href="https://www.browardschools.com/bcps-departments/educational-assessment-analysis-research/testing-calendar-what-assessments-will-my-child-take-this-year" target="_blank" rel="noopener">Testing Calendar</a><div class="sub">/bcps-departments/educational-assessment-analysis-research/testing-calendar-what-assessments-will-my-child-take-this-year</div></td><td class="r">1,361</td><td class="r">1,095</td><td class="r" style="color:#1672A7;font-weight:700">63%</td></tr>
+<tr><td class="num">13</td><td><a href="https://www.browardschools.com/bcps-departments/school-improvement" target="_blank" rel="noopener">School Improvement</a><div class="sub">/bcps-departments/school-improvement</div></td><td class="r">783</td><td class="r">609</td><td class="r" style="color:#C55326;font-weight:700">49%</td></tr>
+<tr><td class="num">14</td><td><a href="https://www.browardschools.com/bcps-departments/food-and-nutrition-services/meal-benefits" target="_blank" rel="noopener">Free and Reduced Lunch Program</a><div class="sub">/bcps-departments/food-and-nutrition-services/meal-benefits</div></td><td class="r">639</td><td class="r">485</td><td class="r" style="color:#1672A7;font-weight:700">64%</td></tr>
+<tr><td class="num">15</td><td><a href="https://www.browardschools.com/bcps-departments/exceptional-student-education/psychological-services" target="_blank" rel="noopener">Psychological Services</a><div class="sub">/bcps-departments/exceptional-student-education/psychological-services</div></td><td class="r">359</td><td class="r">239</td><td class="r" style="color:#1672A7;font-weight:700">54%</td></tr>
+<tr><td class="num">16</td><td><a href="https://www.browardschools.com/bcps-departments/safety-security-and-emergency-preparedness/emergency-management/emergency-response-protocols" target="_blank" rel="noopener">Emergency Information / Codes</a><div class="sub">/bcps-departments/safety-security-and-emergency-preparedness/emergency-management/emergency-response-protocols</div></td><td class="r">312</td><td class="r">276</td><td class="r" style="color:#1672A7;font-weight:700">65%</td></tr>
+<tr><td class="num">17</td><td><a href="https://www.browardschools.com/bcps-departments/exceptional-student-education/sednet" target="_blank" rel="noopener">SEDNET</a><div class="sub">/bcps-departments/exceptional-student-education/sednet</div></td><td class="r">306</td><td class="r">221</td><td class="r" style="color:#1672A7;font-weight:700">51%</td></tr>
+<tr><td class="num">18</td><td><a href="https://www.browardschools.com/bcps-departments/student-services/homeless-education-heart" target="_blank" rel="noopener">Homeless Education</a><div class="sub">/bcps-departments/student-services/homeless-education-heart</div></td><td class="r">234</td><td class="r">171</td><td class="r" style="color:#1672A7;font-weight:700">62%</td></tr>
+<tr><td class="num">19</td><td><a href="https://www.browardschools.com/careers/human-resources-support-services/overview" target="_blank" rel="noopener">Personnel Records (Employment Services)</a><div class="sub">/careers/human-resources-support-services/overview</div></td><td class="r">207</td><td class="r">177</td><td class="r" style="color:#16750C;font-weight:700">85%</td></tr>
+<tr><td class="num">20</td><td><a href="https://www.browardschools.com/bcps-departments/mental-health-services/family-counseling-program" target="_blank" rel="noopener">Family Counseling</a><div class="sub">/bcps-departments/mental-health-services/family-counseling-program</div></td><td class="r">206</td><td class="r">156</td><td class="r" style="color:#1672A7;font-weight:700">55%</td></tr>
+<tr><td class="num">21</td><td><a href="https://www.browardschools.com/programs-and-services/privacy-information/privacy-information" target="_blank" rel="noopener">Privacy Information</a><div class="sub">/programs-and-services/privacy-information/privacy-information</div></td><td class="r">186</td><td class="r">155</td><td class="r" style="color:#C55326;font-weight:700">46%</td></tr>
+<tr><td class="num">22</td><td><a href="https://www.browardschools.com/community/get-involved-with-bcps-landing/overview" target="_blank" rel="noopener">Advertising</a><div class="sub">/community/get-involved-with-bcps-landing/overview</div></td><td class="r">136</td><td class="r">113</td><td class="r" style="color:#1672A7;font-weight:700">62%</td></tr>
+<tr><td class="num">23</td><td><a href="https://www.browardschools.com/community/get-involved-with-bcps-landing/overview" target="_blank" rel="noopener">Get Involved</a><div class="sub">/community/get-involved-with-bcps-landing/overview</div></td><td class="r">136</td><td class="r">113</td><td class="r" style="color:#1672A7;font-weight:700">62%</td></tr>
+<tr><td class="num">24</td><td><a href="https://www.browardschools.com/bcps-departments/school-improvement/accreditation" target="_blank" rel="noopener">District Accreditation</a><div class="sub">/bcps-departments/school-improvement/accreditation</div></td><td class="r">124</td><td class="r">111</td><td class="r" style="color:#C55326;font-weight:700">40%</td></tr>
+<tr><td class="num">25</td><td><a href="https://www.browardschools.com/programs-and-services/mandatory-legal-notices/overview" target="_blank" rel="noopener">Mandatory Legal Notices</a><div class="sub">/programs-and-services/mandatory-legal-notices/overview</div></td><td class="r">124</td><td class="r">118</td><td class="r" style="color:#16750C;font-weight:700">77%</td></tr>
+<tr><td class="num">26</td><td><a href="https://www.browardschools.com/programs-and-services/non-discrimination-statement/overview" target="_blank" rel="noopener">Non-Discrimination Statement</a><div class="sub">/programs-and-services/non-discrimination-statement/overview</div></td><td class="r">109</td><td class="r">97</td><td class="r" style="color:#1672A7;font-weight:700">66%</td></tr>
+<tr><td class="num">27</td><td><a href="https://www.browardschools.com/bcps-departments/student-services/school-social-work" target="_blank" rel="noopener">School Social Work Services</a><div class="sub">/bcps-departments/student-services/school-social-work</div></td><td class="r">105</td><td class="r">87</td><td class="r" style="color:#16750C;font-weight:700">76%</td></tr>
+<tr><td class="num">28</td><td><a href="https://www.browardschools.com/programs-and-services/service-learning-student-volunteer" target="_blank" rel="noopener">Community Service - Student</a><div class="sub">/programs-and-services/service-learning-student-volunteer</div></td><td class="r">101</td><td class="r">87</td><td class="r" style="color:#16750C;font-weight:700">77%</td></tr>
+<tr><td class="num">29</td><td><a href="https://www.browardschools.com/bcps-departments/exceptional-student-education/section-504" target="_blank" rel="noopener">Medicaid/504</a><div class="sub">/bcps-departments/exceptional-student-education/section-504</div></td><td class="r">99</td><td class="r">77</td><td class="r" style="color:#1672A7;font-weight:700">66%</td></tr>
+<tr><td class="num">30</td><td><a href="https://www.browardschools.com/bcps-departments/office-of-communications-legislative-affairs/legislative-information/lobbyists" target="_blank" rel="noopener">Lobbyists</a><div class="sub">/bcps-departments/office-of-communications-legislative-affairs/legislative-information/lobbyists</div></td><td class="r">95</td><td class="r">39</td><td class="r" style="color:#1672A7;font-weight:700">59%</td></tr>
+<tr><td class="num">31</td><td><a href="https://www.browardschools.com/bcps-departments/school-counseling/foreign-exchange-program" target="_blank" rel="noopener">Foreign Exchange Program</a><div class="sub">/bcps-departments/school-counseling/foreign-exchange-program</div></td><td class="r">86</td><td class="r">60</td><td class="r" style="color:#1672A7;font-weight:700">60%</td></tr>
+<tr><td class="num">32</td><td><a href="https://www.browardschools.com/bcps-departments/information-technology/mobile-app" target="_blank" rel="noopener">Mobile App</a><div class="sub">/bcps-departments/information-technology/mobile-app</div></td><td class="r">85</td><td class="r">82</td><td class="r" style="color:#16750C;font-weight:700">89%</td></tr>
+<tr><td class="num">33</td><td><a href="https://www.browardschools.com/bcps-departments/facilities/smart-futures" target="_blank" rel="noopener">SMART Futures</a><div class="sub">/bcps-departments/facilities/smart-futures</div></td><td class="r">85</td><td class="r">77</td><td class="r" style="color:#16750C;font-weight:700">80%</td></tr>
+<tr><td class="num">34</td><td><a href="https://www.browardschools.com/bcps-departments/office-of-communications-legislative-affairs/general-information/all-are-welcome" target="_blank" rel="noopener">All Are Welcome</a><div class="sub">/bcps-departments/office-of-communications-legislative-affairs/general-information/all-are-welcome</div></td><td class="r">53</td><td class="r">46</td><td class="r" style="color:#1672A7;font-weight:700">68%</td></tr>
+<tr><td class="num">35</td><td><a href="https://www.browardschools.com/academics/early-learning/overview" target="_blank" rel="noopener">Early Childhood</a><div class="sub">/academics/early-learning/overview</div></td><td class="r">53</td><td class="r">46</td><td class="r" style="color:#16750C;font-weight:700">70%</td></tr>
+<tr><td class="num">36</td><td><a href="https://www.browardschools.com/academics/early-learning/overview" target="_blank" rel="noopener">PreK</a><div class="sub">/academics/early-learning/overview</div></td><td class="r">53</td><td class="r">46</td><td class="r" style="color:#16750C;font-weight:700">70%</td></tr>
+<tr><td class="num">37</td><td><a href="https://www.browardschools.com/bcps-departments/safety-security-and-emergency-preparedness/emergency-management/storm-resource-center" target="_blank" rel="noopener">Storm Resource Center</a><div class="sub">/bcps-departments/safety-security-and-emergency-preparedness/emergency-management/storm-resource-center</div></td><td class="r">44</td><td class="r">39</td><td class="r" style="color:#1672A7;font-weight:700">50%</td></tr>
+<tr><td class="num">38</td><td><a href="https://www.browardschools.com/bcps-departments/office-of-communications-legislative-affairs/general-information/military-families" target="_blank" rel="noopener">Military Families</a><div class="sub">/bcps-departments/office-of-communications-legislative-affairs/general-information/military-families</div></td><td class="r">35</td><td class="r">30</td><td class="r" style="color:#16750C;font-weight:700">89%</td></tr>
+<tr><td class="num">39</td><td><a href="https://www.browardschools.com/bcps-departments/federal-programs/parent-engagement" target="_blank" rel="noopener">Parent Engagement - Title I</a><div class="sub">/bcps-departments/federal-programs/parent-engagement</div></td><td class="r">22</td><td class="r">17</td><td class="r" style="color:#1672A7;font-weight:700">59%</td></tr>
+<tr><td class="num">40</td><td><a href="https://www.browardschools.com/bcps-departments/coordinated-student-health-services/health-conditions/chronic-health" target="_blank" rel="noopener">Chronic Health</a><div class="sub">/bcps-departments/coordinated-student-health-services/health-conditions/chronic-health</div></td><td class="r">14</td><td class="r">12</td><td class="r" style="color:#1672A7;font-weight:700">50%</td></tr>
+<tr><td class="num">41</td><td><a href="https://www.browardschools.com/bcps-departments/information-technology/single-sign-on" target="_blank" rel="noopener">Single Sign On (SSO)</a><div class="sub">/bcps-departments/information-technology/single-sign-on</div></td><td class="r">7</td><td class="r">6</td><td class="r" style="color:#1672A7;font-weight:700">57%</td></tr>
+<tr><td class="num">42</td><td><a href="https://www.browardschools.com/bcps-departments/information-technology/microsoft-office-student-advantage" target="_blank" rel="noopener">Microsoft Student Advantage</a><div class="sub">/bcps-departments/information-technology/microsoft-office-student-advantage</div></td><td class="r">6</td><td class="r">6</td><td class="r" style="color:#C55326;font-weight:700">33%</td></tr>
+<tr><td class="num">43</td><td><a href="https://www.browardschools.com/academics/literacy/welcome-to-literacy-department" target="_blank" rel="noopener">Literacy</a><div class="sub">/academics/literacy/welcome-to-literacy-department</div></td><td class="r">3</td><td class="r">3</td><td class="r" style="color:#1672A7;font-weight:700">67%</td></tr>
+<tr><td class="num">44</td><td><a href="https://www.browardschools.com/bcps-departments/safety-security-and-emergency-preparedness/broward-county-public-schools-police-bcps-police" target="_blank" rel="noopener">BCPS Police</a><div class="sub">/bcps-departments/safety-security-and-emergency-preparedness/broward-county-public-schools-police-bcps-police</div></td><td class="r">2</td><td class="r">1</td><td class="r" style="color:#1672A7;font-weight:700">50%</td></tr>
+<tr><td class="num">45</td><td><a href="https://www.browardschools.com/bcps-departments/office-of-communications-legislative-affairs/publications" target="_blank" rel="noopener">On The Right Track</a><div class="sub">/bcps-departments/office-of-communications-legislative-affairs/publications</div></td><td class="r">1</td><td class="r">1</td><td class="r" style="color:#16750C;font-weight:700">100%</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Findings</h2>
+  <div class="outcome-banner">
+    <div class="outcome-label">Key Finding</div>
+    <p>55 of the 100 directory programs returned zero traffic. This is a tracking and linking issue, not an indication that the pages are unused. Two distinct causes, each with a clear remedy.</p>
+  </div>
+
+  <div class="finding">
+    <h3>Finding 1: Directory links point at internal system addresses</h3>
+    <div class="count">40 programs</div>
+    <p>These directory entries link to a Finalsite system address of the form <strong>/fs/pages/####</strong>. The public reaches the same content through a friendly URL, and analytics records the visit under that friendly URL, so a lookup on the /fs/pages address finds nothing. Remedy: resolve each link to its public URL and update the program record. No content change is needed.</p>
+    <div class="chips"><span class="chip">Academics</span> <span class="chip">Anonymous Tips</span> <span class="chip">Anti-Bullying</span> <span class="chip">Before &amp; After School Care</span> <span class="chip">Broward CODES</span> <span class="chip">Broward Virtual University (BVU)</span> <span class="chip">Caliber Awards</span> <span class="chip">Chess</span> <span class="chip">Civic Engagement</span> <span class="chip">Code of Student Conduct</span> <span class="chip">Community Involvement Awards</span> <span class="chip">Computer Science</span> <span class="chip">Debate</span> <span class="chip">Driver&#x27;s Education</span> <span class="chip">Early Learning</span> <span class="chip">Employee and External Self-Service (ESS)</span> <span class="chip">Environmental Education</span> <span class="chip">Family and Community Engagement (FACE)</span> <span class="chip">Foster Care Program</span> <span class="chip">Gifted &amp; Talented</span> <span class="chip">Head Start</span> <span class="chip">Home Education Program</span> <span class="chip">JROTC</span> <span class="chip">Leaves</span> <span class="chip">Magnet Programs</span> <span class="chip">Mentor</span> <span class="chip">Mentoring Tomorrow&#x27;s Leaders</span> <span class="chip">Music &amp; Performing Arts</span> <span class="chip">Old Dillard Museum</span> <span class="chip">Physical Education &amp; Health Education</span> <span class="chip">Robotics</span> <span class="chip">STEM +CS</span> <span class="chip">Student Enrichment Through the Arts (SEAS)</span> <span class="chip">Superintendent&#x27;s Spotlight</span> <span class="chip">Venture Design</span> <span class="chip">Visual Arts</span> <span class="chip">Voluntary PreK</span> <span class="chip">Warehousing Services</span> <span class="chip">Xello</span> <span class="chip">Youth Mentoring Programs</span></div>
+  </div>
+
+  <div class="finding">
+    <h3>Finding 2: Directory links point at a section front door only</h3>
+    <div class="count">15 programs</div>
+    <p>These entries link to a single overview page that itself gets few direct visits, while the real traffic sits on sibling pages within the same section. For example, the Transportation department pulled over 22,000 sessions, but its overview page alone reads near zero. Remedy: measure the whole section folder for these programs, not just the overview page.</p>
+    <div class="chips"><span class="chip">Athletics</span> <span class="chip">BECON Programming</span> <span class="chip">BRACE</span> <span class="chip">Career and Technical Education</span> <span class="chip">Child Abuse Services</span> <span class="chip">Community Connections</span> <span class="chip">ESE Support</span> <span class="chip">Guidance</span> <span class="chip">Health Services</span> <span class="chip">Immunization Information</span> <span class="chip">Legislative Information</span> <span class="chip">Parent Resources</span> <span class="chip">School Counseling</span> <span class="chip">Student Activities</span> <span class="chip">Transportation</span></div>
+  </div>
+
+  <h2>The Audit Process</h2>
+  <div class="section-block">
+    <p style="margin:0 0 12px"><strong>Step 1. Automated department pass.</strong> The system ranks all department pages by traffic and refreshes on demand. This half is done and repeatable.</p>
+    <p style="margin:0 0 12px"><strong>Step 2. District page review.</strong> Sean completes the review of the public program and service pages, resolving the tracking gaps above so every page reports real numbers.</p>
+    <p style="margin:0 0 12px"><strong>Step 3. Page by page optimization.</strong> Working from the ranked list, each page is reviewed one at a time and checked that it is as clear, accurate, and easy to use as possible.</p>
+    <p style="margin:0"><strong>Step 4. Assign and improve.</strong> Specific pages are assigned with clear written instructions for what to change. Audits continue on a rolling basis and results are shared back as the work is completed.</p>
+  </div>
+
+  <h2>Action Items</h2>
+  <div class="section-block">
+    <div class="action-item"><div class="action-num">1</div><div><div class="action-title">Resolve the 40 Finalsite directory links to their public URLs</div><div class="action-detail">Map each /fs/pages address to the friendly URL the public sees and update the tracked list so these programs report real traffic.</div><div class="action-owner">Owner: Automated pass, reviewed by Sean A. Russell</div></div></div>
+    <div class="action-item"><div class="action-num">2</div><div><div class="action-title">Roll up the 15 section front door programs to the full section</div><div class="action-detail">Measure the whole folder for these programs so the numbers reflect actual use.</div><div class="action-owner">Owner: Automated pass, reviewed by Sean A. Russell</div></div></div>
+    <div class="action-item"><div class="action-num">3</div><div><div class="action-title">Begin page by page optimization on the highest traffic pages</div><div class="action-detail">Start with the top of the ranking, for example Calendar, School Choice, Watch Live Board Meetings, School Locator, and Register for School. Confirm each is current, clear, and easy to navigate.</div><div class="action-owner">Owner: Felicia Hicks, summer page improvement</div></div></div>
+    <div class="action-item"><div class="action-num">4</div><div><div class="action-title">Review low engagement, high traffic pages</div><div class="action-detail">Pages with strong traffic but weak engagement deserve early attention, for example Food and Nutrition Services and Risk Management. Improve clarity and next steps on these pages.</div><div class="action-owner">Owner: Felicia Hicks, summer page improvement</div></div></div>
+  </div>
+
+  <h2>Next Steps</h2>
+  <div class="section-block">
+    <div class="timeline-row"><div class="timeline-date">This week</div><div class="timeline-text"><strong>Resolve tracking gaps.</strong> Close Findings 1 and 2 so the full directory reports real numbers.</div></div>
+    <div class="timeline-row"><div class="timeline-date">Summer</div><div class="timeline-text"><strong>Page improvement assignments.</strong> Felicia Hicks works the assigned pages with written instructions, top of the ranking first.</div></div>
+    <div class="timeline-row"><div class="timeline-date">Rolling</div><div class="timeline-text"><strong>Recurring audits.</strong> Re-run the audit on a regular cadence and share updated rankings and assignments.</div></div>
+  </div>
+
+  <p class="foot">Data source: GA4 Property 527326342, browardschools.com, trailing 30 days as of June 14, 2026. Departments and programs aggregated across all sub pages.</p>
+</main>
+</body>
+</html>

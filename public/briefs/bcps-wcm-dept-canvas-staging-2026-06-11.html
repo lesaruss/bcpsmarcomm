@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WCM Certification - Department | Canvas Content Staging</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bcps-blue: #1672A7;
+  --bcps-blue-dark: #0e4e73;
+  --bcps-green: #16750C;
+  --bcps-orange: #C55326;
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --surface2: #fafafa;
+  --border: rgba(0,0,0,0.09);
+  --text: #1a1a1a;
+  --text-75: rgba(26,26,26,0.78);
+  --text-50: rgba(26,26,26,0.55);
+  --text-30: rgba(26,26,26,0.35);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+:focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+a { color: var(--bcps-blue); }
+
+header.bcps-header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: 64px; background: #fff;
+  border-bottom: 3px solid var(--bcps-blue);
+  display: flex; align-items: center; padding: 0 28px; gap: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.bcps-logo { height: 44px; width: auto; display: block; }
+.bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+.bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+main { max-width: 1000px; margin: 0 auto; padding: 88px 24px 80px; }
+h1 { font-size: clamp(20px, 3vw, 34px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 16px; }
+
+.meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+.meta-item { display: flex; flex-direction: column; gap: 3px; }
+.meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+.meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+.staging-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 28px; }
+.staging-banner p { font-size: 13px; color: var(--text-75); margin: 0 0 6px; }
+.staging-banner p:last-child { margin: 0; }
+.staging-banner strong { color: var(--bcps-blue-dark); }
+
+.module-wrap { margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.module-trigger {
+  width: 100%; display: flex; align-items: center; gap: 14px;
+  padding: 18px 20px; background: var(--surface); border: none; cursor: pointer;
+  text-align: left; font-family: inherit;
+}
+.module-trigger:hover { background: rgba(22,114,167,0.04); }
+.mod-num { font-size: 11px; font-weight: 900; color: var(--bcps-blue); min-width: 28px; }
+.mod-title { font-size: 15px; font-weight: 700; color: var(--text); flex: 1; }
+.mod-badge { font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 8px; border-radius: 3px; }
+.badge-new { background: rgba(197,83,38,0.10); border: 1px solid rgba(197,83,38,0.28); color: var(--bcps-orange); }
+.badge-adapt { background: rgba(22,114,167,0.08); border: 1px solid rgba(22,114,167,0.22); color: var(--bcps-blue); }
+.badge-keep { background: rgba(22,117,12,0.08); border: 1px solid rgba(22,117,12,0.25); color: var(--bcps-green); }
+.mod-arrow { font-size: 14px; color: var(--text-30); transition: transform 0.2s; }
+.module-trigger[aria-expanded="true"] .mod-arrow { transform: rotate(180deg); }
+
+.module-body { display: none; padding: 0 20px 20px; border-top: 1px solid var(--border); }
+.module-body.open { display: block; }
+
+.video-slot { background: rgba(197,83,38,0.05); border: 1px solid rgba(197,83,38,0.20); border-radius: 6px; padding: 12px 16px; margin: 16px 0; }
+.video-slot-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-orange); margin-bottom: 4px; }
+.video-slot-text { font-size: 12px; color: var(--text-75); }
+
+.copy-all-btn { margin: 8px 0 20px; display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 8px 16px; border-radius: 5px; background: var(--bcps-blue); color: #fff; border: none; cursor: pointer; font-family: inherit; }
+.copy-all-btn:hover { background: var(--bcps-blue-dark); }
+
+.page-section { margin-bottom: 16px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.page-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+.page-name { font-size: 12px; font-weight: 800; color: var(--text); text-transform: uppercase; letter-spacing: 0.10em; }
+.copy-btn { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; padding: 5px 12px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border); color: var(--text-50); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.copy-btn:hover { background: var(--bcps-blue); color: #fff; border-color: var(--bcps-blue); }
+.copy-btn.copied { background: var(--bcps-green); color: #fff; border-color: var(--bcps-green); }
+
+.page-content { padding: 16px; font-size: 13px; color: var(--text-75); line-height: 1.75; }
+.page-content h2 { font-size: 17px; font-weight: 800; color: var(--text); margin: 0 0 10px; }
+.page-content h3 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--bcps-blue); margin: 18px 0 8px; }
+.page-content p { margin-bottom: 12px; }
+.page-content ul, .page-content ol { margin: 0 0 12px 20px; }
+.page-content li { margin-bottom: 5px; }
+.page-content .callout { background: rgba(22,114,167,0.06); border-left: 3px solid var(--bcps-blue); padding: 12px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; }
+.page-content .callout p { margin: 0; font-size: 13px; }
+.page-content .warning { background: rgba(197,83,38,0.06); border-left: 3px solid var(--bcps-orange); padding: 12px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; }
+.page-content .warning p { margin: 0; font-size: 13px; }
+.page-content .checklist li { list-style: none; padding-left: 4px; }
+.page-content .checklist li::before { content: "[ ] "; font-weight: 700; color: var(--bcps-blue); }
+
+.carry-over-banner { background: rgba(22,117,12,0.06); border: 1px solid rgba(22,117,12,0.25); border-radius: 6px; padding: 14px 16px; margin: 16px 0; }
+.carry-over-banner .co-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-green); margin-bottom: 5px; }
+.carry-over-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+
+.mastery-section { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-top: 16px; }
+.mastery-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-50); margin-bottom: 10px; }
+.mastery-q { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.mastery-a { font-size: 12px; color: var(--bcps-green); margin-bottom: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">BCPS - Canvas Content Staging</span>
+</header>
+
+<main>
+<h1>WCM Certification - Department<br>Canvas Content Staging</h1>
+<div class="meta-row">
+  <div class="meta-item"><span class="meta-label">Date</span><span class="meta-value">June 11, 2026</span></div>
+  <div class="meta-item"><span class="meta-label">Course</span><span class="meta-value">WCM Certification - Department</span></div>
+  <div class="meta-item"><span class="meta-label">Canvas Course ID</span><span class="meta-value">2000209</span></div>
+  <div class="meta-item"><span class="meta-label">Produced By</span><span class="meta-value">Office of Communications</span></div>
+  <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">Pending Review - Monday June 15</span></div>
+</div>
+<div class="staging-banner">
+  <p><strong>How to use this document:</strong> Each accordion below represents one Canvas module. Open a module to see all Canvas pages for that module. Click <strong>Copy</strong> next to any individual page to copy its formatted HTML, then paste directly into the Canvas Rich Content Editor (HTML view). Use <strong>Copy All Pages</strong> to grab everything in a module at once.</p>
+  <p><strong>Video slots:</strong> Orange video blocks indicate where a video should appear. Some map to existing videos on the Standards and Guidelines pages on browardschools.com - confirm embed URLs before publishing. Videos labeled as "school version" in the existing Canvas course need to be replaced with department-specific versions.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 1 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 1</span>
+    <span class="mod-title">Welcome and Overview</span>
+    <span class="mod-badge badge-adapt">Adapt</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">No video - to be sourced. Consider a brief welcome message from the Office of Communications introducing the department certification.</div></div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod1')">Copy All Pages</button>
+    <div id="mod1">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - Welcome</span><button class="copy-btn" onclick="copyPage(this, 'mod1p1')">Copy</button></div>
+      <div class="page-content" id="mod1p1">
+        <h2>Welcome to the WCM Certification - Department</h2>
+        <p>Welcome, and thank you for taking the time to complete this training.</p>
+        <p>This course is designed for Broward County Public Schools (BCPS) department-level Web Content Managers (WCMs). Whether you are new to managing a department website or refreshing your skills, this certification will give you the knowledge and tools to maintain a professional, accessible, and compliant department presence on browardschools.com.</p>
+        <p>As a department WCM, you are part of a network of content stewards who help keep the BCPS website accurate, organized, and useful for everyone who depends on it, including school administrators, students, families, staff, and the general public.</p>
+        <div class="callout"><p><strong>Before you begin:</strong> Make sure you have your Finalsite Composer login credentials ready. You will need access to your department site to complete the hands-on activities in this course.</p></div>
+        <p>When you complete this course and earn your certification badge, you will have demonstrated that you can manage your department site to the standards BCPS expects. Let us get started.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - Purpose of Training</span><button class="copy-btn" onclick="copyPage(this, 'mod1p2')">Copy</button></div>
+      <div class="page-content" id="mod1p2">
+        <h2>Purpose of This Training</h2>
+        <p>Department websites serve a different function than school websites. While school sites primarily serve individual school communities, department pages are the authoritative source of information for district-wide programs, services, policies, and guidance.</p>
+        <p>Your content is used daily by staff, administrators, and families across all of Broward County Public Schools. When your department site is accurate, organized, and accessible, it supports the entire district. When it is not, the impact is felt across 200+ schools.</p>
+        <h3>What This Course Covers</h3>
+        <p>This certification covers three areas:</p>
+        <ul>
+          <li><strong>BCPS Department Standards</strong> - the content, layout, navigation, and style expectations that apply to all department websites</li>
+          <li><strong>ADA Compliance and Legal Requirements</strong> - the accessibility rules your site must meet under federal and district guidelines</li>
+          <li><strong>Finalsite Composer</strong> - the tools and features you will use to build and maintain your pages</li>
+        </ul>
+        <h3>Why Certification Matters</h3>
+        <p>Completing this course demonstrates that you have the skills and knowledge to manage your department site responsibly. Your certification badge is a record of that commitment.</p>
+        <div class="callout"><p>Department WCMs who complete this certification are better prepared for site audits and contribute to a stronger, more consistent BCPS web presence.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 3 - Course Overview</span><button class="copy-btn" onclick="copyPage(this, 'mod1p3')">Copy</button></div>
+      <div class="page-content" id="mod1p3">
+        <h2>Course Overview</h2>
+        <p>This course is organized into 12 modules. Each module focuses on a specific area of department web content management. Modules build on each other, but you can return to any section at any time for reference.</p>
+        <h3>Module Summary</h3>
+        <ul>
+          <li><strong>Module 1:</strong> Welcome and Overview (you are here)</li>
+          <li><strong>Module 2:</strong> Department Standards and Design Expectations</li>
+          <li><strong>Module 3:</strong> Layout and Structure</li>
+          <li><strong>Module 4:</strong> Content Quality</li>
+          <li><strong>Module 5:</strong> Navigation</li>
+          <li><strong>Module 6:</strong> Post Boards</li>
+          <li><strong>Module 7:</strong> Resource Elements</li>
+          <li><strong>Module 8:</strong> Style Guidelines and Enhancements</li>
+          <li><strong>Module 9:</strong> ADA Compliance, Copyright, and Legal Notices</li>
+          <li><strong>Module 10:</strong> Introduction to Finalsite</li>
+          <li><strong>Module 11:</strong> Finalsite Tools and Features</li>
+          <li><strong>Module 12:</strong> Building Accessible Webpages</li>
+        </ul>
+        <h3>Mastery Checks</h3>
+        <p>Each module ends with a short Mastery Check. You must score 80% or higher to advance. You may retake a Mastery Check as many times as needed.</p>
+        <h3>Final Assessment</h3>
+        <p>After completing all modules, you will complete a Final Quiz and a Final Assignment. Passing both earns your certification badge.</p>
+        <div class="callout"><p><strong>Estimated completion time:</strong> Approximately 4 to 6 hours. You do not need to complete the course in one sitting.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 4 - What Is a Department WCM?</span><button class="copy-btn" onclick="copyPage(this, 'mod1p4')">Copy</button></div>
+      <div class="page-content" id="mod1p4">
+        <h2>What Is a Department WCM?</h2>
+        <p>A Web Content Manager (WCM) is the person responsible for keeping a department website accurate, current, and compliant with BCPS standards. You are the primary point of contact for your department's web presence.</p>
+        <h3>Your Core Responsibilities</h3>
+        <ul>
+          <li>Maintaining accurate and up-to-date content on your department site</li>
+          <li>Following BCPS web standards for layout, navigation, content quality, and style</li>
+          <li>Ensuring all content meets ADA accessibility requirements</li>
+          <li>Responding to audit findings and making corrections in a timely manner</li>
+          <li>Coordinating with the Office of Communications on major site changes</li>
+        </ul>
+        <h3>Department WCM vs. School WCM</h3>
+        <p>Department sites have higher visibility and broader impact than individual school sites. Your pages may be referenced by all 200+ schools, used in district communications, and accessed by state and federal stakeholders.</p>
+        <div class="callout"><p>Think of your department site as the official district record for your area. Accuracy, clarity, and accessibility are not optional - they are part of the role.</p></div>
+        <h3>Who to Contact</h3>
+        <p>Your primary resource for questions about web standards, Finalsite access, and site audits is the BCPS Office of Communications. Contact information and escalation guidance are available in the Resources page of this module.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 5 - Resources</span><button class="copy-btn" onclick="copyPage(this, 'mod1p5')">Copy</button></div>
+      <div class="page-content" id="mod1p5">
+        <h2>Resources</h2>
+        <p>The following resources will support you throughout this course and in your ongoing work as a department WCM.</p>
+        <h3>Standards and Guidelines</h3>
+        <ul>
+          <li><a href="https://www.browardschools.com/wcm-community/departments/standards-guidelines">BCPS Department Standards and Guidelines</a> - the official department web standards reference</li>
+        </ul>
+        <h3>Finalsite Access</h3>
+        <ul>
+          <li><a href="https://www.browardschools.com/cms/login">Finalsite Composer Login</a> - log in to manage your department site</li>
+        </ul>
+        <h3>ADA and Accessibility</h3>
+        <ul>
+          <li>Finalsite Accessibility Checker - available inside Composer (covered in Module 11)</li>
+          <li>BCPS ADA Compliance Guidelines - covered in Module 9</li>
+        </ul>
+        <h3>Support</h3>
+        <ul>
+          <li>For site access issues or technical questions: contact the Office of Communications</li>
+          <li>For questions about specific content standards: reference the Standards and Guidelines pages linked above</li>
+        </ul>
+        <div class="callout"><p>Bookmark the Standards and Guidelines page. It is your primary reference for all content and design decisions on your department site.</p></div>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 1 (Suggested Questions)</div>
+      <p class="mastery-q">1. Who is the primary audience for a BCPS department website?</p>
+      <p class="mastery-a">Correct answer: District staff, administrators, students, families, and the general public across all BCPS schools.</p>
+      <p class="mastery-q">2. What is the minimum passing score for a Mastery Check in this course?</p>
+      <p class="mastery-a">Correct answer: 80%</p>
+      <p class="mastery-q">3. Which of the following best describes the role of a department WCM?</p>
+      <p class="mastery-a">Correct answer: The person responsible for keeping a department website accurate, current, and compliant with BCPS standards.</p>
+      <p class="mastery-q">4. How does a department website differ from a school website in terms of impact?</p>
+      <p class="mastery-a">Correct answer: Department pages serve as the authoritative source of information for the entire district and may be referenced by all 200+ schools.</p>
+      <p class="mastery-q">5. Where can you find the official BCPS department web standards?</p>
+      <p class="mastery-a">Correct answer: browardschools.com/wcm-community/departments/standards-guidelines</p>
+    </div>
+
+    </div><!-- end mod1 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 2 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 2</span>
+    <span class="mod-title">Department Standards and Design Expectations</span>
+    <span class="mod-badge badge-new">New</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">No video - to be sourced. A walkthrough of a well-structured department homepage demonstrating layout standards would be ideal here.</div></div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod2')">Copy All Pages</button>
+    <div id="mod2">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - BCPS Department Website Standards</span><button class="copy-btn" onclick="copyPage(this, 'mod2p1')">Copy</button></div>
+      <div class="page-content" id="mod2p1">
+        <h2>BCPS Department Website Standards</h2>
+        <p>Every department website on browardschools.com is expected to meet the same core standards. These standards exist to ensure that all visitors to BCPS department pages receive a consistent, professional, and accessible experience.</p>
+        <p>As a department WCM, you are responsible for making sure your site meets these standards at all times, not just when it is first set up.</p>
+        <h3>Why Standards Matter</h3>
+        <p>When standards are applied consistently across all department sites, the results are clear:</p>
+        <ul>
+          <li>Visitors can find what they need quickly and reliably</li>
+          <li>Your department presents a professional image that reflects well on BCPS</li>
+          <li>Content is accessible to all users, including those with disabilities</li>
+          <li>Your site is easier to audit and maintain over time</li>
+        </ul>
+        <h3>What the Standards Cover</h3>
+        <p>The BCPS Department Web Standards address six areas: Layout and Structure, Content Quality, Navigation, Post Boards, Resource Elements, and Style Guidelines. Each of these areas is covered in depth in Modules 3 through 8.</p>
+        <div class="callout"><p>These standards are maintained and updated by the Office of Communications. The most current version is always available at <a href="https://www.browardschools.com/wcm-community/departments/standards-guidelines">browardschools.com/wcm-community/departments/standards-guidelines</a>.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - Required Content: Homepage</span><button class="copy-btn" onclick="copyPage(this, 'mod2p2')">Copy</button></div>
+      <div class="page-content" id="mod2p2">
+        <h2>Required Content: Homepage</h2>
+        <p>Your department homepage is the first page most visitors will see. It sets the tone for your entire site and must include specific required elements to meet BCPS standards.</p>
+        <h3>Required Homepage Elements</h3>
+        <ul>
+          <li><strong>Hero section:</strong> A clear, relevant banner image or visual that represents your department. The hero should include a brief tagline or headline identifying the department.</li>
+          <li><strong>Quick Access buttons:</strong> Three to six buttons linking to your most-visited or most important pages. These should reflect the services and resources your audience needs most.</li>
+          <li><strong>News or Announcements section:</strong> A post board or content section featuring current news, updates, or announcements relevant to your department.</li>
+          <li><strong>Footer:</strong> The BCPS standard footer with required district links and legal notices. This is maintained at the district level and should not be altered.</li>
+        </ul>
+        <h3>Organizing Your Homepage</h3>
+        <p>A homepage that is too busy is just as problematic as one that is too sparse. Prioritize the information your audience needs most, and keep secondary content on interior pages.</p>
+        <div class="callout"><p>Your homepage should answer the question: "What does this department do, and where do I go to get what I need?" Answer that question clearly and your homepage is doing its job.</p></div>
+        <div class="warning"><p><strong>Common mistake:</strong> Listing every possible link on the homepage. Limit Quick Access buttons to your top priorities. Too many options slow visitors down.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 3 - Homepage Sections</span><button class="copy-btn" onclick="copyPage(this, 'mod2p3')">Copy</button></div>
+      <div class="page-content" id="mod2p3">
+        <h2>Homepage Sections</h2>
+        <p>Beyond the required elements, your homepage may include additional content sections that highlight key programs, services, or information. The standards below apply to all homepage sections.</p>
+        <h3>Section Organization</h3>
+        <ul>
+          <li>Each section should have a clear heading that tells visitors what they will find</li>
+          <li>Content within each section should be directly related to its heading</li>
+          <li>Sections should be ordered by priority - the most important content appears highest on the page</li>
+          <li>Avoid sections with only one item or very little content - consolidate where possible</li>
+        </ul>
+        <h3>Visual Balance</h3>
+        <p>Your homepage should be visually balanced. A mix of images, text, and buttons helps break up the page and makes it easier to scan. Avoid pages that are all text or all images.</p>
+        <h3>Keeping Sections Current</h3>
+        <p>Every section on your homepage must be actively maintained. Remove or archive sections that are no longer relevant. A homepage with outdated sections undermines trust in your department site.</p>
+        <div class="callout"><p>Review your homepage at the start of each semester to make sure all sections are current, accurate, and still serving your visitors.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 4 - Interior Pages</span><button class="copy-btn" onclick="copyPage(this, 'mod2p4')">Copy</button></div>
+      <div class="page-content" id="mod2p4">
+        <h2>Interior Pages</h2>
+        <p>Interior pages are all the pages within your site that sit below the homepage. These are where most of your department content lives, from program descriptions and forms to policies and staff directories.</p>
+        <h3>Interior Page Standards</h3>
+        <ul>
+          <li><strong>Clear page title:</strong> Every interior page must have a title that accurately describes its content. The title should match or closely reflect the navigation label that leads to it.</li>
+          <li><strong>Logical content order:</strong> Information should be organized so the most important content appears first. Use headings to break up long pages.</li>
+          <li><strong>No orphaned pages:</strong> Every page should be reachable from your site navigation or from a link on another page. Pages that cannot be found are not useful to anyone.</li>
+          <li><strong>Consistent layout:</strong> Interior pages should use the same layout structure across your site. Visitors should not have to relearn the layout every time they navigate to a new section.</li>
+        </ul>
+        <h3>When to Create a New Page</h3>
+        <p>Create a new interior page when you have a distinct topic or service that does not fit cleanly on an existing page. Avoid creating pages just to have more pages - consolidate related content where it makes sense.</p>
+        <div class="callout"><p>Before creating a new page, ask: does this content belong on an existing page, or does it truly need its own space? Fewer, better-organized pages are almost always more effective than many thin pages.</p></div>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 2 (Suggested Questions)</div>
+      <p class="mastery-q">1. What are the four required elements of a BCPS department homepage?</p>
+      <p class="mastery-a">Correct answer: Hero section, Quick Access buttons, News or Announcements section, and the BCPS standard footer.</p>
+      <p class="mastery-q">2. How many Quick Access buttons are recommended on a department homepage?</p>
+      <p class="mastery-a">Correct answer: Three to six, linking to the most-visited or most important pages.</p>
+      <p class="mastery-q">3. What is an orphaned page?</p>
+      <p class="mastery-a">Correct answer: A page that cannot be reached from site navigation or from a link on another page.</p>
+      <p class="mastery-q">4. Where can you find the most current version of BCPS Department Web Standards?</p>
+      <p class="mastery-a">Correct answer: browardschools.com/wcm-community/departments/standards-guidelines</p>
+      <p class="mastery-q">5. When reviewing your homepage each semester, what should you check for?</p>
+      <p class="mastery-a">Correct answer: That all sections are current, accurate, and still relevant to your visitors.</p>
+    </div>
+
+    </div><!-- end mod2 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 3 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 3</span>
+    <span class="mod-title">Layout and Structure</span>
+    <span class="mod-badge badge-new">New</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">Video referenced on browardschools.com/wcm-community/departments/standards-guidelines - Layout and Structure page. Confirm embed URL before publishing.</div></div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod3')">Copy All Pages</button>
+    <div id="mod3">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - Why Layout and Structure Matter</span><button class="copy-btn" onclick="copyPage(this, 'mod3p1')">Copy</button></div>
+      <div class="page-content" id="mod3p1">
+        <h2>Why Layout and Structure Matter</h2>
+        <p>Layout and structure are the foundation of a usable website. When a page is well organized, visitors can find what they need quickly. When it is not, even the most accurate and up-to-date content becomes difficult to use.</p>
+        <p>For department sites, this matters even more. Your audience includes school administrators, staff, and families who may be looking for specific policies, forms, or program information under time pressure. A clear layout removes friction and helps them get what they need.</p>
+        <h3>What Structure Communicates</h3>
+        <p>Good structure is not just about visual appearance. It communicates:</p>
+        <ul>
+          <li>What is most important on the page</li>
+          <li>How different pieces of content relate to each other</li>
+          <li>Where a visitor should look next</li>
+        </ul>
+        <h3>Your Role</h3>
+        <p>As a department WCM, you are responsible for maintaining consistent layout and structure across all pages in your site. This means applying the same organizational logic every time you create or update a page, not just when the site is first built.</p>
+        <div class="callout"><p>A well-structured page is one that a first-time visitor can understand without needing any explanation. Use that as your test when reviewing your pages.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - Layout Standards</span><button class="copy-btn" onclick="copyPage(this, 'mod3p2')">Copy</button></div>
+      <div class="page-content" id="mod3p2">
+        <h2>Layout Standards</h2>
+        <p>The following standards apply to all pages on your department site. These are not stylistic preferences - they are baseline requirements for every page you manage.</p>
+        <h3>Logical Page Flow</h3>
+        <p>Content on each page should follow a logical order. Lead with the most important information, then provide supporting detail. Avoid burying key facts at the bottom of a long page.</p>
+        <h3>Clear Section Organization</h3>
+        <p>Use headings to organize long pages into clear sections. Each heading should accurately describe the content below it. Visitors should be able to scan the headings alone and understand what the page covers.</p>
+        <h3>Consistent Layout Across Pages</h3>
+        <p>Your site should feel cohesive. Pages with drastically different layouts create confusion and make your site feel unmanaged. Use the same structural patterns across pages of the same type.</p>
+        <h3>Balanced Elements</h3>
+        <p>Avoid clustering too many elements in one area of a page. Mix text, images, and interactive elements in a way that creates visual balance and does not overwhelm the visitor.</p>
+        <h3>Mobile and Responsive Design</h3>
+        <p>Finalsite pages are responsive by default, but the content choices you make affect how pages display on mobile. Avoid very wide tables, oversized images, or layouts that rely heavily on side-by-side columns - these often break on small screens.</p>
+        <div class="callout"><p>Before publishing a page, view it on a mobile device or use your browser's responsive preview mode to confirm it looks correct at smaller screen sizes.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 3 - Content Maintenance and Visual Consistency</span><button class="copy-btn" onclick="copyPage(this, 'mod3p3')">Copy</button></div>
+      <div class="page-content" id="mod3p3">
+        <h2>Content Maintenance and Visual Consistency</h2>
+        <p>A well-structured site requires ongoing maintenance. Structure degrades over time as content is added, updated, and removed without a consistent approach. Your job is to maintain the structure you inherit or build, not just populate it with content.</p>
+        <h3>Maintaining Structure Over Time</h3>
+        <ul>
+          <li>When adding a new section, follow the same organizational pattern used elsewhere on the page</li>
+          <li>When removing content, check whether the surrounding structure still makes sense without it</li>
+          <li>When updating content, make sure headings still accurately reflect what follows them</li>
+        </ul>
+        <h3>Avoiding Content Overload</h3>
+        <p>One of the most common layout problems is adding too much content to a single page. If a page is getting very long, ask whether some content should be moved to a sub-page or removed entirely.</p>
+        <p>Strategic white space - the empty space between content elements - is not wasted space. It gives the eye a place to rest and makes pages easier to read.</p>
+        <h3>Visual Consistency Checklist</h3>
+        <ul class="checklist">
+          <li>Heading levels are used consistently (H2 for major sections, H3 for sub-sections)</li>
+          <li>Images are similar in style and do not clash visually</li>
+          <li>Button styles are the same across the page</li>
+          <li>Text formatting (bold, italics) is used sparingly and consistently</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 4 - Common Layout Mistakes</span><button class="copy-btn" onclick="copyPage(this, 'mod3p4')">Copy</button></div>
+      <div class="page-content" id="mod3p4">
+        <h2>Common Layout Mistakes</h2>
+        <p>The following are the most frequent layout and structure issues found during BCPS department site audits. Reviewing these will help you avoid them on your own site.</p>
+        <h3>Walls of Text</h3>
+        <p>Large blocks of unbroken text are difficult to read and often cause visitors to leave the page. Break up long content with headings, bullet points, or shorter paragraphs.</p>
+        <h3>Inconsistent Heading Use</h3>
+        <p>Skipping heading levels (for example, jumping from H2 directly to H4) or using headings only for style rather than structure makes pages harder to read and hurts accessibility. Use headings in order and for their intended purpose.</p>
+        <h3>Too Many Elements on One Page</h3>
+        <p>A page with images, post boards, resource elements, feature boxes, and callout blocks all stacked together creates visual noise. Each element competes for attention and none stands out. Choose the elements that serve your content best and use others sparingly.</p>
+        <h3>Overcrowded Pages</h3>
+        <p>Resist the impulse to put everything on one page. If you find yourself creating a very long page because "it's all related," consider whether the content naturally divides into separate topics that deserve their own pages.</p>
+        <div class="warning"><p><strong>Audit flag:</strong> Pages with more than 1,500 words of body text are frequently flagged during content audits as candidates for restructuring. Review long pages regularly.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 5 - Layout Quick Checklist</span><button class="copy-btn" onclick="copyPage(this, 'mod3p5')">Copy</button></div>
+      <div class="page-content" id="mod3p5">
+        <h2>Layout Quick Checklist</h2>
+        <p>Use this checklist when reviewing any page on your department site. If you cannot check every item, the page needs attention before it is published or left live.</p>
+        <ul class="checklist">
+          <li>The page has a clear, accurate title</li>
+          <li>The most important content appears at the top</li>
+          <li>Headings are used to organize the page into clear sections</li>
+          <li>Heading levels are used in logical order (H2, H3, not H2 then H4)</li>
+          <li>The layout is consistent with other pages of the same type on this site</li>
+          <li>There are no walls of unbroken text</li>
+          <li>White space is used effectively - the page does not feel cluttered</li>
+          <li>Content elements are balanced across the page</li>
+          <li>The page displays correctly on a mobile screen</li>
+          <li>There is no outdated or placeholder content on the page</li>
+        </ul>
+        <div class="callout"><p>This checklist also applies before submitting a page for review or during your regular site audit. Bookmark it for future reference.</p></div>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 3 (Suggested Questions)</div>
+      <p class="mastery-q">1. What is the first rule of logical page flow?</p>
+      <p class="mastery-a">Correct answer: Lead with the most important information, then provide supporting detail.</p>
+      <p class="mastery-q">2. Why should you avoid using headings out of order (for example, H2 followed by H4)?</p>
+      <p class="mastery-a">Correct answer: It makes pages harder to read and hurts accessibility for screen reader users.</p>
+      <p class="mastery-q">3. What layout issue is most commonly flagged during BCPS department site audits?</p>
+      <p class="mastery-a">Correct answer: Pages with too much content crammed into one area - walls of text and overcrowded layouts.</p>
+      <p class="mastery-q">4. How should you test whether a page layout works on mobile devices?</p>
+      <p class="mastery-a">Correct answer: View it on a mobile device or use the browser's responsive preview mode before publishing.</p>
+      <p class="mastery-q">5. What does strategic white space accomplish on a page?</p>
+      <p class="mastery-a">Correct answer: It gives the eye a place to rest and makes pages easier to read - it is not wasted space.</p>
+    </div>
+
+    </div><!-- end mod3 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 4 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 4</span>
+    <span class="mod-title">Content Quality</span>
+    <span class="mod-badge badge-new">New</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">Video referenced on browardschools.com/wcm-community/departments/standards-guidelines - Content Quality page. Confirm embed URL before publishing.</div></div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod4')">Copy All Pages</button>
+    <div id="mod4">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - Why Content Quality Matters</span><button class="copy-btn" onclick="copyPage(this, 'mod4p1')">Copy</button></div>
+      <div class="page-content" id="mod4p1">
+        <h2>Why Content Quality Matters</h2>
+        <p>Department content on browardschools.com is authoritative. That means your pages are the official district source of truth for your area - the information that schools, staff, and families rely on to make decisions, complete tasks, and access services.</p>
+        <p>When that content is inaccurate, outdated, or poorly written, it creates real problems. Staff may follow outdated procedures. Families may submit the wrong forms. Schools may reference information that no longer applies.</p>
+        <h3>The Stakes Are Higher for Departments</h3>
+        <p>A single error on a school homepage affects one school community. An error on a department page can affect all 200+ schools and thousands of families across Broward County.</p>
+        <h3>What High-Quality Content Looks Like</h3>
+        <ul>
+          <li>Accurate and aligned with current district policy</li>
+          <li>Current - reflecting the most recent information available</li>
+          <li>Written clearly for multiple audiences</li>
+          <li>Structured so visitors can find what they need quickly</li>
+          <li>Free of formatting errors, typos, and broken links</li>
+          <li>Accessible to all users, including those using assistive technology</li>
+        </ul>
+        <div class="callout"><p>If you are unsure whether content is still accurate or current, do not leave it as-is. Remove it, replace it with a note that the information is being updated, or contact the appropriate person in your department to verify it.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - Writing Standards</span><button class="copy-btn" onclick="copyPage(this, 'mod4p2')">Copy</button></div>
+      <div class="page-content" id="mod4p2">
+        <h2>Writing Standards for Department Sites</h2>
+        <p>The way content is written affects how useful it is. These writing standards apply to all text content on your department site.</p>
+        <h3>Audience Awareness</h3>
+        <p>Department sites serve multiple audiences: school administrators, teachers, students, parents, and the general public. Write so that someone unfamiliar with your department can understand what you are communicating. Avoid acronyms without explanation and assume a general reading level.</p>
+        <h3>Plain Language</h3>
+        <p>Use plain, direct language. Short sentences are better than long ones. Common words are better than technical jargon. If a sentence requires a second reading to understand, rewrite it.</p>
+        <h3>Structured and Scannable</h3>
+        <p>Most web visitors do not read - they scan. Organize your content so that key information stands out. Use headings, short paragraphs, and bullet points to make scanning easy.</p>
+        <h3>Descriptive Links</h3>
+        <p>Every link should describe where it goes. "Click here" and "read more" do not tell visitors or screen readers anything useful. Instead, use the name of the page or document you are linking to.</p>
+        <p><strong>Wrong:</strong> Click here to download the form.<br><strong>Right:</strong> Download the 2025-2026 Field Trip Request Form.</p>
+        <h3>Professional Formatting</h3>
+        <p>Avoid using ALL CAPS for emphasis - it reads as shouting and reduces readability. Use bold sparingly to highlight genuinely important information. Do not use colored text or multiple font sizes to style content - use the preset heading styles instead.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 3 - Proofreading and Approval</span><button class="copy-btn" onclick="copyPage(this, 'mod4p3')">Copy</button></div>
+      <div class="page-content" id="mod4p3">
+        <h2>Proofreading and Approval</h2>
+        <p>Before any content is published to your department site, it should go through a review process. Publishing unreviewed content increases the risk of errors reaching a district-wide audience.</p>
+        <h3>Basic Proofreading Steps</h3>
+        <ul>
+          <li>Read the content out loud - this surfaces awkward phrasing and missing words that silent reading misses</li>
+          <li>Check all links - verify that every link opens the correct page or document</li>
+          <li>Verify dates, names, and program titles - these change frequently and are a common source of errors</li>
+          <li>Confirm that any referenced forms or documents are the current versions</li>
+          <li>Check for typos and grammar errors using your browser's spell check or a writing tool</li>
+        </ul>
+        <h3>Content Approval</h3>
+        <p>Significant content changes - especially changes to policies, program requirements, contact information, or forms - should be reviewed and approved by the appropriate person in your department before publishing. Consult your department's review process for guidance on what requires sign-off.</p>
+        <div class="callout"><p>A second set of eyes on important content before publishing is one of the most effective ways to prevent errors. Build this into your workflow, even for minor updates.</p></div>
+        <h3>After Publishing</h3>
+        <p>After publishing a page, view it in the browser to confirm it looks correct. Check formatting, link behavior, and that images are displaying properly before closing the editing session.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 4 - Common Content Issues</span><button class="copy-btn" onclick="copyPage(this, 'mod4p4')">Copy</button></div>
+      <div class="page-content" id="mod4p4">
+        <h2>Common Content Issues</h2>
+        <p>The following content issues are most frequently identified during BCPS department site audits. Each one has a direct impact on the usefulness and credibility of your site.</p>
+        <h3>"Coming Soon" Pages</h3>
+        <p>Pages that say "Coming Soon" or "Content Being Updated" and remain that way for extended periods create a poor visitor experience and suggest the site is not being actively maintained. Either publish the content or remove the page until it is ready.</p>
+        <h3>Broken Links</h3>
+        <p>Broken links are one of the most common and most damaging issues on any website. They indicate that the site is not being maintained and prevent visitors from accessing content they need. Test all links when publishing and during regular audits.</p>
+        <h3>Placeholder Text</h3>
+        <p>Generic placeholder text that was never replaced is occasionally found on department pages during audits. Always verify that new pages do not contain template language that was not updated before publishing.</p>
+        <h3>Excessive PDFs</h3>
+        <p>Using PDFs for all content is a common pattern that creates accessibility problems. PDFs are not always screen-reader compatible, they cannot be resized like web text, and they require a PDF viewer to open. Whenever possible, publish content directly on the page instead of as a PDF.</p>
+        <h3>Duplicate Content</h3>
+        <p>Publishing the same information in multiple places creates maintenance problems. When the information changes, every copy must be updated. Consolidate duplicate content and link to one authoritative source.</p>
+        <h3>ALL CAPS Overuse</h3>
+        <p>Using ALL CAPS for anything other than acronyms reduces readability and comes across as aggressive tone. Use bold or heading styles for emphasis instead.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 5 - Content Quality Checklist</span><button class="copy-btn" onclick="copyPage(this, 'mod4p5')">Copy</button></div>
+      <div class="page-content" id="mod4p5">
+        <h2>Content Quality Checklist</h2>
+        <p>Run through this checklist for any page you are creating or updating. If any item cannot be checked, the page needs attention.</p>
+        <ul class="checklist">
+          <li>All information on this page is accurate and aligned with current district policy</li>
+          <li>All dates, names, and program titles are current</li>
+          <li>All links work and point to the correct destination</li>
+          <li>All links use descriptive text (no "click here" or "read more")</li>
+          <li>No placeholder text remains from a template or previous version</li>
+          <li>No "Coming Soon" sections are left unpublished for extended periods</li>
+          <li>Content is written in plain language appropriate for multiple audiences</li>
+          <li>ALL CAPS is not used for emphasis</li>
+          <li>Bold and italics are used sparingly and purposefully</li>
+          <li>Content that exists elsewhere on the site is linked to rather than duplicated</li>
+          <li>PDFs linked from this page are current and accessible</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 4 (Suggested Questions)</div>
+      <p class="mastery-q">1. Why is content quality considered higher-stakes for department sites than school sites?</p>
+      <p class="mastery-a">Correct answer: An error on a department page can affect all 200+ schools and thousands of families, not just one school community.</p>
+      <p class="mastery-q">2. What is wrong with using "Click here" as link text?</p>
+      <p class="mastery-a">Correct answer: It does not tell visitors or screen readers where the link goes. Descriptive link text should be used instead.</p>
+      <p class="mastery-q">3. What should you do with a "Coming Soon" page that has not been updated in several months?</p>
+      <p class="mastery-a">Correct answer: Either publish the content or remove the page until it is ready.</p>
+      <p class="mastery-q">4. Why should you minimize the use of PDFs for web content?</p>
+      <p class="mastery-a">Correct answer: PDFs are not always screen-reader compatible, cannot be resized like web text, and require a PDF viewer. Content published directly on a page is more accessible.</p>
+      <p class="mastery-q">5. What is the recommended approach for verifying content accuracy before publishing?</p>
+      <p class="mastery-a">Correct answer: Have a second person review important content; verify all links; confirm dates, names, and forms are current versions.</p>
+    </div>
+
+    </div><!-- end mod4 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 5 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 5</span>
+    <span class="mod-title">Navigation</span>
+    <span class="mod-badge badge-new">New</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">Video referenced on browardschools.com/wcm-community/departments/standards-guidelines - Navigation page. Confirm embed URL before publishing.</div></div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod5')">Copy All Pages</button>
+    <div id="mod5">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - Why Navigation Matters</span><button class="copy-btn" onclick="copyPage(this, 'mod5p1')">Copy</button></div>
+      <div class="page-content" id="mod5p1">
+        <h2>Why Navigation Matters</h2>
+        <p>Navigation is the system that helps visitors move through your department site. When it works well, visitors find what they need without frustration. When it does not, even the best content becomes inaccessible.</p>
+        <p>Poor navigation is one of the top reasons visitors leave a website. It signals that the site is disorganized, and it actively prevents people from completing the tasks they came to do.</p>
+        <h3>What Good Navigation Achieves</h3>
+        <ul>
+          <li>Visitors can find key content within one or two clicks from the homepage</li>
+          <li>The site structure is predictable - visitors know where to look for different types of content</li>
+          <li>Labels accurately describe the pages they lead to</li>
+          <li>No pages are hidden or inaccessible</li>
+        </ul>
+        <h3>Your Navigation Responsibility</h3>
+        <p>As a department WCM, you control the navigation structure of your site. This includes the main menu, dropdown items, and any internal links between pages. Keeping this structure logical and current is part of your ongoing maintenance role.</p>
+        <div class="callout"><p>A visitor should never have to use the browser's back button to find their way around your site. If they do, your navigation needs attention.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - Navigation Standards</span><button class="copy-btn" onclick="copyPage(this, 'mod5p2')">Copy</button></div>
+      <div class="page-content" id="mod5p2">
+        <h2>Navigation Standards</h2>
+        <p>The following standards apply to the navigation structure of all BCPS department sites.</p>
+        <h3>Limit Main Menu Items</h3>
+        <p>The main menu should contain only the most important top-level categories for your site. Most department sites should have between four and seven main menu items. Too many items in the main menu overwhelms visitors and dilutes the importance of each category.</p>
+        <h3>Clear Page Hierarchy</h3>
+        <p>Your site should have a clear hierarchy: a homepage at the top, main sections below, and sub-pages below those. Avoid creating a flat structure where every page sits at the same level with no logical grouping.</p>
+        <h3>Minimize Click Depth</h3>
+        <p>Key content should be reachable within one to two clicks from the homepage. If a visitor has to click more than three times to find important information, that information is too deep in the structure. Consider promoting it or restructuring the navigation.</p>
+        <h3>Descriptive Labels</h3>
+        <p>Navigation labels should describe the content on the destination page. Avoid vague labels like "Resources," "Information," or "More." Use specific labels like "Forms and Documents," "Program Requirements," or "Staff Contacts."</p>
+        <h3>Effective Internal Linking</h3>
+        <p>Beyond the main navigation, use internal links within page content to connect related information. A visitor reading about a program should be able to click directly to the enrollment form, registration deadline, or staff contact without returning to the main menu.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 3 - Dropdown Structure</span><button class="copy-btn" onclick="copyPage(this, 'mod5p3')">Copy</button></div>
+      <div class="page-content" id="mod5p3">
+        <h2>Dropdown Structure</h2>
+        <p>Dropdown menus allow you to group related pages under a main navigation item without cluttering the top-level menu. When used well, they make your site easier to navigate. When overused or poorly organized, they create confusion.</p>
+        <h3>When to Use Dropdowns</h3>
+        <p>Use a dropdown when a main menu item has multiple sub-pages that logically belong together. The sub-pages should all be closely related to the parent item - if they are not, reconsider whether they belong in that group.</p>
+        <h3>Dropdown Limits</h3>
+        <p>Avoid creating dropdowns with more than eight items. Long dropdown menus are difficult to scan and can be hard to interact with on mobile devices. If you have more than eight items in a dropdown, consider whether some should be reorganized, consolidated, or removed.</p>
+        <h3>Nesting</h3>
+        <p>Multi-level dropdowns (dropdowns inside dropdowns) are generally not recommended for department sites. They add complexity without a proportional benefit and perform poorly on mobile screens. Keep your navigation to two levels: main menu items and one level of sub-pages.</p>
+        <div class="warning"><p><strong>Avoid:</strong> Creating a dropdown item that leads to a page with no content, or a dropdown where most items link to the same page. Each navigation item should serve a distinct purpose.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 4 - Navigation Responsibilities and Audit Prep</span><button class="copy-btn" onclick="copyPage(this, 'mod5p4')">Copy</button></div>
+      <div class="page-content" id="mod5p4">
+        <h2>Navigation Responsibilities and Audit Preparation</h2>
+        <p>Navigation issues are among the most commonly flagged items during BCPS site audits. Proactive navigation maintenance prevents these issues from accumulating.</p>
+        <h3>Regular Navigation Review</h3>
+        <p>Review your site navigation at least once per semester. Ask:</p>
+        <ul>
+          <li>Do all navigation labels still accurately describe their destination pages?</li>
+          <li>Are there pages in the navigation that are outdated, empty, or no longer relevant?</li>
+          <li>Are there important pages on the site that are not reachable from the navigation?</li>
+          <li>Have any programs, services, or departments been renamed that should be reflected in the labels?</li>
+        </ul>
+        <h3>Eliminating Duplicate Pages</h3>
+        <p>Over time, sites can accumulate duplicate pages - two or more pages with the same or very similar content. These create confusion in navigation and create a maintenance burden. Identify duplicates and consolidate them into a single authoritative page.</p>
+        <h3>Navigation Checklist</h3>
+        <ul class="checklist">
+          <li>Main menu has between four and seven items</li>
+          <li>All navigation labels are descriptive and specific</li>
+          <li>Key content is reachable within two clicks from the homepage</li>
+          <li>No orphaned pages exist (pages not reachable from navigation)</li>
+          <li>No duplicate pages exist</li>
+          <li>Dropdown menus have no more than eight items</li>
+          <li>Navigation reflects current department programs and services</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 5 (Suggested Questions)</div>
+      <p class="mastery-q">1. How many main menu items are recommended for a BCPS department site?</p>
+      <p class="mastery-a">Correct answer: Four to seven.</p>
+      <p class="mastery-q">2. What is the maximum number of clicks a visitor should need to reach key content from the homepage?</p>
+      <p class="mastery-a">Correct answer: One to two clicks. Three clicks is the outer limit.</p>
+      <p class="mastery-q">3. What is wrong with a navigation label that says "Resources"?</p>
+      <p class="mastery-a">Correct answer: It is too vague. Descriptive labels like "Forms and Documents" or "Program Requirements" are required.</p>
+      <p class="mastery-q">4. Why are multi-level dropdowns (dropdowns inside dropdowns) not recommended?</p>
+      <p class="mastery-a">Correct answer: They add complexity without proportional benefit and perform poorly on mobile screens.</p>
+      <p class="mastery-q">5. What should you do when you find two pages on your site with very similar content?</p>
+      <p class="mastery-a">Correct answer: Consolidate them into a single authoritative page and remove or redirect the duplicate.</p>
+    </div>
+
+    </div><!-- end mod5 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 6 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 6</span>
+    <span class="mod-title">Post Boards</span>
+    <span class="mod-badge badge-new">New</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">Video referenced on browardschools.com/wcm-community/departments/standards-guidelines - Post Boards page. Confirm embed URL before publishing.</div></div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod6')">Copy All Pages</button>
+    <div id="mod6">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - Why Post Boards Matter</span><button class="copy-btn" onclick="copyPage(this, 'mod6p1')">Copy</button></div>
+      <div class="page-content" id="mod6p1">
+        <h2>Why Post Boards Matter</h2>
+        <p>Post boards are the primary tool for publishing timely news, announcements, and updates on your department site. When used well, they keep your audience informed and demonstrate that your department is actively communicating. When neglected, they make your site feel stale and untrustworthy.</p>
+        <h3>What Post Boards Communicate</h3>
+        <p>An active, well-maintained post board signals that:</p>
+        <ul>
+          <li>Your department is engaged and communicating regularly</li>
+          <li>The information on your site is current and being actively managed</li>
+          <li>Visitors can return to your site and expect to find relevant updates</li>
+        </ul>
+        <h3>Your Role</h3>
+        <p>As a department WCM, you are responsible for publishing posts in a timely manner, ensuring posts meet content and accessibility standards, organizing posts so they are easy to find, and removing or archiving posts that are no longer relevant.</p>
+        <div class="callout"><p>A post board with the most recent entry dated six months ago suggests the site is not being maintained. Even one or two relevant posts per month is better than silence.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - Publishing Standards</span><button class="copy-btn" onclick="copyPage(this, 'mod6p2')">Copy</button></div>
+      <div class="page-content" id="mod6p2">
+        <h2>Post Publishing Standards</h2>
+        <p>All posts published to your department site must meet the following standards before going live.</p>
+        <h3>Timeliness</h3>
+        <p>Publish posts close to when the event or information becomes relevant. Announcements about upcoming deadlines should be posted with enough lead time for your audience to act. Posts about events that have already passed should be removed or archived promptly.</p>
+        <h3>Clear and Consistent Titles</h3>
+        <p>Every post must have a clear, descriptive title. The title should tell the reader exactly what the post is about. Avoid vague titles like "Important Update" or "New Information." Use specific titles like "2025-2026 Professional Development Calendar Now Available" or "Extended Deadline: Summer Program Applications."</p>
+        <h3>Consistent Formatting</h3>
+        <p>All posts should follow the same formatting pattern: a clear title, an introductory sentence or paragraph summarizing the post, and then supporting detail. Do not mix formatting styles between posts on the same board.</p>
+        <h3>Clear Calls to Action</h3>
+        <p>If a post requires the reader to do something - register, download a form, attend an event - include a clear call to action with a direct link. Do not assume visitors will know what to do with the information.</p>
+        <div class="warning"><p><strong>Audit flag:</strong> Posts without clear calls to action or posts with expired links are frequently flagged during content audits. Review all posts regularly for both issues.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 3 - Images, Accessibility, and Categorization</span><button class="copy-btn" onclick="copyPage(this, 'mod6p3')">Copy</button></div>
+      <div class="page-content" id="mod6p3">
+        <h2>Images, Accessibility, and Post Categorization</h2>
+        <h3>Using Images in Posts</h3>
+        <p>Images can make posts more visually engaging and help them stand out on a busy board. When using images in posts:</p>
+        <ul>
+          <li>Use images that are directly relevant to the post content</li>
+          <li>Use high-quality images that are appropriately sized for web display</li>
+          <li>Always add descriptive alt text to every image (covered in Module 12)</li>
+          <li>Do not use images as the only way to communicate important information - the post text must stand alone</li>
+        </ul>
+        <h3>Accessibility in Posts</h3>
+        <p>Post content must meet the same accessibility standards as all other site content. This includes descriptive link text, accessible headings, alt text on images, and no content conveyed through color alone.</p>
+        <h3>Post Categorization and Organization</h3>
+        <p>Categorizing posts makes them easier to find and helps visitors filter for what they need. Assign each post to the most relevant category available on your board. Avoid creating too many categories - a post board with 15 categories is harder to use than one with five well-defined ones.</p>
+        <p>Review your categories at least once per year to confirm they are still relevant and that no category is empty or has only one post.</p>
+        <div class="callout"><p>Avoid posting duplicate information. If an announcement is already covered in a resource element or on a page, link to that content rather than duplicating it in a post.</p></div>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 6 (Suggested Questions)</div>
+      <p class="mastery-q">1. What is the biggest risk of a post board with no recent posts?</p>
+      <p class="mastery-a">Correct answer: It signals that the site is not actively maintained and erodes visitor trust in the accuracy of the site overall.</p>
+      <p class="mastery-q">2. What makes a good post title?</p>
+      <p class="mastery-a">Correct answer: It is specific and descriptive - it tells the reader exactly what the post is about without needing to open it.</p>
+      <p class="mastery-q">3. What should you do with posts about events that have already passed?</p>
+      <p class="mastery-a">Correct answer: Remove or archive them promptly so the board reflects current, relevant information.</p>
+      <p class="mastery-q">4. What accessibility requirement applies to all images used in posts?</p>
+      <p class="mastery-a">Correct answer: Every image must have descriptive alt text.</p>
+      <p class="mastery-q">5. How many categories should a post board ideally have?</p>
+      <p class="mastery-a">Correct answer: A small number of well-defined categories - avoid creating so many that the categorization system becomes hard to use.</p>
+    </div>
+
+    </div><!-- end mod6 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 7 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 7</span>
+    <span class="mod-title">Resource Elements</span>
+    <span class="mod-badge badge-new">New</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">Video referenced on browardschools.com/wcm-community/departments/standards-guidelines - Resource Elements page. Confirm embed URL before publishing.</div></div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod7')">Copy All Pages</button>
+    <div id="mod7">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - What Are Resource Elements?</span><button class="copy-btn" onclick="copyPage(this, 'mod7p1')">Copy</button></div>
+      <div class="page-content" id="mod7p1">
+        <h2>What Are Resource Elements?</h2>
+        <p>Resource elements are a specific type of content element in Finalsite Composer designed to display links, documents, and files in a structured, visually consistent format. They help visitors quickly identify and access the resources they need.</p>
+        <p>You have likely seen resource elements on other department pages - they typically appear as a list of linked items with icons indicating the file type (PDF, Word document, link, etc.).</p>
+        <h3>Common Uses for Resource Elements</h3>
+        <ul>
+          <li>Forms and applications available for download</li>
+          <li>Policy documents and administrative guidelines</li>
+          <li>Program handbooks and reference materials</li>
+          <li>External links to partner organizations or required resources</li>
+          <li>Staff directories with linked contact information</li>
+        </ul>
+        <h3>Resource Elements vs. Inline Links</h3>
+        <p>Resource elements are best for pages where visitors expect to find a collection of downloadable materials or links. For individual links within body text, inline hyperlinks are more appropriate. Do not use resource elements as a substitute for all links on a page - use the format that best matches the content and visitor expectation.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - Link and Document Standards</span><button class="copy-btn" onclick="copyPage(this, 'mod7p2')">Copy</button></div>
+      <div class="page-content" id="mod7p2">
+        <h2>Link and Document Standards</h2>
+        <p>Every resource element entry - whether a link or a document - must meet the following standards.</p>
+        <h3>Descriptive Labels</h3>
+        <p>Every link or document in a resource element must have a label that clearly describes what it is. The label should tell visitors what they will get when they click, including the document type and version where relevant.</p>
+        <p><strong>Wrong:</strong> Click here<br><strong>Wrong:</strong> Document 1<br><strong>Right:</strong> 2025-2026 Teacher Evaluation Handbook (PDF)</p>
+        <h3>Logical Organization</h3>
+        <p>Resources within an element should be grouped and ordered logically. Consider alphabetical order for long lists, or topical grouping when resources fall into distinct categories. Add section headers within a resource element when needed to help visitors scan.</p>
+        <h3>Keeping Resources Current</h3>
+        <p>Outdated documents left in resource elements are one of the most common and most harmful content issues on department sites. Visitors may download and use old versions of forms, policies, or guidelines without realizing they are out of date.</p>
+        <ul>
+          <li>Review all resource elements at least twice per year</li>
+          <li>Replace outdated documents immediately when new versions are published</li>
+          <li>Remove links to external sites that no longer exist</li>
+        </ul>
+        <h3>Avoiding Redundancy</h3>
+        <p>Do not list the same document or link in multiple places on your site unless there is a clear reason for a visitor to find it in both locations. Redundancy creates maintenance problems and can lead to situations where only one copy gets updated.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 3 - PDF Management and Accessibility</span><button class="copy-btn" onclick="copyPage(this, 'mod7p3')">Copy</button></div>
+      <div class="page-content" id="mod7p3">
+        <h2>PDF Management and Accessibility</h2>
+        <p>PDFs are the most common file type linked from BCPS department resource elements. They also represent one of the most significant accessibility risks if not managed carefully.</p>
+        <h3>Accessible PDFs</h3>
+        <p>To be considered accessible, a PDF must meet these minimum requirements:</p>
+        <ul>
+          <li>The document is a text-based PDF (not a scanned image of a document)</li>
+          <li>Headings are tagged in the document so screen readers can navigate them</li>
+          <li>Images within the PDF have alt text</li>
+          <li>Reading order is logical when accessed by a screen reader</li>
+          <li>The document language is set correctly in the file properties</li>
+        </ul>
+        <p>If you are unsure whether a PDF is accessible, do not publish it until you have verified. Contact the Office of Communications for guidance on PDF accessibility review.</p>
+        <h3>Managing Document Versions</h3>
+        <p>When you update a document, upload the new version to Finalsite and replace the existing link rather than adding a new one. This ensures visitors always access the current version and prevents old versions from remaining accessible on the site.</p>
+        <h3>When to Use a Page Instead of a PDF</h3>
+        <p>Consider publishing content directly on a web page instead of as a PDF when the information changes frequently, when it contains important links, or when it is content visitors need to read on a screen rather than print.</p>
+        <div class="callout"><p>The Assignment in Module 9 walks you through the process of reviewing a PDF for accessibility. That skill applies directly to every PDF you publish through resource elements.</p></div>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 7 (Suggested Questions)</div>
+      <p class="mastery-q">1. What is the purpose of a resource element in Finalsite Composer?</p>
+      <p class="mastery-a">Correct answer: To display links, documents, and files in a structured, visually consistent format so visitors can quickly find and access resources.</p>
+      <p class="mastery-q">2. What should a resource element label include for a downloadable PDF?</p>
+      <p class="mastery-a">Correct answer: A clear, descriptive name including the document title, version or year if applicable, and file type (PDF).</p>
+      <p class="mastery-q">3. How often should you review all resource elements on your site?</p>
+      <p class="mastery-a">Correct answer: At least twice per year, plus immediately whenever a document is updated or a linked page changes.</p>
+      <p class="mastery-q">4. What is the minimum requirement for a PDF to be considered accessible?</p>
+      <p class="mastery-a">Correct answer: It must be text-based (not a scanned image), have tagged headings, alt text on images, a logical reading order, and the correct document language set.</p>
+      <p class="mastery-q">5. When is it better to publish content on a web page instead of as a PDF?</p>
+      <p class="mastery-a">Correct answer: When the information changes frequently, contains important links, or is meant to be read on screen rather than printed.</p>
+    </div>
+
+    </div><!-- end mod7 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 8 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 8</span>
+    <span class="mod-title">Style Guidelines and Enhancements</span>
+    <span class="mod-badge badge-new">New</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">Video referenced on browardschools.com/wcm-community/departments/standards-guidelines - Style Guidelines page. Confirm embed URL before publishing.</div></div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod8')">Copy All Pages</button>
+    <div id="mod8">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - Why Style Consistency Matters</span><button class="copy-btn" onclick="copyPage(this, 'mod8p1')">Copy</button></div>
+      <div class="page-content" id="mod8p1">
+        <h2>Why Style Consistency Matters</h2>
+        <p>Visual style is the layer of your site that visitors notice first, often before they read a single word of content. A consistent, professional visual style communicates credibility and signals that your department takes its web presence seriously.</p>
+        <p>Inconsistent style - mixed font sizes, random use of color, visual elements that do not match - makes a site look unmanaged even when the underlying content is accurate and current.</p>
+        <h3>Brand Consistency</h3>
+        <p>Your department site is part of the BCPS web presence. The style choices you make either reinforce or undermine the district brand. BCPS has an established color palette, typography system, and visual identity that all department sites must follow. These are built into the Finalsite theme - your job is to work within them, not around them.</p>
+        <h3>Your Role in Style Stewardship</h3>
+        <p>Style stewardship means actively maintaining the visual consistency of your site over time. Every time content is added or updated, there is an opportunity for style drift. As a department WCM, you are the first line of defense against that drift.</p>
+        <div class="callout"><p>When in doubt about a style choice, use what is already present on the page. Matching the existing style is almost always the right call.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - Font, Text, and Color Standards</span><button class="copy-btn" onclick="copyPage(this, 'mod8p2')">Copy</button></div>
+      <div class="page-content" id="mod8p2">
+        <h2>Font, Text, and Color Standards</h2>
+        <p>The following standards apply to all text and color choices on your department site.</p>
+        <h3>Font Standards</h3>
+        <ul>
+          <li>Use only the fonts provided in the Finalsite style system. Do not paste text from Word documents without clearing formatting first, as this can import fonts that are not part of the BCPS design system.</li>
+          <li>Use a single body font size for paragraph text. Do not manually resize body text to create visual hierarchy - use heading styles instead.</li>
+          <li>Avoid using more than two or three type styles on a single page.</li>
+        </ul>
+        <h3>Text Formatting</h3>
+        <ul>
+          <li>Use bold for genuinely important terms or phrases - sparingly, not for decoration</li>
+          <li>Use italics for titles, technical terms, or light emphasis - not for extended passages of text</li>
+          <li>Do not underline text unless it is a hyperlink - underlining implies a link to most visitors</li>
+          <li>Do not use ALL CAPS for anything except acronyms</li>
+        </ul>
+        <h3>Color Standards</h3>
+        <ul>
+          <li>Use only the BCPS approved color palette available in Finalsite</li>
+          <li>Do not use color as the only way to convey information - this fails ADA accessibility standards</li>
+          <li>Ensure sufficient contrast between text color and background color (4.5:1 minimum ratio for standard text)</li>
+          <li>Do not use bright or off-brand colors to draw attention to content - use structural emphasis instead</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 3 - Strategic Use of Enhancements</span><button class="copy-btn" onclick="copyPage(this, 'mod8p3')">Copy</button></div>
+      <div class="page-content" id="mod8p3">
+        <h2>Strategic Use of Enhancements</h2>
+        <p>Finalsite Composer provides a variety of visual enhancement elements - feature boxes, callout blocks, icon lists, tabbed content, accordions, and more. These tools are powerful when used with purpose and distracting when overused.</p>
+        <h3>The Rule of Purpose</h3>
+        <p>Before adding any enhancement to a page, ask: does this help the visitor access or understand the content better? If the honest answer is no, do not add it. Enhancements should serve the visitor, not demonstrate that the WCM has explored the available tools.</p>
+        <h3>When Enhancements Work Well</h3>
+        <ul>
+          <li><strong>Callout boxes:</strong> For important notices, tips, or warnings that need to stand apart from body text</li>
+          <li><strong>Accordions:</strong> For FAQ sections or content where most visitors only need one or two answers</li>
+          <li><strong>Tabbed content:</strong> For separating content by audience type (e.g., students, parents, staff)</li>
+          <li><strong>Icon lists:</strong> For visual emphasis on short lists of key points</li>
+        </ul>
+        <h3>When Enhancements Hurt</h3>
+        <ul>
+          <li>Using multiple different enhancement types on the same page creates visual noise</li>
+          <li>Using enhancements for content that would be clearer as simple paragraphs or bullet points</li>
+          <li>Stacking enhancement blocks with no plain content between them</li>
+        </ul>
+        <div class="callout"><p>A page with well-placed enhancements looks intentional and professional. A page where every content block is a different visual treatment looks cluttered. Less is more.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 4 - Style Checklist</span><button class="copy-btn" onclick="copyPage(this, 'mod8p4')">Copy</button></div>
+      <div class="page-content" id="mod8p4">
+        <h2>Style Checklist</h2>
+        <p>Use this checklist when creating or reviewing any page. Style issues that pass the WCM review stage are more likely to be flagged during an audit.</p>
+        <ul class="checklist">
+          <li>Only BCPS-approved fonts are used (no imported fonts from Word)</li>
+          <li>Heading styles are used for visual hierarchy, not manual font sizing</li>
+          <li>Bold is used sparingly and for genuinely important terms only</li>
+          <li>No ALL CAPS text except for acronyms</li>
+          <li>No underlined text except for hyperlinks</li>
+          <li>Only BCPS brand colors are used</li>
+          <li>Text contrast meets accessibility requirements</li>
+          <li>Enhancements are used purposefully - each one serves a clear function</li>
+          <li>No more than two or three enhancement types are used on a single page</li>
+          <li>The visual style of this page matches other pages on the site</li>
+          <li>Buttons are styled consistently across the page and the site</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 8 (Suggested Questions)</div>
+      <p class="mastery-q">1. What is "style drift" and why is it a problem?</p>
+      <p class="mastery-a">Correct answer: Style drift is the gradual accumulation of inconsistent visual choices over time as content is added and updated. It makes a site look unmanaged even if the content is accurate.</p>
+      <p class="mastery-q">2. Why should you not underline text unless it is a hyperlink?</p>
+      <p class="mastery-a">Correct answer: Underlining implies a link to most visitors. Non-link underlined text creates confusion.</p>
+      <p class="mastery-q">3. What is the minimum contrast ratio required for standard body text to meet accessibility standards?</p>
+      <p class="mastery-a">Correct answer: 4.5:1</p>
+      <p class="mastery-q">4. What question should you ask before adding any visual enhancement to a page?</p>
+      <p class="mastery-a">Correct answer: Does this help the visitor access or understand the content better?</p>
+      <p class="mastery-q">5. When is a tabbed content enhancement most appropriate?</p>
+      <p class="mastery-a">Correct answer: When separating content by audience type, such as providing different information for students, parents, and staff on the same page.</p>
+    </div>
+
+    </div><!-- end mod8 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 9 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 9</span>
+    <span class="mod-title">ADA Compliance, Copyright and Legal Notices</span>
+    <span class="mod-badge badge-keep">Carry Over</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">School version video may exist in Canvas Module 3. Replace with a department-specific accessibility overview video before publishing. No confirmed department video available at this time.</div></div>
+    <div class="carry-over-banner">
+      <div class="co-label">Carry Over Module - Action Required</div>
+      <p>This module carries over from Module 3 of the Schools WCM Certification course. Before publishing in the Department course, review every page for school-specific language and update to department context. Pages are listed below with notes on what to check.</p>
+    </div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod9')">Copy All Pages</button>
+    <div id="mod9">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - Introduction to ADA and Web Accessibility</span><button class="copy-btn" onclick="copyPage(this, 'mod9p1')">Copy</button></div>
+      <div class="page-content" id="mod9p1">
+        <h2>Introduction to ADA and Web Accessibility</h2>
+        <p>The Americans with Disabilities Act (ADA) requires that BCPS websites be accessible to all users, including those who rely on assistive technology such as screen readers, keyboard navigation, and voice control software.</p>
+        <p>Web accessibility is not optional. For a large district like BCPS, federal accessibility requirements under Section 508 of the Rehabilitation Act and WCAG 2.1 AA guidelines apply to all public-facing web content. The federal compliance deadline for large school districts was April 24, 2026. All department websites must meet these standards now.</p>
+        <h3>What Web Accessibility Means in Practice</h3>
+        <ul>
+          <li>All images have descriptive alt text</li>
+          <li>All links use descriptive text (not "click here")</li>
+          <li>All videos have captions</li>
+          <li>Color is not the only way information is conveyed</li>
+          <li>Pages can be navigated using a keyboard alone</li>
+          <li>All documents (PDFs, Word files) are tagged for accessibility</li>
+          <li>Text has sufficient contrast against its background</li>
+        </ul>
+        <div class="callout"><p>Department sites serve a broader audience than school sites, including community members with disabilities who rely on your content for district services and information. ADA compliance is not just a legal requirement - it is a service standard.</p></div>
+        <h3>Review Before Publishing</h3>
+        <p><em>Check this page for any school-specific language. Update all references to "school site" or "school WCM" to "department site" or "department WCM."</em></p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - What Makes a Page Accessible?</span><button class="copy-btn" onclick="copyPage(this, 'mod9p2')">Copy</button></div>
+      <div class="page-content" id="mod9p2">
+        <h2>What Makes a Page Accessible?</h2>
+        <p>Accessibility is built into every content decision you make - from the words you choose for link text to the alt text you write for images. The following areas are where most accessibility issues occur on BCPS department sites.</p>
+        <h3>Alternative Text for Images</h3>
+        <p>Every image on your site must have alt text that describes what the image shows. Alt text is read aloud by screen readers for visitors who cannot see the image. If an image is purely decorative, mark it as decorative in Finalsite so screen readers skip it.</p>
+        <h3>Heading Structure</h3>
+        <p>Screen reader users often navigate pages by jumping between headings. This means your heading structure must be logical and complete. Do not skip heading levels. Do not use headings just to make text larger - use them to organize the page.</p>
+        <h3>Link Text</h3>
+        <p>Screen readers can generate a list of all links on a page. If all your links say "click here," that list is useless. Write link text that describes the destination even when read out of context.</p>
+        <h3>Tables</h3>
+        <p>Use tables only for data, not for page layout. Data tables must include a header row and be structured so that the relationship between data and headers is clear. Do not use tables to position text or images on a page.</p>
+        <h3>Color and Contrast</h3>
+        <p>Never use color alone to communicate information. Provide a text label, pattern, or icon alongside any color-coded content. Maintain a minimum contrast ratio of 4.5:1 for standard body text and 3:1 for large text.</p>
+        <p><em>Review this page for school-specific references before publishing.</em></p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 3 - Finalsite Accessibility Checker</span><button class="copy-btn" onclick="copyPage(this, 'mod9p3')">Copy</button></div>
+      <div class="page-content" id="mod9p3">
+        <h2>Using the Finalsite Accessibility Checker</h2>
+        <p>Finalsite Composer includes a built-in Accessibility Checker that scans your pages for common accessibility issues and reports them before you publish. Running the checker before every publish is a required step for all BCPS department WCMs.</p>
+        <h3>How to Run the Accessibility Checker</h3>
+        <ol>
+          <li>Open the page in Compose Mode in Finalsite</li>
+          <li>Click the Accessibility Checker button in the toolbar (covered in Module 11)</li>
+          <li>Review all flagged issues in the results panel</li>
+          <li>Resolve each issue before publishing</li>
+          <li>Re-run the checker after making corrections to confirm all issues are resolved</li>
+        </ol>
+        <h3>What the Checker Finds</h3>
+        <p>The Accessibility Checker will flag: missing alt text, empty links, low contrast text, improper heading structure, and missing form labels. It will not catch every accessibility issue - manual review is still required, particularly for PDFs, videos, and complex tables.</p>
+        <div class="callout"><p>The Accessibility Checker is a starting point, not a full audit. A page that passes the checker may still have accessibility issues that require manual review. Use the checker as your first step, not your last.</p></div>
+        <p><em>Review this page for school-specific references before publishing.</em></p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 4 - Assignment: Accessible PDF Review</span><button class="copy-btn" onclick="copyPage(this, 'mod9p4')">Copy</button></div>
+      <div class="page-content" id="mod9p4">
+        <h2>Assignment: Reviewing a PDF for Accessibility</h2>
+        <p>For this assignment, you will select a PDF currently published on your department site and complete an accessibility review of that document.</p>
+        <h3>Assignment Instructions</h3>
+        <ol>
+          <li>Select one PDF that is currently linked from a resource element on your department site</li>
+          <li>Open the PDF and attempt to navigate it using only your keyboard (Tab and arrow keys)</li>
+          <li>Note whether the document has a logical reading order, tagged headings, and alt text on any images</li>
+          <li>Run the PDF through Adobe Acrobat's accessibility checker if available</li>
+          <li>Submit a brief summary (three to five sentences) describing what you found and what, if anything, needs to be corrected</li>
+        </ol>
+        <h3>What to Submit</h3>
+        <p>Submit your summary through the Canvas assignment submission below. If the PDF has accessibility issues, include a note about what steps you plan to take to address them.</p>
+        <div class="callout"><p>If you do not have Adobe Acrobat, contact the Office of Communications for support with PDF accessibility review. Do not skip this assignment - PDF accessibility is one of the most common audit findings on department sites.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 5 - Copyright and Legal Notices</span><button class="copy-btn" onclick="copyPage(this, 'mod9p5')">Copy</button></div>
+      <div class="page-content" id="mod9p5">
+        <h2>Copyright and Legal Notices</h2>
+        <p>All content published on your department site must comply with copyright law. This applies to images, documents, videos, and any other media you publish or link to.</p>
+        <h3>Images and Media</h3>
+        <ul>
+          <li>Only use images that you have explicit permission to use - either images you own, district-provided images, or images licensed for use</li>
+          <li>Do not use images found through a Google Images search without verifying their license</li>
+          <li>The BCPS Finalsite media library contains district-licensed images available for use on all BCPS sites</li>
+          <li>For events or student photos, ensure any necessary release forms have been obtained before publishing</li>
+        </ul>
+        <h3>Documents and Text</h3>
+        <ul>
+          <li>Do not republish documents created by external organizations without permission</li>
+          <li>Linking to an external document is different from hosting a copy - linking is generally acceptable; hosting a copy requires permission</li>
+          <li>Do not reproduce copyrighted text from publications, books, or other sources on your department pages</li>
+        </ul>
+        <h3>Required Legal Notices</h3>
+        <p>The BCPS standard footer contains required legal notices including copyright notices, non-discrimination statements, and accessibility statements. These are maintained by the district and must remain on all department pages. Do not alter or remove any element of the standard footer.</p>
+        <p><em>Review this page for school-specific references before publishing.</em></p>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 9 (Suggested Questions - adapt from school version)</div>
+      <p class="mastery-q">1. What federal accessibility standard must BCPS department websites meet, and what was the compliance deadline for large districts?</p>
+      <p class="mastery-a">Correct answer: WCAG 2.1 AA under Section 508. Deadline was April 24, 2026.</p>
+      <p class="mastery-q">2. When can a decorative image have empty alt text?</p>
+      <p class="mastery-a">Correct answer: When the image conveys no information and is purely decorative. Mark it as decorative in Finalsite so screen readers skip it.</p>
+      <p class="mastery-q">3. What does the Finalsite Accessibility Checker NOT catch?</p>
+      <p class="mastery-a">Correct answer: All accessibility issues. It does not catch problems in PDFs, videos, or complex tables - manual review is still required.</p>
+      <p class="mastery-q">4. What is the difference between linking to an external document and hosting a copy?</p>
+      <p class="mastery-a">Correct answer: Linking is generally acceptable. Hosting a copy on your site requires permission from the copyright holder.</p>
+      <p class="mastery-q">5. What must never be altered on a BCPS department site?</p>
+      <p class="mastery-a">Correct answer: The standard BCPS footer, which contains required legal notices, non-discrimination statements, and the accessibility statement.</p>
+    </div>
+
+    </div><!-- end mod9 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 10 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 10</span>
+    <span class="mod-title">Introduction to Finalsite</span>
+    <span class="mod-badge badge-adapt">Adapt</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">School version video may exist in Canvas Module 4. Replace with a department-specific Finalsite orientation video showing the department site page tree and Compose Mode. No confirmed department video available at this time.</div></div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod10')">Copy All Pages</button>
+    <div id="mod10">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - Welcome to Finalsite Composer</span><button class="copy-btn" onclick="copyPage(this, 'mod10p1')">Copy</button></div>
+      <div class="page-content" id="mod10p1">
+        <h2>Welcome to Finalsite Composer</h2>
+        <p>Finalsite Composer is the content management system (CMS) used by BCPS to manage all school and department websites on browardschools.com. As a department WCM, Composer is your primary tool for creating, editing, and organizing content on your department site.</p>
+        <p>This module introduces you to the Finalsite environment. By the end of this module, you will be able to navigate your department site in Composer, understand the key components of the interface, and locate the tools you will use most frequently.</p>
+        <h3>Accessing Finalsite Composer</h3>
+        <p>Log in to Finalsite Composer at <a href="https://www.browardschools.com/cms/login">browardschools.com/cms/login</a> using your BCPS credentials. If you have not yet received access, contact the Office of Communications to request a Composer login for your department.</p>
+        <h3>Department Site vs. School Site in Composer</h3>
+        <p>Your Composer login gives you access to your specific department site. You will not see other departments' or schools' sites in your workspace. If you need access to view another department site for reference, contact the Office of Communications.</p>
+        <div class="callout"><p>Before making any changes to your live department site, familiarize yourself with the Sandbox (covered later in this module). The Sandbox allows you to practice without affecting what visitors see.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - Navigating Your Department Site</span><button class="copy-btn" onclick="copyPage(this, 'mod10p2')">Copy</button></div>
+      <div class="page-content" id="mod10p2">
+        <h2>Navigating Your Department Site in Composer</h2>
+        <p>Understanding how your department site is organized in Finalsite is essential before you start editing content. The site structure in Composer mirrors the navigation structure your visitors see.</p>
+        <h3>The Page Tree</h3>
+        <p>The Page Tree is your primary navigation tool inside Composer. It displays all pages on your department site in a hierarchical structure - the homepage at the top, with sub-pages nested below their parent pages.</p>
+        <ul>
+          <li>Click the arrow next to any page in the tree to expand and see its sub-pages</li>
+          <li>The indentation level shows the hierarchy: homepage is at the top level, main section pages are one level below, and sub-pages are one level further</li>
+          <li>Pages that appear in the navigation menu are marked accordingly in the tree</li>
+        </ul>
+        <h3>Understanding Page Hierarchy</h3>
+        <p>Your department site follows a hierarchy: the homepage is the top-level page, main sections (matching your main menu items) are the second level, and individual topic pages are the third level. Most department sites do not need more than three levels of hierarchy.</p>
+        <h3>Finding a Specific Page</h3>
+        <p>You can search for a specific page by name using the search bar above the Page Tree. This is faster than scrolling through the tree when you know the name of the page you need.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 3 - Composer Terminology</span><button class="copy-btn" onclick="copyPage(this, 'mod10p3')">Copy</button></div>
+      <div class="page-content" id="mod10p3">
+        <h2>Finalsite Composer Terminology</h2>
+        <p>Finalsite uses specific terms for its components. Understanding this terminology will help you follow instructions in this course and communicate with the Office of Communications support team.</p>
+        <h3>Key Terms</h3>
+        <ul>
+          <li><strong>Composer:</strong> The Finalsite CMS where you manage your department site content</li>
+          <li><strong>Compose Mode:</strong> The editing mode in Finalsite where you add and arrange content elements on a page</li>
+          <li><strong>Page:</strong> A single web page within your department site</li>
+          <li><strong>Element:</strong> A content block placed on a page in Compose Mode. Elements include Content Elements, Image Elements, Resource Elements, Post Boards, and Layout Elements, among others.</li>
+          <li><strong>Content Element:</strong> The most common element type - used for text, images within text, and general page content. You will use this for 80-90% of your page content.</li>
+          <li><strong>Resource Element:</strong> Used to display lists of links, documents, and files (covered in Module 7)</li>
+          <li><strong>Gallery:</strong> A collection of images displayed together on a page</li>
+          <li><strong>Resources:</strong> Uploaded files (PDFs, Word documents, etc.) stored in Finalsite for use on your site</li>
+          <li><strong>Layout Page:</strong> A page built using a structured column layout rather than a single-column content flow</li>
+        </ul>
+        <div class="callout"><p>When asking for support from the Office of Communications, using the correct Finalsite terminology helps us help you more quickly. Refer back to this page when you are unsure what to call something.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 4 - Resources vs. Galleries</span><button class="copy-btn" onclick="copyPage(this, 'mod10p4')">Copy</button></div>
+      <div class="page-content" id="mod10p4">
+        <h2>Resources vs. Galleries</h2>
+        <p>Two of the most commonly confused features in Finalsite are Resources and Galleries. Both involve storing and displaying files, but they serve very different purposes.</p>
+        <h3>Resources</h3>
+        <p>Resources are files you upload to Finalsite - PDFs, Word documents, spreadsheets, and other downloadable files. When you link to a downloadable file from a resource element or a text link on your page, you are linking to a Resource stored in Finalsite.</p>
+        <p>Resources are organized in folders within the Finalsite file manager. You can upload new resources, replace existing ones, and organize them into folders to keep your file library manageable.</p>
+        <h3>Galleries</h3>
+        <p>Galleries are collections of images displayed visually on a page - typically as a slideshow, grid, or carousel. Galleries are used for photos of events, staff, or department programs where you want visitors to see multiple images together.</p>
+        <h3>When to Use Each</h3>
+        <ul>
+          <li>Use <strong>Resources</strong> when visitors need to download a file - a form, a policy document, a calendar PDF</li>
+          <li>Use <strong>Galleries</strong> when you want to display a collection of images for visitors to browse</li>
+          <li>Do not use a Gallery element to host downloadable files, and do not store display images in the Resources folder</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 5 - Sandbox Activity</span><button class="copy-btn" onclick="copyPage(this, 'mod10p5')">Copy</button></div>
+      <div class="page-content" id="mod10p5">
+        <h2>Sandbox Activity</h2>
+        <p>Before making any changes to your live department site, practice in the Finalsite Sandbox. The Sandbox is a separate practice environment that mirrors your site's tools without affecting anything visible to the public.</p>
+        <h3>Activity Instructions</h3>
+        <p>Complete each of the following in the Sandbox before moving to Module 11:</p>
+        <ol>
+          <li>Log in to Finalsite Composer and locate the Sandbox environment</li>
+          <li>Navigate the Page Tree to find a sample page</li>
+          <li>Open the page in Compose Mode</li>
+          <li>Identify the Content Element on the page</li>
+          <li>Click into the Content Element and add a sentence of placeholder text</li>
+          <li>Save your changes (do not publish)</li>
+          <li>Preview the page to see how your change appears to a visitor</li>
+        </ol>
+        <h3>What You Are Practicing</h3>
+        <p>This activity builds the muscle memory for the most common Composer workflow: find a page, open it in Compose Mode, edit a Content Element, save, and preview. Every page edit you make as a department WCM follows this same basic pattern.</p>
+        <div class="callout"><p>If you are unsure how to access the Sandbox, contact the Office of Communications. Do not practice on your live department site.</p></div>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 10 (Suggested Questions)</div>
+      <p class="mastery-q">1. What is the Page Tree in Finalsite Composer?</p>
+      <p class="mastery-a">Correct answer: The hierarchical display of all pages on your site in Composer, showing the homepage at the top and sub-pages nested below their parent pages.</p>
+      <p class="mastery-q">2. What is the difference between a Resource and a Gallery in Finalsite?</p>
+      <p class="mastery-a">Correct answer: Resources are downloadable files (PDFs, documents). Galleries are collections of images displayed visually on a page.</p>
+      <p class="mastery-q">3. Which element type is used for 80-90% of page content on a department site?</p>
+      <p class="mastery-a">Correct answer: The Content Element.</p>
+      <p class="mastery-q">4. What is Compose Mode?</p>
+      <p class="mastery-a">Correct answer: The editing mode in Finalsite where you add, arrange, and edit content elements on a page.</p>
+      <p class="mastery-q">5. Why should you practice in the Sandbox before editing your live department site?</p>
+      <p class="mastery-a">Correct answer: The Sandbox is a practice environment that does not affect what visitors see. It allows you to build skills without risk to live content.</p>
+    </div>
+
+    </div><!-- end mod10 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 11 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 11</span>
+    <span class="mod-title">Finalsite Tools and Features</span>
+    <span class="mod-badge badge-adapt">Adapt</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">School version videos may exist in Canvas Module 5 for individual features. Each page in this module may benefit from a short screen-capture video. No confirmed department-specific versions available - to be sourced per page.</div></div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod11')">Copy All Pages</button>
+    <div id="mod11">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - Page Management</span><button class="copy-btn" onclick="copyPage(this, 'mod11p1')">Copy</button></div>
+      <div class="page-content" id="mod11p1">
+        <h2>Page Management</h2>
+        <p>Page management covers the tasks you perform at the page level in Finalsite: creating new pages, editing page settings, controlling page visibility, and organizing pages within the site structure.</p>
+        <h3>Creating a New Page</h3>
+        <ol>
+          <li>In the Page Tree, right-click the parent page where the new page should appear as a sub-page</li>
+          <li>Select "Add Sub-page" from the context menu</li>
+          <li>Enter the page title - this will also become the default URL slug</li>
+          <li>Choose the appropriate page template for your department site</li>
+          <li>Save the page before adding content</li>
+        </ol>
+        <h3>Page Settings</h3>
+        <p>Each page has a Settings panel where you can control:</p>
+        <ul>
+          <li><strong>Page title:</strong> The name of the page as it appears in the browser tab and page header</li>
+          <li><strong>Navigation label:</strong> The label used in the site menu (may differ from the page title)</li>
+          <li><strong>Visibility:</strong> Whether the page is published (visible to the public) or unpublished (draft)</li>
+          <li><strong>URL slug:</strong> The page's web address - keep slugs short, descriptive, and lowercase</li>
+        </ul>
+        <h3>Publishing and Unpublishing</h3>
+        <p>Always preview a page before publishing. Use the Preview button in Composer to see exactly what visitors will see. Once you are satisfied the page meets standards, publish it. To temporarily remove a page from public view without deleting it, unpublish it rather than deleting it.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - How to Add Content to a Page</span><button class="copy-btn" onclick="copyPage(this, 'mod11p2')">Copy</button></div>
+      <div class="page-content" id="mod11p2">
+        <h2>How to Add Content to a Page</h2>
+        <p>Adding content to a page in Finalsite is done through Compose Mode. This is where you add, arrange, and edit all the content elements that make up a page.</p>
+        <h3>Opening Compose Mode</h3>
+        <ol>
+          <li>Find the page in the Page Tree</li>
+          <li>Click the page to select it</li>
+          <li>Click the "Compose" button to open the page in Compose Mode</li>
+        </ol>
+        <h3>Adding a Content Element</h3>
+        <p>The Content Element is the most versatile and commonly used element on department sites. It supports text, headings, lists, images, tables, links, and most other content types.</p>
+        <ol>
+          <li>In Compose Mode, click the "Add Element" button</li>
+          <li>Select "Content Element" from the element menu</li>
+          <li>The element appears on the page with a default content area</li>
+          <li>Click inside the element to open the rich text editor</li>
+          <li>Add your content using the toolbar to apply headings, bold, lists, and links</li>
+          <li>Click Save when done</li>
+        </ol>
+        <div class="callout"><p>Use the Content Element for 80-90% of your page content. Reserve other element types (Resource Element, Gallery, Post Board) for their specific purposes. Over-relying on specialty elements creates maintenance complexity and visual inconsistency.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 3 - Setting Up Galleries</span><button class="copy-btn" onclick="copyPage(this, 'mod11p3')">Copy</button></div>
+      <div class="page-content" id="mod11p3">
+        <h2>Setting Up Galleries</h2>
+        <p>Galleries display collections of images on your department site. Use them for event photos, staff directories, and other situations where you want visitors to browse multiple images.</p>
+        <h3>Creating a Gallery</h3>
+        <ol>
+          <li>In Composer, navigate to the Gallery section of your site management tools</li>
+          <li>Click "Add Gallery" and give it a descriptive name</li>
+          <li>Upload your images to the gallery using the Upload button</li>
+          <li>Add alt text to every image before saving</li>
+          <li>Save the gallery</li>
+        </ol>
+        <h3>Adding a Gallery to a Page</h3>
+        <ol>
+          <li>Open the page in Compose Mode</li>
+          <li>Click "Add Element" and select the Gallery element type</li>
+          <li>Choose the gallery you created from the dropdown list</li>
+          <li>Set the display style (slideshow, grid, etc.) appropriate for your content</li>
+          <li>Save the element and preview the page</li>
+        </ol>
+        <h3>Maintaining Galleries</h3>
+        <p>Review gallery content at least once per semester. Remove outdated images - photos of events from several years ago, images of staff who have left the department, or images that no longer reflect current programs. An outdated gallery is worse than no gallery.</p>
+        <div class="warning"><p>Every image in every gallery must have alt text. This is an accessibility requirement and will be flagged in an audit if missing. Add alt text when images are uploaded, not as an afterthought.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 4 - Setting Up Layout Pages</span><button class="copy-btn" onclick="copyPage(this, 'mod11p4')">Copy</button></div>
+      <div class="page-content" id="mod11p4">
+        <h2>Setting Up Layout Pages</h2>
+        <p>Layout pages allow you to arrange content in multi-column formats - for example, two columns side by side, or a main content area with a sidebar. Use layout pages when the standard single-column format does not suit the content you are presenting.</p>
+        <h3>When to Use a Layout Page</h3>
+        <ul>
+          <li>Presenting two related sets of content side by side for comparison</li>
+          <li>Creating a homepage or landing page with a more structured visual design</li>
+          <li>Displaying a combination of text content and a sidebar with quick links or related information</li>
+        </ul>
+        <h3>Layout Page Cautions</h3>
+        <ul>
+          <li>Multi-column layouts can break on mobile screens if not set up carefully. Always preview layout pages on a narrow screen before publishing.</li>
+          <li>Do not use layout pages just because they look more visually interesting. Use them only when the two-column or structured format genuinely improves how the content is organized.</li>
+          <li>Avoid placing very long blocks of text in narrow layout columns - this makes them hard to read.</li>
+        </ul>
+        <h3>Adding Elements to a Layout Page</h3>
+        <p>In a layout page, each column or section of the layout has its own element zone. Add elements to the appropriate zone in Compose Mode the same way you would on a standard page - click "Add Element" within the zone you want to populate.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 5 - Uploading and Displaying Files</span><button class="copy-btn" onclick="copyPage(this, 'mod11p5')">Copy</button></div>
+      <div class="page-content" id="mod11p5">
+        <h2>Uploading and Displaying Files</h2>
+        <p>Files (PDFs, Word documents, spreadsheets, and other downloadable materials) are uploaded to Finalsite's Resources manager and then linked from pages and resource elements.</p>
+        <h3>How to Upload a File</h3>
+        <ol>
+          <li>Navigate to the Resources section in Finalsite Composer</li>
+          <li>Open or create the folder where the file should be stored</li>
+          <li>Click "Upload" and select the file from your computer</li>
+          <li>Rename the file if needed - use a descriptive, lowercase name with hyphens instead of spaces (e.g., 2025-2026-field-trip-request.pdf)</li>
+          <li>Click Save</li>
+        </ol>
+        <h3>Linking to an Uploaded File</h3>
+        <p>To link to an uploaded file from a Content Element, highlight the link text in the rich text editor, click the Link button in the toolbar, and select your file from the Resources library.</p>
+        <h3>Replacing a File When a New Version Is Available</h3>
+        <p>When a new version of a document is available, upload the new version to Finalsite and replace the existing file rather than uploading a new copy with a different name. This ensures that all existing links to the file automatically point to the new version.</p>
+        <div class="callout"><p>File naming matters. Use descriptive names that include the school year or version number (e.g., 2025-2026-employee-handbook.pdf). This makes it easy to identify which version is current in the Resources library.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 6 - Tips for Content Editing</span><button class="copy-btn" onclick="copyPage(this, 'mod11p6')">Copy</button></div>
+      <div class="page-content" id="mod11p6">
+        <h2>Tips for Content Editing</h2>
+        <p>These practical tips will help you work more efficiently and avoid common mistakes when editing content in Finalsite Composer.</p>
+        <h3>Clear Formatting When Pasting from Word or Google Docs</h3>
+        <p>When pasting text from Microsoft Word, Google Docs, or another program, always use the "Paste as Plain Text" option in Finalsite's rich text editor (usually Ctrl+Shift+V or a toolbar button). Pasting directly with formatting can import incorrect fonts, colors, and spacing that conflict with your site's style.</p>
+        <h3>Use Undo Generously</h3>
+        <p>If you make a change that does not look right, use Ctrl+Z to undo before saving. Once you save, you cannot undo changes through the keyboard shortcut - you would need to manually revert the content.</p>
+        <h3>Save Before Previewing</h3>
+        <p>Always save your changes before using the Preview function. The preview shows the saved version of the page, not unsaved edits.</p>
+        <h3>Do Not Leave Pages in Draft for Extended Periods</h3>
+        <p>Draft pages that sit unpublished for weeks or months become outdated before they are ever seen. If a page is not ready to publish, note why in a comment or team communication and set a target publish date.</p>
+        <h3>Check Your Work on Multiple Browsers</h3>
+        <p>After publishing a page, view it in both Chrome and Edge (or Safari on Mac) to confirm it displays consistently. Most visitors use Chrome, but your audience may use any browser.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 7 - Paragraph Styles</span><button class="copy-btn" onclick="copyPage(this, 'mod11p7')">Copy</button></div>
+      <div class="page-content" id="mod11p7">
+        <h2>Paragraph Styles</h2>
+        <p>Finalsite's rich text editor includes a Paragraph Styles dropdown that applies preset formatting combinations to selected text. Using paragraph styles - instead of manually adjusting font size, weight, and color - ensures your content follows the BCPS design system consistently.</p>
+        <h3>Available Styles</h3>
+        <ul>
+          <li><strong>Heading 2:</strong> Major section headings on a page</li>
+          <li><strong>Heading 3:</strong> Sub-section headings within a major section</li>
+          <li><strong>Heading 4:</strong> Minor sub-headings when additional levels are needed</li>
+          <li><strong>Body / Paragraph:</strong> Standard body text - the default style for most content</li>
+          <li><strong>Callout or Intro Text:</strong> A larger body style for introductory paragraphs (where available in your template)</li>
+        </ul>
+        <h3>When Not to Use Manual Formatting</h3>
+        <p>Do not manually increase font size to simulate a heading. Do not use the font color tool to style text. These approaches create inconsistency and may break accessibility standards. Always use the Paragraph Styles dropdown to apply formatting.</p>
+        <div class="callout"><p>If the style you need is not available in the dropdown, contact the Office of Communications. Do not work around a missing style by applying manual formatting.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 8 - Images and Tables</span><button class="copy-btn" onclick="copyPage(this, 'mod11p8')">Copy</button></div>
+      <div class="page-content" id="mod11p8">
+        <h2>Images and Tables</h2>
+        <h3>Adding Images to a Content Element</h3>
+        <ol>
+          <li>Place your cursor where you want the image to appear in the Content Element</li>
+          <li>Click the Image button in the rich text editor toolbar</li>
+          <li>Select an image from the Finalsite media library, or upload a new one</li>
+          <li>Add descriptive alt text in the Alt Text field - this is required for every image</li>
+          <li>Set the image size and alignment appropriate for your layout</li>
+          <li>Click Insert</li>
+        </ol>
+        <h3>Image Best Practices</h3>
+        <ul>
+          <li>Use images that are relevant to the content - not decorative stock photos that add no information</li>
+          <li>Optimize images for web before uploading (maximum 200KB for most content images)</li>
+          <li>Do not stretch or distort images from their original proportions</li>
+          <li>Use .jpg for photographs and .png for graphics with transparent backgrounds</li>
+        </ul>
+        <h3>Using Tables</h3>
+        <p>Tables must be used only for data - never for page layout. A data table presents information with a clear relationship between rows and columns. Examples: a schedule showing days and times, a comparison of program requirements, a fee schedule.</p>
+        <p>Every data table must have a header row. Mark the header row as a header in the table settings so that screen readers correctly associate data cells with their column or row headers.</p>
+        <div class="warning"><p><strong>Do not use tables to control the visual position of text or images on a page.</strong> This is a layout-through-table approach that was common in early web design but creates serious accessibility and mobile display problems. Use Layout Pages or proper content elements instead.</p></div>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 11 (Suggested Questions)</div>
+      <p class="mastery-q">1. What should you do before pasting text from Microsoft Word into a Finalsite Content Element?</p>
+      <p class="mastery-a">Correct answer: Use "Paste as Plain Text" to avoid importing incorrect fonts, colors, and spacing.</p>
+      <p class="mastery-q">2. When you have a new version of a PDF, what is the correct approach in Finalsite?</p>
+      <p class="mastery-a">Correct answer: Replace the existing file with the new version so all existing links automatically point to the current version.</p>
+      <p class="mastery-q">3. When is a Layout Page appropriate?</p>
+      <p class="mastery-a">Correct answer: When the content genuinely benefits from a multi-column format, such as comparing two related sets of information side by side.</p>
+      <p class="mastery-q">4. Why should you never use a table for page layout?</p>
+      <p class="mastery-a">Correct answer: Layout tables create serious accessibility problems and display poorly on mobile devices.</p>
+      <p class="mastery-q">5. What is required for every image added to a Content Element?</p>
+      <p class="mastery-a">Correct answer: Descriptive alt text that explains what the image shows.</p>
+    </div>
+
+    </div><!-- end mod11 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE 12 -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">MOD 12</span>
+    <span class="mod-title">Building Accessible Webpages</span>
+    <span class="mod-badge badge-keep">Carry Over</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">School version video may exist in Canvas Module 6. Review for department applicability. No confirmed department video available - verify before publishing.</div></div>
+    <div class="carry-over-banner">
+      <div class="co-label">Carry Over Module - Action Required</div>
+      <p>This module carries over from Module 6 of the Schools WCM Certification course. Review every page for school-specific language. Alt text and link language standards are universal - verify content accurately reflects the department context. Additional pages beyond the two confirmed below may exist in the school version; pull the full page list from the existing Canvas course before publishing.</p>
+    </div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'mod12')">Copy All Pages</button>
+    <div id="mod12">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 1 - Adding Alt Text</span><button class="copy-btn" onclick="copyPage(this, 'mod12p1')">Copy</button></div>
+      <div class="page-content" id="mod12p1">
+        <h2>Adding Alt Text to Images</h2>
+        <p>Alt text (alternative text) is a written description of an image that is read aloud by screen readers for users who cannot see the image. It is also displayed when an image fails to load. Every image on your department site must have appropriate alt text - no exceptions.</p>
+        <h3>How to Write Good Alt Text</h3>
+        <ul>
+          <li>Describe the image as you would to someone who cannot see it</li>
+          <li>Be specific but concise - one or two sentences is usually sufficient</li>
+          <li>Include information that is relevant to the context of the page</li>
+          <li>Do not start with "Image of..." or "Photo of..." - screen readers already announce that it is an image</li>
+          <li>If the image contains text, include that text in the alt text</li>
+        </ul>
+        <h3>Decorative Images</h3>
+        <p>If an image is purely decorative and adds no information to the page - a divider line, a generic background image - mark it as decorative in Finalsite's image settings. Screen readers will then skip it, which is the correct behavior for a purely decorative element.</p>
+        <h3>Examples</h3>
+        <p><strong>Weak:</strong> "Students in a classroom"<br>
+        <strong>Better:</strong> "Department of Academic Programs staff presenting at the 2025 Summer Professional Development Conference"</p>
+        <div class="callout"><p>Alt text that is genuinely descriptive and contextually relevant is one of the highest-impact accessibility improvements you can make to your department site. Do not write "image" or leave the field blank.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Page 2 - Link Language</span><button class="copy-btn" onclick="copyPage(this, 'mod12p2')">Copy</button></div>
+      <div class="page-content" id="mod12p2">
+        <h2>Link Language</h2>
+        <p>The text used for hyperlinks - called anchor text or link language - is one of the most important accessibility elements on a web page. Screen reader users can navigate by jumping from link to link, which means each link must make sense even when read out of context.</p>
+        <h3>Rules for Link Text</h3>
+        <ul>
+          <li>Never use "click here," "read more," "learn more," or "here" as link text</li>
+          <li>Never use a bare URL as link text (e.g., www.browardschools.com/forms)</li>
+          <li>Use the name of the destination page or document</li>
+          <li>For documents, include the file type in parentheses: "2025-2026 Field Trip Request Form (PDF)"</li>
+          <li>For external links, consider noting that the link opens an external site</li>
+        </ul>
+        <h3>Links That Open in a New Tab</h3>
+        <p>Links that open in a new browser tab or window should be clearly indicated so users know what to expect. In the link settings, if you select "Open in new tab," add "(opens in new tab)" or a similar note to the link text or a screen-reader-accessible label.</p>
+        <h3>Testing Your Links</h3>
+        <p>After publishing a page, click every link to verify it opens the correct destination. A working link on a draft page can break after publishing if the linked document has been moved or the linked page URL has changed.</p>
+        <p><em>Review this page for school-specific references before publishing.</em></p>
+      </div>
+    </div>
+
+    <div class="mastery-section">
+      <div class="mastery-label">Mastery Check - Module 12 (Suggested Questions - adapt from school version, pull additional questions from existing Canvas Module 6)</div>
+      <p class="mastery-q">1. What is alt text and why is it required for every image?</p>
+      <p class="mastery-a">Correct answer: Alt text is a written description of an image read aloud by screen readers. It is required for ADA compliance and to ensure all users can access the information the image conveys.</p>
+      <p class="mastery-q">2. When should an image be marked as decorative?</p>
+      <p class="mastery-a">Correct answer: When the image adds no information to the page and is purely visual decoration. Screen readers will skip decorative images.</p>
+      <p class="mastery-q">3. Give an example of bad link text and an improved version for the same link.</p>
+      <p class="mastery-a">Correct answer: Bad: "Click here to download the form." Better: "Download the 2025-2026 Field Trip Request Form (PDF)."</p>
+      <p class="mastery-q">4. What should you add to a link that opens in a new browser tab?</p>
+      <p class="mastery-a">Correct answer: A note in the link text or accessible label indicating that the link opens in a new tab, so users know what to expect.</p>
+      <p class="mastery-q">5. When should you test links on a published page?</p>
+      <p class="mastery-a">Correct answer: Immediately after publishing, by clicking every link to verify it opens the correct destination.</p>
+    </div>
+
+    </div><!-- end mod12 -->
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FINAL ASSIGNMENTS -->
+<!-- ============================================================ -->
+<div class="module-wrap">
+  <button class="module-trigger" aria-expanded="false" onclick="toggleModule(this)">
+    <span class="mod-num">FINAL</span>
+    <span class="mod-title">Final Assignments</span>
+    <span class="mod-badge badge-adapt">Adapt</span>
+    <span class="mod-arrow">&#9660;</span>
+  </button>
+  <div class="module-body">
+    <div class="video-slot"><div class="video-slot-label">Video Slot</div><div class="video-slot-text">No video needed for Final Assignments section.</div></div>
+    <button class="copy-all-btn" onclick="copyAllModule(this, 'modfinal')">Copy All Pages</button>
+    <div id="modfinal">
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Final Quiz Instructions</span><button class="copy-btn" onclick="copyPage(this, 'finalp1')">Copy</button></div>
+      <div class="page-content" id="finalp1">
+        <h2>Final Quiz</h2>
+        <p>The Final Quiz covers all 12 modules of the WCM Certification - Department course. You must score 80% or higher to pass.</p>
+        <p>The quiz contains 25 multiple-choice questions. You will have one hour to complete it. You may use your course notes but may not collaborate with other participants.</p>
+        <h3>Topics Covered</h3>
+        <ul>
+          <li>Department WCM responsibilities and role</li>
+          <li>BCPS department website standards (layout, content quality, navigation, post boards, resource elements, style)</li>
+          <li>ADA compliance and web accessibility requirements</li>
+          <li>Finalsite Composer navigation and key features</li>
+          <li>Building accessible webpages - alt text, link language, heading structure</li>
+        </ul>
+        <p>When you are ready, click the Begin Quiz button below. The quiz timer starts when you open the quiz.</p>
+        <div class="callout"><p>If you do not pass on your first attempt, review the modules related to the questions you missed and retake the quiz. There is no limit on retakes, but each attempt must be completed in a single sitting.</p></div>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Final Assignment</span><button class="copy-btn" onclick="copyPage(this, 'finalp2')">Copy</button></div>
+      <div class="page-content" id="finalp2">
+        <h2>Final Assignment: Department Site Content Audit</h2>
+        <p>For your final assignment, you will conduct a content audit of one section of your live department website and submit a written report of your findings.</p>
+        <h3>Assignment Instructions</h3>
+        <p>Select one section of your department site - a main navigation category and all of its sub-pages. Using the checklists from Modules 3 through 8, audit each page in that section for:</p>
+        <ul>
+          <li>Layout and structure (Module 3 checklist)</li>
+          <li>Content quality (Module 4 checklist)</li>
+          <li>Navigation (Module 5 checklist)</li>
+          <li>Post boards, if present (Module 6 checklist)</li>
+          <li>Resource elements, if present (Module 7 checklist)</li>
+          <li>Style and enhancements (Module 8 checklist)</li>
+          <li>ADA and accessibility (Module 9 and 12 standards)</li>
+        </ul>
+        <h3>What to Submit</h3>
+        <p>Submit a written report (minimum one page) that includes:</p>
+        <ol>
+          <li>The section of your site you audited</li>
+          <li>A summary of what meets standards and what needs improvement</li>
+          <li>At least three specific issues you identified, with a brief description of how you plan to address each</li>
+          <li>One thing you will change on your site as a direct result of completing this course</li>
+        </ol>
+        <h3>Submission</h3>
+        <p>Submit your report as a Word document or PDF through the assignment submission below. The Office of Communications will review submissions and provide feedback within five business days.</p>
+      </div>
+    </div>
+
+    <div class="page-section">
+      <div class="page-header"><span class="page-name">Submit Badge Evidence</span><button class="copy-btn" onclick="copyPage(this, 'finalp3')">Copy</button></div>
+      <div class="page-content" id="finalp3">
+        <h2>Submit Badge Evidence</h2>
+        <p>Congratulations on completing the WCM Certification - Department course.</p>
+        <p>To receive your official BCPS Department WCM Certification badge, you must submit evidence that confirms your active role as a department WCM.</p>
+        <h3>What to Submit</h3>
+        <p>Upload one of the following as your badge evidence:</p>
+        <ul>
+          <li>A screenshot of your Finalsite Composer dashboard showing your department site name and your logged-in username</li>
+          <li>An email confirmation from the Office of Communications confirming your WCM assignment for your department</li>
+        </ul>
+        <h3>Badge Issuance</h3>
+        <p>Once your evidence is reviewed and approved, your certification badge will be issued within five business days. You will receive a notification when your badge is ready. Badges are issued through the Canvas credential system and can be shared on professional profiles.</p>
+        <h3>Badge Renewal</h3>
+        <p>Department WCM Certification badges are valid for two years. You will receive a renewal notice before your badge expires. Renewal requires completing any updated course modules and passing the Final Quiz.</p>
+        <div class="callout"><p>Thank you for investing in your skills as a BCPS department WCM. Your work keeping department sites accurate, accessible, and well-organized has a direct impact on every school, staff member, and family in Broward County.</p></div>
+      </div>
+    </div>
+
+    </div><!-- end modfinal -->
+  </div>
+</div>
+
+</main>
+
+<script>
+function toggleModule(btn) {
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  btn.setAttribute('aria-expanded', String(!expanded));
+  btn.nextElementSibling.classList.toggle('open', !expanded);
+}
+
+async function copyPage(btn, id) {
+  const el = document.getElementById(id);
+  const html = el.innerHTML;
+  const text = el.innerText;
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'text/html': new Blob([html], {type: 'text/html'}),
+        'text/plain': new Blob([text], {type: 'text/plain'})
+      })
+    ]);
+  } catch(e) {
+    try { await navigator.clipboard.writeText(text); } catch(e2) {}
+  }
+  btn.textContent = 'Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+}
+
+async function copyAllModule(btn, moduleId) {
+  const container = document.getElementById(moduleId);
+  const contents = container.querySelectorAll('[id^="' + moduleId + 'p"], [id^="final"]');
+  let html = '';
+  let text = '';
+  const pageDivs = container.querySelectorAll('.page-content');
+  pageDivs.forEach((el, i) => {
+    const pageHeader = el.closest('.page-section').querySelector('.page-name').textContent;
+    html += '<hr><h2>' + pageHeader + '</h2>' + el.innerHTML + '\n\n';
+    text += '--- ' + pageHeader + ' ---\n' + el.innerText + '\n\n';
+  });
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'text/html': new Blob([html], {type: 'text/html'}),
+        'text/plain': new Blob([text], {type: 'text/plain'})
+      })
+    ]);
+  } catch(e) {
+    try { await navigator.clipboard.writeText(text); } catch(e2) {}
+  }
+  const orig = btn.textContent;
+  btn.textContent = 'Copied All!';
+  setTimeout(() => { btn.textContent = orig; }, 2500);
+}
+</script>
+</body>
+</html>

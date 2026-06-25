@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{MEETING_TITLE}} - {{DATE}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --pulse-orange: #E8650A;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(26px, 4vw, 44px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 18px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  /* Recording link bar */
+  .recording-bar {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(22,114,167,0.05);
+    border: 1px solid rgba(22,114,167,0.18);
+    border-radius: 6px; padding: 12px 18px;
+    margin-bottom: 28px;
+    font-size: 13px; font-weight: 600; color: var(--bcps-blue-dark);
+    cursor: pointer; transition: background 0.15s;
+    text-decoration: none; display: flex;
+  }
+  .recording-bar:hover { background: rgba(22,114,167,0.10); }
+  .recording-bar-icon { font-size: 16px; flex-shrink: 0; }
+  .recording-bar-label { flex: 1; }
+  .recording-bar-arrow { font-size: 14px; color: var(--bcps-blue); opacity: 0.6; }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  /* Session overview */
+  .overview-list { list-style: none; padding: 0; margin: 0; }
+  .overview-list li {
+    font-size: 14px; color: var(--text-75); line-height: 1.7;
+    padding: 8px 0 8px 22px; border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .overview-list li:last-child { border-bottom: none; }
+  .overview-list li::before {
+    content: '';
+    position: absolute; left: 0; top: 18px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--bcps-blue); opacity: 0.5;
+  }
+
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .outcome-banner p strong { color: var(--text); }
+
+  .decision-item { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .decision-item:last-child { border-bottom: none; }
+  .decision-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .decision-detail { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+  .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
+
+  .action-item { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .action-item:last-child { border-bottom: none; }
+  .action-num { font-size: 20px; font-weight: 900; color: var(--bcps-blue); min-width: 32px; line-height: 1; }
+  .action-body .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .action-body .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .action-body .action-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); margin-top: 6px; }
+  .action-body .action-deadline { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); margin-top: 4px; }
+
+  .tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 4px; margin: 2px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .tag.open { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.28); color: var(--bcps-blue-dark); }
+  .tag.resolved { background: rgba(22,117,12,0.10); border-color: rgba(22,117,12,0.30); color: var(--bcps-green); }
+  .tag.pending { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.28); color: var(--bcps-orange); }
+
+  .timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 110px; padding-top: 2px; }
+  .timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .timeline-text strong { color: var(--text); }
+  .timeline-row.highlight .timeline-date { color: var(--bcps-green); }
+  .timeline-row.highlight .timeline-text { color: var(--text); }
+
+  .attendee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 8px; }
+  .attendee-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+  .attendee-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .attendee-title { font-size: 11px; color: var(--text-50); font-weight: 600; }
+
+  /* ---- PULSE WIDGET ---- */
+  #pulse-trigger {
+    position: fixed; bottom: 24px; left: 24px; z-index: 500;
+    width: 46px; height: 46px;
+    background: var(--pulse-orange);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(232,101,10,0.45);
+    transition: transform 0.18s, box-shadow 0.18s;
+  }
+  #pulse-trigger:hover { transform: scale(1.10); box-shadow: 0 4px 20px rgba(232,101,10,0.55); }
+  #pulse-trigger.active { transform: scale(0.95); }
+  #pulse-trigger-icon { color: #fff; font-size: 18px; font-weight: 900; line-height: 1; pointer-events: none; }
+
+  #pulse-panel {
+    position: fixed; bottom: 82px; left: 24px; z-index: 499;
+    width: 320px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+  }
+  #pulse-panel.open { display: flex; }
+  .pulse-panel-header {
+    background: var(--pulse-orange);
+    padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .pulse-panel-header-text { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: #fff; }
+  .pulse-panel-close { color: rgba(255,255,255,0.8); font-size: 18px; cursor: pointer; line-height: 1; background: none; border: none; padding: 0; }
+  .pulse-panel-close:hover { color: #fff; }
+  .pulse-panel-body { padding: 16px 18px; }
+  .pulse-panel-body p { font-size: 12px; color: var(--text-50); margin-bottom: 12px; line-height: 1.5; }
+  .pulse-name-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .pulse-input {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: inherit; font-size: 13px; color: var(--text);
+    background: var(--surface2);
+    transition: border-color 0.15s;
+    resize: none;
+  }
+  .pulse-input:focus { outline: none; border-color: var(--pulse-orange); }
+  .pulse-textarea { height: 90px; display: block; margin-bottom: 10px; }
+  .pulse-submit {
+    width: 100%; padding: 10px;
+    background: var(--pulse-orange); color: #fff;
+    border: none; border-radius: 6px;
+    font-family: inherit; font-size: 12px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .pulse-submit:hover { background: #c8560a; }
+  .pulse-submit:disabled { background: var(--text-30); cursor: not-allowed; }
+  .pulse-success { text-align: center; padding: 20px 18px; display: none; }
+  .pulse-success-icon { font-size: 28px; margin-bottom: 8px; }
+  .pulse-success p { font-size: 13px; color: var(--text-75); margin: 0; }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">BCPS - {{DOCUMENT_TYPE}}</span>
+</header>
+
+<main>
+  <h1>{{MEETING_TITLE}}</h1>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Date</span>
+      <span class="meta-value">{{DATE}}</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Series</span>
+      <span class="meta-value">{{SERIES}}</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Platform</span>
+      <span class="meta-value">{{PLATFORM}}</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Attendees</span>
+      <span class="meta-value">{{ATTENDEE_COUNT}} People</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value">v1 - {{DATE_PRODUCED}}</span>
+    </div>
+  </div>
+
+  <!-- RECORDING LINK (omit this block if no recording available) -->
+  <a class="recording-bar" href="{{RECORDING_URL}}" target="_blank" rel="noopener" aria-label="View meeting recording">
+    <span class="recording-bar-icon">&#9654;</span>
+    <span class="recording-bar-label"><strong>Meeting Recording Available.</strong> Watch the full session recap via {{PLATFORM}}: View {{PLATFORM}} Meeting Recap</span>
+    <span class="recording-bar-arrow">&#8599;</span>
+  </a>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> {{AUDIENCE_DESCRIPTION}}</p>
+  </div>
+
+  <!-- SESSION OVERVIEW -->
+  <h2>Session Overview</h2>
+  <ul class="overview-list">
+    <!-- Repeat for each overview bullet:
+    <li>Item from meeting notes.</li>
+    -->
+  </ul>
+
+  <!-- ATTENDEES -->
+  <h2>Attendees</h2>
+  <div class="attendee-grid">
+    <!-- Populated from wcm_cert_users table lookup - NEVER inferred from transcript.
+         If a name from the transcript is not found in wcm_cert_users, use the transcript
+         name but render the attendee-title as "Unverified - confirm title".
+    <div class="attendee-card">
+      <div class="attendee-name">Full Name</div>
+      <div class="attendee-title">Title, Department</div>
+    </div>
+    -->
+  </div>
+
+  <!-- KEY DECISIONS -->
+  <h2>Key Decisions</h2>
+  <div class="section-block">
+    <!-- Repeat for each decision:
+    <div class="decision-item">
+      <div class="decision-title">Decision title</div>
+      <div class="decision-detail">What was decided, why, and any important context.</div>
+    </div>
+    -->
+  </div>
+
+  <!-- ACTION ITEMS -->
+  <h2>Action Items</h2>
+  <div class="section-block">
+    <!-- Repeat for each action item:
+    <div class="action-item">
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <div class="action-title">What needs to be done</div>
+        <div class="action-detail">Additional detail or context.</div>
+        <div class="action-owner">Owner: Full Name, Title</div>
+        <div class="action-deadline">Due: [Date]</div>
+      </div>
+    </div>
+    -->
+  </div>
+
+  <!-- OPEN ISSUES (omit this section entirely if there are none) -->
+  <h2>Open Issues</h2>
+  <div class="section-block">
+    <!-- Use .tag.open / .tag.pending / .tag.resolved badges, then describe each issue -->
+  </div>
+
+  <!-- NEXT STEPS / TIMELINE -->
+  <h2>Next Steps</h2>
+  <div class="section-block">
+    <!-- Repeat for each timeline entry:
+    <div class="timeline-row">
+      <div class="timeline-date">Month DD, YYYY</div>
+      <div class="timeline-text"><strong>Milestone label.</strong> Description of what happens.</div>
+    </div>
+    -->
+  </div>
+
+</main>
+
+<!-- PULSE WIDGET -->
+<div id="pulse-trigger" role="button" aria-label="Send a message or update request" tabindex="0">
+  <span id="pulse-trigger-icon">&#9670;</span>
+</div>
+
+<div id="pulse-panel" role="dialog" aria-label="Pulse - Send a message">
+  <div class="pulse-panel-header">
+    <span class="pulse-panel-header-text">Pulse - Send a Message</span>
+    <button class="pulse-panel-close" id="pulse-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="pulse-panel-body" id="pulse-form-body">
+    <p>Leave a note, correction, or update request. This goes directly to the admin team.</p>
+    <div class="pulse-name-row">
+      <input class="pulse-input" id="pulse-name" type="text" placeholder="Your name" style="flex:1">
+      <input class="pulse-input" id="pulse-email" type="email" placeholder="Email" style="flex:1">
+    </div>
+    <textarea class="pulse-input pulse-textarea" id="pulse-message" placeholder="What needs to be updated or corrected?"></textarea>
+    <button class="pulse-submit" id="pulse-send">Send Message</button>
+  </div>
+  <div class="pulse-success" id="pulse-success-body">
+    <div class="pulse-success-icon">&#9670;</div>
+    <p>Message sent. The admin team will follow up.</p>
+  </div>
+</div>
+
+<script>
+(function() {
+  var SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+  var SUPABASE_ANON_KEY = '{{SUPABASE_ANON_KEY}}';
+  var PAGE_SLUG = '{{SLUG}}';
+  var PAGE_URL = window.location.href;
+  var BRAND_SLUG = 'bcps';
+
+  var trigger = document.getElementById('pulse-trigger');
+  var panel = document.getElementById('pulse-panel');
+  var closeBtn = document.getElementById('pulse-close');
+  var sendBtn = document.getElementById('pulse-send');
+  var formBody = document.getElementById('pulse-form-body');
+  var successBody = document.getElementById('pulse-success-body');
+
+  function togglePanel() {
+    var isOpen = panel.classList.contains('open');
+    if (isOpen) {
+      panel.classList.remove('open');
+      trigger.classList.remove('active');
+    } else {
+      panel.classList.add('open');
+      trigger.classList.add('active');
+    }
+  }
+
+  trigger.addEventListener('click', togglePanel);
+  trigger.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') togglePanel(); });
+  closeBtn.addEventListener('click', function() {
+    panel.classList.remove('open');
+    trigger.classList.remove('active');
+  });
+
+  sendBtn.addEventListener('click', function() {
+    var name = document.getElementById('pulse-name').value.trim();
+    var email = document.getElementById('pulse-email').value.trim();
+    var message = document.getElementById('pulse-message').value.trim();
+    if (!message) { document.getElementById('pulse-message').focus(); return; }
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending...';
+
+    fetch(SUPABASE_URL + '/rest/v1/pulse_messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        page_slug: PAGE_SLUG,
+        page_url: PAGE_URL,
+        brand_slug: BRAND_SLUG,
+        message: message,
+        sender_name: name || null,
+        sender_email: email || null,
+        status: 'open'
+      })
+    })
+    .then(function(r) {
+      if (r.ok || r.status === 201) {
+        formBody.style.display = 'none';
+        successBody.style.display = 'block';
+      } else {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send Message';
+        alert('Could not send message. Please try again.');
+      }
+    })
+    .catch(function() {
+      sendBtn.disabled = false;
+      sendBtn.textContent = 'Send Message';
+      alert('Could not send message. Please try again.');
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Website Management Center - Scope of Work - June 8, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(26px, 4vw, 44px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 18px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .outcome-banner p strong { color: var(--text); }
+
+  .decision-item { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .decision-item:last-child { border-bottom: none; }
+  .decision-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .decision-detail { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+  .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
+
+  .action-item { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .action-item:last-child { border-bottom: none; }
+  .action-num { font-size: 20px; font-weight: 900; color: var(--bcps-blue); min-width: 32px; line-height: 1; }
+  .action-body .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .action-body .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .action-body .action-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); margin-top: 6px; }
+  .action-body .action-deadline { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); margin-top: 4px; }
+
+  .tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 4px; margin: 2px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .tag.open { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.28); color: var(--bcps-blue-dark); }
+  .tag.resolved { background: rgba(22,117,12,0.10); border-color: rgba(22,117,12,0.30); color: var(--bcps-green); }
+  .tag.pending { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.28); color: var(--bcps-orange); }
+
+  .timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 110px; padding-top: 2px; }
+  .timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .timeline-text strong { color: var(--text); }
+  .timeline-row.highlight .timeline-date { color: var(--bcps-green); }
+  .timeline-row.highlight .timeline-text { color: var(--text); }
+
+  .attendee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 8px; }
+  .attendee-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+  .attendee-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .attendee-title { font-size: 11px; color: var(--text-50); font-weight: 600; }
+
+  .scope-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .scope-table th { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-50); text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border); }
+  .scope-table td { padding: 12px 12px; border-bottom: 1px solid var(--border); color: var(--text-75); vertical-align: top; line-height: 1.6; }
+  .scope-table tr:last-child td { border-bottom: none; }
+  .scope-table td:first-child { font-weight: 700; color: var(--text); min-width: 180px; }
+  .badge { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 8px; border-radius: 4px; }
+  .badge-yaco { background: rgba(22,114,167,0.12); color: var(--bcps-blue-dark); }
+  .badge-vanessa { background: rgba(22,117,12,0.10); color: var(--bcps-green); }
+  .badge-team { background: rgba(197,83,38,0.08); color: var(--bcps-orange); }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">Website Management Center - Scope of Work</span>
+</header>
+
+<main>
+  <h1>Website Management Center<br>Scope of Work</h1>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Date</span>
+      <span class="meta-value">June 8, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Platform</span>
+      <span class="meta-value">Video Call</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Attendees</span>
+      <span class="meta-value">5 People</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">System</span>
+      <span class="meta-value">BCPS Central - WMC Module</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value">v1 - June 8, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Recording</span>
+      <span class="meta-value"><a href="https://teams.microsoft.com/l/meetingrecap?driveId=b%21nbe5FW4JN0K9v81D46gL4pRrSZ42tZRPoWm2c32RvPWD3-g_DcM7QpizVEQAPF9f&driveItemId=01MKOE6L6PFDLUKZFJXJEYUC2YEDL7U6KY&sitePath=https%3A%2F%2Fbrowardcountyschools-my.sharepoint.com%2F%3Av%3A%2Fg%2Fpersonal%2Fp00107095_browardschools_com%2FIQDPKNdFZKm6SYoLWCDX-nlYAZ9Ey0JOO-uEtOl4Pyptyv8&fileUrl=https%3A%2F%2Fbrowardcountyschools-my.sharepoint.com%2F%3Av%3A%2Fg%2Fpersonal%2Fp00107095_browardschools_com%2FIQDPKNdFZKm6SYoLWCDX-nlYAZ9Ey0JOO-uEtOl4Pyptyv8&iCalUid=040000008200E00074C5B7101A82E00800000000AE687FB3ABF2DC0100000000000000001000000010DCA548483A334DA9AB5F466D382E55&threadId=19%3Ameeting_NDAyMGQwNzYtNjI5Yy00Nzg2LWJkYzMtNWYwMDU1MjY1ZTZi%40thread.v2&organizerId=bc43cc44-b129-44e3-9c62-1e6535331876&tenantId=eeacb5cb-5370-4358-a96a-a3783c95d422&callId=5f6c5ac9-2295-469f-aae1-3a51f464ee6f&threadType=Meeting&meetingType=Scheduled&subType=RecapSharingLink_RecapChiclet" style="color: var(--bcps-blue); text-decoration: underline; font-weight: 600; font-size: 13px;">Watch on Teams</a></span>
+    </div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> Vanessa C. Deslandes-Auguste, Yaco D. Abuelafia, Rodolfo M. Carril, Sean A. Russell, and Tricia A. Allen. This document serves as the canonical scope reference for the Website Management Center build within BCPS Central ahead of the June 30 deadline.</p>
+  </div>
+
+  <h2>Attendees</h2>
+  <div class="attendee-grid">
+    <div class="attendee-card">
+      <div class="attendee-name">Vanessa C. Deslandes-Auguste</div>
+      <div class="attendee-title">Process Analyst - Change Management / Webmaster, Application Services / ISD</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Yaco D. Abuelafia</div>
+      <div class="attendee-title">Software Engineer, Application Services</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Rodolfo M. Carril</div>
+      <div class="attendee-title">Technical Support Analyst III, Broward County Public Schools</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Sean A. Russell</div>
+      <div class="attendee-title">District Webmaster, Office of Communications</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Tricia A. Allen</div>
+      <div class="attendee-title">Assistant Director, Application Services</div>
+    </div>
+  </div>
+
+  <h2>Key Decisions</h2>
+  <div class="section-block">
+
+    <div class="decision-item">
+      <div class="decision-title">WCM Management Controls Moved to a Separate Subpage</div>
+      <div class="decision-detail">The "Add WCM" form and the accept/deny action table will be removed from the main WMC landing page and placed on a dedicated subpage accessible via a clearly labeled button at the top of the module. The main landing page will display: announcements, the audit checklist list, and progress charts only. This separation keeps the primary workflow clean for WCMs who do not need to interact with management controls, and makes training documentation simpler to write.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">WCM Management Is Role-Gated, Not Title-Gated</div>
+      <div class="decision-detail">Access to add, approve, or deny Web Content Managers is controlled by the system role "Add Edit Web Content Manager," not by job title. All principals receive this role by default via the principals script. Interim or temporary staff can be granted the role individually as needed. This distinction is critical for help-center documentation.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">WCM Training and Certification Status Column to Be Added</div>
+      <div class="decision-detail">A training/certification status column will be added to the WCM table, visible to both admins and WCMs. It will display: certification status (certified or not), completion date, and expiration date. This column serves as the gating indicator for whether a WCM has full access to the live site. The column design will be finalized as needs emerge; the initial three fields are locked as described here.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">25-26 Audit Pass/Fail Status via Placeholder Survey Approach</div>
+      <div class="decision-detail">Rather than parsing the full Excel audit data, Yaco D. Abuelafia will create a single one-question placeholder survey for the 25-26 school year. For the 134 schools that passed (confirmed by Vanessa C. Deslandes), a script will populate the yes/pass value. All other schools will receive no/fail. The global pass/fail badge shown in the dashboard will be derived from whether all surveys for the year are at 100%. Tricia A. Allen confirmed this approach as an acceptable compromise.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Checklist Year Context: Test in 25-26, Go Live in 26-27</div>
+      <div class="decision-detail">Current test checklists are built in the 25-26 school year context. The system year auto-switches on July 1, 2026. Yaco D. Abuelafia will manually move test checklist data to the 26-27 year context. No "clone to next year" feature will be built at this time; that functionality will only be built if recurring annual use warrants it.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Checklist Category Labels Using Text Label Question Type</div>
+      <div class="decision-detail">To organize checklist questions by category (e.g., Homepage, School News), the team will add question entries of type "text label" with a sort order of 0 before each grouping. These labels act as section headers within the checklist view without requiring a separate category column in the data model. Vanessa C. Deslandes will apply this pattern when building out the full audit checklist.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Admin Notification on WCM Addition</div>
+      <div class="decision-detail">When a principal or authorized admin adds a new Web Content Manager, the system will send a notification to the admin team. Rodolfo M. Carril surfaced this request as a way to track additions without manually checking school-by-school. Yaco D. Abuelafia confirmed this is buildable and agreed to include it in scope.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Incomplete 2025/26 Audit Items Carried Forward into Checklist</div>
+      <div class="decision-detail">Schools that did not complete all required audit items during the 2025/26 school year will have their outstanding items added directly to the WMC checklist. This allows schools to complete required updates within the existing workflow. Checklist Settings will include a new option to assign audit tasks by individual school name, enabling school-specific task sets rather than a single universal checklist - since outstanding items differ per school.</div>
+    </div>
+
+  </div>
+
+  <h2>Full Scope of Work</h2>
+  <div class="section-block">
+    <table class="scope-table">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Description</th>
+          <th>Owner</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Separate WCM Subpage</td>
+          <td>Create a dedicated page for WCM management (add form + approve/deny table), accessible via a top-of-module button. Main landing page no longer shows these controls for any user.</td>
+          <td><span class="badge badge-yaco">Yaco</span></td>
+        </tr>
+        <tr>
+          <td>Role Assignment via Principals Script</td>
+          <td>Ensure the "Add Edit Web Content Manager" role is automatically assigned to all public school principals via the existing principals script. Manual override available for interim staff.</td>
+          <td><span class="badge badge-yaco">Yaco</span></td>
+        </tr>
+        <tr>
+          <td>Training / Certification Status Column</td>
+          <td>Add columns to WCM table: certification status, completion date, expiration date. Visible to both admins and WCMs. Gating indicator for site access.</td>
+          <td><span class="badge badge-yaco">Yaco</span></td>
+        </tr>
+        <tr>
+          <td>25-26 Audit Pass/Fail Script</td>
+          <td>Build one-question placeholder survey for 25-26. Use a script to populate yes/pass for the 134 passing schools (school numbers to be provided by Vanessa). All others receive no/fail. Renders global pass/fail badge per school.</td>
+          <td><span class="badge badge-yaco">Yaco</span></td>
+        </tr>
+        <tr>
+          <td>WCM Addition Notification</td>
+          <td>System sends a notification to the admin team when a new WCM is added by any principal or authorized user. Allows roster monitoring without school-by-school checking.</td>
+          <td><span class="badge badge-yaco">Yaco</span></td>
+        </tr>
+        <tr>
+          <td>Checklist Year Migration</td>
+          <td>Manually move existing 25-26 test checklist data to the 26-27 school year context so the team can build and test in the correct year before July 1. One-time task; no automated feature to be built unless recurring need confirmed.</td>
+          <td><span class="badge badge-yaco">Yaco</span></td>
+        </tr>
+        <tr>
+          <td>Category Labels in Checklists</td>
+          <td>Apply "text label" question type (sort order 0) as section headers within checklists to group questions by area (Homepage, School News, etc.). Vanessa C. Deslandes to implement labels when building audit checklist content.</td>
+          <td><span class="badge badge-vanessa">Vanessa</span></td>
+        </tr>
+        <tr>
+          <td>Feature Documentation for Help Center</td>
+          <td>Document all finalized feature rules - role requirements, access logic, WCM lifecycle process - so decisions are captured for future help-center content. Yaco D. Abuelafia requested this to avoid re-deriving rules from code in the future.</td>
+          <td><span class="badge badge-vanessa">Vanessa</span></td>
+        </tr>
+        <tr>
+          <td>Send 134 Passing School Numbers to Developer</td>
+          <td>Provide Yaco D. Abuelafia with the list of school location numbers for the 134 schools that passed the 25-26 audit so the script can be run accurately.</td>
+          <td><span class="badge badge-vanessa">Vanessa</span></td>
+        </tr>
+        <tr>
+          <td>UAT: Admin View vs. WCM View</td>
+          <td>Before go-live, team will walk through both the admin view (with WCM management subpage) and the WCM view (checklist-focused) to verify role-gating, layout, and notification behavior are all correct.</td>
+          <td><span class="badge badge-team">Team</span></td>
+        <tr>
+          <td>Incomplete Audit Item Import</td>
+          <td>Identify schools with outstanding 2025/26 audit items. Build an import or manual entry mechanism to add those specific outstanding items to each school's WMC checklist.</td>
+          <td><span class="badge badge-yaco">Yaco</span></td>
+          <td>June 30, 2026</td>
+        </tr>
+        <tr>
+          <td>Checklist Settings - Assign by School</td>
+          <td>Add a setting in Checklist Settings that allows admins to assign audit tasks to specific schools by name. Each school's outstanding items differ, so assignment must be school-specific rather than system-wide.</td>
+          <td><span class="badge badge-yaco">Yaco</span></td>
+          <td>June 30, 2026</td>
+        </tr>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Action Items</h2>
+  <div class="section-block">
+
+    <div class="action-item">
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <div class="action-title">Build the WCM Management Subpage</div>
+        <div class="action-detail">Create a separate page for the add form and approve/deny table. Add a button to the top of the WMC module that links to this page. Remove these controls from the main landing page for all user roles.</div>
+        <div class="action-owner">Owner: Yaco D. Abuelafia, Developer</div>
+        <div class="action-deadline">Due: Before June 30, 2026</div>
+      </div>
+    </div>
+
+    <div class="action-item">
+      <div class="action-num">2</div>
+      <div class="action-body">
+        <div class="action-title">Add Training and Certification Status Columns to WCM Table</div>
+        <div class="action-detail">Add certification status, completion date, and expiration date fields to the WCM table. Both admins and WCMs should be able to see these fields when viewing the WCM subpage.</div>
+        <div class="action-owner">Owner: Yaco D. Abuelafia, Developer</div>
+        <div class="action-deadline">Due: Before June 30, 2026</div>
+      </div>
+    </div>
+
+    <div class="action-item">
+      <div class="action-num">3</div>
+      <div class="action-body">
+        <div class="action-title">Run Pass/Fail Script for 25-26 Audit Schools</div>
+        <div class="action-detail">After receiving the school number list from Vanessa C. Deslandes, create a one-question placeholder survey for 25-26 and run a script to populate pass for the 134 passing schools. All remaining schools receive fail status.</div>
+        <div class="action-owner">Owner: Yaco D. Abuelafia, Developer</div>
+        <div class="action-deadline">Due: After receiving school numbers from Vanessa</div>
+      </div>
+    </div>
+
+    <div class="action-item">
+      <div class="action-num">4</div>
+      <div class="action-body">
+        <div class="action-title">Move Test Checklist Data to 26-27 School Year</div>
+        <div class="action-detail">Manually migrate the current test checklist questions from the 25-26 context to 26-27 so the team is working in the correct year before July 1.</div>
+        <div class="action-owner">Owner: Yaco D. Abuelafia, Developer</div>
+        <div class="action-deadline">Due: Before June 30, 2026</div>
+      </div>
+    </div>
+
+    <div class="action-item">
+      <div class="action-num">5</div>
+      <div class="action-body">
+        <div class="action-title">Build WCM Addition Notification</div>
+        <div class="action-detail">Implement a system notification that fires when a principal or authorized admin adds a new WCM. Notification should reach the admin team without requiring manual school-by-school review.</div>
+        <div class="action-owner">Owner: Yaco D. Abuelafia, Developer</div>
+        <div class="action-deadline">Due: Before June 30, 2026</div>
+      </div>
+    </div>
+
+    <div class="action-item">
+      <div class="action-num">6</div>
+      <div class="action-body">
+        <div class="action-title">Send 134 Passing School Numbers to Yaco</div>
+        <div class="action-detail">Pull the list of school location numbers for the 134 schools confirmed as passing the 25-26 audit. Send to Yaco D. Abuelafia so the pass/fail script can be executed.</div>
+        <div class="action-owner">Owner: Vanessa C. Deslandes, Web Content Lead</div>
+        <div class="action-deadline">Due: As soon as possible - blocks item 3</div>
+      </div>
+    </div>
+
+    <div class="action-item">
+      <div class="action-num">7</div>
+      <div class="action-body">
+        <div class="action-title">Document WCM Role and Access Rules</div>
+        <div class="action-detail">Write formal documentation covering: the "Add Edit Web Content Manager" role, who receives it by default, how interim staff are handled, and the full WCM lifecycle in BCPS Central. This will feed into the system help center.</div>
+        <div class="action-owner">Owner: Vanessa C. Deslandes, Web Content Lead</div>
+        <div class="action-deadline">Due: Before June 30, 2026</div>
+      </div>
+    </div>
+
+    <div class="action-item">
+      <div class="action-num">8</div>
+      <div class="action-body">
+        <div class="action-title">Build Out Audit Checklists Using Category Label System</div>
+        <div class="action-detail">Using the text label question type (sort order 0 before each group), create section headers such as Homepage and School News within the 26-27 checklist. Target: at minimum 3 checklists ready by July 1, 2026.</div>
+        <div class="action-owner">Owner: Vanessa C. Deslandes, Web Content Lead</div>
+        <div class="action-deadline">Due: July 1, 2026</div>
+      </div>
+    </div>
+
+    <div class="action-item">
+      <div class="action-num">9</div>
+      <div class="action-body">
+        <div class="action-title">Complete UAT: Admin View and WCM View</div>
+        <div class="action-detail">Walk through both user experiences before go-live. Verify: role-gated controls are hidden correctly from non-admins, the WCM subpage is accessible and functional, notifications fire on new additions, and audit checklist categories display correctly.</div>
+        <div class="action-owner">Owner: Vanessa C. Deslandes + Yaco D. Abuelafia</div>
+        <div class="action-deadline">Due: Before June 30, 2026</div>
+      </div>
+    </div>
+
+    <div class="action-item">
+      <div class="action-num">10</div>
+      <div class="action-body">
+        <div class="action-title">Build Automated WCM Welcome Email on Principal Add</div>
+        <div class="action-detail">When a principal adds a new WCM in BCPS Central, trigger an automated templated email to the WCM. The principal is CC'd on the message. Email must include: the link to the LAB course and a summary of course expectations. Template content to be provided by Vanessa C. Deslandes. Triggered by the same event as the admin notification (item 5).</div>
+        <div class="action-owner">Owner: Yaco D. Abuelafia, Developer</div>
+        <div class="action-deadline">Due: Before June 30, 2026</div>
+      </div>
+    </div>
+
+  </div>
+
+  <h2>Open Issues</h2>
+  <div class="section-block">
+
+    <div class="decision-item">
+      <div class="decision-title"><span class="tag open">Open</span> WCM Communique Button at Top of Module</div>
+      <div class="decision-detail">Tricia A. Allen requested a button linking to the WCM communique at the top of the module. This was acknowledged at the start of the meeting but not confirmed as built. Status and placement need to be verified with Yaco D. Abuelafia.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title"><span class="tag open">Open</span> Final Count of Checklists for July 1 Launch</div>
+      <div class="decision-detail">Vanessa C. Deslandes estimated approximately 3 checklists would be ready at launch, but the final list of checklist titles and their question sets has not been locked. This needs to be confirmed and shared with Yaco D. Abuelafia before July 1 to avoid last-minute changes that create a buggy build.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title"><span class="tag pending">Pending</span> "Clone Checklist to Next Year" Feature Decision</div>
+      <div class="decision-detail">Yaco D. Abuelafia offered to build a "move checklist to next year" button if the team expects to reuse checklists annually. Vanessa C. Deslandes indicated it would likely be useful but deferred for now. This should be revisited at the start of the 26-27 build cycle.</div>
+    </div>
+
+  </div>
+
+  <h2>Next Steps</h2>
+  <div class="section-block">
+
+    <div class="timeline-row">
+      <div class="timeline-date">ASAP</div>
+      <div class="timeline-text"><strong>Vanessa sends school number list to Yaco.</strong> The 134 passing schools from the 25-26 audit - location numbers required, not names. This is a hard blocker for the pass/fail script.</div>
+    </div>
+
+    <div class="timeline-row">
+      <div class="timeline-date">Now - June 30</div>
+      <div class="timeline-text"><strong>Development sprint: 5 items in parallel.</strong> Yaco D. Abuelafia builds: WCM subpage, certification columns, pass/fail script, year migration, and admin notification system. Vanessa C. Deslandes writes role documentation and builds checklist content.</div>
+    </div>
+
+    <div class="timeline-row">
+      <div class="timeline-date">June 30, 2026</div>
+      <div class="timeline-text"><strong>System fully vetted and UAT complete.</strong> Both admin and WCM views tested and confirmed. All scope items above resolved or documented as deferred.</div>
+    </div>
+
+    <div class="timeline-row highlight">
+      <div class="timeline-date">July 1, 2026</div>
+      <div class="timeline-text"><strong>District new school year begins.</strong> System year auto-switches to 26-27. At minimum 3 audit checklists active in the correct year context.</div>
+    </div>
+
+    <div class="timeline-row highlight">
+      <div class="timeline-date">~July 8, 2026</div>
+      <div class="timeline-text"><strong>Admins begin approving WCMs in BCPS Central.</strong> Target go-live date for principal-driven WCM verification. Exact date to be confirmed by Vanessa C. Deslandes.</div>
+    </div>
+
+  </div>
+
+</main>
+</body>
+</html>

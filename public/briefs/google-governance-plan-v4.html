@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BCPS Google Governance Plan - Updated May 22, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  /* BCPS Header */
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+  /* Scope section */
+  .scope-item { padding: 20px 0; border-bottom: 1px solid var(--border); }
+  .scope-item:last-child { border-bottom: none; }
+  .scope-badge { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin-bottom: 8px; }
+  .scope-item .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .scope-item .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(26px, 4vw, 44px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 18px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  /* Meeting outcome banner */
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .outcome-banner p strong { color: var(--text); }
+
+  .pillar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 700px) { .pillar-grid { grid-template-columns: 1fr; } }
+  .pillar-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 22px; }
+  .pillar-card .pillar-num { font-size: 30px; font-weight: 900; color: var(--bcps-blue); line-height: 1; margin-bottom: 10px; }
+  .pillar-card .pillar-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text); margin-bottom: 8px; }
+  .pillar-card .pillar-desc { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+
+  .raci-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  .raci-table th { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-50); text-align: left; padding: 10px 14px; border-bottom: 2px solid var(--border); background: var(--surface2); }
+  .raci-table td { font-size: 13px; color: var(--text-75); padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .raci-table tr:last-child td { border-bottom: none; }
+  .raci-table td:first-child { font-weight: 600; color: var(--text); }
+
+  .action-item { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .action-item:last-child { border-bottom: none; }
+  .action-num { font-size: 20px; font-weight: 900; color: var(--bcps-blue); min-width: 32px; line-height: 1; }
+  .action-body .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .action-body .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .action-body .action-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); margin-top: 6px; }
+  .action-body .action-deadline { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); margin-top: 4px; }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+  .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
+
+  .tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 4px; margin: 2px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .tag.open { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.28); color: var(--bcps-blue-dark); }
+  .tag.resolved { background: rgba(22,117,12,0.10); border-color: rgba(22,117,12,0.30); color: var(--bcps-green); }
+  .tag.pending { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.28); color: var(--bcps-orange); }
+
+  .timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 110px; padding-top: 2px; }
+  .timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .timeline-text strong { color: var(--text); }
+  .timeline-row.highlight .timeline-date { color: var(--bcps-green); }
+  .timeline-row.highlight .timeline-text { color: var(--text); }
+
+  .priority-box { border: 1px solid rgba(22,114,167,0.30); border-radius: 8px; padding: 20px 24px; margin-bottom: 20px; background: rgba(22,114,167,0.05); }
+  .priority-box .priority-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue-dark); margin-bottom: 8px; }
+  .priority-box p { font-size: 14px; color: var(--text); margin: 0; line-height: 1.7; }
+
+  .decision-item { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .decision-item:last-child { border-bottom: none; }
+  .decision-label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .decision-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .decision-detail { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .swot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 700px) { .swot-grid { grid-template-columns: 1fr; } }
+  .swot-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+  .swot-card .swot-label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 10px; }
+  .swot-card.strengths .swot-label { color: var(--bcps-green); }
+  .swot-card.weaknesses .swot-label { color: var(--bcps-orange); }
+  .swot-card.opportunities .swot-label { color: var(--bcps-blue); }
+  .swot-card.threats .swot-label { color: #8B2500; }
+  .swot-card ul { list-style: none; padding: 0; }
+  .swot-card ul li { font-size: 13px; color: var(--text-75); padding: 5px 0; border-bottom: 1px solid var(--border); line-height: 1.55; }
+  .swot-card ul li:last-child { border-bottom: none; }
+  .swot-card ul li::before { content: "- "; color: var(--text-30); }
+
+  footer.bcps-footer { border-top: 3px solid var(--bcps-blue); padding: 28px 28px; background: #ffffff; }
+  .footer-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .footer-left { display: flex; flex-direction: column; gap: 8px; }
+  .footer-doc-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+  .footer-meta { font-size: 11px; color: var(--text-50); line-height: 1.6; }
+  .footer-right { text-align: right; }
+  .footer-logo { height: 32px; width: auto; }
+
+  .phase-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  .phase-table th { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-50); text-align: left; padding: 10px 14px; border-bottom: 2px solid var(--border); background: var(--surface2); }
+  .phase-table td { font-size: 13px; color: var(--text-75); padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .phase-table tr:last-child td { border-bottom: none; }
+  .phase-table td:first-child { font-weight: 700; color: var(--bcps-blue); white-space: nowrap; }
+
+  /* Platform scoring table */
+  .score-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  .score-table th { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-50); text-align: left; padding: 10px 14px; border-bottom: 2px solid var(--border); background: var(--surface2); }
+  .score-table td { font-size: 13px; color: var(--text-75); padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+  .score-table tr:last-child td { border-bottom: none; }
+  .score-table td:first-child { font-weight: 700; color: var(--text); width: 220px; }
+  .score-strong { color: var(--bcps-green); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .score-moderate { color: var(--bcps-blue); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .score-weak { color: var(--bcps-orange); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+
+  /* Platform recommendation cards */
+  .platform-rank-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 800px) { .platform-rank-grid { grid-template-columns: 1fr; } }
+  .platform-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 22px; position: relative; }
+  .platform-card.rank-1 { border-color: rgba(22,117,12,0.40); border-top: 3px solid var(--bcps-green); }
+  .platform-card.rank-2 { border-top: 3px solid var(--bcps-blue); }
+  .platform-card.rank-3 { border-top: 3px solid rgba(26,26,26,0.20); }
+  .platform-rank-badge { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 8px; }
+  .rank-1 .platform-rank-badge { color: var(--bcps-green); }
+  .rank-2 .platform-rank-badge { color: var(--bcps-blue); }
+  .rank-3 .platform-rank-badge { color: var(--text-50); }
+  .platform-card .platform-name { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 10px; line-height: 1.2; }
+  .platform-card .platform-verdict { font-size: 13px; color: var(--text-75); line-height: 1.65; margin-bottom: 14px; }
+  .platform-card .platform-caveat { font-size: 12px; font-weight: 700; color: var(--text-50); border-top: 1px solid var(--border); padding-top: 12px; line-height: 1.6; }
+  .platform-card .platform-caveat span { color: var(--bcps-orange); }
+
+  /* Completed action item */
+  .action-item.completed { opacity: 0.75; }
+  .action-item.completed .action-num { color: var(--bcps-green); }
+  .action-item.completed .action-title { text-decoration: line-through; color: var(--text-50); }
+  .action-deadline-complete { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-green); margin-top: 4px; }
+  .action-deadline-overdue { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">Google Governance Plan</span>
+</header>
+
+<main>
+  <h1>Google Governance Plan</h1>
+  <p style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.14em;color:var(--text-50);margin-bottom:6px;">BCPS / District and School Board Leadership</p>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Updated</span>
+      <span class="meta-value">May 28, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Prepared by</span>
+      <span class="meta-value">Sean A. Russell</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value">v5 - Platform Analysis Added</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Audience</span>
+      <span class="meta-value">District Administrators</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Scope</span>
+      <span class="meta-value">Google Web Analytics, Search Console, Workspace Access, Canvas, AI Policy</span>
+    </div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> District Administrators - Manuel Castaneda, Dr. Darryl Diamond, Farrah A. Wilson, Jason Greenberg, Matthew S. Bradford, Charlene A. Collins, and the Application Services and Office of Communications teams. This document addresses Google web analytics governance, Search Console, Workspace access, Canvas integration, and AI tool policy.</p>
+  </div>
+
+  <!-- POST-MEETING UPDATE CALLOUT -->
+  <div class="outcome-banner">
+    <div class="outcome-label">May 22 Meeting - Completed</div>
+    <p>The governance meeting with Manuel Castaneda took place on May 22, 2026 at 3:00 PM via Teams. Key decisions were made: the group confirmed the existing Google Workspace tenant is <strong>already federated with Azure AD</strong> (P-number logins work today), agreed on a two-week research window to evaluate Google Analytics, Azure/Microsoft Analytics, and one additional platform, and defined a phased rollout model. Full outcomes and action items are documented below.</p>
+  </div>
+
+  <h2>May 27 Follow-Up: Conversation with Charlene Collins</h2>
+
+  <div class="section-block">
+    <p style="font-size:13px;color:var(--text-50);margin-bottom:16px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">May 27, 2026 - 1:30 PM - Fieldy Transcript</p>
+
+    <div class="decision-item">
+      <div class="decision-label">Clarification Needed</div>
+      <div class="decision-title">Manny's Follow-Up Message Misrepresented the Account Scope</div>
+      <div class="decision-detail">After the May 22 meeting, Manuel Castaneda sent a message stating that Google Analytics cannot be implemented without creating a Google Workspace account for every school. Charlene noted this and flagged it as incorrect. Sean confirmed this was a context gap from the meeting - the actual position is that schools do not need individual Google accounts. The dashboard model handles school-level visibility without account provisioning for each site.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-label">Account Governance - Locked</div>
+      <div class="decision-title">A Handful of Accounts Only - At Most Two Per Department</div>
+      <div class="decision-detail">Charlene and Sean aligned on the account model during this conversation. Only people actively doing analytics work need provisioned Google accounts. At most two accounts per department. Charlene's framing: "If ten percent of the accounts are even in use, that would be stretching it." Anyone else who needs to see data accesses it through a dashboard - Power BI or an embedded interface. No direct Google Analytics access for school WCMs, principals, or department staff below director level. This is the standing governance position going into the follow-up meeting.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-label">Role Clarification - Important</div>
+      <div class="decision-title">Data Intelligence Is the Focal Point for Data Questions - Not Sean or AS</div>
+      <div class="decision-detail">Charlene made an important structural point: Data Intelligence (Manuel Castaneda's team, specifically Emily) should be the primary contact for anyone with data questions - not Sean and not Application Services. Sean manages the website and may handle some analytics work, but data requests should route to Data Intelligence because that is their department's function. Application Services manages the application administration and platform. This resolves a bottleneck where both Sean and AS were absorbing data questions that belong to another team.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-label">Distribution Plan</div>
+      <div class="decision-title">Share With Charlene and Farrah First, Then the Wider Group</div>
+      <div class="decision-detail">Sean and Charlene agreed: this updated governance document goes to Charlene and Farrah Wilson first for review and alignment. Once the three of them are on the same page, it gets distributed to the broader group including Manuel Castaneda, Jason Greenberg, and the rest of the May 22 attendees. This prevents another context gap like the one that surfaced in Manny's post-meeting message.</div>
+    </div>
+  </div>
+
+  <h2>What Changed After the May 22 Meeting</h2>
+
+  <div class="section-block">
+    <h3>Key Discoveries from the Meeting</h3>
+    <div class="decision-item">
+      <div class="decision-label">Major Finding</div>
+      <div class="decision-title">Google Workspace Is Already Federated with Azure AD</div>
+      <div class="decision-detail">Jason Greenberg confirmed during the meeting that the district's existing G Suite / Google Workspace environment is already federated with Azure Active Directory. P-number logins redirect through Azure SSO today. This means standing up district-managed Google accounts for analytics requires significantly less effort than anticipated - there is no new infrastructure to build. Accounts can be bulk-imported and will use existing BCPS P-number credentials.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-label">Platform Decision</div>
+      <div class="decision-title">Decision Deferred Pending Two-Week Research Sprint</div>
+      <div class="decision-detail">The group agreed not to commit to Google Analytics alone before evaluating alternatives. Three platforms will be assessed over the next two weeks: Google Analytics (most researched, lowest lift given existing G Suite), Azure/Microsoft Analytics (Manuel reaching out to Microsoft for demo), and one additional option from Sean's shortlist (Matomo or equivalent open-source). A full comparison with SWOT analysis will be presented at the follow-up meeting. Goal: decide the platform and move to execution immediately after.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-label">Discovery</div>
+      <div class="decision-title">FinalSite Has No Native Analytics - Confirmed</div>
+      <div class="decision-detail">Sean confirmed that FinalSite has historically stated they rely on Google for analytics and have no internal analytics platform. Sean will invite a FinalSite technical contact to the next meeting alongside the success manager to get a written confirmation on code injection capabilities - specifically whether custom event tracking tags can be placed beyond the page header.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-label">Strategic Note</div>
+      <div class="decision-title">FinalSite Contract Renewal Is Within One Year</div>
+      <div class="decision-detail">Farrah Wilson noted during the meeting that the FinalSite contract has approximately one year remaining. The group identified this as potential negotiating leverage - analytics capabilities (or lack thereof) should be part of the renewal conversation. This workstream should be documented before renewal discussions begin.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-label">Confirmed</div>
+      <div class="decision-title">BrowardSchools.AI Domain Is Registered</div>
+      <div class="decision-detail">Jason Greenberg confirmed the BrowardSchools.AI domain was registered five years ago and is currently redirecting to browardschools.com. Drew Demme initially flagged it as potentially unregistered based on a Squarespace search, but confirmed it was a typo on his end (BrowardSchool.AI vs. BrowardSchools.AI). Domain ownership is secure.</div>
+    </div>
+  </div>
+
+  <h2>Post-Meeting Action Items</h2>
+  <p>All action items below are due by <strong>June 5, 2026</strong> (two-week window confirmed by the group during the meeting). The follow-up meeting will include a SWOT comparison and a final platform decision.</p>
+
+  <div class="section-block">
+    <div class="action-item">
+      <div class="action-num">01</div>
+      <div class="action-body">
+        <div class="action-title">Research Google Analytics Historical Data Migration</div>
+        <div class="action-detail">Determine whether the historical analytics data from the existing bcps.pio@gmail.com account can be migrated to a new district-managed account. If not, evaluate importing the historical data into Power BI / Microsoft Fabric so it remains accessible without requiring access to multiple Google accounts. Sean proposed this as a fallback during the meeting and the group approved the approach.</div>
+        <div class="action-owner">Owner: Sean A. Russell</div>
+        <div class="action-deadline">Due: June 5, 2026</div>
+      </div>
+    </div>
+    <div class="action-item completed">
+      <div class="action-num">02</div>
+      <div class="action-body">
+        <div class="action-title">Identify Best Non-Google, Non-Azure Analytics Option</div>
+        <div class="action-detail">Completed. Sean evaluated all seven platforms in the field, applied the district's eight governance requirements, and produced a full head-to-head scoring grid with ranked recommendations. Piwik PRO identified as the third candidate. Analysis is included in this document under "Analytics Platform: The Three Candidates." The group has everything needed to make a final decision at the follow-up meeting.</div>
+        <div class="action-owner">Owner: Sean A. Russell</div>
+        <div class="action-deadline-complete">Completed - June 8, 2026</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">03</div>
+      <div class="action-body">
+        <div class="action-title">Get Microsoft Azure Analytics Info and Schedule Demo</div>
+        <div class="action-detail">Manuel Castaneda has already reached out to Microsoft regarding Azure web analytics capabilities. Confirm what Azure offers natively (Microsoft Clarity, Application Insights, or equivalent), whether it integrates with the existing Azure/Microsoft 365 environment, and schedule a demo before the follow-up meeting. Drew Demme also advocated for exploring open-source self-hosted options (Matomo on a district VM) as an alternative to both Google and Azure.</div>
+        <div class="action-owner">Owner: Manuel Castaneda</div>
+        <div class="action-deadline">Due: June 5, 2026</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">04</div>
+      <div class="action-body">
+        <div class="action-title">Invite FinalSite Technical Contact to Follow-Up Meeting</div>
+        <div class="action-detail">Reach out to the FinalSite success manager and request that a technical team member join the next governance meeting. Specific question to answer in writing beforehand: can custom tracking tags and event tracking code be placed on individual page elements (buttons, forms, enrollment CTAs) through FinalSite Composer, or is injection limited to the page header? Farrah Wilson's use case - enrollment tour QR code campaign tracking - was cited as the test case.</div>
+        <div class="action-owner">Owner: Sean A. Russell</div>
+        <div class="action-deadline">Due: June 5, 2026</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">05</div>
+      <div class="action-body">
+        <div class="action-title">Schedule Follow-Up Governance Meeting</div>
+        <div class="action-detail">Schedule the follow-up meeting with the same attendee group for approximately June 5-6, 2026. The agenda for that meeting: (1) Platform comparison - GA4 vs. Azure vs. Piwik PRO with full analysis now available in this document. (2) FinalSite code injection confirmation. (3) Final platform decision and immediate next steps. Manuel Castaneda to organize as he did for the May 22 session.</div>
+        <div class="action-owner">Owner: Manuel Castaneda</div>
+        <div class="action-deadline-overdue">Past Due - May 30, 2026 - Status Unconfirmed</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Platform Evaluation Framework</h2>
+  <p>Three platforms are under evaluation. The follow-up meeting will decide one. The SWOT below reflects the current state of research as of the May 22 meeting. Sean will update this with platform-specific findings before the follow-up.</p>
+
+  <div class="swot-grid">
+    <div class="swot-card strengths">
+      <div class="swot-label">Strengths</div>
+      <ul>
+        <li>Google Workspace already federated with Azure AD - P-number logins work today</li>
+        <li>No additional licensing cost for Google Analytics (GA4 is free)</li>
+        <li>Google is the gold standard for web analytics - deep ecosystem, widely understood</li>
+        <li>FinalSite already relies on Google for all analytics - existing integration</li>
+        <li>Low provisioning effort: Jason confirmed bulk import is straightforward</li>
+        <li>Full administrative control unlocks advanced tagging, campaign tracking, and dashboards</li>
+      </ul>
+    </div>
+    <div class="swot-card weaknesses">
+      <div class="swot-label">Weaknesses</div>
+      <ul>
+        <li>Six-month analytics gap (July-March during FinalSite migration) - historical data may be incomplete</li>
+        <li>Adds a second major ecosystem to manage alongside Microsoft</li>
+        <li>FinalSite code injection limits are unconfirmed - granular event tracking may require platform cooperation</li>
+        <li>No existing OU structure for scoping Google policy - must be built</li>
+        <li>Azure/Microsoft option not yet researched - decision may be premature without comparison</li>
+      </ul>
+    </div>
+    <div class="swot-card opportunities">
+      <div class="swot-label">Opportunities</div>
+      <ul>
+        <li>Power BI integration: pull GA data into existing Microsoft Fabric dashboards for leadership reporting</li>
+        <li>FinalSite contract renewal in ~1 year - analytics capabilities a negotiating point</li>
+        <li>Phase 2 school-level dashboards position the district as a data-informed web governance model</li>
+        <li>Enrollment campaign tracking (Farrah's use case) becomes possible with full admin access</li>
+        <li>Consistent with how peer districts govern analytics - aligns BCPS with K-12 best practices</li>
+      </ul>
+    </div>
+    <div class="swot-card threats">
+      <div class="swot-label">Threats and Risks</div>
+      <ul>
+        <li>Google ecosystem expansion may trigger pressure to adopt Gemini at scale - hundreds of thousands of accounts</li>
+        <li>Gemini at full district scale would require parallel Microsoft and Google environment management (Manuel flagged this explicitly)</li>
+        <li>Any platform decision that relies on a single admin again recreates the bcps.pio@gmail.com problem</li>
+        <li>FinalSite may restrict advanced code injection - limits analytics depth on managed pages</li>
+        <li>Another year without a decision is not acceptable - the group agreed on urgency</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Analytics Platform: The Three Candidates</h2>
+
+  <p>The group agreed at the May 22 meeting to evaluate three platforms before committing. Based on the two-week research window, below is the full field assessment, a head-to-head scoring against the district's eight governance requirements, and a ranked recommendation for the follow-up meeting.</p>
+
+  <h2>Full Field - Platforms Considered</h2>
+
+  <div class="section-block" style="padding:0; overflow:hidden;">
+    <table class="score-table">
+      <thead>
+        <tr>
+          <th>Platform</th>
+          <th>Type</th>
+          <th>Cost</th>
+          <th>Data Ownership</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Google Analytics 4 (GA4)</td>
+          <td>Cloud / Google</td>
+          <td>Free (360 is paid)</td>
+          <td>Google processes data</td>
+          <td>Possible with DPA. No K-12 FERPA exemption in free tier.</td>
+        </tr>
+        <tr>
+          <td>Azure / Microsoft Clarity</td>
+          <td>Cloud / Microsoft</td>
+          <td>Included with M365</td>
+          <td>Microsoft processes data</td>
+          <td>FERPA BAA exists under M365 agreement. Not purpose-built for web analytics.</td>
+        </tr>
+        <tr>
+          <td>Piwik PRO</td>
+          <td>Cloud / EU-hosted</td>
+          <td>Freemium to paid</td>
+          <td>Full district control</td>
+          <td>Purpose-built for government and education. Strong compliance story.</td>
+        </tr>
+        <tr>
+          <td>Matomo (self-hosted)</td>
+          <td>Open source</td>
+          <td>Free + hosting costs</td>
+          <td>Full district control</td>
+          <td>FERPA-friendly but requires dedicated IT infrastructure to operate. Not recommended given current staffing.</td>
+        </tr>
+        <tr>
+          <td>Adobe Analytics</td>
+          <td>Cloud / Adobe</td>
+          <td>Paid (enterprise)</td>
+          <td>Adobe processes data</td>
+          <td>Enterprise-grade. No compliance advantage over Piwik PRO at significantly higher cost.</td>
+        </tr>
+        <tr>
+          <td>Plausible / Fathom</td>
+          <td>Lightweight cloud</td>
+          <td>Low monthly flat fee</td>
+          <td>EU/US compliant</td>
+          <td>Cookie-free, FERPA simpler. No Search Console integration, no SEO depth. Too lightweight for district scale.</td>
+        </tr>
+        <tr>
+          <td>FinalSite-native</td>
+          <td>Built into CMS</td>
+          <td>Included with CMS</td>
+          <td>FinalSite processes data</td>
+          <td>No SEO visibility. FinalSite processes data and contract renews within a year. Not a standalone option.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Four platforms were eliminated from consideration: <strong>Matomo</strong> requires dedicated IT infrastructure BCPS does not have staffed for this workstream. <strong>Adobe Analytics</strong> is enterprise-priced with no compliance advantage at this scale. <strong>Plausible and Fathom</strong> are too lightweight - no Search Console integration, no SEO depth, not built for a district of this size. <strong>FinalSite-native</strong> provides no SEO visibility and the contract renews within a year, making it an unreliable long-term foundation. The three candidates going forward are GA4, Azure, and Piwik PRO.</p>
+
+  <h2>Head-to-Head: Three Candidates Against District Requirements</h2>
+
+  <div class="section-block" style="padding:0; overflow:hidden;">
+    <table class="score-table">
+      <thead>
+        <tr>
+          <th>Requirement</th>
+          <th>GA4</th>
+          <th>Azure / Clarity</th>
+          <th>Piwik PRO</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>District owns and controls data</td>
+          <td><span class="score-moderate">Moderate</span><br>Google processes data. DPA required before go-live.</td>
+          <td><span class="score-strong">Strong</span><br>M365 BAA covers data processing under existing agreement.</td>
+          <td><span class="score-strong">Strong</span><br>Full district data ownership. No third-party processing.</td>
+        </tr>
+        <tr>
+          <td>FERPA compliance</td>
+          <td><span class="score-moderate">Moderate</span><br>No K-12 exemption in free tier. DPA mitigates but does not eliminate risk on public-facing data.</td>
+          <td><span class="score-strong">Strong</span><br>Covered under existing Microsoft FERPA BAA.</td>
+          <td><span class="score-strong">Very Strong</span><br>Purpose-built for regulated environments. Used by school districts and government agencies specifically for compliance.</td>
+        </tr>
+        <tr>
+          <td>SEO and Search Console visibility</td>
+          <td><span class="score-strong">Very Strong</span><br>Native integration. No additional configuration needed.</td>
+          <td><span class="score-weak">Weak</span><br>No native SEO layer. Does not connect to Search Console.</td>
+          <td><span class="score-moderate">Moderate</span><br>Tag manager available. Search Console can be connected via API - not native.</td>
+        </tr>
+        <tr>
+          <td>School and department dashboard model</td>
+          <td><span class="score-strong">Strong</span><br>Looker Studio provides embedded, shareable dashboards without requiring Google accounts.</td>
+          <td><span class="score-strong">Very Strong</span><br>Power BI native integration. Aligns with existing Microsoft reporting infrastructure.</td>
+          <td><span class="score-strong">Strong</span><br>Built-in custom report builder. Dashboard sharing does not require end-user accounts.</td>
+        </tr>
+        <tr>
+          <td>FinalSite tag injection compatibility</td>
+          <td><span class="score-strong">Very Strong</span><br>FinalSite confirmed they rely on Google. Existing relationship with the platform.</td>
+          <td><span class="score-moderate">Moderate</span><br>Tag injection required. FinalSite capability not yet confirmed in writing.</td>
+          <td><span class="score-moderate">Moderate</span><br>Tag injection required. FinalSite capability not yet confirmed in writing.</td>
+        </tr>
+        <tr>
+          <td>Power BI and leadership reporting</td>
+          <td><span class="score-moderate">Moderate</span><br>Connector available. Not native - requires additional configuration.</td>
+          <td><span class="score-strong">Very Strong</span><br>Native. This is Microsoft's reporting ecosystem.</td>
+          <td><span class="score-moderate">Moderate</span><br>API and export available. Not native to Power BI.</td>
+        </tr>
+        <tr>
+          <td>Survives staff turnover</td>
+          <td><span class="score-strong">Strong</span><br>Service account ownership prevents single-person dependency. Resolves the bcps.pio@gmail.com problem permanently.</td>
+          <td><span class="score-strong">Very Strong</span><br>Tied to M365 organizational identity. No individual account dependency.</td>
+          <td><span class="score-strong">Very Strong</span><br>Org-owned accounts. No individual dependency.</td>
+        </tr>
+        <tr>
+          <td>Cost</td>
+          <td><span class="score-strong">Very Strong</span><br>Free at the district's scale.</td>
+          <td><span class="score-strong">Very Strong</span><br>Included with existing M365 licensing.</td>
+          <td><span class="score-moderate">Moderate</span><br>Freemium tier available. Paid tiers required at district scale.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Platform Recommendation</h2>
+
+  <div class="platform-rank-grid">
+    <div class="platform-card rank-1">
+      <div class="platform-rank-badge">Recommended - Rank 1</div>
+      <div class="platform-name">Google Analytics 4</div>
+      <div class="platform-verdict">GA4 is the strongest fit for BCPS's specific situation. FinalSite already relies on Google for all analytics - that existing integration removes one of the most significant implementation risks. The G Suite tenant is already federated with Azure AD, meaning district-controlled accounts can be provisioned with minimal effort. Search Console integration is native, with no additional configuration. Looker Studio provides the school and department dashboard model the group agreed on, without requiring Google accounts at the school level. At no cost, it is the only platform that addresses every district requirement without requiring new infrastructure.</div>
+      <div class="platform-caveat">Condition: a Data Processing Amendment must be executed before go-live to address the FERPA gap in the free tier. This is a standard agreement Google provides and does not require migrating to a paid product. IFS executes the DPA; the platform proceeds as planned. <span>Risk without a DPA: medium. Risk with a DPA: low.</span></div>
+    </div>
+    <div class="platform-card rank-2">
+      <div class="platform-rank-badge">Rank 2</div>
+      <div class="platform-name">Piwik PRO</div>
+      <div class="platform-verdict">Piwik PRO is the right choice if the group decides the FERPA gap in GA4 - even with a DPA - is not acceptable. It is purpose-built for education and government, provides full district data ownership, and its compliance story requires no legal instrument to stand on. Dashboard sharing works without end-user accounts, matching the governance model the group confirmed. The gap is cost at district scale and the absence of a native Search Console integration, which means SEO reporting requires additional configuration work that GA4 handles automatically.</div>
+      <div class="platform-caveat">Recommended as: the conservative choice if FERPA certainty is the deciding factor. Best deployed if GA4 DPA negotiations stall or if legal review flags additional exposure. <span>Evaluate a 90-day pilot before full commitment given the budget line item.</span></div>
+    </div>
+    <div class="platform-card rank-3">
+      <div class="platform-rank-badge">Rank 3</div>
+      <div class="platform-name">Azure / Microsoft Clarity</div>
+      <div class="platform-verdict">Azure is the strongest internal reporting platform on this list and the most natural fit for Power BI integration, which the district already uses. It ranks third because it is not a web analytics platform in the way GA4 is. Microsoft Clarity is a behavioral analytics and heatmap tool - it does not provide the SEO depth, Search Console integration, or campaign-level tracking the district needs for public web governance. It does not replace what is missing. It should be evaluated as a complement to whichever platform is selected, not as the primary choice.</div>
+      <div class="platform-caveat">Recommended as: a supplemental layer for internal reporting and behavioral insights, deployed alongside GA4 or Piwik PRO. <span>Not recommended as a standalone replacement for a web analytics platform.</span></div>
+    </div>
+  </div>
+
+  <div class="priority-box">
+    <div class="priority-label">Decision for the Follow-Up Meeting</div>
+    <p>The group will decide between GA4 and Piwik PRO. If the DPA process is straightforward and legal has no objection, GA4 is the recommendation. If the group wants zero legal ambiguity on FERPA from day one, Piwik PRO is the path. Azure remains in play as a supplemental reporting layer under either decision. A decision that defers past the June 5 deadline extends the district's exposure on the bcps.pio@gmail.com ownership problem - the group agreed urgency is not optional.</p>
+  </div>
+
+  <h2>Phased Implementation Plan</h2>
+
+  <div class="section-block">
+    <table class="phase-table" aria-label="Phased implementation plan">
+      <thead>
+        <tr>
+          <th>Phase</th>
+          <th>Scope</th>
+          <th>Who</th>
+          <th>Timeline</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Phase 1</td>
+          <td>Stand up district-managed analytics accounts for OOC and Application Services. At most two accounts per department - only active analytics administrators get provisioned access. Migrate ownership off bcps.pio@gmail.com. Use existing G Suite tenant (federated with Azure). Decide platform via SWOT. Data Intelligence (Emily/Manuel's team) added as a third operational stakeholder alongside OOC and AS.</td>
+          <td>IFS, AS, OOC</td>
+          <td>June - July 2026</td>
+          <td><span class="tag open">In Progress</span></td>
+        </tr>
+        <tr>
+          <td>Phase 2</td>
+          <td>Expand to department-level access. Pilot with ~10 director-level dashboards (Power BI or GA4 embedded). Schools receive pre-built read-only dashboards via the WCM hub. No direct account access for school WCMs.</td>
+          <td>OOC + AS</td>
+          <td>Fall 2026</td>
+          <td><span class="tag">Pending Phase 1</span></td>
+        </tr>
+        <tr>
+          <td>Phase 3</td>
+          <td>Evaluate Google AI/Gemini integration after Phase 1 experience. Requires formal policy, legal review, and OU-based access config before any activation. Sean proposed this as a deliberate delay to buy time for informed decision-making.</td>
+          <td>Manuel Castaneda's Dept + AS + OOC</td>
+          <td>2027 or later</td>
+          <td><span class="tag">Under Review</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Root Cause: District Does Not Own Its Own Analytics</h2>
+
+  <p>BCPS's Google Analytics is currently owned by <strong>bcps.pio@gmail.com</strong> - a personal Gmail account tied to the Office of Communications that has held primary ownership for more than ten years. The district spent approximately two years recovering access. Access has been restored, but ownership has not transferred.</p>
+
+  <p>The May 22 meeting exists to fix that permanently: migrate ownership to a district-controlled account under IFS, establish OOC and AS as operational admins, and put in place a policy so this never happens again.</p>
+
+  <div class="priority-box">
+    <div class="priority-label">Immediate Priority - Pre-Platform Decision</div>
+    <p>Regardless of which analytics platform is selected, the migration of bcps.pio@gmail.com ownership to a district-controlled account must happen first. The federated G Suite tenant Jason confirmed means this can proceed now without waiting for the platform decision.</p>
+  </div>
+
+  <h2>What Other Districts Are Doing</h2>
+
+  <p>Google Governance Best Practices in K-12: research into how other large districts govern their Google environments surfaces a consistent set of practices that BCPS does not yet have in place. These are not aspirational - they are the baseline at comparable districts.</p>
+
+  <div class="pillar-grid">
+    <div class="pillar-card">
+      <div class="pillar-num">01</div>
+      <div class="pillar-title">IT (IFS-equivalent) Holds Primary Admin - Not Communications</div>
+      <div class="pillar-desc">Best-practice districts assign domain admin ownership to their IT or information systems division, not to communications or web staff. This is exactly the structure BCPS is moving toward: IFS as primary, OOC and AS as operational admins.</div>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num">02</div>
+      <div class="pillar-title">Organizational Unit (OU) Structure for Scoped Access</div>
+      <div class="pillar-desc">Leading districts organize their Google tenant into organizational units - separating students, staff, administrators, and departments - so that policy changes (AI features, app access, Gemini availability) can be applied at the right scope without affecting everyone. BCPS does not yet have a documented OU structure for its web analytics properties.</div>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num">03</div>
+      <div class="pillar-title">Search Console Verified via DNS, Not Personal Email</div>
+      <div class="pillar-desc">Best practice is for districts to verify Search Console via DNS TXT record through IT - this makes verification independent of any individual's account and survives staff turnover. BCPS's current verification is tied to a personal Gmail; migrating to DNS verification owned by IFS removes the single point of failure entirely.</div>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num">04</div>
+      <div class="pillar-title">Analytics Dashboards for Schools - The Jeffco Model</div>
+      <div class="pillar-desc">Jefferson County Public Schools (Colorado) built a district-wide data governance program with a dedicated program manager and department-level data stewards. Their model: IT owns access control, data stewards in each department decide who sees what within their unit. This is the Phase 2 model BCPS is targeting.</div>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num">05</div>
+      <div class="pillar-title">Recurring Google Admin Console Audits</div>
+      <div class="pillar-desc">Districts like Pickerington Local (Ohio) partner with CDW or equivalent to run periodic Google Admin Console audits - scoring their configuration against EDU best practices. BCPS's access audit (in progress as of May 19) is the right first step; formalizing it as an annual process is the mature governance posture.</div>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num">06</div>
+      <div class="pillar-title">AI Feature Policy Before Activation, Not After</div>
+      <div class="pillar-desc">Districts that deployed Gemini for Education without a formal policy first have faced parent and school board pushback. Best practice is to configure AI feature access by OU before enabling it broadly. FERPA and COPPA compliance documentation should accompany any AI feature rollout - Manuel Castaneda's team owns this workstream.</div>
+    </div>
+  </div>
+
+  <h2>Four Governance Areas</h2>
+
+  <div class="section-block">
+    <div class="scope-item">
+      <div class="scope-badge">01</div>
+      <div class="action-title">Google Analytics, Search Console and SEO</div>
+      <div class="action-detail"><strong>Data analysis and reporting: Data Intelligence</strong> - Manuel Castaneda, Executive Director (Emily, primary contact for data questions). Per Charlene Collins (May 27): anyone with a data question routes to Data Intelligence, not to Sean or Application Services. That is Data Intelligence's departmental function.<br><br><strong>Communications strategy layer: Marketing and Strategic Communications (OOC)</strong> - Farrah A. Wilson, Director. Approval: Sean A. Russell. OOC consumes the reporting Data Intelligence produces and applies it to content strategy, SEO decisions, and campaign measurement. OOC does not field raw data requests.<br><br><strong>Technical implementation: Application Services (AS)</strong>. Platform not yet locked in. Ownership roles above are confirmed regardless of platform choice.</div>
+    </div>
+    <div class="scope-item">
+      <div class="scope-badge">02</div>
+      <div class="action-title">Google Workspace Accounts, Access and Provisioning</div>
+      <div class="action-detail"><strong>Recommended owner: Application Services (AS) under IFS</strong> - Charlene A. Collins, Director. IFS (Jason Greenberg) holds primary domain admin. Matthew S. Bradford provides executive oversight.<br><br>Post-meeting update: Jason confirmed the G Suite tenant is already federated with Azure AD. Provisioning Phase 1 accounts is low effort. AS coordinates naming convention (BCPS-OOC, BCPS-AS) and bulk import. IFS owns OU structure setup.</div>
+    </div>
+    <div class="scope-item">
+      <div class="scope-badge">03</div>
+      <div class="action-title">Canvas LMS and Google Integration</div>
+      <div class="action-detail"><strong>Recommended owner: Application Services (AS)</strong> - Tricia A. Allen, Assistant Director, under Charlene A. Collins.<br><br>AS audits every active Canvas-Google integration point. AS defines testing and sign-off checklist. AS creates a single support path for teachers who hit Google-related issues inside Canvas. OOC is informed before course launches involving district-level communications content.</div>
+    </div>
+    <div class="scope-item">
+      <div class="scope-badge">04</div>
+      <div class="action-title">AI Tools Policy (Gemini and Google AI)</div>
+      <div class="action-detail"><strong>Recommended owner: Analytics and Intelligence</strong> - Manuel Castaneda, Executive Director. AS implements. OOC and Sean A. Russell consulted on anything touching public-facing or communications scope.<br><br>Post-meeting update: the group agreed Phase 3 (Gemini) is a deliberate delay - the risk of expanding the Google ecosystem to hundreds of thousands of accounts was flagged explicitly. Policy must be drafted, legal-reviewed, and OU-based access configured before any activation. Timeline: 2027 or later.</div>
+    </div>
+  </div>
+
+  <h2>Scope: Marketing and Strategic Communications vs. Technology</h2>
+
+  <div class="pillar-grid">
+    <div class="pillar-card">
+      <div class="pillar-num" style="font-size:16px;letter-spacing:0.04em;">OOC</div>
+      <div class="pillar-title">Marketing and Strategic Communications owns: Standards, Strategy, Content, Instruction</div>
+      <div class="pillar-desc">OOC manages all district and department pages - content, brand standards, SEO requirements, and guidelines that schools and departments follow. OOC delivers training and instruction to content editors. OOC interprets analytics data and translates it into communications strategy. OOC does not troubleshoot platform issues, configure access, or manage user accounts. When something is broken, OOC escalates to AS - it does not fix it.</div>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num" style="font-size:16px;letter-spacing:0.04em;">AS</div>
+      <div class="pillar-title">Application Services owns: Schools, Platform, Access, Technical Support</div>
+      <div class="pillar-desc">AS manages all school-level web pages from a technical standpoint. AS is the single point of contact for anything broken, misconfigured, or needing technical setup. AS implements what OOC specifies. AS does not decide what content should say or how it should be structured. When content questions come to AS, AS escalates to OOC.</div>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num" style="font-size:16px;letter-spacing:0.04em;">IFS</div>
+      <div class="pillar-title">Infrastructure Services owns: Domain, DNS, Network, Primary Admin</div>
+      <div class="pillar-desc">IFS holds primary Google domain admin and controls DNS records, including the Search Console verification that must be migrated off bcps.pio@gmail.com. IFS does not manage day-to-day content or provisioning. IFS is the escalation path when AS hits something at the infrastructure level. Matthew S. Bradford provides cross-team oversight of IFS and AS workstreams.</div>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num" style="font-size:16px;letter-spacing:0.04em;">PMO</div>
+      <div class="pillar-title">Project Management Office: Cross-Team Delivery Coordination</div>
+      <div class="pillar-desc">Dr. Darryl Diamond's PMO tracks milestones across OOC, AS, and IFS workstreams. When Phase 1 accounts need to be stood up and Phase 2 dashboard development begins, PMO ensures both tracks move in parallel. PMO does not own content or technical decisions - it owns timeline accountability.</div>
+    </div>
+  </div>
+
+  <h2>Governance Structure - RACI</h2>
+
+  <div class="section-block" style="padding:0; overflow:hidden;">
+    <table class="raci-table" aria-label="RACI governance matrix">
+      <thead>
+        <tr>
+          <th>Area</th>
+          <th>Responsible</th>
+          <th>Accountable</th>
+          <th>Consulted</th>
+          <th>Informed</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Google Domain Administration (Primary)</td>
+          <td>Infrastructure Services (IFS) - Jason Greenberg</td>
+          <td>Matthew S. Bradford</td>
+          <td>Charlene A. Collins (AS), Manuel Castaneda</td>
+          <td>Sean A. Russell, Farrah A. Wilson, District Leadership</td>
+        </tr>
+        <tr>
+          <td>Google Web Analytics and Search Console</td>
+          <td>Office of Communications (OOC)</td>
+          <td>Sean A. Russell, Farrah A. Wilson</td>
+          <td>IFS, Charlene A. Collins (AS), Jason Greenberg</td>
+          <td>School Admins, Department Heads, Dr. Darryl Diamond</td>
+        </tr>
+        <tr>
+          <td>Analytics Platform Selection (New)</td>
+          <td>Sean A. Russell, Manuel Castaneda</td>
+          <td>Manuel Castaneda</td>
+          <td>Jason Greenberg, Drew Demme, Matthew S. Bradford</td>
+          <td>Farrah A. Wilson, Charlene A. Collins, Dr. Darryl Diamond</td>
+        </tr>
+        <tr>
+          <td>Google Business Profile and SEO Management</td>
+          <td>Office of Communications (OOC)</td>
+          <td>Sean A. Russell, Farrah A. Wilson</td>
+          <td>IFS, Charlene A. Collins (AS)</td>
+          <td>Schools, Departments, District Leadership</td>
+        </tr>
+        <tr>
+          <td>Google Workspace Provisioning and OU Structure</td>
+          <td>Application Services (AS)</td>
+          <td>Charlene A. Collins</td>
+          <td>IFS, Tricia A. Allen</td>
+          <td>Sean A. Russell, School Admins</td>
+        </tr>
+        <tr>
+          <td>Charter School Google Workspace Access</td>
+          <td>Application Services (AS)</td>
+          <td>Charlene A. Collins</td>
+          <td>IFS, Charter School IT Contacts, Manuel Castaneda</td>
+          <td>Sean A. Russell, District Leadership</td>
+        </tr>
+        <tr>
+          <td>Canvas-Google Integration</td>
+          <td>Application Services (AS)</td>
+          <td>Tricia A. Allen, Charlene A. Collins</td>
+          <td>Sean A. Russell, Manuel Castaneda's Dept.</td>
+          <td>Teachers, School Admins, Farrah A. Wilson</td>
+        </tr>
+        <tr>
+          <td>AI Tool Policy (Gemini, Google AI)</td>
+          <td>Manuel Castaneda's Department</td>
+          <td>Manuel Castaneda</td>
+          <td>Sean A. Russell, Charlene A. Collins (AS), Farrah A. Wilson (OOC), Legal</td>
+          <td>All BCPS staff and students</td>
+        </tr>
+        <tr>
+          <td>Analytics Dashboard - Phase 2</td>
+          <td>Office of Communications (OOC)</td>
+          <td>Sean A. Russell, Farrah A. Wilson</td>
+          <td>Charlene A. Collins (AS), IFS</td>
+          <td>All schools and departments, Dr. Darryl Diamond</td>
+        </tr>
+        <tr>
+          <td>Data Questions and Analytics Reporting (District-Wide)</td>
+          <td>Data Intelligence - Emily / Manuel Castaneda's Dept.</td>
+          <td>Manuel Castaneda</td>
+          <td>Sean A. Russell (OOC), Charlene A. Collins (AS)</td>
+          <td>All departments, schools, district leadership</td>
+        </tr>
+        <tr>
+          <td>Google Access Audit and Compliance</td>
+          <td>Application Services (AS)</td>
+          <td>Charlene A. Collins</td>
+          <td>IFS, IT Compliance, Legal</td>
+          <td>Superintendent's Office, Sean A. Russell</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Open Issues - Updated Status</h2>
+
+  <div class="section-block">
+    <div class="action-item">
+      <div class="action-num">01</div>
+      <div class="action-body">
+        <div class="action-title">Migrate Google Analytics Off bcps.pio@gmail.com</div>
+        <div class="action-detail">Access has been recovered. Migration to a district-controlled account is pending platform decision. The federated G Suite tenant means this can proceed once the account naming convention and Phase 1 accounts are stood up by AS and IFS.</div>
+        <div class="action-owner">Owner: IFS</div>
+        <div class="action-deadline"><span class="tag pending">Pending Platform Decision</span></div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">02</div>
+      <div class="action-body">
+        <div class="action-title">Establish Three-Tier Admin Structure: IFS Primary, OOC and AS as Admins</div>
+        <div class="action-detail">Structure confirmed and agreed upon by all attendees in the May 22 meeting. IFS primary, OOC and AS operational admins. Phase 1 accounts: BCPS-OOC and BCPS-Application Services. Ready to execute once platform is selected.</div>
+        <div class="action-owner">Owner: IFS / Charlene A. Collins (AS) / Sean A. Russell and Farrah A. Wilson (OOC)</div>
+        <div class="action-deadline"><span class="tag resolved">Structure Confirmed</span></div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">03</div>
+      <div class="action-body">
+        <div class="action-title">Google Governance Meeting</div>
+        <div class="action-detail">Meeting completed on May 22, 2026 at 3:00 PM via Teams. All key decisions documented in this update. Follow-up meeting to be scheduled for approximately June 5-6, 2026.</div>
+        <div class="action-owner">Owner: Manuel Castaneda</div>
+        <div class="action-deadline"><span class="tag resolved">Completed May 22</span></div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">04</div>
+      <div class="action-body">
+        <div class="action-title">Charter School Google Workspace Access</div>
+        <div class="action-detail">Access tiers and approval chains for charter schools were not resolved during the May 22 meeting. This item was not the primary focus given the platform decision was deferred. Remains open for Phase 1 planning.</div>
+        <div class="action-owner">Owner: Charlene A. Collins (AS) / Manuel Castaneda</div>
+        <div class="action-deadline"><span class="tag open">Unresolved</span></div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">05</div>
+      <div class="action-body">
+        <div class="action-title">Google AI Features Policy for Students and Staff</div>
+        <div class="action-detail">No formal policy exists. The May 22 meeting confirmed this as Phase 3 - deliberately deferred to allow Phase 1 and 2 to establish the governance foundation first. Policy must be drafted before any Gemini or Google AI feature activation. Manuel Castaneda's team owns the draft.</div>
+        <div class="action-owner">Owner: Manuel Castaneda's Department</div>
+        <div class="action-deadline"><span class="tag">Phase 3 / 2027+</span></div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">06</div>
+      <div class="action-body">
+        <div class="action-title">Google Access Audit - Current State Documentation</div>
+        <div class="action-detail">Audit was confirmed as in progress as of May 19. AS continues this workstream in parallel with the analytics platform evaluation. Results will inform Phase 1 account provisioning and OU structure setup.</div>
+        <div class="action-owner">Owner: Charlene A. Collins (AS) / IFS</div>
+        <div class="action-deadline"><span class="tag open">In Progress</span></div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">07</div>
+      <div class="action-body">
+        <div class="action-title">Canvas Course Completion and Google Integration Testing</div>
+        <div class="action-detail">Active workstream. The Canvas-Google integration requires sign-off before courses go live to schools. Tricia A. Allen's team owns the testing and sign-off checklist. Status to be confirmed at follow-up meeting.</div>
+        <div class="action-owner">Owner: Tricia A. Allen's Team</div>
+        <div class="action-deadline"><span class="tag open">In Progress</span></div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">08</div>
+      <div class="action-body">
+        <div class="action-title">Analytics Platform Selection</div>
+        <div class="action-detail">Sean's evaluation is complete. All seven platforms were assessed, four eliminated, and three candidates (GA4, Azure/Microsoft Clarity, Piwik PRO) scored head-to-head against the district's governance requirements. Full analysis and ranked recommendation are included in this document. Pending: Manuel Castaneda's Azure demo confirmation and group decision at the follow-up meeting.</div>
+        <div class="action-owner">Owner: Sean A. Russell + Manuel Castaneda</div>
+        <div class="action-deadline"><span class="tag resolved">Sean's Evaluation Complete - June 8, 2026</span> <span class="tag pending">Awaiting Follow-Up Meeting Decision</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Timeline</h2>
+
+  <div class="section-block">
+    <div class="timeline-row">
+      <div class="timeline-date">May 12, 2026</div>
+      <div class="timeline-text">Application Services meeting. Google governance meeting with Castaneda's department named as a key next step for the first time. Charter school access flagged as unresolved.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">May 19, 2026</div>
+      <div class="timeline-text">Application Services meeting. Google governance meeting still not scheduled. Carried forward as an open item for the second consecutive meeting. Access audit active.</div>
+    </div>
+    <div class="timeline-row highlight">
+      <div class="timeline-date">May 22, 2026</div>
+      <div class="timeline-text"><strong>Google governance meeting - COMPLETED.</strong> Organized by Manuel Castaneda, 3:00 PM via Teams. Attendees: Manuel Castaneda, Dr. Darryl Diamond, Farrah A. Wilson, Jason Greenberg, Matthew S. Bradford, Charlene A. Collins, Sean A. Russell, Drew Demme, Melanie P. Riles. Key outcomes: G Suite/Azure federation confirmed (Jason), platform decision deferred to follow-up, two-week research sprint assigned, three-tier admin structure confirmed, FinalSite analytics limitations confirmed.</div>
+    </div>
+    <div class="timeline-row highlight">
+      <div class="timeline-date">May 27, 2026</div>
+      <div class="timeline-text"><strong>Follow-up conversation with Charlene Collins, 1:30 PM (Fieldy).</strong> Key clarifications: account model confirmed as minimal (at most 2 per department), Data Intelligence identified as the correct owner of district data questions (not Sean or AS), dashboard-first access model for schools locked. Manny's post-meeting message misrepresenting the school account scope flagged and corrected.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">May 28, 2026</div>
+      <div class="timeline-text">This document updated with meeting outcomes, Charlene conversation findings, action items, and revised open issues. First distribution: Charlene Collins and Farrah Wilson for review before wider group share.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">June 5, 2026</div>
+      <div class="timeline-text"><strong>Action item deadline.</strong> Sean: GA data migration research, shortlist third platform option, FinalSite outreach. Manuel: Azure analytics info and demo scheduled. Follow-up governance meeting to be held around this date.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Before July 1, 2026</div>
+      <div class="timeline-text">Platform decision locked. Phase 1 accounts provisioned. Google governance policies documented and communicated. Access tiers, charter school resolution, and Canvas integration sign-off all complete.</div>
+    </div>
+  </div>
+
+  <h2>Key Stakeholders</h2>
+
+  <div class="section-block" style="padding:0; overflow:hidden;">
+    <table class="raci-table" aria-label="Key stakeholders">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Department / Role</th>
+          <th>Why They Are Here</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Manuel Castaneda</td>
+          <td>Executive Director, Analytics and Intelligence</td>
+          <td>Meeting organizer. Owns AI tools policy. Leads Azure analytics research. Analytics and Intelligence perspective on Google data governance.</td>
+        </tr>
+        <tr>
+          <td>Matthew S. Bradford</td>
+          <td>Executive Director, Technology Operations</td>
+          <td>Executive oversight of IFS and AS workstreams. Cross-team technology governance.</td>
+        </tr>
+        <tr>
+          <td>Jason Greenberg</td>
+          <td>Director of Infrastructure Services (IFS)</td>
+          <td>Confirmed G Suite/Azure federation. IFS lead. Owns primary Google domain admin and DNS. Responsible for migrating Search Console verification off personal account.</td>
+        </tr>
+        <tr>
+          <td>Charlene A. Collins</td>
+          <td>Director of Application Services</td>
+          <td>Owns Google Workspace provisioning, OU structure, charter school access, Canvas-Google integration, and all school-level technical support.</td>
+        </tr>
+        <tr>
+          <td>Farrah A. Wilson</td>
+          <td>Director of Marketing and Strategic Communications</td>
+          <td>OOC Director. Owns analytics reporting, SEO standards, content governance. Raised FinalSite contract renewal as negotiating leverage. Co-approver with Sean on OOC-scope decisions.</td>
+        </tr>
+        <tr>
+          <td>Sean A. Russell</td>
+          <td>District Webmaster, Office of Marketing and Strategic Communications</td>
+          <td>Lead on analytics platform research and district account structure initiative. Approves all OOC-scope governance decisions. Primary point of contact for this document.</td>
+        </tr>
+        <tr>
+          <td>Dr. Darryl Diamond</td>
+          <td>Director, Project Management Office</td>
+          <td>Tracks cross-team milestones and delivery timelines across OOC, AS, and IFS workstreams.</td>
+        </tr>
+        <tr>
+          <td>Drew Demme</td>
+          <td>Application Services / Infrastructure</td>
+          <td>Advocated for exploring Azure and open-source (Matomo self-hosted) as Microsoft-ecosystem-aligned alternatives to Google Analytics.</td>
+        </tr>
+        <tr>
+          <td>Tricia A. Allen</td>
+          <td>Assistant Director of Application Services</td>
+          <td>Canvas integration workstream lead under Charlene A. Collins.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<footer class="bcps-footer" role="contentinfo">
+  <div class="footer-inner">
+    <div class="footer-left">
+      <div class="footer-doc-title">BCPS Google Governance Plan - v4 Post-Meeting Update</div>
+      <div class="footer-meta">
+        Broward County Public Schools<br>
+        Office of Marketing and Strategic Communications<br>
+        Prepared by Sean A. Russell, District Webmaster<br>
+        Updated May 28, 2026 - For internal district use
+      </div>
+    </div>
+    <div class="footer-right">
+      <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="footer-logo">
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

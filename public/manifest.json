@@ -1,0 +1,28 @@
+{
+  "name": "K12 Unlocked",
+  "short_name": "K12",
+  "description": "The communications platform for Broward County Public Schools.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#F69820",
+  "background_color": "#ffffff",
+  "categories": [
+    "education"
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

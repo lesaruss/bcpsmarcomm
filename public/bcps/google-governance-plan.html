@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Website Governance Plan - BCPS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); flex: 1; }
+
+  /* Version switcher in header */
+  .version-switcher { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .version-switcher label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-50); white-space: nowrap; }
+  .version-switcher select {
+    font-family: "Montserrat", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .version-switcher select:focus { outline: 2px solid var(--bcps-blue); outline-offset: 2px; }
+
+  main { max-width: 1000px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(24px, 4vw, 38px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 8px; }
+  .doc-subtitle { font-size: 13px; font-weight: 600; color: var(--text-50); margin-bottom: 28px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  h3 { font-size: 13px; font-weight: 800; color: var(--text); margin: 20px 0 8px; }
+  p { font-size: 14px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 12px; }
+  p strong { color: var(--text); font-weight: 700; }
+  p:last-child { margin-bottom: 0; }
+
+  ul.body-list { padding-left: 20px; margin-bottom: 12px; }
+  ul.body-list li { font-size: 14px; color: var(--text-75); line-height: 1.7; margin-bottom: 4px; }
+  ul.body-list li strong { color: var(--text); }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+
+  .callout-info { background: rgba(22,114,167,0.06); border-left: 3px solid var(--bcps-blue); border-radius: 0 6px 6px 0; padding: 14px 18px; margin: 16px 0; }
+  .callout-info p { font-size: 13px; color: var(--text-75); margin: 0; }
+
+  .decision-item { padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .decision-item:last-child { border-bottom: none; }
+  .decision-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+  .decision-detail { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 16px; }
+  .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; margin-top: 0; }
+
+  .action-item { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .action-item:last-child { border-bottom: none; }
+  .action-num { font-size: 20px; font-weight: 900; color: var(--bcps-blue); min-width: 28px; line-height: 1; }
+  .action-body .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .action-body .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; margin-bottom: 0; }
+  .action-body .action-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); margin-top: 6px; }
+  .action-body .action-deadline { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); margin-top: 3px; }
+
+  .tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 4px; margin: 2px 4px 2px 0; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .tag.open { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.28); color: var(--bcps-blue-dark); }
+  .tag.pending { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.28); color: var(--bcps-orange); }
+  .tag.resolved { background: rgba(22,117,12,0.10); border-color: rgba(22,117,12,0.30); color: var(--bcps-green); }
+  .tag.updated { background: rgba(22,117,12,0.10); border-color: rgba(22,117,12,0.30); color: var(--bcps-green); font-size: 8px; vertical-align: middle; margin-left: 6px; }
+
+  .timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 120px; padding-top: 2px; }
+  .timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .timeline-text strong { color: var(--text); display: block; margin-bottom: 2px; }
+  .timeline-row.highlight .timeline-date { color: var(--bcps-green); }
+
+  .attendee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .attendee-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+  .attendee-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .attendee-title { font-size: 11px; color: var(--text-50); font-weight: 600; }
+
+  .raci-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .raci-table th { background: var(--bcps-blue); color: #fff; padding: 9px 12px; text-align: left; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .raci-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-75); vertical-align: top; }
+  .raci-table tr:last-child td { border-bottom: none; }
+  .raci-table tr:nth-child(even) td { background: var(--surface2); }
+
+  /* Version content switching */
+  .version-content { display: none; }
+  .version-content.active { display: block; }
+
+  @media (max-width: 600px) {
+    main { padding: 84px 16px 60px; }
+    header.bcps-header { padding: 0 16px; gap: 10px; }
+    .bcps-header-title { font-size: 10px; }
+    .version-switcher label { display: none; }
+    .meta-row { gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">Governance Plan</span>
+  <div class="version-switcher">
+    <label for="versionSelect">Version:</label>
+    <select id="versionSelect" aria-label="Select document version" onchange="switchVersion(this.value)">
+      <option value="v2">V2 - June 10, 2026 (Current)</option>
+      <option value="v1">V1 - May 21, 2026 (Archived)</option>
+    </select>
+  </div>
+</header>
+
+<!-- ===== V2 ===== -->
+<div id="version-v2" class="version-content active">
+<main>
+  <h1>Website Governance Plan</h1>
+  <p class="doc-subtitle">BCPS / Internal Working Document</p>
+
+  <div class="meta-row">
+    <div class="meta-item"><span class="meta-label">Date</span><span class="meta-value">June 10, 2026</span></div>
+    <div class="meta-item"><span class="meta-label">Prepared By</span><span class="meta-value">Sean A. Russell</span></div>
+    <div class="meta-item"><span class="meta-label">Platform</span><span class="meta-value">Microsoft Teams</span></div>
+    <div class="meta-item"><span class="meta-label">Attendees</span><span class="meta-value">2 (Planning Session)</span></div>
+    <div class="meta-item"><span class="meta-label">Version</span><span class="meta-value">v2 - June 10, 2026</span></div>
+    <div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">BCPS School Websites / Finalsite / WCM Program</span></div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> Farrah A. Wilson, Vanessa C. Deslandes, Tricia A. Allen, Charlene A. Collins, Felicia C. Hicks, and school-level Web Content Managers. Covers operational website governance only. District-level platform governance is addressed separately.</p>
+  </div>
+
+  <!-- ATTENDEES -->
+  <h2>Planning Session Attendees</h2>
+  <div class="attendee-grid">
+    <div class="attendee-card">
+      <div class="attendee-name">Sean A. Russell</div>
+      <div class="attendee-title">BCPS / K12 Unlocked</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Vanessa C. Deslandes</div>
+      <div class="attendee-title">Web Content Management, BCPS</div>
+    </div>
+  </div>
+
+  <!-- SOURCE MEETINGS -->
+  <h2>Source Meetings</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title">May 6, 2026 - Template Concern (Pompano school)</div>
+      <div class="decision-detail">Meeting with Farrah A. Wilson, Vanessa C. Deslandes, and Felicia C. Hicks. Not a governance meeting - a response to a Pompano-area school's concern about athletics visibility in the current template. The meeting identified that no formal process existed for handling template requests. Farrah took the issue to additional conversations. Web governance was not yet on the agenda.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">May 19, 2026 - Enterprise Application Services Team Meeting</div>
+      <div class="decision-detail">At the close of the standing team meeting, Farrah A. Wilson formally introduced the idea of reconvening the website governance committee. She and Charlene A. Collins had discussed the athletics/activities button request and agreed the right path was a formal committee - principals and internal staff, no external stakeholders initially. Sean A. Russell committed to building a framework. Summer launch confirmed as the target.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">June 10, 2026 - Governance Framework Planning Session</div>
+      <div class="decision-detail">Sean A. Russell and Vanessa C. Deslandes define the governance structure, historical context, decision process, template level model, and membership approach. This document produced from that session.</div>
+    </div>
+  </div>
+
+  <!-- KEY DECISIONS -->
+  <h2>Key Decisions <span class="tag updated">V2 Updated</span></h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title">Governance committee is being reconvened, not invented from scratch</div>
+      <div class="decision-detail">BCPS had a functioning website governance group during the Finalsite transition. That group selected the current template, defined the homepage rotating banner ownership, and worked through navigation standards. Charlene A. Collins led it, Janice took over when Charlene transitioned. Approximately 30 stakeholders were involved (principals, WCMs, DAC members, department reps). The new committee builds on that foundation, not a blank slate.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Four template levels, not one</div>
+      <div class="decision-detail">Elementary, middle, high, and centers each have distinct template needs. Governance committee membership and agenda items are structured accordingly. Not all members weigh in on all levels.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">21-day decision cycle with 14-day review window for absentees</div>
+      <div class="decision-detail">Members who attend live decide in real time. Members who cannot attend get the recording and all supporting materials, with 14 days to review and submit a decision. Total cycle closes at 21 days. Prevents indefinite bottlenecking.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Template change requests go through IIQ, not directly to named individuals</div>
+      <div class="decision-detail">The prior process named specific approvers. The updated process routes all requests through IIQ tickets to the district web team. Precedent-setting changes escalate to the governance committee. No named individuals in the standard request path.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Page-by-page review is the primary deliverable of the committee</div>
+      <div class="decision-detail">The committee works through each section of the school site template, level by level. The output is a documented district position on every page - used as the basis for any future contract renewal or RFP. Community input is balanced against ADA compliance and industry best practices.</div>
+    </div>
+  </div>
+
+  <!-- BACKGROUND -->
+  <h2>Background</h2>
+  <div class="section-block">
+    <h3>What started this</h3>
+    <p>A Pompano-area school raised concerns about athletics visibility in the current Finalsite template. The May 6 call was about exploring what was possible - not about governance. Farrah subsequently discussed the underlying problem with Charlene Collins: there was no formal process for handling template requests. On May 19, Farrah introduced the governance committee concept to the full Enterprise Application Services team.</p>
+
+    <h3>Historical context</h3>
+    <p>The current BCPS school website template was not selected by the web team alone. A multi-stakeholder governance group - including DAC (District Advisory Council) members, principals, WCMs, and department staff - spent months working through template decisions during the Finalsite transition. Linda Ferreira from the DAC was among the most active voices. That process is documented in emails from 2020 and 2023. Charlene A. Collins has the original stakeholder list.</p>
+
+    <div class="callout-info">
+      <p><strong>Why this matters:</strong> When schools push back on template limitations, the record shows those decisions were made through a legitimate collective process - not arbitrary IT choices. Reconvening governance is the right mechanism for revisiting them with the same legitimacy.</p>
+    </div>
+
+    <h3>The goal</h3>
+    <p>Build the ideal school website - page by page, section by section - across all four template levels. The committee's documented decisions become the district's formal position for any future Finalsite contract renewal or competitive RFP. Schools cannot claim they were not heard. The web team cannot be blamed for top-down decisions.</p>
+  </div>
+
+  <!-- OPEN ISSUES -->
+  <h2>Open Issues</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <span class="tag pending">Pending Committee</span>
+      <div class="decision-title" style="margin-top:8px;">Pompano-area school - athletics/template request</div>
+      <div class="decision-detail">The originating request. No response given. On hold until governance committee is formed and a formal decision process is in place.</div>
+    </div>
+    <div class="decision-item">
+      <span class="tag pending">Pending Committee</span>
+      <div class="decision-title" style="margin-top:8px;">Activities vs. Athletics button label - middle and high schools</div>
+      <div class="decision-detail">High school WCMs flagged that "Activities" does not reflect their programs. Technically fixable, but requires a governance process. Candidate first agenda item for the committee and a test case for the decision cycle.</div>
+    </div>
+    <div class="decision-item">
+      <span class="tag open">Open</span>
+      <div class="decision-title" style="margin-top:8px;">"Our School" landing page gap</div>
+      <div class="decision-detail">Clicking "Our School" in school navigation takes visitors to the administrators page, not a school identity page. No mission/vision landing page exists. School Info shows demographic data fields but not school context. Farrah's content collection campaign from earlier in the year did not fully resolve this. Candidate first review item for the page-by-page exercise.</div>
+    </div>
+    <div class="decision-item">
+      <span class="tag open">Open</span>
+      <div class="decision-title" style="margin-top:8px;">Global icons redistribution - near-term idea</div>
+      <div class="decision-detail">The homepage global icon bar locks both district-managed and school-specific icons together. A proposed near-term rebalancing: lock two to three district icons (Report Abuse, See Something/Say Something), free remaining slots for schools to assign athletics, programs, and initiatives. Requires analytics data on which icons are actually clicked before formalizing. Not a resolved direction - subject to committee review.</div>
+    </div>
+    <div class="decision-item">
+      <span class="tag pending">Pending</span>
+      <div class="decision-title" style="margin-top:8px;">WCM Certification rollout coverage</div>
+      <div class="decision-detail">Pilot ran May 6. Remaining school coverage, timeline, and certification enforcement mechanism not yet defined.</div>
+    </div>
+  </div>
+
+  <!-- ACTION ITEMS -->
+  <h2>Action Items</h2>
+  <div class="section-block">
+    <div class="action-item">
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <div class="action-title">Retrieve original governance documentation</div>
+        <div class="action-detail">Vanessa C. Deslandes to forward the original web governance email thread (approx. 30 stakeholders, circa 2020-2023, led by Charlene A. Collins). Provides the historical member list and decision record.</div>
+        <div class="action-owner">Owner: Vanessa C. Deslandes</div>
+        <div class="action-deadline">Due: Before inner team meeting</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">2</div>
+      <div class="action-body">
+        <div class="action-title">Brief Tricia Allen and Charlene Collins before Friday</div>
+        <div class="action-detail">Both must be briefed before the Friday team meeting - not during it. Charlene holds contract context. Tricia leads the team. Neither should hear the governance proposal for the first time in the meeting.</div>
+        <div class="action-owner">Owner: Sean A. Russell / Vanessa C. Deslandes</div>
+        <div class="action-deadline">Due: Before Friday team meeting</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">3</div>
+      <div class="action-body">
+        <div class="action-title">Present V2 governance framework at Friday Enterprise Application Services meeting</div>
+        <div class="action-detail">Present the updated framework to the full team. Surface the Activities/Athletics button as the first test case. Confirm governance process - not the web team alone - is the decision path for this type of change.</div>
+        <div class="action-owner">Owner: Sean A. Russell</div>
+        <div class="action-deadline">Due: This Friday</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">4</div>
+      <div class="action-body">
+        <div class="action-title">Schedule inner team meeting - Sean, Vanessa, Tricia, Farrah, Charlene</div>
+        <div class="action-detail">Define membership criteria, template level representation model, and first agenda items before inviting any broader committee members. Charlene provides historical context on prior member selection.</div>
+        <div class="action-owner">Owner: Sean A. Russell</div>
+        <div class="action-deadline">Due: Within two weeks of Friday meeting</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">5</div>
+      <div class="action-body">
+        <div class="action-title">Pull K-12 website governance best practices</div>
+        <div class="action-detail">Research industry standards for K-12 district website governance as a reference framework. Becomes the third input alongside stakeholder feedback and web team expertise. Balances internal preference with documented best practices and ADA requirements.</div>
+        <div class="action-owner">Owner: Sean A. Russell</div>
+        <div class="action-deadline">Due: Before inner team meeting</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">6</div>
+      <div class="action-body">
+        <div class="action-title">Finalize and communicate IIQ-based template change request process</div>
+        <div class="action-detail">The working draft in this document needs to be confirmed by the committee and then distributed to all WCMs and school admins. This is a first-session agenda item - committee defines the process, web team implements.</div>
+        <div class="action-owner">Owner: District Web Team (pending committee)</div>
+        <div class="action-deadline">Due: After first committee session</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INDUSTRY BEST PRACTICES -->
+  <h2>Industry Best Practices</h2>
+  <div class="section-block">
+    <h3>Governance model</h3>
+    <p>The research-backed standard for K-12 district website governance is a multi-stakeholder committee with cross-level representation - elementary, middle, high, and specialty programs each contribute perspective. COSN (Consortium for School Networking) and AASA both document that unilateral IT governance of school-facing content leads to higher rates of ADA non-compliance and school disengagement. Districts with formal governance committees report fewer escalation conflicts and stronger template adoption rates over time.</p>
+    <p>The recommended committee structure includes representation from school administration, parent-facing communication staff, web content managers, IT, and instructional leadership. External consultants or vendors are observers only - they do not vote on standards.</p>
+
+    <h3>Decision cycle</h3>
+    <p>Industry standard for K-12 web governance decisions is a 15-to-30-day cycle depending on the scope of the change. Precedent-setting decisions (those that affect all schools or contract terms) should have a longer window with documented input. Operational decisions (single-school requests within defined parameters) should resolve faster. Most districts use an async review window rather than requiring full-attendance synchronous votes - this accommodates the operational realities of school administrators and reduces bottlenecking.</p>
+
+    <h3>Change request process</h3>
+    <p>Best practice places the intake function on a ticketing system, not on named individuals. Named-individual routing creates single points of failure and makes institutional knowledge non-transferable when staff changes. The ticket-based model (IIQ, ServiceNow, or equivalent) provides an auditable trail, prevents requests from going dark, and allows workload visibility across the web team. Every district that has moved from email-based to ticket-based governance reports a reduction in repeat requests and improved school satisfaction scores.</p>
+
+    <h3>ADA and legal compliance</h3>
+    <p>WCAG 2.1 AA is the current federal standard for public school district websites under the ADA and Section 508. Districts operating below this standard carry material legal exposure. Governance committees should treat ADA compliance as a non-negotiable constraint, not a balancing factor - meaning community preference and ADA compliance are not weighed equally. If a school requests a design change that creates a compliance gap, that request cannot be approved regardless of stakeholder support.</p>
+
+    <h3>Contract alignment</h3>
+    <p>A documented governance framework significantly strengthens a district's position at vendor contract renewal. Districts with no governance record are frequently upsold on features they already have or lack the institutional knowledge to know what they agreed to in the prior term. The governance committee's page-by-page review output is the strongest leverage tool a district can bring to an RFP process - it defines exactly what the district needs and documents what the current vendor has or has not delivered.</p>
+  </div>
+
+  <!-- GOVERNANCE STRUCTURE -->
+  <h2>Governance Structure</h2>
+  <div class="section-block">
+    <h3>Decision process</h3>
+    <p>Each session has a defined agenda with decisions to be made. Members attend live or receive the recording and all supporting context. A 14-day review window allows absentees to submit their decision. The total cycle closes at 21 days. All input is balanced against ADA compliance and industry best practices - internal preference alone does not drive decisions.</p>
+    <h3>Template change request process (working draft)</h3>
+    <p>Schools and departments submit requests via IIQ ticket. The district web team reviews scope and impact. Requests affecting template standards or setting precedent escalate to the governance committee through the standard decision cycle. The committee defines and locks this process in its first session.</p>
+    <h3>Accountability - RACI</h3>
+    <div style="overflow-x:auto; margin-top:12px;">
+      <table class="raci-table" aria-label="RACI matrix">
+        <thead>
+          <tr><th>Area</th><th>Responsible</th><th>Accountable</th><th>Consulted</th><th>Informed</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Template Design Standards</td><td>District Web Team</td><td>Farrah A. Wilson, Charlene A. Collins</td><td>Governance Committee</td><td>All Stakeholders</td></tr>
+          <tr><td>Template Change Requests</td><td>District Web Team (via IIQ)</td><td>District Web Team</td><td>Governance Committee (if precedent)</td><td>School Principals</td></tr>
+          <tr><td>Finalsite Contract</td><td>Charlene A. Collins</td><td>Charlene A. Collins, Farrah A. Wilson</td><td>Tricia A. Allen, Sean A. Russell</td><td>All stakeholders</td></tr>
+          <tr><td>WCM Certification Program</td><td>District Web Team</td><td>Tricia A. Allen, Sean A. Russell</td><td>Charlene A. Collins, Farrah A. Wilson</td><td>School Content Editors</td></tr>
+          <tr><td>Committee Operations</td><td>District Web Team</td><td>Tricia A. Allen, Sean A. Russell</td><td>Charlene A. Collins, Farrah A. Wilson</td><td>All committee members</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- NEXT STEPS -->
+  <h2>Next Steps</h2>
+  <div class="section-block">
+    <div class="timeline-row">
+      <div class="timeline-date">By Friday</div>
+      <div class="timeline-text"><strong>Tricia and Charlene briefed.</strong> V2 framework presented at Friday Enterprise Application Services meeting. Activities/Athletics button surfaced as test case.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Within 2 weeks</div>
+      <div class="timeline-text"><strong>Inner team meeting.</strong> Sean, Vanessa, Tricia, Farrah, Charlene align on membership model and first agenda items. Original governance documentation retrieved.</div>
+    </div>
+    <div class="timeline-row highlight">
+      <div class="timeline-date">Summer 2026</div>
+      <div class="timeline-text"><strong>Committee launch.</strong> Invitations go out. First session held. Agenda items: Activities/Athletics button, Our School landing page, global icon review.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Ongoing</div>
+      <div class="timeline-text"><strong>Page-by-page review.</strong> Committee works through school site sections across all four template levels. Output feeds contract renewal and RFP strategy. WCM Certification rollout continues in parallel.</div>
+    </div>
+  </div>
+
+</main>
+</div>
+<!-- ===== END V2 ===== -->
+
+
+<!-- ===== V1 ===== -->
+<div id="version-v1" class="version-content">
+<main>
+  <h1>Website Governance Plan</h1>
+  <p class="doc-subtitle">BCPS / Internal Working Document</p>
+
+  <div class="meta-row">
+    <div class="meta-item"><span class="meta-label">Date</span><span class="meta-value">May 21, 2026</span></div>
+    <div class="meta-item"><span class="meta-label">Prepared By</span><span class="meta-value">Sean A. Russell</span></div>
+    <div class="meta-item"><span class="meta-label">Platform</span><span class="meta-value">Microsoft Teams</span></div>
+    <div class="meta-item"><span class="meta-label">Attendees</span><span class="meta-value">4 People</span></div>
+    <div class="meta-item"><span class="meta-label">Version</span><span class="meta-value">v2 - May 21, 2026</span></div>
+    <div class="meta-item"><span class="meta-label">Scope</span><span class="meta-value">BCPS School Website Templates, Finalsite, WCM Program</span></div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> Farrah A. Wilson, Vanessa C. Deslandes, Felicia C. Hicks, Tricia A. Allen, Charlene A. Collins, and school-level content editors. Covers operational website governance only.</p>
+  </div>
+
+  <h2>Source Meetings</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title">Primary Source - Call with Farrah and Vanessa (and Felicia Hicks)</div>
+      <div class="decision-detail">May 6, 2026 - 10:34 AM, Microsoft Teams - 47 minutes. Participants: Sean A. Russell, Farrah A. Wilson, Vanessa C. Deslandes, Felicia C. Hicks.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Supporting Source - WCM Certification Pilot</div>
+      <div class="decision-detail">May 6, 2026 - Microsoft Teams. Organized by Vanessa C. Deslandes. Web Content Manager certification pilot for school-level content editors.</div>
+    </div>
+  </div>
+
+  <h2>Overview</h2>
+  <div class="section-block">
+    <p>This document establishes the governance framework for BCPS school websites managed through the Finalsite platform. It captures decisions and agreed actions from the May 6 working session with Farrah Wilson and Vanessa Deslandes, covering website template standards, the school template change request process, and the WCM certification program for school content editors.</p>
+    <p>The core governance challenge is that individual schools are requesting custom template deviations - the immediate example being a Pompano Beach High School Magnet Program focus request - while the district maintains a standardized template system under an IT contract. Any template changes require alignment across multiple stakeholders before implementation, and that alignment process was not clearly defined until this working session.</p>
+  </div>
+
+  <h2>Open Issues</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <span class="tag pending">Pending Team Decision</span>
+      <div class="decision-title" style="margin-top:8px;">Pompano Beach High School - Magnet Program Template Request</div>
+      <div class="decision-detail">Pompano Beach High reached out requesting a new template or custom option to spotlight their Magnet Program. On hold until team aligns. No response given to the school yet.</div>
+    </div>
+    <div class="decision-item">
+      <span class="tag pending">Pending Friday Meeting</span>
+      <div class="decision-title" style="margin-top:8px;">Activities / Athletics Button - Middle and High Schools</div>
+      <div class="decision-detail">Pending decision: is the Activities/Athletics button being added to all middle and high school templates? Group did not reach a conclusion in the May 6 call. Being brought to the Friday team meeting.</div>
+    </div>
+    <div class="decision-item">
+      <span class="tag open">In Progress</span>
+      <div class="decision-title" style="margin-top:8px;">Homepage Video / Banner - Back-to-School</div>
+      <div class="decision-detail">Flagged in the May 12 Enterprise Application Services meeting. Completion confirmation still outstanding.</div>
+    </div>
+    <div class="decision-item">
+      <span class="tag pending">Rollout TBD</span>
+      <div class="decision-title" style="margin-top:8px;">WCM Certification Program - Rollout and Coverage</div>
+      <div class="decision-detail">Pilot complete. Next steps for remaining school coverage, timeline, and access enforcement not yet confirmed.</div>
+    </div>
+  </div>
+
+  <h2>Template Change Request Process</h2>
+  <div class="section-block">
+    <p>Defined in the May 6 working session. All school template requests follow this path before any implementation begins.</p>
+    <div class="action-item">
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <div class="action-title">School submits request to Vanessa Deslandes</div>
+        <div class="action-detail">Must include the specific need, business/educational justification, and proposed scope.</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">2</div>
+      <div class="action-body">
+        <div class="action-title">Vanessa reviews against current Finalsite contract scope</div>
+        <div class="action-detail">Determines if it falls within contract or requires amendment. Charlene Collins consulted if scope is in question.</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">3</div>
+      <div class="action-body">
+        <div class="action-title">Farrah Wilson approves or escalates</div>
+        <div class="action-detail">Within-scope changes with no district-wide impact: Farrah approves directly. Changes that set precedent or affect all schools: escalates to team meeting.</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">4</div>
+      <div class="action-body">
+        <div class="action-title">Give Tricia and Charlene a heads-up before team meeting (if escalated)</div>
+        <div class="action-detail">Both must be informed before any team discussion. Not optional.</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">5</div>
+      <div class="action-body">
+        <div class="action-title">Friday team meeting alignment</div>
+        <div class="action-detail">Escalated requests presented at the Friday Enterprise Application Services meeting. No commitments given to the requesting school until after this step.</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">6</div>
+      <div class="action-body">
+        <div class="action-title">Implementation and school communication</div>
+        <div class="action-detail">Upon approval, Vanessa coordinates with Finalsite. School is notified.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Immediate Next Steps</h2>
+  <div class="section-block">
+    <div class="action-item">
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <div class="action-title">Present website template governance at Friday team meeting</div>
+        <div class="action-owner">Owner: Sean A. Russell</div>
+        <div class="action-deadline">Status: Pending</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">2</div>
+      <div class="action-body">
+        <div class="action-title">Give Tricia Allen and Charlene Collins a heads-up before Friday</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">3</div>
+      <div class="action-body">
+        <div class="action-title">Distribute meeting notes to all May 6 attendees</div>
+        <div class="action-owner">Owner: Sean A. Russell</div>
+        <div class="action-deadline">Status: This document</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">4</div>
+      <div class="action-body">
+        <div class="action-title">Hold on Pompano Beach response until team decides</div>
+        <div class="action-owner">Owner: Vanessa C. Deslandes</div>
+        <div class="action-deadline">Status: Pending team decision</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+<!-- ===== END V1 ===== -->
+
+<script>
+  function switchVersion(v) {
+    document.querySelectorAll('.version-content').forEach(function(el) {
+      el.classList.remove('active');
+    });
+    document.getElementById('version-' + v).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Department Audit Profile - BCPS | K12 Unlocked</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #1672A7; --blue-dark: #125e8a; --blue-xlight: #e8f4fb;
+      --text-primary: #262626; --text-secondary: #525252; --text-muted: #767676;
+      --bg-page: #f0f4f8; --bg-card: #ffffff; --border: #dde3ea;
+      --sidebar-bg: #1672A7; --sidebar-text: rgba(255,255,255,0.75); --sidebar-hover: rgba(255,255,255,0.12);
+    }
+    html, body { height: 100%; }
+    body { font-family: 'Open Sans', sans-serif; background: var(--bg-page); color: var(--text-primary); font-size: 15px; line-height: 1.5; }
+    .app-shell { display: flex; min-height: 100vh; }
+    /* SIDEBAR */
+    .sidebar { width: 248px; background: var(--sidebar-bg); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; overflow-y: auto; transition: transform 0.25s ease; }
+    .sidebar.closed { transform: translateX(-100%); }
+    .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 49; }
+    .sidebar-backdrop.show { display: block; }
+    .sidebar-brand { padding: 16px 16px 14px; border-bottom: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: space-between; }
+    .sidebar-brand-text { font-size: 14px; font-weight: 900; color: #fff; letter-spacing: -0.3px; line-height: 1.1; }
+    .sidebar-close-btn { background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.6); padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+    .sidebar-close-btn:hover { color: #fff; background: rgba(255,255,255,0.12); }
+    .sidebar-section-label { font-size: 9.5px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.4); padding: 0 8px 6px; margin-top: 1.5rem; }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; }
+    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--sidebar-text); font-size: 13.5px; font-weight: 600; cursor: pointer; border: none; background: none; width: 100%; text-align: left; transition: background .15s, color .15s; text-decoration: none; }
+    .sidebar-link:hover { background: var(--sidebar-hover); color: #fff; }
+    .sidebar-link.active { background: rgba(255,255,255,0.22); color: #fff; }
+    .sidebar-icon { width: 18px; height: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .sidebar-footer { margin-top: auto; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.15); }
+    .sidebar-user { display: flex; align-items: center; gap: 10px; }
+    .sidebar-avatar { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.25); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
+    .sidebar-user-info strong { display: block; font-size: 13px; font-weight: 700; color: #fff; }
+    .sidebar-user-info span { display: block; font-size: 11px; color: var(--sidebar-text); }
+    /* MAIN */
+    .main-area { margin-left: 0; transition: margin-left 0.25s ease; flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    .app-shell.sidebar-open .main-area { margin-left: 248px; }
+    .topbar { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40; }
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .hamburger-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 4px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+    .hamburger-btn:hover { background: var(--bg-page); }
+    .topbar h1 { font-size: 20px; font-weight: 800; color: var(--text-primary); }
+    .topbar p { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .search-input { border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 14px; font-size: 13px; font-family: 'Open Sans', sans-serif; outline: none; transition: border-color .2s; background: #fafbfc; color: var(--text-primary); width: 200px; }
+    .search-input:focus { border-color: var(--blue); background: #fff; }
+    .topbar-notif { position: relative; background: none; border: 1.5px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary); }
+    .topbar-notif:hover { background: var(--bg-page); }
+    .notif-badge { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: #ef4444; border: 2px solid #fff; }
+    .signout-btn { background: none; border: 1.5px solid var(--border); border-radius: 8px; color: var(--text-secondary); cursor: pointer; padding: 6px 12px; font-size: 12px; font-weight: 600; font-family: 'Open Sans', sans-serif; transition: border-color .15s; }
+    .signout-btn:hover { border-color: var(--blue); }
+    .page-content { padding: 28px; flex: 1; }
+    /* STATS */
+    .stats-row { display: grid; grid-template-columns: repeat(6,1fr); gap: 12px; margin-bottom: 22px; }
+    .stat-tile { background: var(--bg-card); border-radius: 10px; padding: 16px; border: 1.5px solid var(--border); }
+    .stat-tile.healthy { border-color: #bbf7d0; background: #f0fdf4; }
+    .stat-tile.review { border-color: #fed7aa; background: #fff7ed; }
+    .stat-tile.risk { border-color: #fecaca; background: #fef2f2; }
+    .stat-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    .stat-value { font-size: 24px; font-weight: 800; color: var(--text-primary); }
+    .stat-tile.healthy .stat-value { color: #16a34a; }
+    .stat-tile.review .stat-value { color: #ea580c; }
+    .stat-tile.risk .stat-value { color: #dc2626; }
+    /* FILTERS */
+    .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-search { flex: 1; min-width: 220px; border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 14px; font-size: 13px; font-family: 'Open Sans', sans-serif; outline: none; background: var(--bg-card); color: var(--text-primary); transition: border-color .2s; }
+    .filter-search:focus { border-color: var(--blue); }
+    .filter-select { border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 36px 8px 14px; font-size: 12px; font-family: 'Open Sans', sans-serif; background: var(--bg-card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E") no-repeat right 10px center; -webkit-appearance: none; appearance: none; color: var(--text-primary); cursor: pointer; outline: none; font-weight: 600; }
+    .filter-select:focus { border-color: var(--blue); }
+    .filter-count { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-left: auto; white-space: nowrap; }
+    /* GRID */
+    .dept-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .dept-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; cursor: pointer; transition: box-shadow .15s, border-color .15s; display: flex; flex-direction: column; }
+    .dept-card:hover { box-shadow: 0 4px 20px rgba(22,114,167,.13); border-color: var(--blue); }
+    .dept-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .dept-name { font-size: 13.5px; font-weight: 800; color: var(--text-primary); line-height: 1.3; }
+    .health-badge { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap; }
+    .health-badge.healthy { background: #dcfce7; color: #16a34a; }
+    .health-badge.needs-review { background: #ffedd5; color: #c2410c; }
+    .health-badge.at-risk { background: #fee2e2; color: #b91c1c; }
+    .health-badge.unassessed { background: #f3f4f6; color: var(--text-muted); }
+    .dept-division { font-size: 10.5px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+    .dept-blurb { font-size: 11.5px; color: var(--text-muted); line-height: 1.55; margin-bottom: 8px; }
+    .dept-website-link { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; text-decoration: none; transition: color .12s; }
+    .dept-website-link:hover { color: var(--blue-dark); text-decoration: underline; }
+    .dept-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; padding-top: 10px; border-top: 1px solid var(--border); margin-top: auto; }
+    .meta-label { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px; }
+    .meta-value { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+    .audit-chip { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; padding: 2px 7px; border-radius: 999px; }
+    .audit-chip.not-started { background: #f3f4f6; color: var(--text-muted); }
+    .audit-chip.in-progress { background: #eff6ff; color: #1d4ed8; }
+    .audit-chip.complete { background: #dcfce7; color: #16a34a; }
+    .audit-chip.needs-update { background: #fff7ed; color: #c2410c; }
+    .audit-chip.pending-review { background: #f0f9ff; color: #0369a1; }
+    .audit-chip.pending { background: #fdf4ff; color: #7e22ce; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty-state h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--text-secondary); }
+    /* DETAIL PANEL */
+    .detail-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 100; opacity: 0; pointer-events: none; transition: opacity .25s; }
+    .detail-overlay.open { opacity: 1; pointer-events: all; }
+    .detail-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 520px; background: var(--bg-card); box-shadow: -8px 0 40px rgba(0,0,0,0.14); z-index: 101; overflow-y: auto; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); display: flex; flex-direction: column; }
+    .detail-panel.open { transform: translateX(0); }
+    .dp-header { background: var(--blue); color: #fff; padding: 20px 24px 18px; position: relative; flex-shrink: 0; }
+    .dp-close { position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.15); border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; transition: background .15s; }
+    .dp-close:hover { background: rgba(255,255,255,0.25); }
+    .dp-division-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: rgba(255,255,255,0.6); margin-bottom: 4px; }
+    .dp-dept-name { font-size: 20px; font-weight: 800; line-height: 1.2; }
+    .dp-body { padding: 22px 24px; flex: 1; }
+    .detail-section { margin-bottom: 22px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+    .detail-section:last-child { border-bottom: none; margin-bottom: 0; }
+    .detail-section-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 10px; }
+    .dp-blurb-text { font-size: 13px; color: var(--text-secondary); line-height: 1.65; padding: 4px 0 10px; }
+    .dp-website-link { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: var(--blue); text-decoration: none; text-transform: uppercase; letter-spacing: .1em; transition: color .12s; }
+    .dp-website-link:hover { color: var(--blue-dark); text-decoration: underline; }
+    .dp-website-link.hidden { display: none; }
+    .detail-row { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .detail-field { flex: 1; }
+    .detail-field-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+    .detail-field-val { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .detail-field-val.muted { color: var(--text-muted); font-weight: 400; }
+    .dp-edit-btn { background: none; border: 1.5px solid var(--border); border-radius: 7px; font-size: 12px; font-weight: 700; color: var(--text-secondary); padding: 6px 14px; cursor: pointer; font-family: 'Open Sans', sans-serif; transition: border-color .15s, color .15s; }
+    .dp-edit-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .dp-edit-btn.save { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .dp-edit-btn.save:hover { background: var(--blue-dark); }
+    .dp-edit-btn.cancel { border-color: var(--border); color: var(--text-muted); }
+    .dp-audit-profile-btn { display: block; width: 100%; margin-top: 14px; padding: 10px; background: var(--blue); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer; font-family: 'Open Sans', sans-serif; letter-spacing: .02em; transition: background .15s; }
+    .dp-audit-profile-btn:hover { background: var(--blue-dark); color: #fff; }
+    .dp-audit-profile-btn.hidden { display: none; }
+    .edit-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+    .detail-field-group { margin-bottom: 14px; }
+    .detail-field-input { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 8px 12px; font-size: 13px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); outline: none; transition: border-color .2s; background: #fafbfc; }
+    .detail-field-input:focus { border-color: var(--blue); background: #fff; }
+    .detail-field-select { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 8px 12px; font-size: 13px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); outline: none; background: #fafbfc; cursor: pointer; }
+    .detail-field-select:focus { border-color: var(--blue); }
+    .detail-field-textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 8px 12px; font-size: 13px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); outline: none; resize: vertical; transition: border-color .2s; background: #fafbfc; }
+    .detail-field-textarea:focus { border-color: var(--blue); background: #fff; }
+    .char-hint { font-size: 10px; color: var(--text-muted); margin-top: 3px; text-align: right; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #262626; color: #fff; font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 8px; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; z-index: 9999; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    /* --- Analytics Section --- */
+    .analytics-section { margin-top: 24px; }
+    .analytics-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .analytics-header h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .8px; color: var(--text-primary); }
+    .analytics-sync-info { font-size: 11px; color: var(--text-muted); }
+    .analytics-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .analytics-kpi { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .analytics-kpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 6px; }
+    .analytics-kpi-value { font-size: 24px; font-weight: 800; color: var(--text-primary); line-height: 1; }
+    .analytics-kpi-delta { font-size: 11px; font-weight: 600; margin-top: 4px; }
+    .analytics-kpi-delta.up { color: #1a7a3c; }
+    .analytics-kpi-delta.down { color: #b91c1c; }
+    .analytics-kpi-delta.neutral { color: var(--text-muted); }
+    .analytics-chart-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+    .analytics-chart-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 14px; }
+    .analytics-sparkline { width: 100%; height: 80px; }
+    .analytics-breakdowns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .analytics-table-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+    .analytics-table-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 12px; }
+    .analytics-table { width: 100%; border-collapse: collapse; }
+    .analytics-table th { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); text-align: left; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .analytics-table td { font-size: 12px; color: var(--text-secondary); padding: 7px 0; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    .analytics-table tr:last-child td { border-bottom: none; }
+    .analytics-table td.num { font-weight: 700; color: var(--text-primary); text-align: right; }
+    .analytics-table td.url { font-size: 10.5px; color: var(--text-muted); font-weight: 400; }
+    .analytics-bar-wrap { width: 80px; height: 6px; background: #e5e7eb; border-radius: 999px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 8px; }
+    .analytics-bar-fill { height: 100%; background: var(--blue); border-radius: 999px; }
+    .analytics-queries-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+    .analytics-empty { text-align: center; padding: 48px 20px; color: var(--text-muted); font-size: 13px; }
+    .analytics-empty svg { width: 32px; height: 32px; margin: 0 auto 12px; display: block; opacity: .35; }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; background: var(--text-muted); }
+    .audit-scheduled-label { font-size: 11px; color: var(--text-muted); margin-top: 6px; text-align: center; }
+    @media (max-width: 900px) {
+      .analytics-kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .analytics-breakdowns { grid-template-columns: 1fr; }
+    }
+    /* --- End Analytics --- */
+    @media (max-width: 900px) {
+      .main-area { margin-left: 0 !important; }
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .stats-row { grid-template-columns: repeat(3, 1fr); }
+      .dept-grid { grid-template-columns: repeat(2, 1fr); }
+      .detail-panel { width: 100%; }
+    }
+    @media (max-width: 600px) {
+      .dept-grid { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .page-content { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+  <aside class="sidebar closed" id="sidebar">
+    <div class="sidebar-brand">
+      <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"
+           alt="Broward County Public Schools"
+           style="height:38px;width:auto;filter:brightness(0) invert(1);display:block;">
+      <button class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Close menu">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>
+      </button>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-label" style="margin-top:0">Platform</div>
+      <a href="/" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 36 44" fill="none"><path d="M18 2L32 8V22C32 31 25.5 38 18 42C10.5 38 4 31 4 22V8L18 2Z" fill="currentColor" opacity="0.85"/><path d="M18 8L27 12.5V22C27 28 23.5 32.5 18 36C12.5 32.5 9 28 9 22V12.5L18 8Z" fill="currentColor" opacity="0.25"/></svg></span>
+        Passport
+      </a>
+      <a href="/?page=queue" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1" fill="currentColor" stroke="none"/></svg></span>
+        Queue
+      </a>
+      <a href="/?page=notes" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></span>
+        Meeting Notes
+      </a>
+      <a href="/departments.html" class="sidebar-link active">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+        Departments
+      </a>
+      <a href="/?page=analytics" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg></span>
+        Analytics
+      </a>
+      <a href="/?page=profile" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+        My Profile
+      </a>
+      <a href="/?page=superadmin" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+        SuperAdmin
+      </a>
+
+      <div class="sidebar-section-label">Consoles</div>
+      <a href="/?page=marcomm" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+        MarComm
+      </a>
+      <a href="/?page=minutes" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+        Minutes
+      </a>
+      <a href="/?page=wcm" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+        WCM
+      </a>
+
+      <div class="sidebar-section-label">BCPS</div>
+      <a href="/google-governance-plan.html" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span>
+        Google Governance
+      </a>
+      <a href="/bcps-web-team-assignments.html" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg></span>
+        Web Team Assignments
+      </a>
+      <a href="/certification/departments" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg></span>
+        Department Certification
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sidebar-user" style="width:100%;background:none;border:none;cursor:pointer;text-align:left;padding:0;display:flex;align-items:center;gap:10px;" onclick="document.getElementById('view-switcher').classList.toggle('hidden')">
+        <div class="sidebar-avatar">SA</div>
+        <div class="sidebar-user-info" style="flex:1;">
+          <strong>Sean A. Russell</strong>
+          <span>SuperAdmin</span>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;flex-shrink:0;"><polyline points="18 15 12 9 6 15"/></svg>
+      </button>
+      <div id="view-switcher" class="hidden" style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.08);border-radius:8px;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,0.5);margin-bottom:6px;">View As</div>
+        <div style="display:flex;gap:6px;">
+          <button id="view-admin-btn" onclick="setViewMode('admin')" style="flex:1;padding:4px 0;font-size:10px;font-weight:700;border:none;border-radius:5px;cursor:pointer;background:#fff;color:#1672a7;transition:opacity .15s;">Admin</button>
+          <button id="view-standard-btn" onclick="setViewMode('standard')" style="flex:1;padding:4px 0;font-size:10px;font-weight:700;border:none;border-radius:5px;cursor:pointer;background:rgba(255,255,255,0.2);color:#fff;transition:opacity .15s;">Standard</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Open menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <div id="topbar-eyebrow" style="font-size:10px;font-weight:700;color:rgba(26,26,26,0.5);text-transform:uppercase;letter-spacing:0.15em;">BCPS Departments</div>
+          <div id="topbar-title" style="font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:0.18em;color:#262626;">Department Profile</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <input type="text" class="search-input" placeholder="Search..." aria-label="Global search">
+        <button class="topbar-notif" title="Notifications" aria-label="Notifications">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-badge"></span>
+        </button>
+        <button class="signout-btn" onclick="window.location.href='/login'">Sign out</button>
+      </div>
+    </header>
+
+
+<style>
+    :root {
+  --bcps-blue: #1672A7;
+  --bcps-blue-dark: #0e4e73;
+  --lr-bg: #f0f4f8;
+  --lr-border: rgba(0,0,0,0.08);
+  --lr-text: #1a1a1a;
+  --lr-text-75: rgba(26,26,26,0.78);
+  --lr-text-50: rgba(26,26,26,0.55);
+  --score-green: #16750C; --score-green-bg: #edf7ea;
+  --score-yellow: #854F0B; --score-yellow-bg: #fef3e2;
+  --score-red: #A32D2D; --score-red-bg: #fdf0f0;
+  --sev-critical: #7C0E0E; --sev-critical-bg: #fce8e8;
+  --sev-serious: #A32D2D; --sev-serious-bg: #fdf0f0;
+  --sev-moderate: #854F0B; --sev-moderate-bg: #fef3e2;
+  --sev-minor: #1a5276; --sev-minor-bg: #e8f1f8;
+    }
+    /* === BCPS TOPBAR === */
+.bcps-topbar { background: var(--bcps-blue); padding: 14px 28px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; border-bottom: 3px solid var(--bcps-blue-dark); }
+.bcps-logo { height: 38px; width: auto; display: block; }
+.bcps-topbar-divider { width: 1px; height: 28px; background: rgba(255,255,255,0.25); }
+.bcps-topbar-title { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.18em; color: #fff; }
+.bcps-topbar-dept { display: flex; flex-direction: column; gap: 2px; }
+.bcps-topbar-eyebrow { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.65); text-transform: uppercase; letter-spacing: 0.15em; }
+.bcps-topbar-back { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.1em; text-decoration: none; display: flex; align-items: center; gap: 5px; transition: color 0.12s; }
+.bcps-topbar-back:hover { color: #fff; }
+.bcps-topbar-back svg { stroke: currentColor; fill: none; stroke-width: 2; width: 13px; height: 13px; }
+
+/* === PAGE LAYOUT === */
+.passport-wrap { display: flex; flex-direction: column; min-height: 100%; background: var(--lr-bg); }
+.passport-body { padding: 28px; flex: 1; max-width: 1100px; width: 100%; }
+
+/* === DEPT HEADER === */
+.dept-header { background: #fff; border: 1px solid var(--lr-border); border-radius: 12px; padding: 24px 28px; margin-bottom: 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.dept-header-left { flex: 1; min-width: 0; }
+.dept-header-eyebrow { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: var(--bcps-blue); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.dept-header-name { font-size: 22px; font-weight: 900; color: var(--lr-text); line-height: 1.2; margin-bottom: 10px; }
+.dept-header-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.health-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 10px; border-radius: 20px; flex-shrink: 0; }
+.health-badge.healthy { background: #edf7ea; color: #16750C; }
+.health-badge.review { background: #fef3e2; color: #854F0B; }
+.health-badge.at-risk { background: #fdf0f0; color: #A32D2D; }
+.health-badge.unassessed { background: rgba(26,26,26,0.06); color: var(--lr-text-50); }
+.dept-website-link { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 800; color: var(--bcps-blue); text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 10px; border: 1.5px solid var(--bcps-blue); border-radius: 20px; text-decoration: none; transition: background 0.12s; margin-top: 2px; }
+.dept-website-link:hover { background: #f0f7fd; text-decoration: none; }
+.dept-website-link svg { stroke: currentColor; fill: none; stroke-width: 2; width: 10px; height: 10px; }
+.dept-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.btn-primary { background: var(--bcps-blue); color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.12s; }
+.btn-primary:hover { background: var(--bcps-blue-dark); }
+.btn-primary svg { stroke: currentColor; fill: none; stroke-width: 2; width: 13px; height: 13px; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary { background: #fff; color: var(--lr-text); border: 1px solid var(--lr-border); border-radius: 8px; padding: 9px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: border-color 0.12s, background 0.12s; }
+.btn-secondary:hover { border-color: var(--bcps-blue); background: #f0f7fd; }
+.btn-secondary svg { stroke: currentColor; fill: none; stroke-width: 2; width: 13px; height: 13px; }
+.audited-ts { font-size: 10px; color: var(--lr-text-50); font-weight: 600; }
+
+/* === SCORE SECTION === */
+.scores-row { display: grid; grid-template-columns: 180px repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+.score-card { background: #fff; border: 1px solid var(--lr-border); border-radius: 12px; padding: 20px 18px; text-align: center; }
+.score-card.overall { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.score-card-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: var(--lr-text-50); margin-bottom: 12px; }
+.score-ring-wrap { position: relative; width: 100px; height: 100px; margin: 0 auto 10px; }
+.score-ring-wrap svg { transform: rotate(-90deg); }
+.score-ring-track { fill: none; stroke: rgba(26,26,26,0.08); stroke-width: 8; }
+.score-ring-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1); }
+.score-ring-fill.green { stroke: #16750C; }
+.score-ring-fill.yellow { stroke: #C97A1B; }
+.score-ring-fill.red { stroke: #A32D2D; }
+.score-ring-fill.empty { stroke: rgba(26,26,26,0.15); }
+.score-ring-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; color: var(--lr-text); line-height: 1; }
+.score-ring-num.na { font-size: 14px; color: var(--lr-text-50); }
+.category-score { display: flex; flex-direction: column; align-items: center; }
+.cat-score-num { font-size: 32px; font-weight: 900; line-height: 1; margin-bottom: 4px; }
+.cat-score-num.green { color: var(--score-green); }
+.cat-score-num.yellow { color: var(--score-yellow); }
+.cat-score-num.red { color: var(--score-red); }
+.cat-score-num.na { color: var(--lr-text-50); font-size: 18px; }
+.cat-score-bar { width: 100%; height: 6px; background: rgba(26,26,26,0.08); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+.cat-score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+.cat-score-bar-fill.green { background: var(--score-green); }
+.cat-score-bar-fill.yellow { background: #C97A1B; }
+.cat-score-bar-fill.red { background: var(--score-red); }
+.cat-score-checks { font-size: 10px; font-weight: 600; color: var(--lr-text-50); }
+
+/* === ADA SEVERITY ROW === */
+.ada-severity-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.sev-tile { border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; border: 1px solid transparent; }
+.sev-tile.critical { background: var(--sev-critical-bg); border-color: rgba(124,14,14,0.15); }
+.sev-tile.serious { background: var(--sev-serious-bg); border-color: rgba(163,45,45,0.15); }
+.sev-tile.moderate { background: var(--sev-moderate-bg); border-color: rgba(133,79,11,0.15); }
+.sev-tile.minor { background: var(--sev-minor-bg); border-color: rgba(26,82,118,0.15); }
+.sev-count { font-size: 28px; font-weight: 900; line-height: 1; }
+.sev-tile.critical .sev-count { color: var(--sev-critical); }
+.sev-tile.serious .sev-count { color: var(--sev-serious); }
+.sev-tile.moderate .sev-count { color: var(--sev-moderate); }
+.sev-tile.minor .sev-count { color: var(--sev-minor); }
+.sev-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; }
+.sev-tile.critical .sev-label { color: var(--sev-critical); }
+.sev-tile.serious .sev-label { color: var(--sev-serious); }
+.sev-tile.moderate .sev-label { color: var(--sev-moderate); }
+.sev-tile.minor .sev-label { color: var(--sev-minor); }
+.sev-sub { font-size: 9px; color: rgba(26,26,26,0.5); font-weight: 600; margin-top: 2px; }
+
+/* === CONTENT COLUMNS === */
+.content-cols { display: grid; grid-template-columns: 1fr 340px; gap: 16px; margin-bottom: 20px; }
+
+/* === ISSUES PANEL === */
+.panel { background: #fff; border: 1px solid var(--lr-border); border-radius: 12px; }
+.panel-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--lr-border); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.panel-title { font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.14em; color: var(--lr-text); }
+.panel-count { font-size: 10px; font-weight: 700; color: var(--lr-text-50); }
+.panel-body { padding: 16px 20px; }
+
+/* Category tabs */
+.cat-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
+.cat-tab { background: rgba(26,26,26,0.05); border: 1px solid transparent; border-radius: 6px; padding: 5px 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--lr-text-50); cursor: pointer; transition: all 0.12s; }
+.cat-tab:hover { background: rgba(26,26,26,0.08); color: var(--lr-text); }
+.cat-tab.active { background: var(--bcps-blue); color: #fff; border-color: var(--bcps-blue); }
+
+/* Issue cards */
+.issue-list { display: flex; flex-direction: column; gap: 10px; }
+.issue-card { border: 1px solid var(--lr-border); border-radius: 8px; overflow: hidden; }
+.issue-card.passed { border-color: rgba(22,117,12,0.2); }
+.issue-card.failed.severity-critical { border-color: rgba(124,14,14,0.25); }
+.issue-card.failed.severity-high { border-color: rgba(163,45,45,0.2); }
+.issue-card.failed.severity-medium { border-color: rgba(133,79,11,0.2); }
+.issue-card.failed.severity-low { border-color: rgba(26,82,118,0.2); }
+.issue-card-header { padding: 10px 14px; display: flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none; }
+.issue-card.passed .issue-card-header { background: rgba(22,117,12,0.03); }
+.issue-card.failed.severity-critical .issue-card-header { background: rgba(124,14,14,0.04); }
+.issue-card.failed.severity-high .issue-card-header { background: rgba(163,45,45,0.04); }
+.issue-card.failed.severity-medium .issue-card-header { background: rgba(133,79,11,0.04); }
+.issue-card.failed.severity-low .issue-card-header { background: rgba(26,82,118,0.04); }
+.issue-check-icon { flex-shrink: 0; margin-top: 1px; }
+.issue-check-icon svg { stroke: currentColor; fill: none; stroke-width: 2.5; width: 14px; height: 14px; }
+.issue-check-icon.pass svg { stroke: #16750C; }
+.issue-check-icon.fail svg { stroke: #A32D2D; }
+.issue-body { flex: 1; min-width: 0; }
+.issue-label { font-size: 12px; font-weight: 800; color: var(--lr-text); line-height: 1.3; }
+.issue-detail { font-size: 11px; color: var(--lr-text-75); margin-top: 3px; }
+.issue-sev { flex-shrink: 0; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 7px; border-radius: 4px; }
+.issue-sev.critical { background: var(--sev-critical-bg); color: var(--sev-critical); }
+.issue-sev.high { background: var(--sev-serious-bg); color: var(--sev-serious); }
+.issue-sev.medium { background: var(--sev-moderate-bg); color: var(--sev-moderate); }
+.issue-sev.low { background: var(--sev-minor-bg); color: var(--sev-minor); }
+.issue-expand-btn { flex-shrink: 0; color: var(--lr-text-50); background: none; border: none; padding: 2px; cursor: pointer; display: flex; align-items: center; transition: color 0.12s; }
+.issue-expand-btn:hover { color: var(--lr-text); }
+.issue-expand-btn svg { stroke: currentColor; fill: none; stroke-width: 2; width: 13px; height: 13px; transition: transform 0.2s; }
+.issue-expand-btn.open svg { transform: rotate(180deg); }
+.issue-fix { display: none; padding: 12px 14px; border-top: 1px solid var(--lr-border); background: #fff; }
+.issue-fix.open { display: block; }
+.issue-fix-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.18em; color: var(--lr-text-50); margin-bottom: 8px; }
+.issue-fix-steps { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.issue-fix-steps li { display: flex; gap: 8px; align-items: flex-start; }
+.issue-fix-step-num { background: var(--bcps-blue); color: #fff; border-radius: 50%; width: 18px; height: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; margin-top: 1px; }
+.issue-fix-step-text { font-size: 11px; color: var(--lr-text-75); line-height: 1.45; }
+.issue-fix-step-text code { background: rgba(26,26,26,0.06); padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 10px; }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--lr-text-50); }
+.empty-state svg { stroke: currentColor; fill: none; stroke-width: 1.5; width: 36px; height: 36px; margin: 0 auto 10px; display: block; }
+.empty-state-title { font-size: 13px; font-weight: 700; color: var(--lr-text); margin-bottom: 4px; }
+.empty-state-text { font-size: 12px; }
+
+/* === SIDEBAR PANEL === */
+.info-panel { background: #fff; border: 1px solid var(--lr-border); border-radius: 12px; margin-bottom: 14px; }
+.info-section { padding: 14px 16px; border-bottom: 1px solid var(--lr-border); }
+.info-section:last-child { border-bottom: none; }
+.info-section-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: var(--lr-text-50); margin-bottom: 10px; }
+.info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 7px; }
+.info-row:last-child { margin-bottom: 0; }
+.info-label { font-size: 10px; font-weight: 700; color: var(--lr-text-50); flex-shrink: 0; }
+.info-value { font-size: 11px; font-weight: 700; color: var(--lr-text); text-align: right; }
+.info-value.unset { color: var(--lr-text-50); font-style: italic; font-weight: 600; }
+.info-value a { color: var(--bcps-blue); display: flex; align-items: center; gap: 3px; }
+.info-value a:hover { text-decoration: underline; }
+.info-value a svg { stroke: currentColor; fill: none; stroke-width: 2; width: 9px; height: 9px; }
+
+/* === AUDIT HISTORY === */
+.history-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.history-table th { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; color: var(--lr-text-50); padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--lr-border); }
+.history-table td { font-size: 11px; font-weight: 600; color: var(--lr-text); padding: 8px 8px; border-bottom: 1px solid var(--lr-border); vertical-align: middle; }
+.history-table tr:last-child td { border-bottom: none; }
+.history-table tr:hover td { background: rgba(22,114,167,0.03); cursor: pointer; }
+.score-pill { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 20px; border-radius: 4px; font-size: 10px; font-weight: 900; }
+.score-pill.green { background: var(--score-green-bg); color: var(--score-green); }
+.score-pill.yellow { background: var(--score-yellow-bg); color: var(--score-yellow); }
+.score-pill.red { background: var(--score-red-bg); color: var(--score-red); }
+.score-pill.na { background: rgba(26,26,26,0.06); color: var(--lr-text-50); }
+
+/* === QUEUE PANEL === */
+.queue-badge { display: inline-flex; align-items: center; gap: 5px; background: #fef3e2; color: #854F0B; border: 1px solid rgba(133,79,11,0.2); border-radius: 8px; padding: 8px 14px; font-size: 11px; font-weight: 700; }
+.queue-badge svg { stroke: currentColor; fill: none; stroke-width: 2; width: 13px; height: 13px; }
+
+/* === ADA VIOLATIONS LIST === */
+.ada-violations-list { display: flex; flex-direction: column; gap: 8px; }
+.ada-violation-card { border: 1px solid var(--lr-border); border-radius: 8px; overflow: hidden; }
+.ada-violation-header { padding: 10px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; background: #fff; }
+.ada-violation-impact { font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
+.ada-violation-impact.critical { background: var(--sev-critical-bg); color: var(--sev-critical); }
+.ada-violation-impact.serious { background: var(--sev-serious-bg); color: var(--sev-serious); }
+.ada-violation-impact.moderate { background: var(--sev-moderate-bg); color: var(--sev-moderate); }
+.ada-violation-impact.minor { background: var(--sev-minor-bg); color: var(--sev-minor); }
+.ada-violation-id { font-size: 11px; font-weight: 800; color: var(--lr-text); flex: 1; }
+.ada-violation-nodes { font-size: 10px; color: var(--lr-text-50); font-weight: 600; flex-shrink: 0; }
+.ada-violation-detail { padding: 10px 14px 12px; border-top: 1px solid var(--lr-border); display: none; background: #fff; }
+.ada-violation-detail.open { display: block; }
+.ada-violation-desc { font-size: 11px; color: var(--lr-text-75); margin-bottom: 8px; }
+.ada-violation-fix-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.18em; color: var(--lr-text-50); margin-bottom: 6px; }
+.ada-violation-fix { font-size: 11px; color: var(--lr-text-75); line-height: 1.45; }
+.ada-violation-link { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; color: var(--bcps-blue); margin-top: 6px; }
+.ada-violation-link:hover { text-decoration: underline; }
+.ada-violation-link svg { stroke: currentColor; fill: none; stroke-width: 2; width: 10px; height: 10px; }
+
+/* === LOADING === */
+.loading-overlay { display: flex; align-items: center; justify-content: center; min-height: 300px; }
+.spinner { width: 32px; height: 32px; border: 3px solid rgba(22,114,167,0.15); border-top-color: var(--bcps-blue); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* === TOAST === */
+.toast { position: fixed; bottom: 24px; right: 24px; background: #1a1a1a; color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 12px; font-weight: 700; box-shadow: 0 4px 20px rgba(0,0,0,0.3); opacity: 0; transform: translateY(8px); transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 1000; max-width: 320px; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: #16750C; }
+.toast.error { background: #A32D2D; }
+
+  </style>
+
+    <div class="page-content">
+      <div class="passport-body" id="page-body">
+        <div class="loading-overlay"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+
+let dept = null;
+let latestAudit = null;
+let auditHistory = [];
+let activeCat = 'all';
+let queuedAuditId = null;
+let analyticsData = [];
+
+function getCurrentUser() {
+  try { return JSON.parse(localStorage.getItem('lesaruss_user') || 'null'); } catch(e) { return null; }
+}
+function isAdmin() {
+  // Preview override: 'bcps_view_mode' = 'standard' simulates non-admin
+  const previewMode = localStorage.getItem('bcps_view_mode');
+  if (previewMode === 'standard') return false;
+  // Real auth: check session. If no session yet (pre-launch), default to admin.
+  const u = getCurrentUser();
+  if (!u) return true; // pre-launch default: treat unauthenticated as admin
+  return u.is_superadmin === true;
+}
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(SUPABASE_URL + path, {
+    ...opts,
+    headers: {
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
+      ...(opts.headers || {})
+    }
+  });
+  if (!res.ok) throw new Error('API error ' + res.status);
+  return res.json().catch(() => null);
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function scoreClass(n) {
+  if (n == null) return 'na';
+  if (n >= 80) return 'green';
+  if (n >= 60) return 'yellow';
+  return 'red';
+}
+function scoreLabel(n) {
+  if (n == null) return 'N/A';
+  return n;
+}
+function healthLabel(s) {
+  if (s === 'healthy') return 'Healthy';
+  if (s === 'review') return 'Needs Review';
+  if (s === 'at_risk') return 'At Risk';
+  return 'Unassessed';
+}
+function healthClass(s) {
+  if (s === 'at_risk') return 'at-risk';
+  return s || 'unassessed';
+}
+function fmtDate(ts) {
+  if (!ts) return 'Never';
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function buildScoreRing(score, size=100) {
+  const r = 40;
+  const circ = 2 * Math.PI * r;
+  const pct = score != null ? Math.max(0, Math.min(100, score)) / 100 : 0;
+  const offset = circ * (1 - pct);
+  const cls = score != null ? scoreClass(score) : 'empty';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">
+    <circle class="score-ring-track" cx="50" cy="50" r="${r}"/>
+    <circle class="score-ring-fill ${cls}" cx="50" cy="50" r="${r}"
+      stroke-dasharray="${circ}" stroke-dashoffset="${offset}"/>
+  </svg>`;
+}
+
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) {
+    showError('No department ID provided. <a href="/departments.html">Return to departments</a>.');
+    return;
+  }
+  try {
+    const [deptData, auditData, historyData, analyticsRows] = await Promise.all([
+      apiFetch('/rest/v1/bcps_departments?id=eq.' + encodeURIComponent(id) + '&select=*&limit=1'),
+      apiFetch('/rest/v1/bcps_audit_results?department_id=eq.' + encodeURIComponent(id) + '&order=audited_at.desc&limit=1&select=*'),
+      apiFetch('/rest/v1/bcps_audit_results?department_id=eq.' + encodeURIComponent(id) + '&order=audited_at.desc&limit=10&select=id,audited_at,overall_score,layout_score,content_score,nav_score,ada_score,status,auditor'),
+      apiFetch('/rest/v1/bcps_department_analytics?department_id=eq.' + encodeURIComponent(id) + '&order=period.desc&limit=12&select=*')
+    ]);
+    dept = deptData && deptData[0];
+    latestAudit = auditData && auditData[0];
+    auditHistory = historyData || [];
+    analyticsData = analyticsRows || [];
+    if (!dept) { showError('Department not found.'); return; }
+    renderPage();
+  } catch(e) {
+    showError('Failed to load department data. Please refresh.');
+  }
+}
+
+function showError(msg) {
+  document.getElementById('page-body').innerHTML = `<div class="empty-state" style="padding:80px 20px">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <div class="empty-state-title">Something went wrong</div>
+    <div class="empty-state-text">${msg}</div>
+  </div>`;
+}
+
+function renderPage() {
+  const a = latestAudit;
+  const d = dept;
+  document.getElementById('topbar-title').textContent = d.name;
+  document.getElementById('topbar-eyebrow').textContent = (d.division || 'Chief of Staff') + ' | BCPS Departments';
+  document.title = d.name + ' - Audit Profile | K12 Unlocked';
+  const hClass = healthClass(d.health_status);
+
+  const overallScore = a ? a.overall_score : null;
+  const adaCritical = a ? (a.ada_violations_critical || 0) : 0;
+  const adaSerious = a ? (a.ada_violations_serious || 0) : 0;
+  const adaModerate = a ? (a.ada_violations_moderate || 0) : 0;
+  const adaMinor = a ? (a.ada_violations_minor || 0) : 0;
+
+  const isQueued = queuedAuditId != null;
+  const auditBtnText = isQueued ? 'Audit Queued' : 'Run Audit';
+
+  document.getElementById('page-body').innerHTML = `
+  <!-- DEPT HEADER -->
+  <div class="dept-header">
+    <div class="dept-header-left">
+      <div class="dept-header-eyebrow">${esc(d.division || 'Chief of Staff')}</div>
+      <div class="dept-header-name">${esc(d.name)}</div>
+      <div class="dept-header-meta">
+        <span class="health-badge ${hClass}">${healthLabel(d.health_status)}</span>
+        ${d.website_url ? `<a class="dept-website-link" href="${esc(d.website_url)}" target="_blank" rel="noopener">
+          Visit Finalsite Page <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>` : ''}
+        ${a ? `<span class="audited-ts">Last audited ${fmtDate(a.audited_at)}</span>` : ''}
+        <div style="flex:1;min-width:16px"></div>
+        <a class="btn-secondary" href="/departments.html">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>Back
+        </a>
+        ${isAdmin() ? `
+        <button class="btn-primary" id="run-audit-btn" type="button" ${!d.website_url || isQueued ? 'disabled' : ''}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+          ${auditBtnText}
+        </button>` : `
+        <button class="btn-primary" id="run-audit-btn" type="button" disabled style="min-width:148px">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V7a4 4 0 0 1 8 0v4"/><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/></svg>
+          Run Audit
+        </button>`}
+      </div>
+      ${!isAdmin() ? `<div class="audit-scheduled-label" style="text-align:right;margin-top:6px;">Scheduled: 1st of each month</div>` : ''}
+    </div>
+  </div>
+
+  ${!a ? renderNoAuditBanner(d) : ''}
+
+  <!-- SCORES -->
+  <div class="scores-row" id="scores-row">
+    <div class="score-card overall">
+      <div class="score-card-label">Overall Score</div>
+      <div class="score-ring-wrap" id="overall-ring">
+        ${buildScoreRing(overallScore)}
+        <div class="score-ring-num ${overallScore == null ? 'na' : ''}">${overallScore != null ? overallScore : 'N/A'}</div>
+      </div>
+      <div style="font-size:10px;font-weight:700;color:var(--lr-text-50)">${a ? statusLabel(a.status) : 'Not audited'}</div>
+    </div>
+    ${renderCatScore('Layout', a ? a.layout_score : null, a ? countCatIssues('layout', false) : null)}
+    ${renderCatScore('Content', a ? a.content_score : null, a ? countCatIssues('content', false) : null)}
+    ${renderCatScore('Navigation', a ? a.nav_score : null, a ? countCatIssues('nav', false) : null)}
+    ${renderCatScore('ADA', a ? a.ada_score : null, adaCritical + adaSerious > 0 ? `${adaCritical + adaSerious} critical/serious` : null)}
+  </div>
+
+  <!-- ADA SEVERITY ROW -->
+  <div class="ada-severity-row">
+    <div class="sev-tile critical">
+      <div>
+        <div class="sev-count">${adaCritical}</div>
+      </div>
+      <div>
+        <div class="sev-label">Critical</div>
+        <div class="sev-sub">ADA violations</div>
+      </div>
+    </div>
+    <div class="sev-tile serious">
+      <div>
+        <div class="sev-count">${adaSerious}</div>
+      </div>
+      <div>
+        <div class="sev-label">Serious</div>
+        <div class="sev-sub">ADA violations</div>
+      </div>
+    </div>
+    <div class="sev-tile moderate">
+      <div>
+        <div class="sev-count">${adaModerate}</div>
+      </div>
+      <div>
+        <div class="sev-label">Moderate</div>
+        <div class="sev-sub">ADA violations</div>
+      </div>
+    </div>
+    <div class="sev-tile minor">
+      <div>
+        <div class="sev-count">${adaMinor}</div>
+      </div>
+      <div>
+        <div class="sev-label">Minor</div>
+        <div class="sev-sub">ADA violations</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT COLUMNS -->
+  <div class="content-cols">
+    <!-- LEFT: Issues -->
+    <div>
+      <div class="panel" id="issues-panel">
+        <div class="panel-header">
+          <span class="panel-title">Audit Issues</span>
+          <span class="panel-count" id="issues-count"></span>
+        </div>
+        <div class="panel-body">
+          ${a ? renderIssuesPanel(a) : renderNoAuditIssues()}
+        </div>
+      </div>
+
+      <!-- ADA Violations -->
+      <div class="panel" style="margin-top:14px" id="ada-panel">
+        <div class="panel-header">
+          <span class="panel-title">ADA / Accessibility Violations</span>
+          <span class="panel-count" id="ada-count">${a ? (adaCritical + adaSerious + adaModerate + adaMinor) + ' total' : ''}</span>
+        </div>
+        <div class="panel-body">
+          ${a ? renderAdaViolations(a) : renderNoAuditAda()}
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Info + History -->
+    <div>
+      <div class="info-panel">
+        <div class="info-section">
+          <div class="info-section-label">WCM Contact</div>
+          <div class="info-row">
+            <span class="info-label">Name</span>
+            <span class="info-value ${d.wcm_name ? '' : 'unset'}">${esc(d.wcm_name) || 'Unassigned'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Email</span>
+            <span class="info-value ${d.wcm_email ? '' : 'unset'}">${d.wcm_email ? `<a href="mailto:${esc(d.wcm_email)}">${esc(d.wcm_email)}</a>` : 'Not on file'}</span>
+          </div>
+        </div>
+        <div class="info-section">
+          <div class="info-section-label">Leadership</div>
+          <div class="info-row">
+            <span class="info-label">Director</span>
+            <span class="info-value ${d.director_name ? '' : 'unset'}">${esc(d.director_name) || 'TBD'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Chief</span>
+            <span class="info-value ${d.chief_name ? '' : 'unset'}">${esc(d.chief_name) || esc(d.chief_title) || 'TBD'}</span>
+          </div>
+        </div>
+        <div class="info-section">
+          <div class="info-section-label">Audit Status</div>
+          <div class="info-row">
+            <span class="info-label">Status</span>
+            <span class="info-value">${d.audit_status ? d.audit_status.replace('_', ' ') : 'Not started'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">ADA Score</span>
+            <span class="info-value ${d.ada_score != null ? '' : 'unset'}">${d.ada_score != null ? d.ada_score + ' / 100' : 'Not assessed'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Last Audit</span>
+            <span class="info-value" style="font-size:10px">${a ? fmtDate(a.audited_at) : 'Never'}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audit History -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Audit History</span>
+        </div>
+        <div class="panel-body" style="padding:12px 16px">
+          ${renderHistory()}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS SECTION -->
+  ${renderAnalytics()}
+  `;
+
+  // Wire Run Audit button
+  const runBtn = document.getElementById('run-audit-btn');
+  if (runBtn) {
+    runBtn.addEventListener('click', queueAudit);
+  }
+  // Wire category tabs
+  document.querySelectorAll('.cat-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      activeCat = this.dataset.cat;
+      document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      filterIssues();
+    });
+  });
+  // Wire issue expand buttons
+  document.querySelectorAll('.issue-expand-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const card = this.closest('.issue-card');
+      const fix = card.querySelector('.issue-fix');
+      const open = fix.classList.toggle('open');
+      this.classList.toggle('open', open);
+    });
+  });
+  // Wire issue cards
+  document.querySelectorAll('.issue-card-header').forEach(h => {
+    h.addEventListener('click', function() {
+      const btn = this.querySelector('.issue-expand-btn');
+      if (btn) btn.click();
+    });
+  });
+  // Wire ADA violation expand
+  document.querySelectorAll('.ada-violation-header').forEach(h => {
+    h.addEventListener('click', function() {
+      const card = this.closest('.ada-violation-card');
+      card.querySelector('.ada-violation-detail').classList.toggle('open');
+    });
+  });
+  // Wire history rows
+  document.querySelectorAll('.history-row[data-audit-id]').forEach(row => {
+    row.addEventListener('click', function() {
+      loadHistoricalAudit(this.dataset.auditId);
+    });
+  });
+  updateIssueCounts();
+}
+
+function renderNoAuditBanner(d) {
+  return `<div class="queue-badge" style="margin-bottom:16px">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    No audit on record. Click "Run Audit" to queue a full Phase 1 + ADA scan.
+  </div>`;
+}
+
+function statusLabel(s) {
+  if (s === 'pass') return 'Passing';
+  if (s === 'needs_work') return 'Needs Work';
+  if (s === 'critical') return 'Critical Issues';
+  return 'Pending';
+}
+
+function countCatIssues(cat, passed) {
+  if (!latestAudit || !latestAudit.issues) return null;
+  const issues = Array.isArray(latestAudit.issues) ? latestAudit.issues : JSON.parse(latestAudit.issues || '[]');
+  return issues.filter(i => i.category === cat && i.passed === passed).length;
+}
+
+function renderCatScore(label, score, sub) {
+  const cls = scoreClass(score);
+  const pct = score != null ? Math.max(0, Math.min(100, score)) : 0;
+  return `<div class="score-card">
+    <div class="score-card-label">${label}</div>
+    <div class="category-score">
+      <div class="cat-score-num ${cls}">${score != null ? score : 'N/A'}</div>
+      <div class="cat-score-bar"><div class="cat-score-bar-fill ${score != null ? cls : ''}" style="width:${score != null ? pct : 0}%"></div></div>
+      <div class="cat-score-checks">${sub || (score == null ? 'Not run' : 'No issues')}</div>
+    </div>
+  </div>`;
+}
+
+function renderIssuesPanel(audit) {
+  const issues = Array.isArray(audit.issues) ? audit.issues : JSON.parse(audit.issues || '[]');
+  if (!issues.length) {
+    return `<div class="empty-state">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <div class="empty-state-title">No issues found</div>
+      <div class="empty-state-text">All Phase 1 checks passed.</div>
+    </div>`;
+  }
+  const cats = ['all', ...new Set(issues.map(i => i.category))];
+  return `
+    <div class="cat-tabs">
+      ${cats.map(c => `<button class="cat-tab ${c === 'all' ? 'active' : ''}" data-cat="${c}" type="button">${c === 'all' ? 'All' : catLabel(c)}</button>`).join('')}
+    </div>
+    <div class="issue-list" id="issue-list">
+      ${issues.map(renderIssueCard).join('')}
+    </div>`;
+}
+
+function catLabel(c) {
+  if (c === 'layout') return 'Layout';
+  if (c === 'content') return 'Content';
+  if (c === 'nav') return 'Navigation';
+  if (c === 'ada') return 'ADA';
+  return c.charAt(0).toUpperCase() + c.slice(1);
+}
+
+function renderIssueCard(issue) {
+  const passed = issue.passed;
+  const sev = (issue.severity || 'medium').toLowerCase();
+  const steps = issue.fix_instructions || [];
+  const hasSteps = !passed && steps.length > 0;
+  return `<div class="issue-card ${passed ? 'passed' : 'failed'} severity-${sev}" data-cat="${issue.category || ''}">
+    <div class="issue-card-header">
+      <span class="issue-check-icon ${passed ? 'pass' : 'fail'}">
+        ${passed
+          ? '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+          : '<svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'}
+      </span>
+      <div class="issue-body">
+        <div class="issue-label">${esc(issue.label)}</div>
+        ${issue.detail ? `<div class="issue-detail">${esc(issue.detail)}</div>` : ''}
+      </div>
+      ${!passed ? `<span class="issue-sev ${sev}">${sev}</span>` : ''}
+      ${hasSteps ? `<button class="issue-expand-btn" type="button" aria-label="Show fix instructions">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>` : ''}
+    </div>
+    ${hasSteps ? `<div class="issue-fix">
+      <div class="issue-fix-label">How to Fix in Finalsite</div>
+      <ol class="issue-fix-steps">
+        ${steps.map((s, i) => `<li>
+          <span class="issue-fix-step-num">${i+1}</span>
+          <span class="issue-fix-step-text">${esc(s)}</span>
+        </li>`).join('')}
+      </ol>
+    </div>` : ''}
+  </div>`;
+}
+
+function renderNoAuditIssues() {
+  return `<div class="empty-state">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    <div class="empty-state-title">No audit data</div>
+    <div class="empty-state-text">Run an audit to see Phase 1 checklist results with Finalsite fix instructions.</div>
+  </div>`;
+}
+
+function renderAdaViolations(audit) {
+  const violations = Array.isArray(audit.ada_violations) ? audit.ada_violations : JSON.parse(audit.ada_violations || '[]');
+  if (!violations.length) {
+    return `<div class="empty-state">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <div class="empty-state-title">No ADA violations found</div>
+      <div class="empty-state-text">Passed axe-core WCAG 2.1 AA scan.</div>
+    </div>`;
+  }
+  const order = { critical: 0, serious: 1, moderate: 2, minor: 3 };
+  const sorted = [...violations].sort((a, b) => (order[a.impact] ?? 4) - (order[b.impact] ?? 4));
+  return `<div class="ada-violations-list">
+    ${sorted.map(v => `<div class="ada-violation-card">
+      <div class="ada-violation-header">
+        <span class="ada-violation-impact ${v.impact || 'moderate'}">${v.impact || 'moderate'}</span>
+        <span class="ada-violation-id">${esc(v.id)}</span>
+        <span class="ada-violation-nodes">${v.nodes || 1} element${(v.nodes || 1) !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="ada-violation-detail">
+        <div class="ada-violation-desc">${esc(v.description)}</div>
+        ${v.fix_instructions ? `<div class="ada-violation-fix-label">How to Fix</div>
+        <div class="ada-violation-fix">${esc(v.fix_instructions)}</div>` : ''}
+        ${v.helpUrl ? `<a class="ada-violation-link" href="${esc(v.helpUrl)}" target="_blank" rel="noopener">
+          More info <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>` : ''}
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function renderNoAuditAda() {
+  return `<div class="empty-state">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    <div class="empty-state-title">No ADA scan data</div>
+    <div class="empty-state-text">Run an audit to see WCAG 2.1 AA violations with remediation steps.</div>
+  </div>`;
+}
+
+function renderHistory() {
+  if (!auditHistory.length) {
+    return `<div class="empty-state" style="padding:20px 0"><div class="empty-state-text">No audit history yet.</div></div>`;
+  }
+  return `<table class="history-table" aria-label="Audit history">
+    <thead><tr>
+      <th>Date</th>
+      <th>Overall</th>
+      <th>Layout</th>
+      <th>Content</th>
+      <th>Nav</th>
+      <th>ADA</th>
+    </tr></thead>
+    <tbody>
+      ${auditHistory.map(h => {
+        const isCurrent = latestAudit && h.id === latestAudit.id;
+        return `<tr class="history-row ${isCurrent ? 'current' : ''}" data-audit-id="${h.id}" title="${isCurrent ? 'Current audit' : 'Click to view this audit'}">
+          <td style="font-size:10px;white-space:nowrap">${fmtDate(h.audited_at)}</td>
+          <td><span class="score-pill ${scoreClass(h.overall_score)}">${scoreLabel(h.overall_score)}</span></td>
+          <td><span class="score-pill ${scoreClass(h.layout_score)}">${scoreLabel(h.layout_score)}</span></td>
+          <td><span class="score-pill ${scoreClass(h.content_score)}">${scoreLabel(h.content_score)}</span></td>
+          <td><span class="score-pill ${scoreClass(h.nav_score)}">${scoreLabel(h.nav_score)}</span></td>
+          <td><span class="score-pill ${scoreClass(h.ada_score)}">${scoreLabel(h.ada_score)}</span></td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+}
+
+function fmtNum(n) {
+  if (n == null) return '-';
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+}
+function fmtTime(secs) {
+  if (!secs) return '-';
+  const m = Math.floor(secs / 60), s = secs % 60;
+  return m + 'm ' + String(s).padStart(2, '0') + 's';
+}
+function fmtPct(n) {
+  if (n == null) return '-';
+  return Number(n).toFixed(1) + '%';
+}
+
+function renderAnalytics() {
+  if (!analyticsData.length) {
+    return `<div class="analytics-section">
+      <div class="analytics-header">
+        <h2>Analytics</h2>
+        <span class="analytics-sync-info">Synced from GA4 - 1st of each month</span>
+      </div>
+      <div class="analytics-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        No analytics data yet. Data syncs from GA4 on the 1st of each month.
+      </div>
+    </div>`;
+  }
+
+  // latest month + previous for deltas
+  const rows = [...analyticsData].sort((a, b) => b.period.localeCompare(a.period));
+  const cur = rows[0];
+  const prev = rows[1] || null;
+
+  function delta(curVal, prevVal, lowerIsBetter) {
+    if (!prevVal || !curVal) return '';
+    const diff = ((curVal - prevVal) / prevVal) * 100;
+    const up = diff > 0;
+    const dir = lowerIsBetter ? (up ? 'down' : 'up') : (up ? 'up' : 'down');
+    const sign = up ? '+' : '';
+    return `<div class="analytics-kpi-delta ${dir}">${sign}${diff.toFixed(1)}% vs prev month</div>`;
+  }
+
+  // Build sparkline SVG from monthly visitors
+  const sparkRows = [...rows].reverse().slice(-12);
+  const vals = sparkRows.map(r => r.monthly_visitors || 0);
+  const maxV = Math.max(...vals, 1);
+  const W = 900, H = 80, pad = 4;
+  const points = vals.map((v, i) => {
+    const x = pad + (i / Math.max(vals.length - 1, 1)) * (W - pad * 2);
+    const y = H - pad - ((v / maxV) * (H - pad * 2));
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+  const firstX = pad, lastX = W - pad;
+  const firstY = (H - pad - ((vals[0] / maxV) * (H - pad * 2))).toFixed(1);
+  const lastY = (H - pad - ((vals[vals.length - 1] / maxV) * (H - pad * 2))).toFixed(1);
+  const areaPoints = 'M ' + pad + ',' + H + ' L ' + points.split(' ').map(p => 'L ' + p).join(' ').substring(2) + ' L ' + lastX + ',' + H + ' Z';
+
+  const sparkline = `<svg class="analytics-sparkline" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="spark-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1672a7" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="#1672a7" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    <path d="${areaPoints}" fill="url(#spark-grad)"/>
+    <polyline points="${points}" fill="none" stroke="#1672a7" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${firstX}" cy="${firstY}" r="4" fill="#1672a7"/>
+    <circle cx="${lastX}" cy="${lastY}" r="4" fill="#1672a7"/>
+  </svg>`;
+
+  // Top pages
+  const topPages = Array.isArray(cur.top_pages) ? cur.top_pages : [];
+  const maxViews = Math.max(...topPages.map(p => p.views || 0), 1);
+  const topPagesHTML = topPages.length ? topPages.map(p => `
+    <tr>
+      <td>
+        <div style="font-weight:600;color:var(--text-primary);font-size:11.5px">${esc(p.title)}</div>
+        <div class="url">${esc(p.url)}</div>
+      </td>
+      <td class="num" style="white-space:nowrap">
+        ${fmtNum(p.views)}
+        <span class="analytics-bar-wrap"><span class="analytics-bar-fill" style="width:${Math.round((p.views / maxViews) * 100)}%"></span></span>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:16px">No data</td></tr>';
+
+  // Traffic sources
+  const sources = Array.isArray(cur.traffic_sources) ? cur.traffic_sources : [];
+  const sourcesHTML = sources.length ? sources.map(s => `
+    <tr>
+      <td style="font-weight:600;font-size:11.5px;color:var(--text-primary)">${esc(s.source)}</td>
+      <td class="num" style="white-space:nowrap">
+        ${fmtNum(typeof s.sessions === 'string' ? parseInt(s.sessions) : s.sessions)}
+        <span class="analytics-bar-wrap"><span class="analytics-bar-fill" style="width:${Math.round(parseFloat(s.pct))}%;background:#1a7a3c"></span></span>
+      </td>
+      <td class="num" style="width:40px">${fmtPct(s.pct)}</td>
+    </tr>`).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:16px">No data</td></tr>';
+
+  // Top queries
+  const queries = Array.isArray(cur.top_queries) ? cur.top_queries : [];
+  const queriesHTML = queries.length ? queries.map((q, i) => `
+    <tr>
+      <td style="color:var(--text-muted);font-size:10px;font-weight:700;width:20px">${i + 1}</td>
+      <td style="font-weight:600;font-size:11.5px;color:var(--text-primary)">${esc(q.query)}</td>
+      <td class="num">${fmtNum(q.clicks)}</td>
+      <td class="num" style="color:var(--text-muted)">${fmtNum(q.impressions)}</td>
+    </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px">No data</td></tr>';
+
+  const periodLabel = cur.period ? cur.period.replace('-', ' / ') : '';
+  const syncDate = cur.synced_at ? new Date(cur.synced_at).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : '';
+
+  return `<div class="analytics-section">
+    <div class="analytics-header">
+      <h2>Analytics - ${periodLabel}</h2>
+      <span class="analytics-sync-info">GA4 data - synced ${syncDate}</span>
+    </div>
+
+    <div class="analytics-kpi-row">
+      <div class="analytics-kpi">
+        <div class="analytics-kpi-label">Monthly Visitors</div>
+        <div class="analytics-kpi-value">${fmtNum(cur.monthly_visitors)}</div>
+        ${delta(cur.monthly_visitors, prev && prev.monthly_visitors, false)}
+      </div>
+      <div class="analytics-kpi">
+        <div class="analytics-kpi-label">Avg. Time on Page</div>
+        <div class="analytics-kpi-value">${fmtTime(cur.avg_time_seconds)}</div>
+        ${delta(cur.avg_time_seconds, prev && prev.avg_time_seconds, false)}
+      </div>
+      <div class="analytics-kpi">
+        <div class="analytics-kpi-label">Bounce Rate</div>
+        <div class="analytics-kpi-value">${fmtPct(cur.bounce_rate)}</div>
+        ${delta(cur.bounce_rate, prev && prev.bounce_rate, true)}
+      </div>
+      <div class="analytics-kpi">
+        <div class="analytics-kpi-label">Mobile Traffic</div>
+        <div class="analytics-kpi-value">${fmtPct(cur.mobile_pct)}</div>
+        ${delta(cur.mobile_pct, prev && prev.mobile_pct, false)}
+      </div>
+    </div>
+
+    <div class="analytics-chart-card">
+      <div class="analytics-chart-title">Monthly Visitors - Last ${sparkRows.length} Months</div>
+      ${sparkline}
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:6px">
+        <span>${sparkRows[0] ? sparkRows[0].period : ''}</span>
+        <span>${sparkRows[sparkRows.length-1] ? sparkRows[sparkRows.length-1].period : ''}</span>
+      </div>
+    </div>
+
+    <div class="analytics-breakdowns">
+      <div class="analytics-table-card">
+        <div class="analytics-table-title">Top Pages</div>
+        <table class="analytics-table">
+          <thead><tr><th>Page</th><th style="text-align:right">Views</th></tr></thead>
+          <tbody>${topPagesHTML}</tbody>
+        </table>
+      </div>
+      <div class="analytics-table-card">
+        <div class="analytics-table-title">Traffic Sources</div>
+        <table class="analytics-table">
+          <thead><tr><th>Source</th><th style="text-align:right">Sessions</th><th style="text-align:right">Share</th></tr></thead>
+          <tbody>${sourcesHTML}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="analytics-queries-card">
+      <div class="analytics-table-title">Top Search Queries</div>
+      <table class="analytics-table">
+        <thead><tr><th>#</th><th>Query</th><th style="text-align:right">Clicks</th><th style="text-align:right">Impressions</th></tr></thead>
+        <tbody>${queriesHTML}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function filterIssues() {
+  document.querySelectorAll('.issue-card').forEach(card => {
+    if (activeCat === 'all' || card.dataset.cat === activeCat) {
+      card.style.display = '';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+  updateIssueCounts();
+}
+
+function updateIssueCounts() {
+  const visible = document.querySelectorAll('.issue-card:not([style*="display: none"])');
+  const failed = [...visible].filter(c => c.classList.contains('failed')).length;
+  const total = visible.length;
+  const countEl = document.getElementById('issues-count');
+  if (countEl) countEl.textContent = failed + ' issue' + (failed !== 1 ? 's' : '') + ' of ' + total + ' checks';
+}
+
+async function queueAudit() {
+  const btn = document.getElementById('run-audit-btn');
+  if (!btn || !dept) return;
+  btn.disabled = true;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" style="animation:spin 0.7s linear infinite"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> Queuing...`;
+
+  try {
+    // Insert audit request into agent_tasks
+    const taskData = {
+      station: 'sar',
+      source_id: dept.id,
+      summary: 'BCPS Audit Request: ' + dept.name,
+      status: 'pending',
+      context_link: window.location.href,
+      metadata: {
+        type: 'bcps_audit_request',
+        department_id: dept.id,
+        department_name: dept.name,
+        page_url: dept.website_url
+      }
+    };
+    const result = await apiFetch('/rest/v1/agent_tasks', {
+      method: 'POST',
+      body: JSON.stringify(taskData)
+    });
+    queuedAuditId = result && result[0] && result[0].id;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg> Audit Queued`;
+    showToast('Audit queued. Claude will run it in the next Cowork session.', 'success');
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> Run Audit`;
+    showToast('Failed to queue audit. Please try again.', 'error');
+  }
+}
+
+async function loadHistoricalAudit(auditId) {
+  if (latestAudit && latestAudit.id === auditId) return;
+  try {
+    const data = await apiFetch('/rest/v1/bcps_audit_results?id=eq.' + encodeURIComponent(auditId) + '&select=*&limit=1');
+    if (data && data[0]) {
+      latestAudit = data[0];
+      renderPage();
+      showToast('Viewing audit from ' + fmtDate(latestAudit.audited_at));
+    }
+  } catch(e) {
+    showToast('Could not load this audit.', 'error');
+  }
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.className = 'toast'; }, 3500);
+}
+
+function setViewMode(mode) {
+  localStorage.setItem('bcps_view_mode', mode);
+  // Update button styles
+  const adminBtn = document.getElementById('view-admin-btn');
+  const stdBtn = document.getElementById('view-standard-btn');
+  const label = document.getElementById('sidebar-role-label');
+  if (adminBtn && stdBtn) {
+    if (mode === 'admin') {
+      adminBtn.style.background = '#fff';
+      adminBtn.style.color = '#1672a7';
+      stdBtn.style.background = 'rgba(255,255,255,0.2)';
+      stdBtn.style.color = '#fff';
+      if (label) label.textContent = 'SuperAdmin';
+    } else {
+      stdBtn.style.background = '#fff';
+      stdBtn.style.color = '#1672a7';
+      adminBtn.style.background = 'rgba(255,255,255,0.2)';
+      adminBtn.style.color = '#fff';
+      if (label) label.textContent = 'Previewing: Standard User';
+    }
+  }
+  renderPage(); // re-render with updated role
+}
+
+function initViewMode() {
+  const mode = localStorage.getItem('bcps_view_mode') || 'admin';
+  setViewMode(mode);
+}
+
+init().then(() => initViewMode());
+</script>
+
+<script>
+  function toggleSidebar() {
+    const sb = document.getElementById('sidebar'), bd = document.getElementById('sidebarBackdrop');
+    const shell = document.querySelector('.app-shell');
+    const isOpen = sb.classList.contains('open');
+    sb.classList.toggle('open', !isOpen); sb.classList.toggle('closed', isOpen);
+    bd.classList.toggle('show', !isOpen);
+    shell.classList.toggle('sidebar-open', !isOpen);
+  }
+
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar').classList.add('closed');
+    document.getElementById('sidebarBackdrop').classList.remove('show');
+    document.querySelector('.app-shell').classList.remove('sidebar-open');
+  }
+
+  document.addEventListener('keydown', e => { if (e.key==='Escape') { closeSidebar(); } });
+  if (window.innerWidth >= 900) {
+    document.getElementById('sidebar').classList.remove('closed');
+    document.getElementById('sidebar').classList.add('open');
+    document.querySelector('.app-shell').classList.add('sidebar-open');
+  }
+
+</script>
+</body>
+</html>

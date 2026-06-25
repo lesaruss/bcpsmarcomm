@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Website &amp; Social Media Implementation Plan | BCPS Academic Year 2026–2027</title>
+  <meta name="description" content="Broward County Public Schools Website and Social Media Implementation Plan for Academic Year 2026–2027. Executive Overview." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Century+Gothic:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bcps-blue:        #1672A7;
+      --bcps-blue-dark:   #0F5580;
+      --bcps-green:       #167512;
+      --bcps-orange:      #C55326;
+      --bcps-orange-text: #A84420;
+      --bcps-light-blue:  #E5F2FA;
+      --bcps-light-green: #E6F2E5;
+      --bcps-light-orange:#FAF0EC;
+      --bcps-light-bg:    #F0F6FA;
+      --text-dark:        #1A1A1A;
+      --text-mid:         #3D3D3D;
+      --white:            #FFFFFF;
+      --border-light:     #C8D9E6;
+    }
+
+    body {
+      font-family: Arial, 'Century Gothic', Verdana, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--text-dark);
+      background: #E8EEF4;
+      padding-top: 64px;
+    }
+
+    a { color: var(--bcps-blue); }
+    a:focus-visible {
+      outline: 3px solid var(--bcps-orange);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+
+    /* ── Fixed BCPS Nav Header ──────────────────────────────────── */
+    .bcps-nav-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 200;
+      height: 64px;
+      background: #ffffff;
+      border-bottom: 3px solid var(--bcps-blue);
+      display: flex;
+      align-items: center;
+      padding: 0 28px;
+      gap: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .bcps-nav-logo { height: 44px; width: auto; display: block; }
+    .bcps-nav-divider { width: 1px; height: 32px; background: var(--border-light); }
+    .bcps-nav-title {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--bcps-blue);
+    }
+
+    /* ── Page wrapper ───────────────────────────────────────────── */
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: var(--white);
+      box-shadow: 0 2px 24px rgba(0,0,0,.13);
+    }
+
+    /* ── Skip link (ADA) ────────────────────────────────────────── */
+    .skip-link {
+      position: absolute;
+      top: -999px;
+      left: 0;
+      background: var(--bcps-blue);
+      color: var(--white);
+      padding: 0.5rem 1rem;
+      font-weight: 700;
+      z-index: 9999;
+      text-decoration: none;
+      border-radius: 0 0 4px 0;
+    }
+    .skip-link:focus { top: 64px; }
+
+    /* ══════════════════════════════════════════════════════════════
+       HEADER — Horizontal Primary Logo + Title
+    ══════════════════════════════════════════════════════════════ */
+    header {
+      background: var(--white);
+      border-bottom: 5px solid var(--bcps-blue);
+      padding: 1.1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .bcps-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      flex-shrink: 0;
+      text-decoration: none;
+    }
+    .bcps-logo:focus-visible {
+      outline: 3px solid var(--bcps-orange);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+    .logo-emblem { width: 80px; height: 80px; flex-shrink: 0; }
+    .logo-wordmark { display: flex; flex-direction: column; line-height: 1; }
+    .logo-established { font-family: Arial, sans-serif; font-size: 0.68rem; color: var(--bcps-blue); font-weight: 400; letter-spacing: 0.04em; margin-bottom: 0.12rem; }
+    .logo-broward { font-family: Arial, sans-serif; font-size: 1.85rem; font-weight: 900; color: var(--bcps-blue); letter-spacing: -0.01em; line-height: 1; }
+    .logo-subtitle { font-family: Arial, sans-serif; font-size: 0.82rem; font-weight: 400; color: var(--bcps-blue); letter-spacing: 0.04em; margin-top: 0.12rem; }
+    .header-divider { width: 2px; height: 64px; background: var(--border-light); flex-shrink: 0; }
+    .header-title { flex: 1; min-width: 220px; }
+    .header-title h1 { font-family: Arial, sans-serif; font-size: clamp(1.05rem, 2.8vw, 1.6rem); font-weight: 700; color: var(--bcps-blue); line-height: 1.2; }
+    .header-subtitle-text { font-size: clamp(0.82rem, 2vw, 1rem); color: var(--bcps-green); font-weight: 700; margin-top: 0.3rem; }
+    .header-subtitle-text span { color: var(--text-mid); font-weight: 400; }
+
+    /* ══════════════════════════════════════════════════════════════
+       SECTION LABELS
+    ══════════════════════════════════════════════════════════════ */
+    .section-label { display: inline-block; background: var(--bcps-blue); color: var(--white); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.3rem 1rem; border-radius: 2px; }
+
+    /* ══════════════════════════════════════════════════════════════
+       PURPOSE SECTION
+    ══════════════════════════════════════════════════════════════ */
+    .purpose { padding: 1.75rem 2rem; background: var(--bcps-light-bg); border-bottom: 1px solid var(--border-light); }
+    .purpose .section-label { margin-bottom: 0.9rem; }
+    .purpose-text { font-size: 0.95rem; color: var(--text-mid); max-width: 680px; margin-bottom: 1.5rem; }
+    .purpose-icons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .purpose-card { background: var(--white); border: 1px solid var(--border-light); border-top: 3px solid var(--bcps-blue); border-radius: 6px; padding: 1rem 0.75rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.6rem; }
+    .purpose-card .icon-box { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .icon-box.blue   { background: #DAEDF7; }
+    .icon-box.green  { background: #D9EDD8; }
+    .icon-box.orange { background: #F9EDE8; }
+    .icon-box.teal   { background: #D6EEF5; }
+    .purpose-card svg { width: 26px; height: 26px; }
+    .purpose-card p { font-size: 0.77rem; color: var(--text-dark); line-height: 1.35; }
+    .purpose-card strong { display: block; font-size: 0.8rem; color: var(--bcps-blue); font-weight: 700; }
+
+    /* ══════════════════════════════════════════════════════════════
+       DELIVERABLES
+    ══════════════════════════════════════════════════════════════ */
+    .deliverables { padding: 1.75rem 2rem; border-bottom: 1px solid var(--border-light); }
+    .deliverables h2 { font-family: Arial, sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--bcps-blue); text-transform: uppercase; letter-spacing: 0.08em; border-left: 4px solid var(--bcps-orange); padding-left: 0.75rem; margin-bottom: 1.25rem; }
+    .deliverables-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .deliv-card { border: 1px solid var(--border-light); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; }
+    .deliv-header { padding: 0.8rem 0.8rem 0.4rem; display: flex; align-items: flex-start; gap: 0.6rem; }
+    .deliv-num { width: 26px; height: 26px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; font-weight: 900; color: var(--white); flex-shrink: 0; }
+    .num-1 { background: var(--bcps-orange); }
+    .num-2 { background: var(--bcps-blue); }
+    .num-3 { background: var(--bcps-green); }
+    .num-4 { background: var(--bcps-blue-dark); }
+    .deliv-title { font-family: Arial, sans-serif; font-size: 0.8rem; font-weight: 700; line-height: 1.25; }
+    .deliv-title.c-orange { color: var(--bcps-orange-text); }
+    .deliv-title.c-blue   { color: var(--bcps-blue); }
+    .deliv-title.c-green  { color: var(--bcps-green); }
+    .deliv-title.c-dark   { color: var(--bcps-blue-dark); }
+    .deliv-icon { width: 100%; height: 56px; display: flex; align-items: center; justify-content: center; background: var(--bcps-light-bg); }
+    .deliv-icon svg { width: 38px; height: 38px; }
+    .deliv-body { padding: 0.5rem 0.8rem 0.8rem; flex: 1; }
+    .deliv-body ul { list-style: disc; padding-left: 1.1rem; }
+    .deliv-body ul li { font-size: 0.73rem; color: var(--text-mid); margin-bottom: 0.3rem; line-height: 1.4; }
+
+    /* ══════════════════════════════════════════════════════════════
+       BOTTOM 3-COL
+    ══════════════════════════════════════════════════════════════ */
+    .bottom-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--border-light); }
+    .bottom-col { padding: 1.5rem 1.5rem; border-right: 1px solid var(--border-light); }
+    .bottom-col:last-child { border-right: none; }
+    .bottom-col h2 { font-family: Arial, sans-serif; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bcps-blue); border-left: 4px solid var(--bcps-orange); padding-left: 0.6rem; margin-bottom: 1rem; line-height: 1.3; }
+
+    .timeline-block { background: var(--bcps-light-bg); border-radius: 6px; padding: 0.85rem; border-left: 3px solid var(--bcps-blue); margin-bottom: 1rem; }
+    .timeline-month { font-size: 0.83rem; font-weight: 700; color: var(--bcps-blue); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .timeline-block ul { list-style: disc; padding-left: 1.1rem; }
+    .timeline-block ul li { font-size: 0.73rem; color: var(--text-mid); margin-bottom: 0.28rem; }
+    .timeline-note { font-size: 0.73rem; color: var(--text-mid); margin-top: 0.4rem; padding-left: 0.25rem; }
+
+    .expectations-list { list-style: none; padding: 0; }
+    .expectations-list li { font-size: 0.75rem; color: var(--text-mid); padding: 0.38rem 0 0.38rem 1.75rem; position: relative; border-bottom: 1px solid var(--border-light); line-height: 1.4; }
+    .expectations-list li:last-child { border-bottom: none; }
+    .expectations-list li::before { content: ''; position: absolute; left: 0; top: 0.52rem; width: 18px; height: 18px; background-color: var(--bcps-green); border-radius: 50%; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E"); background-size: 12px; background-repeat: no-repeat; background-position: center; }
+
+    .decisions-figure { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.85rem; }
+    .decisions-figure svg { width: 46px; height: 46px; flex-shrink: 0; margin-top: 2px; }
+    .decisions-figure p { font-size: 0.73rem; color: var(--text-mid); line-height: 1.4; }
+    .decisions-sub { font-size: 0.73rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.7rem; margin-bottom: 0.3rem; }
+    .decisions-sub.orange { color: var(--bcps-orange-text); }
+    .decisions-sub.blue   { color: var(--bcps-blue); }
+    .decisions-sub.green  { color: var(--bcps-green); }
+    .decisions-list { list-style: disc; padding-left: 1.1rem; }
+    .decisions-list li { font-size: 0.72rem; color: var(--text-mid); margin-bottom: 0.28rem; }
+
+    /* ══════════════════════════════════════════════════════════════
+       CLOSING
+    ══════════════════════════════════════════════════════════════ */
+    .closing { background: var(--bcps-light-blue); border-top: 1px solid #B5D6EC; padding: 1.5rem 2rem; display: flex; align-items: flex-start; gap: 1.5rem; }
+    .closing-icon { flex-shrink: 0; }
+    .closing-icon svg { width: 62px; height: 62px; }
+    .closing-content h2 { font-family: Arial, sans-serif; font-size: 1rem; font-weight: 700; color: var(--bcps-blue); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+    .closing-content p { font-size: 0.82rem; color: var(--text-mid); margin-bottom: 0.5rem; }
+    .closing-goal { font-size: 0.82rem; color: var(--text-mid); }
+    .closing-goal strong { color: var(--bcps-green); font-weight: 700; }
+
+    /* ══════════════════════════════════════════════════════════════
+       FOOTER
+    ══════════════════════════════════════════════════════════════ */
+    footer { background: var(--bcps-blue); color: var(--white); padding: 0.85rem 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+    .footer-left { font-size: 0.78rem; font-weight: 700; }
+    .footer-tagline { font-size: 0.7rem; font-style: italic; opacity: 0.85; }
+    .footer-right { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .footer-url { font-size: 0.74rem; font-weight: 600; color: var(--white); text-decoration: none; }
+    .footer-url:hover, .footer-url:focus-visible { text-decoration: underline; }
+    .footer-socials { display: flex; gap: 0.6rem; align-items: center; }
+    .footer-socials a { color: var(--white); display: flex; align-items: center; }
+    .footer-socials a:focus-visible { outline: 2px solid #F5D78A; outline-offset: 2px; border-radius: 2px; }
+    .footer-socials svg { width: 18px; height: 18px; }
+
+    /* ══════════════════════════════════════════════════════════════
+       RESPONSIVE
+    ══════════════════════════════════════════════════════════════ */
+
+    .header-logo-wrap { flex-shrink: 0; }
+    .header-logo-img { height: 72px; width: auto; display: block; }
+
+    @media (max-width: 900px) {
+      .purpose-icons      { grid-template-columns: repeat(2, 1fr); }
+      .deliverables-grid  { grid-template-columns: repeat(2, 1fr); }
+      .bottom-grid        { grid-template-columns: 1fr; }
+      .bottom-col         { border-right: none; border-bottom: 1px solid var(--border-light); }
+      .bottom-col:last-child { border-bottom: none; }
+    }
+    @media (max-width: 640px) {
+      header              { padding: 1rem; gap: 1rem; }
+      .header-divider     { display: none; }
+      .purpose            { padding: 1.25rem 1rem; }
+      .deliverables       { padding: 1.25rem 1rem; }
+      .bottom-col         { padding: 1.25rem 1rem; }
+      .closing            { padding: 1.25rem 1rem; flex-direction: column; }
+      footer              { padding: 0.85rem 1rem; flex-direction: column; align-items: flex-start; }
+      .logo-broward       { font-size: 1.5rem; }
+      .deliverables-grid  { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 420px) {
+      .purpose-icons      { grid-template-columns: 1fr; }
+      .logo-emblem        { width: 60px; height: 60px; }
+    }
+
+    .bcps-nav-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .btn-pdf {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--bcps-blue); color: #fff;
+      border: none; border-radius: 5px;
+      padding: 8px 16px; font-family: Arial, sans-serif;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-pdf:hover { background: var(--bcps-blue-dark); }
+    .btn-pdf svg { width: 14px; height: 14px; flex-shrink: 0; }
+    @media print {
+      .bcps-nav-header { display: none; }
+      body { background: white; padding-top: 0; }
+      .page { box-shadow: none; max-width: 100%; }
+    }
+
+    @media print {
+      .bcps-nav-header { display: none; }
+      body { background: white; font-size: 11px; padding-top: 0; }
+      .page { box-shadow: none; max-width: 100%; }
+      .skip-link { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Fixed BCPS Nav Header -->
+  <nav class="bcps-nav-header" role="navigation" aria-label="BCPS document navigation">
+    <img src="https://fwbhwfxpncrsfhttimna.supabase.co/storage/v1/object/public/lesaruss-docs/bcps/logos/BCPS-logos-2021_2-color.png" alt="Broward County Public Schools" class="bcps-nav-logo">
+    <div class="bcps-nav-divider" aria-hidden="true"></div>
+    <span class="bcps-nav-title">Website &amp; Social Media Implementation Plan</span>
+
+    <div class="bcps-nav-actions">
+      <button class="btn-pdf" onclick="window.print()" aria-label="Download as PDF">
+        <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M2 10v2.5A.5.5 0 002.5 13h9a.5.5 0 00.5-.5V10" stroke="white" stroke-width="1.3" stroke-linecap="round"/>
+          <path d="M7 1v7m0 0L4.5 5.5M7 8l2.5-2.5" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Download PDF
+      </button>
+    </div>
+  </nav>
+
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="page" role="document">
+
+    <header role="banner">
+      <div class="header-logo-wrap">
+        <img src="https://fwbhwfxpncrsfhttimna.supabase.co/storage/v1/object/public/lesaruss-docs/bcps/logos/BCPS-logos-2021_2-color.png" alt="Broward County Public Schools" class="header-logo-img">
+      </div>
+      <div class="header-divider" aria-hidden="true"></div>
+      <div class="header-title">
+        <h1>Website &amp; Social Media Implementation Plan</h1>
+        <p class="header-subtitle-text">Academic Year 2026–2027 <span>| Executive Overview</span></p>
+      </div>
+    </header>
+
+    <main id="main-content">
+
+      <section class="purpose" aria-labelledby="purpose-heading">
+        <span class="section-label" id="purpose-heading" role="heading" aria-level="2">Purpose</span>
+        <p class="purpose-text">
+          Establish a consistent, district-aligned approach to school websites, social media, and enrollment engagement
+          that strengthens each school's ability to tell its story, build trust, and guide families from first impression to enrollment.
+        </p>
+        <div class="purpose-icons" role="list" aria-label="Key pillars of the implementation plan">
+          <div class="purpose-card" role="listitem">
+            <div class="icon-box blue" aria-hidden="true">
+              <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="2" y="3" width="22" height="15" rx="2" stroke="#1672A7" stroke-width="1.8"/>
+                <line x1="9" y1="21" x2="17" y2="21" stroke="#1672A7" stroke-width="1.8" stroke-linecap="round"/>
+                <line x1="13" y1="18" x2="13" y2="21" stroke="#1672A7" stroke-width="1.8"/>
+                <circle cx="13" cy="10.5" r="3.5" stroke="#1672A7" stroke-width="1.5"/>
+                <line x1="13" y1="7" x2="13" y2="14" stroke="#1672A7" stroke-width="1"/>
+                <line x1="9.5" y1="10.5" x2="16.5" y2="10.5" stroke="#1672A7" stroke-width="1"/>
+              </svg>
+            </div>
+            <p><strong>Websites =</strong> official source of information</p>
+          </div>
+          <div class="purpose-card" role="listitem">
+            <div class="icon-box green" aria-hidden="true">
+              <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M4 12h3.5v7H4V12z" fill="#167512" opacity=".25"/>
+                <path d="M7.5 12l3.5-7a1.8 1.8 0 011.8 1.8v3.5H17a1.8 1.8 0 011.8 1.8l-1.4 5.5a1.8 1.8 0 01-1.8 1.4H7.5V12z" fill="#167512"/>
+              </svg>
+            </div>
+            <p><strong>Social Media =</strong> daily storytelling and engagement</p>
+          </div>
+          <div class="purpose-card" role="listitem">
+            <div class="icon-box orange" aria-hidden="true">
+              <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="4" y="11" width="18" height="12" rx="1" stroke="#C55326" stroke-width="1.6"/>
+                <path d="M2 11l11-8 11 8" stroke="#C55326" stroke-width="1.8" stroke-linejoin="round"/>
+                <rect x="10" y="16" width="6" height="7" rx="1" stroke="#C55326" stroke-width="1.3"/>
+                <line x1="13" y1="3" x2="13" y2="1" stroke="#C55326" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <p><strong>Schools =</strong> final experience through Enrollment Inquiries and Tours</p>
+          </div>
+          <div class="purpose-card" role="listitem">
+            <div class="icon-box teal" aria-hidden="true">
+              <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="3.5" cy="13" r="2.5" fill="#1672A7"/>
+                <circle cx="9.5" cy="13" r="2.5" fill="#1672A7" opacity=".7"/>
+                <circle cx="15.5" cy="13" r="2.5" fill="#1672A7" opacity=".5"/>
+                <circle cx="21.5" cy="13" r="2.5" fill="#1672A7" opacity=".3"/>
+                <path d="M6.5 13h1M12.5 13h1M18.5 13h.5" stroke="#1672A7" stroke-width="1.2" stroke-dasharray="1.5 1"/>
+                <path d="M20 10l3 3-3 3" stroke="#1672A7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <p><strong>All must work together</strong> to move families from awareness to interest to inquiry to tour to enrollment</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="deliverables" aria-labelledby="deliverables-heading">
+        <h2 id="deliverables-heading">Deliverables: Overarching Expectations</h2>
+        <div class="deliverables-grid">
+          <article class="deliv-card" aria-labelledby="deliv1-title">
+            <div class="deliv-header">
+              <div class="deliv-num num-1" aria-hidden="true">1</div>
+              <h3 class="deliv-title c-orange" id="deliv1-title">Content Alignment &amp; Storytelling</h3>
+            </div>
+            <div class="deliv-icon" aria-hidden="true">
+              <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="3" width="22" height="28" rx="2" fill="#F9EDE8" stroke="#C55326" stroke-width="1.4"/>
+                <line x1="8" y1="10" x2="22" y2="10" stroke="#C55326" stroke-width="1.3" stroke-linecap="round"/>
+                <line x1="8" y1="14" x2="22" y2="14" stroke="#C55326" stroke-width="1.3" stroke-linecap="round"/>
+                <line x1="8" y1="18" x2="18" y2="18" stroke="#C55326" stroke-width="1.3" stroke-linecap="round"/>
+                <path d="M24 24l7-7 3.5 3.5-7 7H24v-3.5z" fill="#C55326" stroke="#C55326" stroke-width=".8" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="deliv-body">
+              <ul>
+                <li>Messaging aligned to school story and strengths (School Blueprint Document)</li>
+                <li>Aligned to BCPS Advantage initiative (monthly emails with templates and content ideas)</li>
+                <li>Aligned to district branding expectations (MarComm Website)</li>
+                <li>Content reflects authentic student learning experiences and outcomes</li>
+              </ul>
+            </div>
+          </article>
+          <article class="deliv-card" aria-labelledby="deliv2-title">
+            <div class="deliv-header">
+              <div class="deliv-num num-2" aria-hidden="true">2</div>
+              <h3 class="deliv-title c-blue" id="deliv2-title">School Website Readiness</h3>
+            </div>
+            <div class="deliv-icon" aria-hidden="true">
+              <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="5" width="34" height="22" rx="2" fill="#DAEDF7" stroke="#1672A7" stroke-width="1.4"/>
+                <rect x="2" y="5" width="34" height="6" rx="2" fill="#1672A7"/>
+                <circle cx="7" cy="8" r="1.5" fill="white"/>
+                <circle cx="12" cy="8" r="1.5" fill="white"/>
+                <circle cx="17" cy="8" r="1.5" fill="white"/>
+                <line x1="7" y1="17" x2="31" y2="17" stroke="#1672A7" stroke-width="1" opacity=".4"/>
+                <line x1="7" y1="21" x2="27" y2="21" stroke="#1672A7" stroke-width="1" opacity=".4"/>
+                <rect x="13" y="30" width="12" height="3" rx="1" fill="#1672A7" opacity=".35"/>
+              </svg>
+            </div>
+            <div class="deliv-body">
+              <ul>
+                <li>Pre-School Year Requirement</li>
+                <li>Key marketing components updated before August 2026</li>
+                <li>Required components: homepage with identity banner, news, calendar, CTA button; current Magnet/Innovative/Specialized Program pages; updated Proud Points and achievements</li>
+                <li>Websites clearly support enrollment inquiries and tour scheduling/contact information</li>
+                <li>Information is accurate, family-friendly, and current</li>
+              </ul>
+            </div>
+          </article>
+          <article class="deliv-card" aria-labelledby="deliv3-title">
+            <div class="deliv-header">
+              <div class="deliv-num num-3" aria-hidden="true">3</div>
+              <h3 class="deliv-title c-green" id="deliv3-title">Social Media Presence</h3>
+            </div>
+            <div class="deliv-icon" aria-hidden="true">
+              <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="2" width="22" height="34" rx="4" fill="#D9EDD8" stroke="#167512" stroke-width="1.4"/>
+                <rect x="12" y="8" width="14" height="9" rx="2" fill="#167512" opacity=".25" stroke="#167512" stroke-width="1"/>
+                <line x1="12" y1="21" x2="26" y2="21" stroke="#167512" stroke-width="1.3" stroke-linecap="round"/>
+                <line x1="12" y1="25" x2="22" y2="25" stroke="#167512" stroke-width="1.3" stroke-linecap="round"/>
+                <circle cx="19" cy="33" r="1.8" stroke="#167512" stroke-width="1.3"/>
+              </svg>
+            </div>
+            <div class="deliv-body">
+              <ul>
+                <li>Baseline Requirement</li>
+                <li>Every school maintains at least one active social media account</li>
+                <li>Post consistently</li>
+                <li>Highlight school culture, academics, and programs</li>
+                <li>Include clear calls to action: visit website, schedule a tour, apply</li>
+                <li>Drive families to website and inquiry/tour actions</li>
+              </ul>
+            </div>
+          </article>
+          <article class="deliv-card" aria-labelledby="deliv4-title">
+            <div class="deliv-header">
+              <div class="deliv-num num-4" aria-hidden="true">4</div>
+              <h3 class="deliv-title c-dark" id="deliv4-title">Enrollment Inquiry &amp; School Tour Readiness</h3>
+            </div>
+            <div class="deliv-icon" aria-hidden="true">
+              <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="15" cy="12" r="6" fill="#DAEDF7" stroke="#1672A7" stroke-width="1.4"/>
+                <path d="M5 34c0-5.5 4.5-10 10-10h4" stroke="#1672A7" stroke-width="1.4" stroke-linecap="round"/>
+                <circle cx="28" cy="12" r="4.5" fill="#DAEDF7" stroke="#1672A7" stroke-width="1.4"/>
+                <path d="M33 34c0-4-2.5-7.5-6-9" stroke="#1672A7" stroke-width="1.4" stroke-linecap="round"/>
+                <circle cx="27" cy="28" r="6" fill="#1672A7"/>
+                <path d="M24.5 28l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="deliv-body">
+              <ul>
+                <li>Expectations provided for timely inquiry responses, tour scheduling, and a welcoming on-campus experience</li>
+                <li>Contact information is visible and accurate</li>
+                <li>Staff are prepared to respond and engage families</li>
+                <li>Tour experience reflects the story told online</li>
+                <li>Alignment is critical: online and in-person experiences must match</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <div class="bottom-grid">
+        <section class="bottom-col" aria-labelledby="timeline-heading">
+          <h2 id="timeline-heading">Monthly Implementation Timeline</h2>
+          <div class="timeline-block">
+            <div class="timeline-month">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="1" y="3" width="16" height="13" rx="2" fill="#DAEDF7" stroke="#1672A7" stroke-width="1.4"/>
+                <line x1="1" y1="7" x2="17" y2="7" stroke="#1672A7" stroke-width="1.4"/>
+                <line x1="5" y1="1" x2="5" y2="5" stroke="#1672A7" stroke-width="1.4" stroke-linecap="round"/>
+                <line x1="13" y1="1" x2="13" y2="5" stroke="#1672A7" stroke-width="1.4" stroke-linecap="round"/>
+                <rect x="11" y="10" width="3" height="3" rx=".5" fill="#1672A7" opacity=".5"/>
+              </svg>
+              July 2026 (Pre-Launch)
+            </div>
+            <ul>
+              <li>Finalize all website updates</li>
+              <li>Distribute Semester 1 Social Media Content Calendar</li>
+            </ul>
+          </div>
+          <p class="timeline-note">Includes BCPS Advantage initiative posts</p>
+          <p class="timeline-note">Provide guidance on enrollment inquiry expectations and school tour readiness</p>
+        </section>
+        <section class="bottom-col" aria-labelledby="expectations-heading">
+          <h2 id="expectations-heading">Key Expectations for Success</h2>
+          <ul class="expectations-list">
+            <li>Websites fully updated before August 2026</li>
+            <li>Every school has at least one active social media account</li>
+            <li>Content shows real student learning and experiences</li>
+            <li>Every post includes a clear call to action: tour, inquire, apply</li>
+            <li>Schools respond to and manage enrollment inquiries effectively</li>
+            <li>Schools provide welcoming, consistent tour experiences</li>
+            <li>Messaging is aligned across website, social media, and in-person interactions</li>
+          </ul>
+        </section>
+        <section class="bottom-col" aria-labelledby="decisions-heading">
+          <h2 id="decisions-heading">Decisions / Support Needed from Executive Team</h2>
+          <div class="decisions-figure">
+            <svg viewBox="0 0 46 46" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="15" cy="15" r="7" fill="#DAEDF7" stroke="#1672A7" stroke-width="1.4"/>
+              <circle cx="30" cy="15" r="7" fill="#DAEDF7" stroke="#1672A7" stroke-width="1.4"/>
+              <path d="M5 40c0-5.5 4.5-10 10-10h4" stroke="#1672A7" stroke-width="1.4" stroke-linecap="round"/>
+              <path d="M41 40c0-5.5-4.5-10-10-10h-4" stroke="#1672A7" stroke-width="1.4" stroke-linecap="round"/>
+              <circle cx="23" cy="30" r="8" fill="#1672A7" opacity=".12" stroke="#1672A7" stroke-width="1.4"/>
+              <path d="M20 30l2.5 2.5 5-5" stroke="#1672A7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p>Leadership endorsement and active support required across three key areas.</p>
+          </div>
+          <p class="decisions-sub orange">Endorsement of:</p>
+          <ul class="decisions-list">
+            <li>Website readiness requirement (August 2026)</li>
+            <li>Requirement for active social media presence</li>
+            <li>Enrollment inquiry and school tour expectations framework</li>
+          </ul>
+          <p class="decisions-sub blue">Support for:</p>
+          <ul class="decisions-list">
+            <li>Regional monitoring and accountability</li>
+            <li>Training and reinforcement for schools</li>
+          </ul>
+          <p class="decisions-sub green">Alignment on:</p>
+          <ul class="decisions-list">
+            <li>BCPS Advantage messaging integration</li>
+            <li>District branding and communication standards</li>
+          </ul>
+        </section>
+      </div>
+
+      <section class="closing" aria-labelledby="closing-heading">
+        <div class="closing-icon" aria-hidden="true">
+          <svg viewBox="0 0 62 62" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="31" cy="31" r="29" fill="#1672A7" opacity=".10"/>
+            <circle cx="21" cy="20" r="7" fill="#1672A7" opacity=".65"/>
+            <path d="M11 44c0-5.5 4.5-10 10-10h4" fill="#1672A7" opacity=".65"/>
+            <circle cx="38" cy="20" r="7" fill="#167512" opacity=".65"/>
+            <path d="M28 44c0-5.5 4.5-10 10-10s10 4.5 10 10" fill="#167512" opacity=".65"/>
+            <path d="M31 10l2.2 6.5H40l-5.5 4 2.1 6.5L31 23l-5.5 4 2.1-6.5L22 16.5h6.8z" fill="#C55326"/>
+          </svg>
+        </div>
+        <div class="closing-content">
+          <h2 id="closing-heading">Closing</h2>
+          <p>This plan ensures that all schools enter the 2026-2027 academic year with aligned messaging, strong digital presence, and clear enrollment pathways for families.</p>
+          <p class="closing-goal"><strong>Goal:</strong> Provide clarity, alignment, and confidence that schools are fully prepared to engage families, support enrollment, and deliver a consistent experience from first impression through campus visit.</p>
+        </div>
+      </section>
+
+    </main>
+
+    <footer role="contentinfo">
+      <div>
+        <div class="footer-left">Broward County Public Schools</div>
+        <div class="footer-tagline">Educating Today's Students in Tomorrow's World</div>
+      </div>
+      <div class="footer-right">
+        <a href="https://www.browardschools.com" class="footer-url" aria-label="Visit browardschools.com">www.browardschools.com</a>
+        <nav class="footer-socials" aria-label="BCPS social media links">
+          <a href="https://www.facebook.com/browardschools" aria-label="BCPS on Facebook" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 18 18" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M16 2H2C1.45 2 1 2.45 1 3v14c0 .55.45 1 1 1h7.5v-6H7V9.5h2.5V7.5c0-2.5 1.5-3.8 3.7-3.8.7 0 1.8.05 2.3.1v2.6h-1.6c-1.2 0-1.4.6-1.4 1.4V9.5H15l-.5 2.5h-2V18H16c.55 0 1-.45 1-1V3c0-.55-.45-1-1-1z"/>
+            </svg>
+          </a>
+          <a href="https://twitter.com/browardschools" aria-label="BCPS on X (Twitter)" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 18 18" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M13.18 2h2.5L10.5 7.84 16.5 16h-4.6l-3.7-4.84L4.08 16H1.58l5.54-6.32L1.5 2h4.72l3.36 4.45L13.18 2zm-.88 12.6h1.38L5.82 3.36H4.34l7.96 11.24z"/>
+            </svg>
+          </a>
+          <a href="https://www.instagram.com/browardschools" aria-label="BCPS on Instagram" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="2" y="2" width="14" height="14" rx="4"/>
+              <circle cx="9" cy="9" r="3.5"/>
+              <circle cx="13" cy="5" r=".5" fill="currentColor"/>
+            </svg>
+          </a>
+          <a href="https://www.youtube.com/browardschools" aria-label="BCPS on YouTube" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 18 18" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M16.5 5s-.2-1.3-.8-1.9c-.7-.8-1.5-.8-1.9-.8C11.5 2.2 9 2.2 9 2.2s-2.5 0-4.8.1c-.4 0-1.2 0-1.9.8C1.7 3.7 1.5 5 1.5 5S1.3 6.5 1.3 8v1.4c0 1.5.2 3 .2 3s.2 1.3.8 1.9c.7.8 1.7.7 2.2.8C5.8 15.2 9 15.2 9 15.2s2.5 0 4.8-.2c.4 0 1.2 0 1.9-.8.6-.6.8-1.9.8-1.9s.2-1.5.2-3V8c0-1.5-.2-3-.2-3zM7.3 11.2V6.4l5.1 2.4-5.1 2.4z"/>
+            </svg>
+          </a>
+        </nav>
+      </div>
+    </footer>
+
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hot Lab for Department WCMs - June 9, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: var(--bcps-blue); text-decoration: underline; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(24px, 4vw, 40px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 18px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  .recording-banner { background: rgba(14,78,115,0.06); border: 1px solid rgba(22,114,167,0.25); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; display: flex; align-items: center; gap: 14px; }
+  .recording-banner-icon { font-size: 22px; flex-shrink: 0; }
+  .recording-banner-text { font-size: 13px; color: var(--text-75); }
+  .recording-banner-text strong { color: var(--bcps-blue-dark); font-weight: 700; }
+  .recording-banner-text a { color: var(--bcps-blue); font-weight: 700; }
+
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .outcome-banner p strong { color: var(--text); }
+
+  .decision-item { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .decision-item:last-child { border-bottom: none; }
+  .decision-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .decision-detail { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+  .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
+
+  .action-item { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .action-item:last-child { border-bottom: none; }
+  .action-num { font-size: 20px; font-weight: 900; color: var(--bcps-blue); min-width: 32px; line-height: 1; }
+  .action-body .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .action-body .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .action-body .action-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); margin-top: 6px; }
+  .action-body .action-deadline { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); margin-top: 4px; }
+
+  .tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 4px; margin: 2px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .tag.open { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.28); color: var(--bcps-blue-dark); }
+  .tag.pending { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.28); color: var(--bcps-orange); }
+
+  .timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 110px; padding-top: 2px; }
+  .timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .timeline-text strong { color: var(--text); }
+  .timeline-row.highlight .timeline-date { color: var(--bcps-green); }
+  .timeline-row.highlight .timeline-text { color: var(--text); }
+
+  .attendee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 8px; }
+  .attendee-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+  .attendee-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .attendee-title { font-size: 11px; color: var(--text-50); font-weight: 600; }
+
+  .topic-list { list-style: none; padding: 0; }
+  .topic-list li { font-size: 13px; color: var(--text-75); padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-start; line-height: 1.6; }
+  .topic-list li:last-child { border-bottom: none; }
+  .topic-list li::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--bcps-blue); margin-top: 7px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">BCPS - Meeting Minutes</span>
+</header>
+
+<main>
+  <h1>Hot Lab for Department WCMs</h1>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Date</span>
+      <span class="meta-value">June 9, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Series</span>
+      <span class="meta-value">Recurring - Mondays &amp; Thursdays</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Platform</span>
+      <span class="meta-value">Microsoft Teams</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Attendees</span>
+      <span class="meta-value">4+ People</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value">v1 - June 11, 2026</span>
+    </div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> Department Web Content Managers (WCMs), Sean A. Russell (District Webmaster), and the Office of Communications. This brief covers summer priorities, pilot program updates, and Q&amp;A from the June 9 Hot Lab session.</p>
+  </div>
+
+  <div class="recording-banner">
+    <div class="recording-banner-icon">&#9654;</div>
+    <div class="recording-banner-text">
+      <strong>Meeting Recording Available.</strong> Watch the full session recap via Microsoft Teams: <a href="https://teams.microsoft.com/l/meetingrecap?driveId=b%21Y6R3ajloxESJSUPJISfmOgN6HAtq-EJAr0BCZSBzxGr4DkkVss0jRZItdc2OMBp-&driveItemId=016JXWAC4J57GATXQY6JDJLBXZXFTWG7AT" target="_blank" rel="noopener">View Teams Meeting Recap</a>
+    </div>
+  </div>
+
+  <h2>Attendees</h2>
+  <div class="attendee-grid">
+    <div class="attendee-card">
+      <div class="attendee-name">Sean A. Russell</div>
+      <div class="attendee-title">District Webmaster, Website Governance</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Angela</div>
+      <div class="attendee-title">Department WCM</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Patricia</div>
+      <div class="attendee-title">Department WCM</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Michelle</div>
+      <div class="attendee-title">WCM, Rural Schools Police</div>
+    </div>
+  </div>
+
+  <h2>Session Overview</h2>
+  <div class="section-block">
+    <ul class="topic-list">
+      <li>Schools have officially ended; the team is in full summer mode focused on larger infrastructure projects.</li>
+      <li>Automated audit process is in progress - the hold-up is building the automation system so audits can be completed faster and to standard.</li>
+      <li>Pilot program launch is scheduled for June 15, 2026.</li>
+      <li>MarCom updates - improvements to how district-wide information is displayed are underway, which will play a role in the pilot program.</li>
+      <li>July 1 department page updates are coming across multiple departments; some have already begun.</li>
+      <li>ADA compliance work will be assessed and developed over the summer.</li>
+      <li>WCM Kickoff Event being planned for September - to include all schools and departments. Venue must be a free school location; announcement held until venue is confirmed.</li>
+      <li>Weekly communique / newsletter cadence is a goal - a short "here is what you need to know" format for WCMs, separate from the district communique.</li>
+      <li>Hot Labs are evolving into a structured course format for the summer: syllabus-driven, 12 planned sessions, each building on the last with pre-work videos available.</li>
+    </ul>
+  </div>
+
+  <h2>Key Decisions</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title">Hot Lab Format Restructured for Summer</div>
+      <div class="decision-detail">Hot Labs will follow a course-style syllabus beginning this summer. Sean A. Russell will publish a 12-session syllabus so WCMs know what is coming. Each session will have optional pre-work videos. Sessions will include an open Q&amp;A segment at the start and a hands-on mini-workshop component. Recordings of sessions will serve as a content library available to all WCMs.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Video Playlist Autoplay - No Short-Term Fix Available</div>
+      <div class="decision-detail">Angela's attendance page uses a CMS gallery widget, which does not trigger video autoplay. The newsroom page works because it uses an embedded EduVision player - a different technology. Providing EduVision accounts to individual departments is not feasible at scale due to account limits and governance concerns. Sean will note this as a long-term item to explore. For now, departments are limited to manual-play video galleries.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">WCM Backup Access Process Clarified</div>
+      <div class="decision-detail">Michelle from Rural Schools Police submitted a form to add a backup WCM (Jessica, identified as Director-level). Sean A. Russell confirmed the form was received. To complete the process, the director must also fill out the Department WCM Roster form so there is an official record. Sean will provision access once the director form is submitted. Sean recommended WCMs bookmark the roster form link for future backup or coverage needs.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Program Spotlight - "No Post" State Handling</div>
+      <div class="decision-detail">Angela asked how to hide a Program Spotlight section when there is no active spotlight content. The recommended approach: copy the postboard widget to a personal resources page (unpublished), then delete the widget from the live page. The resources page serves as a personal WCM toolkit for reusable widgets. This practice will be added to the WCM best practices guide.</div>
+    </div>
+  </div>
+
+  <h2>Action Items</h2>
+  <div class="section-block">
+    <div class="action-item">
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <div class="action-title">Complete automated audit process build</div>
+        <div class="action-detail">Finish the automated audit system so audits can be processed faster and consistently meet district standards. This is the primary summer infrastructure focus.</div>
+        <div class="action-owner">Owner: Sean A. Russell, District Webmaster</div>
+        <div class="action-deadline">Due: Summer 2026 (before new school year)</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">2</div>
+      <div class="action-body">
+        <div class="action-title">Launch pilot program on June 15</div>
+        <div class="action-detail">Execute the pilot program launch planned for June 15, 2026. MarCom updates are a key dependency that will play a role in how the pilot surfaces district information.</div>
+        <div class="action-owner">Owner: Sean A. Russell, District Webmaster</div>
+        <div class="action-deadline">Due: June 15, 2026</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">3</div>
+      <div class="action-body">
+        <div class="action-title">Provision WCM backup access for Michelle's department</div>
+        <div class="action-detail">Once Michelle's director submits the Department WCM Roster form, Sean will provision system access for the backup WCM (Jessica). Michelle will message Sean directly when the form is submitted to expedite.</div>
+        <div class="action-owner">Owner: Sean A. Russell (provisioning) / Michelle - Rural Schools Police (director form)</div>
+        <div class="action-deadline">Due: As soon as director form is submitted</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">4</div>
+      <div class="action-body">
+        <div class="action-title">Publish 12-session Hot Lab syllabus</div>
+        <div class="action-detail">Develop and share a structured 12-session syllabus so WCMs can prepare for upcoming Hot Lab topics. Each session will have a defined topic, pre-work video (where applicable), and hands-on activity.</div>
+        <div class="action-owner">Owner: Sean A. Russell, District Webmaster</div>
+        <div class="action-deadline">Due: Before next Hot Lab</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">5</div>
+      <div class="action-body">
+        <div class="action-title">Confirm venue for September WCM Kickoff Event</div>
+        <div class="action-detail">Secure a free school venue for the all-WCM kickoff event planned for September. Event will include both school and department WCMs. Announcement will be made once a venue is confirmed.</div>
+        <div class="action-owner">Owner: Sean A. Russell, District Webmaster</div>
+        <div class="action-deadline">Due: Before end of summer</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">6</div>
+      <div class="action-body">
+        <div class="action-title">Add "personal resources page" guidance to WCM best practices</div>
+        <div class="action-detail">Document the recommendation to maintain an unpublished personal resources page where WCMs store reusable widgets (e.g., postboard elements). This should be part of the formal best practices guide.</div>
+        <div class="action-owner">Owner: Sean A. Russell, District Webmaster</div>
+        <div class="action-deadline">Due: Summer 2026</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">7</div>
+      <div class="action-body">
+        <div class="action-title">Begin transcribing Hot Labs and distributing session summaries</div>
+        <div class="action-detail">Sean will begin transcribing Hot Lab calls and producing a weekly digest for WCMs covering what to know, what is happening, and best practices from the community. Goal is a weekly cadence - supplementing (not replacing) the district communique.</div>
+        <div class="action-owner">Owner: Sean A. Russell, District Webmaster</div>
+        <div class="action-deadline">Due: Ongoing - starting this session</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">8</div>
+      <div class="action-body">
+        <div class="action-title">Coordinate July Hot Lab coverage with Felicia</div>
+        <div class="action-detail">Sean will be out for approximately a week and a half in July. He will have a conversation with Felicia about potentially covering Hot Lab sessions during that period. WCMs will be notified of any schedule changes as the date approaches.</div>
+        <div class="action-owner">Owner: Sean A. Russell, District Webmaster</div>
+        <div class="action-deadline">Due: Before July (confirm before Sean's absence)</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Open Issues</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title"><span class="tag open">Open</span> Video Playlist Autoplay for Department Pages</div>
+      <div class="decision-detail">Current CMS gallery widgets do not support video autoplay. A long-term solution - such as EduVision accounts for departments or a scalable embedded player option - needs to be evaluated. No timeline set; Sean noted this as a future item to investigate.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title"><span class="tag pending">Pending</span> July Hot Lab Schedule Confirmation</div>
+      <div class="decision-detail">Sean A. Russell will be away for approximately a week and a half in July. Coverage plan with Felicia is pending a direct conversation. WCMs should expect an update before the first July session.</div>
+    </div>
+  </div>
+
+  <h2>Next Steps</h2>
+  <div class="section-block">
+    <div class="timeline-row highlight">
+      <div class="timeline-date">June 15, 2026</div>
+      <div class="timeline-text"><strong>Pilot Program Launches.</strong> District-wide pilot goes live. MarCom updates will be part of this rollout.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">June 2026</div>
+      <div class="timeline-text"><strong>Michelle's Director Submits Roster Form.</strong> Michelle will follow up with her director to complete the WCM backup access request. Sean will provision access upon receipt.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">July 1, 2026</div>
+      <div class="timeline-text"><strong>Department Page Updates Go Live.</strong> Updates are scheduled across multiple departments. Some changes have already begun ahead of this date.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">July 2026</div>
+      <div class="timeline-text"><strong>Hot Lab Pause / Coverage Period.</strong> Sean will be out approximately a week and a half. Felicia may cover sessions. WCMs will be notified of the schedule.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">September 2026</div>
+      <div class="timeline-text"><strong>WCM Kickoff Event (Pending Venue).</strong> All-WCM kickoff event planned for September - includes school and department WCMs. Announcement pending venue confirmation at a free school location.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Summer 2026</div>
+      <div class="timeline-text"><strong>12-Session Hot Lab Series Launches.</strong> Structured syllabus-driven format with pre-work videos, mini-workshops, and recorded sessions building a reusable WCM content library.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Summer 2026</div>
+      <div class="timeline-text"><strong>Automated Audit System Completed.</strong> Audit automation build finalized so the 2025-26 audit cycle can be processed at scale before the new school year.</div>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Departments - BCPS | K12 Unlocked</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #1672A7; --blue-dark: #125e8a; --blue-xlight: #e8f4fb;
+      --text-primary: #262626; --text-secondary: #525252; --text-muted: #767676;
+      --bg-page: #f0f4f8; --bg-card: #ffffff; --border: #dde3ea;
+      --sidebar-bg: #1672A7; --sidebar-text: rgba(255,255,255,0.75); --sidebar-hover: rgba(255,255,255,0.12);
+    }
+    html, body { height: 100%; }
+    body { font-family: 'Open Sans', sans-serif; background: var(--bg-page); color: var(--text-primary); font-size: 15px; line-height: 1.5; }
+    .app-shell { display: flex; min-height: 100vh; }
+    /* SIDEBAR */
+    .sidebar { width: 248px; background: var(--sidebar-bg); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; overflow-y: auto; transition: transform 0.25s ease; }
+    .sidebar.closed { transform: translateX(-100%); }
+    .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 49; }
+    .sidebar-backdrop.show { display: block; }
+    .sidebar-brand { padding: 16px 16px 14px; border-bottom: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: space-between; }
+    .sidebar-brand-text { font-size: 14px; font-weight: 900; color: #fff; letter-spacing: -0.3px; line-height: 1.1; }
+    .sidebar-close-btn { background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.6); padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+    .sidebar-close-btn:hover { color: #fff; background: rgba(255,255,255,0.12); }
+    .sidebar-section-label { font-size: 9.5px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.4); padding: 0 8px 6px; margin-top: 1.5rem; }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; }
+    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--sidebar-text); font-size: 13.5px; font-weight: 600; cursor: pointer; border: none; background: none; width: 100%; text-align: left; transition: background .15s, color .15s; text-decoration: none; }
+    .sidebar-link:hover { background: var(--sidebar-hover); color: #fff; }
+    .sidebar-link.active { background: rgba(255,255,255,0.22); color: #fff; }
+    .sidebar-icon { width: 18px; height: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .sidebar-footer { margin-top: auto; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.15); }
+    .sidebar-user { display: flex; align-items: center; gap: 10px; }
+    .sidebar-avatar { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.25); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
+    .sidebar-user-info strong { display: block; font-size: 13px; font-weight: 700; color: #fff; }
+    .sidebar-user-info span { display: block; font-size: 11px; color: var(--sidebar-text); }
+    /* MAIN */
+    .main-area { margin-left: 0; transition: margin-left 0.25s ease; flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    .app-shell.sidebar-open .main-area { margin-left: 248px; }
+    .topbar { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40; }
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .hamburger-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 4px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+    .hamburger-btn:hover { background: var(--bg-page); }
+    .topbar h1 { font-size: 20px; font-weight: 800; color: var(--text-primary); }
+    .topbar p { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .search-input { border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 14px; font-size: 13px; font-family: 'Open Sans', sans-serif; outline: none; transition: border-color .2s; background: #fafbfc; color: var(--text-primary); width: 200px; }
+    .search-input:focus { border-color: var(--blue); background: #fff; }
+    .topbar-notif { position: relative; background: none; border: 1.5px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary); }
+    .topbar-notif:hover { background: var(--bg-page); }
+    .notif-badge { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: #ef4444; border: 2px solid #fff; }
+    .signout-btn { background: none; border: 1.5px solid var(--border); border-radius: 8px; color: var(--text-secondary); cursor: pointer; padding: 6px 12px; font-size: 12px; font-weight: 600; font-family: 'Open Sans', sans-serif; transition: border-color .15s; }
+    .signout-btn:hover { border-color: var(--blue); }
+    .page-content { padding: 28px; flex: 1; }
+    /* STATS */
+    .stats-row { display: grid; grid-template-columns: repeat(6,1fr); gap: 12px; margin-bottom: 22px; }
+    .stat-tile { background: var(--bg-card); border-radius: 10px; padding: 16px; border: 1.5px solid var(--border); }
+    .stat-tile.healthy { border-color: #bbf7d0; background: #f0fdf4; }
+    .stat-tile.review { border-color: #fed7aa; background: #fff7ed; }
+    .stat-tile.risk { border-color: #fecaca; background: #fef2f2; }
+    .stat-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    .stat-value { font-size: 24px; font-weight: 800; color: var(--text-primary); }
+    .stat-tile.healthy .stat-value { color: #16a34a; }
+    .stat-tile.review .stat-value { color: #ea580c; }
+    .stat-tile.risk .stat-value { color: #dc2626; }
+    /* FILTERS */
+    .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-search { flex: 1; min-width: 220px; border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 14px; font-size: 13px; font-family: 'Open Sans', sans-serif; outline: none; background: var(--bg-card); color: var(--text-primary); transition: border-color .2s; }
+    .filter-search:focus { border-color: var(--blue); }
+    .filter-select { border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 36px 8px 14px; font-size: 12px; font-family: 'Open Sans', sans-serif; background: var(--bg-card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E") no-repeat right 10px center; -webkit-appearance: none; appearance: none; color: var(--text-primary); cursor: pointer; outline: none; font-weight: 600; }
+    .filter-select:focus { border-color: var(--blue); }
+    .filter-count { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-left: auto; white-space: nowrap; }
+    /* GRID */
+    .dept-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .dept-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; cursor: pointer; transition: box-shadow .15s, border-color .15s; display: flex; flex-direction: column; }
+    .dept-card:hover { box-shadow: 0 4px 20px rgba(22,114,167,.13); border-color: var(--blue); }
+    .dept-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .dept-name { font-size: 13.5px; font-weight: 800; color: var(--text-primary); line-height: 1.3; }
+    .health-badge { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap; }
+    .health-badge.healthy { background: #dcfce7; color: #16a34a; }
+    .health-badge.needs-review { background: #ffedd5; color: #c2410c; }
+    .health-badge.at-risk { background: #fee2e2; color: #b91c1c; }
+    .health-badge.unassessed { background: #f3f4f6; color: var(--text-muted); }
+    .dept-division { font-size: 10.5px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+    .dept-blurb { font-size: 11.5px; color: var(--text-muted); line-height: 1.55; margin-bottom: 8px; }
+    .dept-links-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+    .dept-website-link { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .1em; text-decoration: none; transition: color .12s; }
+    .dept-website-link:hover { color: var(--blue-dark); text-decoration: underline; }
+    .dept-profile-link { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: var(--green,#1a7a3c); text-transform: uppercase; letter-spacing: .1em; text-decoration: none; transition: color .12s; }
+    .dept-profile-link:hover { color: #145f2f; text-decoration: underline; }
+    .dept-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; padding-top: 10px; border-top: 1px solid var(--border); margin-top: auto; }
+    .meta-label { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px; }
+    .meta-value { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+    .audit-chip { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; padding: 2px 7px; border-radius: 999px; }
+    .audit-chip.not-started { background: #f3f4f6; color: var(--text-muted); }
+    .audit-chip.in-progress { background: #eff6ff; color: #1d4ed8; }
+    .audit-chip.complete { background: #dcfce7; color: #16a34a; }
+    .audit-chip.needs-update { background: #fff7ed; color: #c2410c; }
+    .audit-chip.pending-review { background: #f0f9ff; color: #0369a1; }
+    .audit-chip.pending { background: #fdf4ff; color: #7e22ce; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty-state h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--text-secondary); }
+    /* DETAIL PANEL */
+    .detail-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 100; opacity: 0; pointer-events: none; transition: opacity .25s; }
+    .detail-overlay.open { opacity: 1; pointer-events: all; }
+    .detail-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 520px; background: var(--bg-card); box-shadow: -8px 0 40px rgba(0,0,0,0.14); z-index: 101; overflow-y: auto; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); display: flex; flex-direction: column; }
+    .detail-panel.open { transform: translateX(0); }
+    .dp-header { background: var(--blue); color: #fff; padding: 20px 24px 18px; position: relative; flex-shrink: 0; }
+    .dp-close { position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.15); border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; transition: background .15s; }
+    .dp-close:hover { background: rgba(255,255,255,0.25); }
+    .dp-division-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: rgba(255,255,255,0.6); margin-bottom: 4px; }
+    .dp-dept-name { font-size: 20px; font-weight: 800; line-height: 1.2; }
+    .dp-body { padding: 22px 24px; flex: 1; }
+    .detail-section { margin-bottom: 22px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+    .detail-section:last-child { border-bottom: none; margin-bottom: 0; }
+    .detail-section-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 10px; }
+    .dp-blurb-text { font-size: 13px; color: var(--text-secondary); line-height: 1.65; padding: 4px 0 10px; }
+    .dp-website-link { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: var(--blue); text-decoration: none; text-transform: uppercase; letter-spacing: .1em; transition: color .12s; }
+    .dp-website-link:hover { color: var(--blue-dark); text-decoration: underline; }
+    .dp-website-link.hidden { display: none; }
+    .detail-row { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .detail-field { flex: 1; }
+    .detail-field-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+    .detail-field-val { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .detail-field-val.muted { color: var(--text-muted); font-weight: 400; }
+    .dp-edit-btn { background: none; border: 1.5px solid var(--border); border-radius: 7px; font-size: 12px; font-weight: 700; color: var(--text-secondary); padding: 6px 14px; cursor: pointer; font-family: 'Open Sans', sans-serif; transition: border-color .15s, color .15s; }
+    .dp-edit-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .dp-edit-btn.save { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .dp-edit-btn.save:hover { background: var(--blue-dark); }
+    .dp-edit-btn.cancel { border-color: var(--border); color: var(--text-muted); }
+    .dp-audit-profile-btn { display: block; width: 100%; margin-top: 14px; padding: 10px; background: var(--blue); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer; font-family: 'Open Sans', sans-serif; letter-spacing: .02em; transition: background .15s; }
+    .dp-audit-profile-btn:hover { background: var(--blue-dark); color: #fff; }
+    .dp-audit-profile-btn.hidden { display: none; }
+    .edit-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+    .detail-field-group { margin-bottom: 14px; }
+    .detail-field-input { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 8px 12px; font-size: 13px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); outline: none; transition: border-color .2s; background: #fafbfc; }
+    .detail-field-input:focus { border-color: var(--blue); background: #fff; }
+    .detail-field-select { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 8px 12px; font-size: 13px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); outline: none; background: #fafbfc; cursor: pointer; }
+    .detail-field-select:focus { border-color: var(--blue); }
+    .detail-field-textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 8px 12px; font-size: 13px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); outline: none; resize: vertical; transition: border-color .2s; background: #fafbfc; }
+    .detail-field-textarea:focus { border-color: var(--blue); background: #fff; }
+    .char-hint { font-size: 10px; color: var(--text-muted); margin-top: 3px; text-align: right; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #262626; color: #fff; font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 8px; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; z-index: 9999; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    @media (max-width: 900px) {
+      .main-area { margin-left: 0 !important; }
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .stats-row { grid-template-columns: repeat(3, 1fr); }
+      .dept-grid { grid-template-columns: repeat(2, 1fr); }
+      .detail-panel { width: 100%; }
+    }
+    @media (max-width: 600px) {
+      .dept-grid { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .page-content { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+  <aside class="sidebar closed" id="sidebar">
+    <div class="sidebar-brand">
+      <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"
+           alt="Broward County Public Schools"
+           style="height:38px;width:auto;filter:brightness(0) invert(1);display:block;">
+      <button class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Close menu">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>
+      </button>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-label" style="margin-top:0">Platform</div>
+      <a href="/" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 36 44" fill="none"><path d="M18 2L32 8V22C32 31 25.5 38 18 42C10.5 38 4 31 4 22V8L18 2Z" fill="currentColor" opacity="0.85"/><path d="M18 8L27 12.5V22C27 28 23.5 32.5 18 36C12.5 32.5 9 28 9 22V12.5L18 8Z" fill="currentColor" opacity="0.25"/></svg></span>
+        Passport
+      </a>
+      <a href="/?page=queue" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1" fill="currentColor" stroke="none"/></svg></span>
+        Queue
+      </a>
+      <a href="/?page=notes" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></span>
+        Meeting Notes
+      </a>
+      <a href="/departments.html" class="sidebar-link active">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+        Departments
+      </a>
+      <a href="/?page=analytics" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg></span>
+        Analytics
+      </a>
+      <a href="/?page=profile" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+        My Profile
+      </a>
+      <a href="/?page=superadmin" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+        SuperAdmin
+      </a>
+
+      <div class="sidebar-section-label">Consoles</div>
+      <a href="/?page=marcomm" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+        MarComm
+      </a>
+      <a href="/?page=minutes" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+        Minutes
+      </a>
+      <a href="/?page=wcm" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+        WCM
+      </a>
+
+      <div class="sidebar-section-label">BCPS</div>
+      <a href="/google-governance-plan.html" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span>
+        Google Governance
+      </a>
+      <a href="/bcps-web-team-assignments.html" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg></span>
+        Web Team Assignments
+      </a>
+      <a href="/certification/departments" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg></span>
+        Department Certification
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sidebar-user" style="width:100%;background:none;border:none;cursor:pointer;text-align:left;padding:0;display:flex;align-items:center;gap:10px;" onclick="document.getElementById('view-switcher').classList.toggle('hidden')">
+        <div class="sidebar-avatar">SA</div>
+        <div class="sidebar-user-info" style="flex:1;">
+          <strong>Sean A. Russell</strong>
+          <span>SuperAdmin</span>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;flex-shrink:0;"><polyline points="18 15 12 9 6 15"/></svg>
+      </button>
+      <div id="view-switcher" class="hidden" style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.08);border-radius:8px;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,0.5);margin-bottom:6px;">View As</div>
+        <div style="display:flex;gap:6px;">
+          <button id="view-admin-btn" onclick="setViewMode('admin')" style="flex:1;padding:4px 0;font-size:10px;font-weight:700;border:none;border-radius:5px;cursor:pointer;background:#fff;color:#1672a7;transition:opacity .15s;">Admin</button>
+          <button id="view-standard-btn" onclick="setViewMode('standard')" style="flex:1;padding:4px 0;font-size:10px;font-weight:700;border:none;border-radius:5px;cursor:pointer;background:rgba(255,255,255,0.2);color:#fff;transition:opacity .15s;">Standard</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Open menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <h1>Departments</h1>
+          <p>Directory &amp; Profiles</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <input type="text" class="search-input" placeholder="Search..." aria-label="Global search">
+        <button class="topbar-notif" title="Notifications" aria-label="Notifications">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-badge"></span>
+        </button>
+        <button class="signout-btn" onclick="window.location.href='/login'">Sign out</button>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <div class="stats-row">
+        <div class="stat-tile"><div class="stat-label">Departments</div><div class="stat-value" id="statTotal">-</div></div>
+        <div class="stat-tile healthy"><div class="stat-label">Healthy</div><div class="stat-value" id="statHealthy">-</div></div>
+        <div class="stat-tile review"><div class="stat-label">Needs Review</div><div class="stat-value" id="statReview">-</div></div>
+        <div class="stat-tile risk"><div class="stat-label">At Risk</div><div class="stat-value" id="statRisk">-</div></div>
+        <div class="stat-tile"><div class="stat-label">Pending Audits</div><div class="stat-value" id="statAudit">-</div></div>
+        <div class="stat-tile"><div class="stat-label">WCMs Assigned</div><div class="stat-value" id="statWcm">-</div></div>
+      </div>
+
+      <div class="filter-bar">
+        <input type="text" class="filter-search" id="searchInput" placeholder="Search departments..." oninput="applyFilters()" aria-label="Search departments">
+        <select class="filter-select" id="divisionFilter" onchange="applyFilters()"><option value="">All Divisions</option></select>
+        <select class="filter-select" id="healthFilter" onchange="applyFilters()">
+          <option value="">All Health</option>
+          <option value="healthy">Healthy</option>
+          <option value="needs_review">Needs Review</option>
+          <option value="at_risk">At Risk</option>
+          <option value="unassessed">Unassessed</option>
+        </select>
+        <select class="filter-select" id="auditFilter" onchange="applyFilters()">
+          <option value="">All Audits</option>
+          <option value="Completed">Completed</option>
+          <option value="In Review">In Review</option>
+          <option value="Pending Review">Pending Review</option>
+          <option value="Pending Updates">Pending Updates</option>
+          <option value="Pending">Pending</option>
+          <option value="Incomplete">Incomplete</option>
+        </select>
+        <span class="filter-count" id="filterCount"></span>
+      </div>
+
+      <div class="dept-grid" id="deptGrid"></div>
+      <div class="empty-state" id="emptyState" style="display:none">
+        <h3>No departments found</h3>
+        <p>Try adjusting your search or filters.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetail()"></div>
+<div class="detail-panel" id="detailPanel" role="dialog" aria-modal="true" aria-label="Department details">
+  <div class="dp-header">
+    <button class="dp-close" onclick="closeDetail()" aria-label="Close">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>
+    </button>
+    <div class="dp-division-label" id="dpDivision"></div>
+    <div class="dp-dept-name" id="dpName"></div>
+  </div>
+  <div class="dp-body">
+    <div class="detail-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="detail-section-label" style="margin-bottom:0">About</div>
+        <button class="dp-edit-btn" id="dpEditBtn" onclick="toggleEdit()">Edit</button>
+      </div>
+      <div id="dpViewMode">
+        <p class="dp-blurb-text" id="dpBlurb"></p>
+        <a class="dp-website-link" id="dpWebsite" href="#" target="_blank" rel="noopener">
+          Visit Department Website
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+      <div id="dpEditMode" style="display:none">
+        <div class="detail-field-group"><label class="detail-field-label" for="edit-wcm">WCM Name</label><input class="detail-field-input" id="edit-wcm" type="text" placeholder="Unassigned"></div>
+        <div class="detail-field-group"><label class="detail-field-label" for="edit-wcm-email">WCM Email</label><input class="detail-field-input" id="edit-wcm-email" type="email" placeholder="email@browardschools.com"></div>
+        <div class="detail-field-group"><label class="detail-field-label" for="edit-director">Director</label><input class="detail-field-input" id="edit-director" type="text" placeholder="Director name"></div>
+        <div class="detail-field-group"><label class="detail-field-label" for="edit-chief">Chief / Division Head</label><input class="detail-field-input" id="edit-chief" type="text" placeholder="Chief name"></div>
+        <div class="detail-field-group"><label class="detail-field-label" for="edit-ada">ADA Score (0-100)</label><input class="detail-field-input" id="edit-ada" type="number" min="0" max="100" placeholder="e.g. 87"></div>
+        <div class="detail-field-group"><label class="detail-field-label" for="edit-audit">Audit Status</label><select class="detail-field-select" id="edit-audit"><option value="not_started">Not Started</option><option value="in_progress">In Progress</option><option value="complete">Complete</option></select></div>
+        <div class="detail-field-group"><label class="detail-field-label" for="edit-health">Health Status</label><select class="detail-field-select" id="edit-health"><option value="">Unassessed</option><option value="healthy">Healthy</option><option value="needs_review">Needs Review</option><option value="at_risk">At Risk</option></select></div>
+        <div class="detail-field-group"><label class="detail-field-label" for="edit-blurb">Department Blurb</label><textarea class="detail-field-textarea" id="edit-blurb" rows="3" maxlength="160" placeholder="~150 character description" oninput="document.getElementById('blurbCount').textContent=this.value.length+'/160'"></textarea><div class="char-hint"><span id="blurbCount">0/160</span></div></div>
+        <div class="detail-field-group"><label class="detail-field-label" for="edit-website">Website URL</label><input class="detail-field-input" id="edit-website" type="url" placeholder="https://www.browardschools.com/..."></div>
+        <div class="edit-actions"><button class="dp-edit-btn cancel" onclick="cancelEdit()">Cancel</button><button class="dp-edit-btn save" onclick="saveEdit()">Save Changes</button></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-label">Marketing Health</div>
+      <div class="detail-row">
+        <div class="detail-field"><div class="detail-field-label">Health Status</div><div class="detail-field-val" id="dpHealth"></div></div>
+        <div class="detail-field"><div class="detail-field-label">ADA Score</div><div class="detail-field-val" id="dpAda"></div></div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-field"><div class="detail-field-label">Audit Status</div><div class="detail-field-val" id="dpAudit"></div></div>
+        <div class="detail-field"><div class="detail-field-label">Date Checked</div><div class="detail-field-val" id="dpAuditDate"></div></div>
+        <a id="dpAuditProfileBtn" class="dp-audit-profile-btn hidden" href="#">View Full Audit Profile</a>
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-label">People</div>
+      <div class="detail-row">
+        <div class="detail-field"><div class="detail-field-label">Web Content Manager</div><div class="detail-field-val" id="dpWcm"></div><div class="detail-field-val muted" id="dpWcmEmail" style="font-size:11px;margin-top:2px"></div></div>
+        <div class="detail-field"><div class="detail-field-label">Director</div><div class="detail-field-val" id="dpDirector"></div></div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-field"><div class="detail-field-label">Chief / Division</div><div class="detail-field-val" id="dpChiefTitle"></div></div>
+        <div class="detail-field"><div class="detail-field-label">Chief Name</div><div class="detail-field-val" id="dpChief"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SB_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+  let allDepts = [], currentDept = null, editMode = false;
+
+  function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+  function healthLabel(s) { return s==='healthy'?'Healthy':s==='needs_review'?'Needs Review':s==='at_risk'?'At Risk':'Unassessed'; }
+  function auditLabel(s) {
+    if (!s) return 'Not Started';
+    return s;
+  }
+  function auditClass(s) {
+    if (!s || s==='Incomplete' || s==='not_started') return 'not-started';
+    if (s==='Completed' || s==='complete') return 'complete';
+    if (s==='In Review' || s==='in_progress') return 'in-progress';
+    if (s==='Pending Review') return 'pending-review';
+    if (s==='Pending Updates') return 'needs-update';
+    if (s==='Pending') return 'pending';
+    return 'not-started';
+  }
+  function healthClass(s) { return s==='healthy'?'healthy':s==='needs_review'?'needs-review':s==='at_risk'?'at-risk':'unassessed'; }
+
+  async function loadDepts() {
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/bcps_departments?order=name.asc&select=*`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
+      allDepts = await r.json();
+      buildStats(); buildDivisionFilter(); applyFilters();
+    } catch(e) { document.getElementById('deptGrid').innerHTML = '<p style="color:#dc2626;padding:20px">Failed to load departments.</p>'; }
+  }
+
+  function buildStats() {
+    document.getElementById('statTotal').textContent = allDepts.length;
+    document.getElementById('statHealthy').textContent = allDepts.filter(d=>d.health_status==='healthy').length;
+    document.getElementById('statReview').textContent = allDepts.filter(d=>d.health_status==='needs_review').length;
+    document.getElementById('statRisk').textContent = allDepts.filter(d=>d.health_status==='at_risk').length;
+    document.getElementById('statAudit').textContent = allDepts.filter(d=>!d.audit_status||d.audit_status==='Incomplete'||d.audit_status==='not_started').length;
+    document.getElementById('statWcm').textContent = allDepts.filter(d=>d.wcm_name).length;
+  }
+
+  function buildDivisionFilter() {
+    const divs = [...new Set(allDepts.map(d=>d.division).filter(Boolean))].sort();
+    const sel = document.getElementById('divisionFilter');
+    divs.forEach(div => { const o = document.createElement('option'); o.value = div; o.textContent = div; sel.appendChild(o); });
+  }
+
+  function applyFilters() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    const div = document.getElementById('divisionFilter').value;
+    const health = document.getElementById('healthFilter').value;
+    const audit = document.getElementById('auditFilter').value;
+    const filtered = allDepts.filter(d => {
+      if (q && !d.name.toLowerCase().includes(q) && !d.division.toLowerCase().includes(q) && !(d.blurb||'').toLowerCase().includes(q)) return false;
+      if (div && d.division !== div) return false;
+      if (health) { if (health==='unassessed'&&d.health_status) return false; if (health!=='unassessed'&&d.health_status!==health) return false; }
+      if (audit) { if ((d.audit_status||'not_started') !== audit) return false; }
+      return true;
+    });
+    document.getElementById('filterCount').textContent = `${filtered.length} of ${allDepts.length} departments`;
+    const grid = document.getElementById('deptGrid');
+    const empty = document.getElementById('emptyState');
+    if (!filtered.length) { grid.innerHTML = ''; empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    grid.innerHTML = filtered.map(d => {
+      const ws = d.website_url ? `<a class="dept-website-link" href="${esc(d.website_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Visit Website <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
+      const vp = (d.audit_status === 'Completed' || d.ada_score != null) ? `<a class="dept-profile-link" href="/department.html?id=${d.id}" onclick="event.stopPropagation()">Visit Profile <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></a>` : '';
+      return `<article class="dept-card" onclick="openDetail(${d.id})" tabindex="0" onkeydown="if(event.key==='Enter')openDetail(${d.id})" role="button" aria-label="${esc(d.name)}">
+        <div class="dept-card-header"><div class="dept-name">${esc(d.name)}</div><span class="health-badge ${healthClass(d.health_status)}">${healthLabel(d.health_status)}</span></div>
+        <div class="dept-division">${esc(d.division)}</div>
+        ${d.blurb ? `<p class="dept-blurb">${esc(d.blurb)}</p>` : ''}
+        <div class="dept-links-row">${vp}${ws}</div>
+        <div class="dept-meta-grid">
+          <div><div class="meta-label">WCM</div><div class="meta-value">${esc(d.wcm_name||'Unassigned')}</div></div>
+          <div><div class="meta-label">ADA Score</div><div class="meta-value">${d.ada_score!=null?d.ada_score:'Not assessed'}</div></div>
+          <div><div class="meta-label">Audit</div><div class="meta-value"><span class="audit-chip ${auditClass(d.audit_status)}">${auditLabel(d.audit_status)}</span></div></div>
+          <div><div class="meta-label">Chief</div><div class="meta-value" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.chief_name||'-')}</div></div>
+        </div>
+      </article>`;
+    }).join('');
+  }
+
+  function openDetail(id) {
+    currentDept = allDepts.find(d=>d.id===id); if (!currentDept) return;
+    renderDetail(currentDept);
+    document.getElementById('detailOverlay').classList.add('open');
+    document.getElementById('detailPanel').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    cancelEdit();
+  }
+
+  function closeDetail() {
+    document.getElementById('detailOverlay').classList.remove('open');
+    document.getElementById('detailPanel').classList.remove('open');
+    document.body.style.overflow = '';
+    currentDept = null; cancelEdit();
+  }
+
+  function renderDetail(d) {
+    document.getElementById('dpDivision').textContent = d.division||'';
+    document.getElementById('dpName').textContent = d.name;
+    document.getElementById('dpBlurb').textContent = d.blurb||'No description available.';
+    const ws = document.getElementById('dpWebsite');
+    if (d.website_url) { ws.href = d.website_url; ws.classList.remove('hidden'); } else { ws.classList.add('hidden'); }
+    document.getElementById('dpHealth').textContent = healthLabel(d.health_status);
+    document.getElementById('dpAda').textContent = d.ada_score!=null ? d.ada_score+'%' : 'Not assessed';
+    document.getElementById('dpAudit').textContent = auditLabel(d.audit_status);
+    document.getElementById('dpAuditDate').textContent = d.audit_date ? new Date(d.audit_date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : '-';
+    const auditBtn = document.getElementById('dpAuditProfileBtn');
+    if (d.audit_status === 'complete' || d.ada_score != null) {
+      auditBtn.href = '/department.html?id=' + d.id;
+      auditBtn.classList.remove('hidden');
+    } else {
+      auditBtn.classList.add('hidden');
+    }
+    document.getElementById('dpWcm').textContent = d.wcm_name||'Unassigned';
+    document.getElementById('dpWcmEmail').textContent = d.wcm_email||'';
+    document.getElementById('dpDirector').textContent = d.director_name||'-';
+    document.getElementById('dpChiefTitle').textContent = d.chief_title||'-';
+    document.getElementById('dpChief').textContent = d.chief_name||'-';
+  }
+
+  function toggleEdit() {
+    editMode = true;
+    const d = currentDept;
+    document.getElementById('edit-wcm').value = d.wcm_name||'';
+    document.getElementById('edit-wcm-email').value = d.wcm_email||'';
+    document.getElementById('edit-director').value = d.director_name||'';
+    document.getElementById('edit-chief').value = d.chief_name||'';
+    document.getElementById('edit-ada').value = d.ada_score!=null?d.ada_score:'';
+    document.getElementById('edit-audit').value = d.audit_status||'not_started';
+    document.getElementById('edit-health').value = d.health_status||'';
+    document.getElementById('edit-blurb').value = d.blurb||'';
+    document.getElementById('blurbCount').textContent = (d.blurb||'').length+'/160';
+    document.getElementById('edit-website').value = d.website_url||'';
+    document.getElementById('dpViewMode').style.display = 'none';
+    document.getElementById('dpEditMode').style.display = 'block';
+    document.getElementById('dpEditBtn').textContent = 'Editing...';
+    document.getElementById('dpEditBtn').disabled = true;
+  }
+
+  function cancelEdit() {
+    editMode = false;
+    document.getElementById('dpViewMode').style.display = 'block';
+    document.getElementById('dpEditMode').style.display = 'none';
+    document.getElementById('dpEditBtn').textContent = 'Edit';
+    document.getElementById('dpEditBtn').disabled = false;
+  }
+
+  async function saveEdit() {
+    if (!currentDept) return;
+    const payload = {
+      wcm_name: document.getElementById('edit-wcm').value.trim()||null,
+      wcm_email: document.getElementById('edit-wcm-email').value.trim()||null,
+      director_name: document.getElementById('edit-director').value.trim()||null,
+      chief_name: document.getElementById('edit-chief').value.trim()||null,
+      ada_score: document.getElementById('edit-ada').value ? parseInt(document.getElementById('edit-ada').value) : null,
+      audit_status: document.getElementById('edit-audit').value,
+      health_status: document.getElementById('edit-health').value||null,
+      blurb: document.getElementById('edit-blurb').value.trim()||null,
+      website_url: document.getElementById('edit-website').value.trim()||null,
+      updated_at: new Date().toISOString()
+    };
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/bcps_departments?id=eq.${currentDept.id}`, { method:'PATCH', headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' }, body: JSON.stringify(payload) });
+      if (!r.ok) throw new Error();
+      const idx = allDepts.findIndex(d=>d.id===currentDept.id);
+      if (idx>-1) allDepts[idx] = {...allDepts[idx], ...payload};
+      currentDept = allDepts[idx];
+      cancelEdit(); renderDetail(currentDept); buildStats(); applyFilters();
+      showToast('Saved successfully.');
+    } catch(e) { showToast('Save failed. Please try again.'); }
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 3000);
+  }
+
+  function toggleSidebar() {
+    const sb = document.getElementById('sidebar'), bd = document.getElementById('sidebarBackdrop');
+    const shell = document.querySelector('.app-shell');
+    const isOpen = sb.classList.contains('open');
+    sb.classList.toggle('open', !isOpen); sb.classList.toggle('closed', isOpen);
+    bd.classList.toggle('show', !isOpen);
+    shell.classList.toggle('sidebar-open', !isOpen);
+  }
+
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar').classList.add('closed');
+    document.getElementById('sidebarBackdrop').classList.remove('show');
+    document.querySelector('.app-shell').classList.remove('sidebar-open');
+  }
+
+  document.addEventListener('keydown', e => { if (e.key==='Escape') { closeDetail(); closeSidebar(); } });
+  if (window.innerWidth >= 900) {
+    document.getElementById('sidebar').classList.remove('closed');
+    document.getElementById('sidebar').classList.add('open');
+    document.querySelector('.app-shell').classList.add('sidebar-open');
+  }
+  function setViewMode(mode) {
+    localStorage.setItem('bcps_view_mode', mode);
+    const adminBtn = document.getElementById('view-admin-btn');
+    const stdBtn = document.getElementById('view-standard-btn');
+    const label = document.getElementById('sidebar-role-label');
+    if (adminBtn && stdBtn) {
+      if (mode === 'admin') {
+        adminBtn.style.background = '#fff'; adminBtn.style.color = '#1672a7';
+        stdBtn.style.background = 'rgba(255,255,255,0.2)'; stdBtn.style.color = '#fff';
+        if (label) label.textContent = 'SuperAdmin';
+      } else {
+        stdBtn.style.background = '#fff'; stdBtn.style.color = '#1672a7';
+        adminBtn.style.background = 'rgba(255,255,255,0.2)'; adminBtn.style.color = '#fff';
+        if (label) label.textContent = 'Previewing: Standard User';
+      }
+    }
+  }
+  const savedMode = localStorage.getItem('bcps_view_mode') || 'admin';
+  setViewMode(savedMode);
+  loadDepts();
+</script>
+</body>
+</html>

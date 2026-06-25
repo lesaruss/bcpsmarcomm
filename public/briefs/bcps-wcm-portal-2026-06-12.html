@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centralized Web Management Portal and ADA Integration - June 12, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(22px, 3.5vw, 38px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 18px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .outcome-banner p strong { color: var(--text); }
+
+  .decision-item { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .decision-item:last-child { border-bottom: none; }
+  .decision-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .decision-detail { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+  .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
+
+  .action-item { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .action-item:last-child { border-bottom: none; }
+  .action-num { font-size: 20px; font-weight: 900; color: var(--bcps-blue); min-width: 32px; line-height: 1; }
+  .action-body .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .action-body .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .action-body .action-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); margin-top: 6px; }
+  .action-body .action-deadline { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); margin-top: 4px; }
+
+  .tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 4px; margin: 2px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .tag.open { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.28); color: var(--bcps-blue-dark); }
+  .tag.resolved { background: rgba(22,117,12,0.10); border-color: rgba(22,117,12,0.30); color: var(--bcps-green); }
+  .tag.pending { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.28); color: var(--bcps-orange); }
+
+  .timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 110px; padding-top: 2px; }
+  .timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .timeline-text strong { color: var(--text); }
+  .timeline-row.highlight .timeline-date { color: var(--bcps-green); }
+  .timeline-row.highlight .timeline-text { color: var(--text); }
+
+  .attendee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 8px; }
+  .attendee-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+  .attendee-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .attendee-title { font-size: 11px; color: var(--text-50); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">BCPS - Portal Planning Brief</span>
+</header>
+
+<main>
+  <h1>Centralized Web Management Portal and ADA Integration</h1>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Date</span>
+      <span class="meta-value">June 12, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Time</span>
+      <span class="meta-value">8:37 AM</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Duration</span>
+      <span class="meta-value">7 Minutes</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Platform</span>
+      <span class="meta-value">Fieldy Voice Review</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value">v1 - June 12, 2026</span>
+    </div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> Sean A. Russell, District Webmaster, Office of Communications. Internal planning record for the WCM Portal build and ADA integration roadmap.</p>
+  </div>
+
+  <h2>Key Decisions</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title">Dropdown Filter Alignment Fix</div>
+      <div class="decision-detail">The down arrows on the "All Divisions," "All Health," and "All Audits" filter dropdowns sit too close to the right edge. Decision: shift each arrow one space to the left to clean up the appearance before sharing with stakeholders.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Audit Spreadsheet as WCM Data Source</div>
+      <div class="decision-detail">An existing audit spreadsheet will be provided and used to populate WCM names and current audit statuses on each department card. Departments that cannot be mapped due to name changes will be flagged on a reconciliation list rather than left blank or force-mapped.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Department Card Expanded Data Fields</div>
+      <div class="decision-detail">Each department card will display: WCM name (from spreadsheet), audit status (from spreadsheet), ADA score (pending ADA module build), director or executive director name and title, chief name, and a "Visit Website" link. ADA scores remain "Not Assessed" until the module is live.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Click-Through Department Detail Page</div>
+      <div class="decision-detail">Clicking a department card will navigate to an expanded detail page. This page will include a dashboard, a list of submitted support tickets, and ongoing communication threads. Visibility is role-gated: the WCM and their assigned admin see everything; the general public sees a limited view.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Internal Ticketing System Within the Portal</div>
+      <div class="decision-detail">The portal will house its own ticketing system for web-related requests. Ticket history and status will surface on each department's detail page.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Automated ADA Compliance Module</div>
+      <div class="decision-detail">An ADA module will be built into the portal. It will pull each department's known website URL, render it in an iframe alongside an accessibility report, and highlight specific issues inline. Monthly scans will run automatically, with results posted to the WCM's dashboard and delivered via email notification. Because departments are currently on FinalSite (not a K12 Unlocked-managed platform), the report will include specific remediation instructions rather than automated fixes.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Analytics Dashboard Per Department</div>
+      <div class="decision-detail">Each department detail page will include an analytics section scoped to what WCMs actually need to know. Additional analytics tiles will be added over time as the platform matures.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">School-Wide Blueprint Potential</div>
+      <div class="decision-detail">The WCM portal is being designed as a blueprint. If BCPS chooses to extend the model to individual schools, the same architecture applies at school level. This is a future option, not a current build requirement.</div>
+    </div>
+  </div>
+
+  <h2>Action Items</h2>
+  <div class="section-block">
+    <div class="action-item">
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <div class="action-title">Fix dropdown arrow spacing on filter controls</div>
+        <div class="action-detail">Shift the down arrow indicators on "All Divisions," "All Health," and "All Audits" one space to the left so they do not appear crowded at the right edge of the select element.</div>
+        <div class="action-owner">Owner: K12 Unlocked Build Team</div>
+        <div class="action-deadline">Due: Next deploy</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">2</div>
+      <div class="action-body">
+        <div class="action-title">Share audit spreadsheet with WCM names and audit statuses</div>
+        <div class="action-detail">Provide the current audit spreadsheet so WCM names and audit statuses can be mapped to department cards in the portal.</div>
+        <div class="action-owner">Owner: Sean A. Russell, District Webmaster, Office of Communications</div>
+        <div class="action-deadline">Due: TBD</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">3</div>
+      <div class="action-body">
+        <div class="action-title">Map WCM names and audit statuses to department cards</div>
+        <div class="action-detail">Once the spreadsheet is received, populate WCM name and audit status fields on each of the 64 department cards. Flag any departments that cannot be matched due to name discrepancies for a separate reconciliation list.</div>
+        <div class="action-owner">Owner: K12 Unlocked Build Team</div>
+        <div class="action-deadline">Due: After spreadsheet delivery</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">4</div>
+      <div class="action-body">
+        <div class="action-title">Produce department name reconciliation list</div>
+        <div class="action-detail">Any department from the spreadsheet that does not map cleanly to the current 64-department list should be captured in a reconciliation document for Sean A. Russell to review and assign manually.</div>
+        <div class="action-owner">Owner: K12 Unlocked Build Team</div>
+        <div class="action-deadline">Due: With WCM mapping deliverable</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">5</div>
+      <div class="action-body">
+        <div class="action-title">Build department detail page template</div>
+        <div class="action-detail">Design and build the click-through template for individual department detail pages, including dashboard section, ticket list, and communication thread view. Role-gated visibility (WCM plus admin vs. public) must be implemented from the start.</div>
+        <div class="action-owner">Owner: K12 Unlocked Build Team</div>
+        <div class="action-deadline">Due: TBD</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">6</div>
+      <div class="action-body">
+        <div class="action-title">Build internal ticketing module</div>
+        <div class="action-detail">Create the ticketing system within the portal. Tickets should be submittable by WCMs, visible on department detail pages, and manageable by the assigned admin.</div>
+        <div class="action-owner">Owner: K12 Unlocked Build Team</div>
+        <div class="action-deadline">Due: TBD</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">7</div>
+      <div class="action-body">
+        <div class="action-title">Build ADA compliance module</div>
+        <div class="action-detail">Develop the ADA scanning module: iframe-based site rendering, inline issue highlighting, monthly automated scan, in-platform report display, and email notification to the WCM. Reports must include FinalSite-specific remediation guidance since departments are not yet on K12 Unlocked's platform.</div>
+        <div class="action-owner">Owner: K12 Unlocked Build Team</div>
+        <div class="action-deadline">Due: TBD</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">8</div>
+      <div class="action-body">
+        <div class="action-title">Build analytics dashboard per department</div>
+        <div class="action-detail">Add an analytics section to each department detail page surfacing the metrics most relevant to WCMs. Scope V1 to core web metrics; expand in subsequent releases.</div>
+        <div class="action-owner">Owner: K12 Unlocked Build Team</div>
+        <div class="action-deadline">Due: TBD</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Open Issues</h2>
+  <div class="section-block">
+    <div style="padding: 14px 0; border-bottom: 1px solid var(--border);">
+      <span class="tag pending">Pending</span>
+      <div style="margin-top: 10px; font-size: 13px; color: var(--text-75); line-height: 1.6;"><strong>Director and executive director data not yet available.</strong> Department cards require director and chief names. Source for this data has not been confirmed. Likely included in the audit spreadsheet, but needs verification once the spreadsheet is shared.</div>
+    </div>
+    <div style="padding: 14px 0; border-bottom: 1px solid var(--border);">
+      <span class="tag open">Open</span>
+      <div style="margin-top: 10px; font-size: 13px; color: var(--text-75); line-height: 1.6;"><strong>Department name mismatches not yet identified.</strong> Some departments in the audit spreadsheet may not align with the current 64-department list. The full reconciliation scope is unknown until the spreadsheet is reviewed.</div>
+    </div>
+    <div style="padding: 14px 0;">
+      <span class="tag open">Open</span>
+      <div style="margin-top: 10px; font-size: 13px; color: var(--text-75); line-height: 1.6;"><strong>ADA module design not yet scoped.</strong> The module architecture (iframe rendering, scan scheduler, report format, email delivery) requires a dedicated build spec before development begins.</div>
+    </div>
+  </div>
+
+  <h2>Next Steps</h2>
+  <div class="section-block">
+    <div class="timeline-row">
+      <div class="timeline-date">Immediate</div>
+      <div class="timeline-text"><strong>Fix dropdown arrow alignment.</strong> One-space-left adjustment on all three filter selects on the Departments page.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Next</div>
+      <div class="timeline-text"><strong>Receive and process audit spreadsheet.</strong> Sean A. Russell to share the spreadsheet; build team maps WCM names and audit statuses, produces reconciliation list for unmatched departments.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Phase 2</div>
+      <div class="timeline-text"><strong>Department detail page template.</strong> Build the click-through template with dashboard, ticket list, communication threads, and role-gated visibility.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Phase 3</div>
+      <div class="timeline-text"><strong>Internal ticketing module.</strong> Build and integrate the ticketing system within the portal.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Phase 4</div>
+      <div class="timeline-text"><strong>ADA compliance module.</strong> Full build: iframe rendering, inline issue highlighting, automated monthly scans, in-platform reports, and WCM email notifications with FinalSite remediation guidance.</div>
+    </div>
+    <div class="timeline-row highlight">
+      <div class="timeline-date">Long-term</div>
+      <div class="timeline-text"><strong>School-wide blueprint.</strong> Once the department WCM portal is stable, evaluate extending the architecture to individual schools as a replicable model.</div>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

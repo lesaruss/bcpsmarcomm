@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Team Assignments - BCPS | K12 Unlocked</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #1672A7; --blue-dark: #125e8a; --blue-xlight: #e8f4fb;
+      --text-primary: #262626; --text-secondary: #525252; --text-muted: #767676;
+      --bg-page: #f0f4f8; --bg-card: #ffffff; --border: #dde3ea;
+      --sidebar-bg: #1672A7; --sidebar-text: rgba(255,255,255,0.75); --sidebar-hover: rgba(255,255,255,0.12);
+    }
+    html, body { height: 100%; }
+    body { font-family: 'Open Sans', sans-serif; background: var(--bg-page); color: var(--text-primary); font-size: 15px; line-height: 1.5; }
+    .app-shell { display: flex; min-height: 100vh; }
+    /* SIDEBAR */
+    .sidebar { width: 248px; background: var(--sidebar-bg); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; overflow-y: auto; transition: transform 0.25s ease; }
+    .sidebar.closed { transform: translateX(-100%); }
+    .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 49; }
+    .sidebar-backdrop.show { display: block; }
+    .sidebar-brand { padding: 16px 16px 14px; border-bottom: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: space-between; }
+    .sidebar-brand-text { font-size: 14px; font-weight: 900; color: #fff; letter-spacing: -0.3px; line-height: 1.1; }
+    .sidebar-close-btn { background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.6); padding: 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+    .sidebar-close-btn:hover { color: #fff; background: rgba(255,255,255,0.12); }
+    .sidebar-section-label { font-size: 9.5px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.4); padding: 0 8px 6px; margin-top: 1.5rem; }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; }
+    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--sidebar-text); font-size: 13.5px; font-weight: 600; cursor: pointer; border: none; background: none; width: 100%; text-align: left; transition: background .15s, color .15s; text-decoration: none; }
+    .sidebar-link:hover { background: var(--sidebar-hover); color: #fff; }
+    .sidebar-link.active { background: rgba(255,255,255,0.22); color: #fff; }
+    .sidebar-icon { width: 18px; height: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .sidebar-footer { margin-top: auto; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.15); }
+    .sidebar-user { display: flex; align-items: center; gap: 10px; }
+    .sidebar-avatar { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.25); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
+    .sidebar-user-info strong { display: block; font-size: 13px; font-weight: 700; color: #fff; }
+    .sidebar-user-info span { display: block; font-size: 11px; color: var(--sidebar-text); }
+    /* MAIN */
+    .main-area { margin-left: 0; transition: margin-left 0.25s ease; flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    .app-shell.sidebar-open .main-area { margin-left: 248px; }
+    .topbar { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40; }
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .hamburger-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 4px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+    .hamburger-btn:hover { background: var(--bg-page); }
+    .topbar h1 { font-size: 20px; font-weight: 800; color: var(--text-primary); }
+    .topbar p { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .search-input { border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 14px; font-size: 13px; font-family: 'Open Sans', sans-serif; outline: none; transition: border-color .2s; background: #fafbfc; color: var(--text-primary); width: 200px; }
+    .search-input:focus { border-color: var(--blue); background: #fff; }
+    .topbar-notif { position: relative; background: none; border: 1.5px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary); }
+    .topbar-notif:hover { background: var(--bg-page); }
+    .notif-badge { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: #ef4444; border: 2px solid #fff; }
+    .signout-btn { background: none; border: 1.5px solid var(--border); border-radius: 8px; color: var(--text-secondary); cursor: pointer; padding: 6px 12px; font-size: 12px; font-weight: 600; font-family: 'Open Sans', sans-serif; transition: border-color .15s; }
+    .signout-btn:hover { border-color: var(--blue); }
+    .page-content { padding: 28px; flex: 1; }
+    /* STATS */
+    .stats-row { display: grid; grid-template-columns: repeat(6,1fr); gap: 12px; margin-bottom: 22px; }
+    .stat-tile { background: var(--bg-card); border-radius: 10px; padding: 16px; border: 1.5px solid var(--border); }
+    .stat-tile.healthy { border-color: #bbf7d0; background: #f0fdf4; }
+    .stat-tile.review { border-color: #fed7aa; background: #fff7ed; }
+    .stat-tile.risk { border-color: #fecaca; background: #fef2f2; }
+    .stat-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    .stat-value { font-size: 24px; font-weight: 800; color: var(--text-primary); }
+    .stat-tile.healthy .stat-value { color: #16a34a; }
+    .stat-tile.review .stat-value { color: #ea580c; }
+    .stat-tile.risk .stat-value { color: #dc2626; }
+    /* FILTERS */
+    .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-search { flex: 1; min-width: 220px; border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 14px; font-size: 13px; font-family: 'Open Sans', sans-serif; outline: none; background: var(--bg-card); color: var(--text-primary); transition: border-color .2s; }
+    .filter-search:focus { border-color: var(--blue); }
+    .filter-select { border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 36px 8px 14px; font-size: 12px; font-family: 'Open Sans', sans-serif; background: var(--bg-card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E") no-repeat right 10px center; -webkit-appearance: none; appearance: none; color: var(--text-primary); cursor: pointer; outline: none; font-weight: 600; }
+    .filter-select:focus { border-color: var(--blue); }
+    .filter-count { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-left: auto; white-space: nowrap; }
+    /* GRID */
+    .dept-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .dept-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; cursor: pointer; transition: box-shadow .15s, border-color .15s; display: flex; flex-direction: column; }
+    .dept-card:hover { box-shadow: 0 4px 20px rgba(22,114,167,.13); border-color: var(--blue); }
+    .dept-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .dept-name { font-size: 13.5px; font-weight: 800; color: var(--text-primary); line-height: 1.3; }
+    .health-badge { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap; }
+    .health-badge.healthy { background: #dcfce7; color: #16a34a; }
+    .health-badge.needs-review { background: #ffedd5; color: #c2410c; }
+    .health-badge.at-risk { background: #fee2e2; color: #b91c1c; }
+    .health-badge.unassessed { background: #f3f4f6; color: var(--text-muted); }
+    .dept-division { font-size: 10.5px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+    .dept-blurb { font-size: 11.5px; color: var(--text-muted); line-height: 1.55; margin-bottom: 8px; }
+    .dept-website-link { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; text-decoration: none; transition: color .12s; }
+    .dept-website-link:hover { color: var(--blue-dark); text-decoration: underline; }
+    .dept-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; padding-top: 10px; border-top: 1px solid var(--border); margin-top: auto; }
+    .meta-label { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px; }
+    .meta-value { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+    .audit-chip { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; padding: 2px 7px; border-radius: 999px; }
+    .audit-chip.not-started { background: #f3f4f6; color: var(--text-muted); }
+    .audit-chip.in-progress { background: #eff6ff; color: #1d4ed8; }
+    .audit-chip.complete { background: #dcfce7; color: #16a34a; }
+    .audit-chip.needs-update { background: #fff7ed; color: #c2410c; }
+    .audit-chip.pending-review { background: #f0f9ff; color: #0369a1; }
+    .audit-chip.pending { background: #fdf4ff; color: #7e22ce; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty-state h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--text-secondary); }
+    /* DETAIL PANEL */
+    .detail-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 100; opacity: 0; pointer-events: none; transition: opacity .25s; }
+    .detail-overlay.open { opacity: 1; pointer-events: all; }
+    .detail-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 520px; background: var(--bg-card); box-shadow: -8px 0 40px rgba(0,0,0,0.14); z-index: 101; overflow-y: auto; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); display: flex; flex-direction: column; }
+    .detail-panel.open { transform: translateX(0); }
+    .dp-header { background: var(--blue); color: #fff; padding: 20px 24px 18px; position: relative; flex-shrink: 0; }
+    .dp-close { position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.15); border: none; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; transition: background .15s; }
+    .dp-close:hover { background: rgba(255,255,255,0.25); }
+    .dp-division-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: rgba(255,255,255,0.6); margin-bottom: 4px; }
+    .dp-dept-name { font-size: 20px; font-weight: 800; line-height: 1.2; }
+    .dp-body { padding: 22px 24px; flex: 1; }
+    .detail-section { margin-bottom: 22px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+    .detail-section:last-child { border-bottom: none; margin-bottom: 0; }
+    .detail-section-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 10px; }
+    .dp-blurb-text { font-size: 13px; color: var(--text-secondary); line-height: 1.65; padding: 4px 0 10px; }
+    .dp-website-link { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: var(--blue); text-decoration: none; text-transform: uppercase; letter-spacing: .1em; transition: color .12s; }
+    .dp-website-link:hover { color: var(--blue-dark); text-decoration: underline; }
+    .dp-website-link.hidden { display: none; }
+    .detail-row { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .detail-field { flex: 1; }
+    .detail-field-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+    .detail-field-val { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .detail-field-val.muted { color: var(--text-muted); font-weight: 400; }
+    .dp-edit-btn { background: none; border: 1.5px solid var(--border); border-radius: 7px; font-size: 12px; font-weight: 700; color: var(--text-secondary); padding: 6px 14px; cursor: pointer; font-family: 'Open Sans', sans-serif; transition: border-color .15s, color .15s; }
+    .dp-edit-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .dp-edit-btn.save { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .dp-edit-btn.save:hover { background: var(--blue-dark); }
+    .dp-edit-btn.cancel { border-color: var(--border); color: var(--text-muted); }
+    .dp-audit-profile-btn { display: block; width: 100%; margin-top: 14px; padding: 10px; background: var(--blue); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer; font-family: 'Open Sans', sans-serif; letter-spacing: .02em; transition: background .15s; }
+    .dp-audit-profile-btn:hover { background: var(--blue-dark); color: #fff; }
+    .dp-audit-profile-btn.hidden { display: none; }
+    .edit-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+    .detail-field-group { margin-bottom: 14px; }
+    .detail-field-input { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 8px 12px; font-size: 13px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); outline: none; transition: border-color .2s; background: #fafbfc; }
+    .detail-field-input:focus { border-color: var(--blue); background: #fff; }
+    .detail-field-select { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 8px 12px; font-size: 13px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); outline: none; background: #fafbfc; cursor: pointer; }
+    .detail-field-select:focus { border-color: var(--blue); }
+    .detail-field-textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 8px 12px; font-size: 13px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); outline: none; resize: vertical; transition: border-color .2s; background: #fafbfc; }
+    .detail-field-textarea:focus { border-color: var(--blue); background: #fff; }
+    .char-hint { font-size: 10px; color: var(--text-muted); margin-top: 3px; text-align: right; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #262626; color: #fff; font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 8px; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; z-index: 9999; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    @media (max-width: 900px) {
+      .main-area { margin-left: 0 !important; }
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .stats-row { grid-template-columns: repeat(3, 1fr); }
+      .dept-grid { grid-template-columns: repeat(2, 1fr); }
+      .detail-panel { width: 100%; }
+    }
+    @media (max-width: 600px) {
+      .dept-grid { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .page-content { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+  <aside class="sidebar closed" id="sidebar">
+    <div class="sidebar-brand">
+      <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"
+           alt="Broward County Public Schools"
+           style="height:38px;width:auto;filter:brightness(0) invert(1);display:block;">
+      <button class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Close menu">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>
+      </button>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-label" style="margin-top:0">Platform</div>
+      <a href="/" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 36 44" fill="none"><path d="M18 2L32 8V22C32 31 25.5 38 18 42C10.5 38 4 31 4 22V8L18 2Z" fill="currentColor" opacity="0.85"/><path d="M18 8L27 12.5V22C27 28 23.5 32.5 18 36C12.5 32.5 9 28 9 22V12.5L18 8Z" fill="currentColor" opacity="0.25"/></svg></span>
+        Passport
+      </a>
+      <a href="/?page=queue" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1" fill="currentColor" stroke="none"/></svg></span>
+        Queue
+      </a>
+      <a href="/?page=notes" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></span>
+        Meeting Notes
+      </a>
+      <a href="/departments.html" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+        Departments
+      </a>
+      <a href="/?page=analytics" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg></span>
+        Analytics
+      </a>
+      <a href="/?page=profile" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+        My Profile
+      </a>
+      <a href="/?page=superadmin" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+        SuperAdmin
+      </a>
+
+      <div class="sidebar-section-label">Consoles</div>
+      <a href="/?page=marcomm" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+        MarComm
+      </a>
+      <a href="/?page=minutes" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+        Minutes
+      </a>
+      <a href="/?page=wcm" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+        WCM
+      </a>
+
+      <div class="sidebar-section-label">BCPS</div>
+      <a href="/google-governance-plan.html" class="sidebar-link">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span>
+        Google Governance
+      </a>
+      <a href="/bcps-web-team-assignments.html" class="sidebar-link active">
+        <span class="sidebar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg></span>
+        Web Team Assignments
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">SA</div>
+        <div class="sidebar-user-info">
+          <strong>Sean A. Russell</strong>
+          <span>SuperAdmin</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Open menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <h1>Web Team Assignments</h1>
+          <p>Living Tracker</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <input type="text" class="search-input" placeholder="Search..." aria-label="Global search">
+        <button class="topbar-notif" title="Notifications" aria-label="Notifications">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-badge"></span>
+        </button>
+        <button class="signout-btn" onclick="window.location.href='/login'">Sign out</button>
+      </div>
+    </header>
+
+
+
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+  .bcps-header-spacer { flex: 1; }
+  .version-pill { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; background: rgba(22,114,167,0.10); color: var(--bcps-blue); border: 1px solid rgba(22,114,167,0.25); border-radius: 20px; padding: 4px 12px; white-space: nowrap; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(22px, 3.5vw, 38px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 6px; }
+  .doc-subtitle { font-size: 13px; font-weight: 600; color: var(--text-50); margin-bottom: 24px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 14px 18px; margin-bottom: 28px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  .version-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 32px; padding: 16px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .version-bar-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-30); margin-right: 4px; white-space: nowrap; }
+  .version-btn { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.10em; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-50); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .version-btn:hover { border-color: var(--bcps-blue); color: var(--bcps-blue); }
+  .version-btn.active { background: var(--bcps-blue); border-color: var(--bcps-blue); color: #fff; }
+  .version-note { font-size: 11px; color: var(--text-30); margin-left: auto; font-style: italic; }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0; margin-bottom: 24px; overflow: hidden; }
+  .section-header { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .section-header h3 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); }
+  .section-count { font-size: 10px; font-weight: 800; background: rgba(22,114,167,0.10); color: var(--bcps-blue); border-radius: 10px; padding: 2px 8px; }
+
+  .col-header-row { display: grid; grid-template-columns: 1fr 160px 120px 120px 80px; gap: 12px; padding: 10px 22px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .col-header-row span { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-30); }
+
+  .assignment-row { display: grid; grid-template-columns: 1fr 160px 120px 120px 80px; gap: 12px; align-items: start; padding: 14px 22px; border-bottom: 1px solid var(--border); transition: background 0.1s; cursor: pointer; }
+  .assignment-row:last-child { border-bottom: none; }
+  .assignment-row:hover { background: rgba(22,114,167,0.04); }
+  .assignment-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .assignment-detail { font-size: 11px; color: var(--text-50); line-height: 1.55; }
+  .assignment-next { font-size: 11px; color: var(--text-75); font-style: italic; line-height: 1.5; }
+  .assignment-desc { font-size: 11px; color: var(--text-50); line-height: 1.55; margin-top: 2px; }
+  .assignment-lead { font-size: 11px; font-weight: 700; color: var(--text); }
+  .assignment-support { font-size: 10px; color: var(--text-50); margin-top: 3px; }
+  .assignment-deadline { font-size: 11px; font-weight: 700; color: var(--bcps-orange); }
+  .assignment-deadline.past { color: #b91c1c; }
+  .assignment-deadline.none { color: var(--text-30); font-weight: 400; }
+
+  .status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+  .status-badge.in-progress { background: rgba(22,114,167,0.10); border: 1px solid rgba(22,114,167,0.25); color: var(--bcps-blue-dark); }
+  .status-badge.not-started { background: rgba(26,26,26,0.06); border: 1px solid rgba(26,26,26,0.12); color: var(--text-50); }
+  .status-badge.pending { background: rgba(197,83,38,0.08); border: 1px solid rgba(197,83,38,0.25); color: var(--bcps-orange); }
+  .status-badge.completed { background: rgba(22,117,12,0.10); border: 1px solid rgba(22,117,12,0.28); color: var(--bcps-green); }
+  .status-badge.ongoing { background: rgba(22,114,167,0.06); border: 1px solid rgba(22,114,167,0.18); color: var(--bcps-blue); }
+  .status-badge::before { content: ""; display: block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* NOTES BUTTON */
+  .notes-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; color: var(--text-50); background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; cursor: pointer; transition: all 0.15s; white-space: nowrap; width: fit-content; }
+  .notes-btn:hover { border-color: var(--bcps-blue); color: var(--bcps-blue); background: rgba(22,114,167,0.05); }
+  .notes-btn .note-count { font-size: 9px; font-weight: 900; background: var(--bcps-blue); color: #fff; border-radius: 8px; padding: 1px 6px; display: none; }
+  .notes-btn .note-count.has-notes { display: inline-block; }
+  .notes-icon { font-size: 12px; line-height: 1; }
+
+  /* COMPLETED TABLE */
+  .completed-grid { display: grid; grid-template-columns: 1fr 120px 140px; gap: 0; }
+  .completed-header { display: contents; }
+  .completed-header > div { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-30); padding: 12px 22px; border-bottom: 1px solid var(--border); }
+  .completed-row { display: contents; cursor: pointer; }
+  .completed-row > div { padding: 12px 22px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-75); }
+  .completed-row:last-child > div { border-bottom: none; }
+  .completed-name { font-weight: 700; color: var(--text); }
+
+  .snapshot { display: none; }
+  .snapshot.active { display: block; }
+
+  /* MODAL OVERLAY */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+
+  .modal { background: #fff; border-radius: 12px; width: 100%; max-width: 580px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.18); overflow: hidden; }
+
+  .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; }
+  .modal-header-text { flex: 1; min-width: 0; }
+  .modal-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 4px; line-height: 1.3; }
+  .modal-subtitle { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--bcps-blue); }
+  .modal-close { font-size: 20px; color: var(--text-30); cursor: pointer; padding: 2px 6px; border-radius: 4px; border: none; background: none; line-height: 1; flex-shrink: 0; }
+  .modal-close:hover { color: var(--text); background: var(--surface2); }
+
+  .modal-notes { flex: 1; overflow-y: auto; padding: 0; }
+
+  .note-item { padding: 14px 24px; border-bottom: 1px solid var(--border); }
+  .note-item:last-child { border-bottom: none; }
+  .note-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .note-author { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; color: var(--bcps-blue); }
+  .note-time { font-size: 10px; color: var(--text-30); }
+  .note-text { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .notes-empty { padding: 32px 24px; text-align: center; color: var(--text-30); font-size: 12px; font-style: italic; }
+  .notes-loading { padding: 24px; text-align: center; color: var(--text-30); font-size: 12px; }
+
+  .modal-input { padding: 16px 24px; border-top: 2px solid var(--bcps-blue); background: var(--surface2); display: flex; flex-direction: column; gap: 10px; }
+  .modal-input-row { display: flex; gap: 8px; }
+  .modal-author-input { width: 130px; font-family: inherit; font-size: 12px; font-weight: 600; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text); outline: none; }
+  .modal-author-input:focus { border-color: var(--bcps-blue); }
+  .modal-text-input { flex: 1; font-family: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text); outline: none; resize: none; line-height: 1.5; min-height: 60px; }
+  .modal-text-input:focus { border-color: var(--bcps-blue); }
+  .modal-submit { font-family: inherit; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; padding: 9px 18px; background: var(--bcps-blue); color: #fff; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; transition: background 0.15s; align-self: flex-end; }
+  .modal-submit:hover { background: var(--bcps-blue-dark); }
+  .modal-submit:disabled { background: var(--text-30); cursor: not-allowed; }
+
+  /* RECORDER */
+  .recorder-bar { display: flex; align-items: center; gap: 10px; padding: 10px 0 2px; }
+  .mic-btn { display: inline-flex; align-items: center; gap: 7px; font-family: inherit; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-50); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .mic-btn:hover { border-color: var(--bcps-blue); color: var(--bcps-blue); }
+  .mic-btn.recording { background: #fef2f2; border-color: #dc2626; color: #dc2626; animation: pulse-border 1.2s ease-in-out infinite; }
+  .mic-btn .mic-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .mic-btn.recording .mic-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  @keyframes pulse-border { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.25)} 50%{box-shadow:0 0 0 4px rgba(220,38,38,0.10)} }
+  .live-transcript { flex: 1; font-size: 11px; color: var(--text-50); font-style: italic; line-height: 1.5; min-height: 16px; }
+  .live-transcript.active { color: #dc2626; font-style: normal; }
+  .no-speech-note { font-size: 10px; color: var(--text-30); }
+
+  @media (max-width: 700px) {
+    .assignment-row { grid-template-columns: 1fr 1fr; }
+    .col-header-row { grid-template-columns: 1fr 1fr; }
+    .completed-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ── NAMED USER LOGIN ────────────────────────────────────────── */
+
+  /* ── USER BADGE IN HEADER ───────────────────────────────────────── */
+  #user-badge { display:none; align-items:center; gap:8px; font-size:11px; font-weight:700; color:#1672A7; }
+  #user-badge .user-name { font-size:11px; font-weight:800; color:#1a1a1a; }
+  #logout-btn { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:#767676; background:none; border:1px solid rgba(0,0,0,0.15); border-radius:4px; padding:4px 10px; cursor:pointer; font-family:'Montserrat',sans-serif; }
+  #logout-btn:hover { border-color:#C55326; color:#C55326; }
+  /* ── DELETE NOTE BUTTON ─────────────────────────────────────────── */
+  .note-delete { background:none; border:none; cursor:pointer; font-size:13px; color:rgba(0,0,0,0.2); padding:0 4px; line-height:1; margin-left:auto; transition:color 0.15s; }
+  .note-delete:hover { color:#C55326; }
+</style>
+
+    <div class="page-content" style="padding:0">
+
+<main>
+  <h1>District Web Team Assignments</h1>
+  <p class="doc-subtitle">Living tracker - click any row to view or add notes</p>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Last Updated</span>
+      <span class="meta-value" id="meta-last-updated">June 10, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Source</span>
+      <span class="meta-value">District Web Team Assignments (SharePoint)</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Active Assignments</span>
+      <span class="meta-value">28</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Completed</span>
+      <span class="meta-value">24</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value" id="meta-version">v1 - June 10, 2026</span>
+    </div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> Sean A. Russell (District Webmaster), Tricia (Web Team Lead), Vanessa, Felicia, Nakesha, Rudy, Andrea, Melanie, Charlene - District Web Content Management core team</p>
+  </div>
+
+  <h2>Meeting Versions</h2>
+  <div class="version-bar">
+    <span class="version-bar-label">View As Of:</span>
+    <button class="version-btn active" onclick="switchVersion('v1')" data-v="v1">June 10, 2026</button>
+    <span class="version-note">New versions added after each meeting. Click any row to view or add notes.</span>
+  </div>
+
+  <div class="snapshot active" id="snap-v1">
+
+    <!-- GENERAL -->
+    <h2>General</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>General Initiatives</h3><span class="section-count">11 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="wcm-guidelines" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Guidelines</div><div class="assignment-desc">Standards for all WCM contributors. Covers Athletics, Centers, and district-wide sections. Final item before publishing to the WCM Community Hub.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Andrea, Nakesha</div></div>
+        <div><span class="assignment-deadline">June 24, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-wcm-guidelines"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="analytics-dashboard" onclick="openNotes(this)">
+        <div><div class="assignment-name">Analytics Dashboard (Google Governance)</div><div class="assignment-desc">District-wide Google Analytics performance dashboard. Dependent on the Google Governance framework, currently in development by Sean.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 19, 2026</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-analytics-dashboard"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="back-to-school" onclick="openNotes(this)">
+        <div><div class="assignment-name">Back to School</div><div class="assignment-desc">Annual back-to-school campaign web update. Includes banners, shared app content, and landing pages. June 22 internal kickoff; July 13 go-live target.</div></div>
+        <div><div class="assignment-lead">Felicia</div><div class="assignment-support">Vanessa, Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 12, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-back-to-school"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="wcm-audits-schools" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Audits - Schools</div><div class="assignment-desc">School-level WCM compliance audits. Currently tracking a 9% failure rate. JT and Rudy reviewing findings; Nakesha manages dashboards and status emails.</div></div>
+        <div><div class="assignment-lead">Nakesha</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-wcm-audits-schools"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="wcm-audits-departments" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Audits - Departments</div><div class="assignment-desc">Compliance audits for all district departments. Goal is full audit completion or delivery to individual WCMs for self-remediation.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline">June 14, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-wcm-audits-departments"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="department-audit-dashboards" onclick="openNotes(this)">
+        <div><div class="assignment-name">Department Audit Dashboards</div><div class="assignment-desc">Dashboards tracking department audit completion. Needs embed element added to WCM Hub. Brannon to match school dashboard colors. Deadline: June 15.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Vanessa, Brannon</div></div>
+        <div><span class="assignment-deadline">June 15, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-department-audit-dashboards"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="security-concerns" onclick="openNotes(this)">
+        <div><div class="assignment-name">Security Concerns</div><div class="assignment-desc">Evaluating WCM Hub lockdown and access control options. Vanessa and Sean working session June 10. FinalSite has a passcode/lockdown feature under review.</div></div>
+        <div><div class="assignment-lead">Tricia</div><div class="assignment-support">Vanessa, Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">Aug 10, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-security-concerns"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="google-governance" onclick="openNotes(this)">
+        <div><div class="assignment-name">Google Governance</div><div class="assignment-desc">Governance framework for all Google tools used across the district. Draft to be authored by Sean and shared with the team before the Analytics Dashboard can advance.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 17, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-google-governance"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="school-department-changes" onclick="openNotes(this)">
+        <div><div class="assignment-name">School and Department Changes</div><div class="assignment-desc">Coordinating web updates for structural changes across schools and departments. Team huddle scheduled to align on response details and next steps.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-school-department-changes"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="kick-off" onclick="openNotes(this)">
+        <div><div class="assignment-name">Kick Off</div><div class="assignment-desc">Annual team kickoff event at Pompano Beach HS auditorium. September 11 target date. ~$1,000 venue cost. Morning: schools; afternoon: departments. Planning doc due Sept 1.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Vanessa, Farrah</div></div>
+        <div><span class="assignment-deadline">Sept 1, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-kick-off"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="qa-process" onclick="openNotes(this)">
+        <div><div class="assignment-name">QA Process</div><div class="assignment-desc">Defining and rolling out a formal quality assurance process for all district web content. Framework to be documented and shared across the team.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 24, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-qa-process"></span></button></div>
+      </div>
+    </div>
+
+    <!-- CERTIFICATION -->
+    <h2>Certification</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Certification Tracks</h3><span class="section-count">4 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="audioeye" onclick="openNotes(this)">
+        <div><div class="assignment-name">AudioEye</div><div class="assignment-desc">Accessibility certification program using AudioEye tooling. Tricia and Sean co-lead with Vanessa and Rudy completing their certification requirements.</div></div>
+        <div><div class="assignment-lead">Tricia / Sean A. Russell</div><div class="assignment-support">Vanessa, Rudy</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-audioeye"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="bcps-central" onclick="openNotes(this)">
+        <div><div class="assignment-name">BCPS Central</div><div class="assignment-desc">Certification training initiative for the BCPS Central platform. Ensures all team members are trained and certified to manage district content.</div></div>
+        <div><div class="assignment-lead">Tricia / Sean A. Russell</div><div class="assignment-support">Vanessa, Rudy</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-bcps-central"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="canvas-course-pilot" onclick="openNotes(this)">
+        <div><div class="assignment-name">Canvas Course Pilot Launch</div><div class="assignment-desc">Pilot launch of Canvas-based WCM training course. 19 enrolled, 2 completed. Intro video being trimmed to 1:30. Target: live by July 1.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell / Rudy</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline">July 1, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-canvas-course-pilot"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="wcm-communication-plan" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Communication Plan</div><div class="assignment-desc">Structured plan for WCM-wide announcements, updates, and team messaging. Sean and Tricia co-leading the framework design and rollout cadence.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell / Tricia</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-wcm-communication-plan"></span></button></div>
+      </div>
+    </div>
+
+    <!-- WCM DEPARTMENTS -->
+    <h2>WCM Departments</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Department Web Content Management</h3><span class="section-count">3 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="k12-department-pages" onclick="openNotes(this)">
+        <div><div class="assignment-name">K-12 Department Pages</div><div class="assignment-desc">Creating redirect pages for legacy K-12 department websites, routing users to current district web properties and active content.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-k12-department-pages"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="embed-page-powerapps" onclick="openNotes(this)">
+        <div><div class="assignment-name">Way to Embed a Page into PowerApps</div><div class="assignment-desc">Enabling FinalSite pages to be embedded in PowerApps portals. FinalSite has allowlisted the domain; functional testing required before closing.</div></div>
+        <div><div class="assignment-lead">Tricia</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-embed-page-powerapps"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="audit-ooc-pages" onclick="openNotes(this)">
+        <div><div class="assignment-name">Audit OOC Pages</div><div class="assignment-desc">Auditing pages managed by Out-of-Classroom staff. Starting with the Academic section at Crystal Lake Middle School to assess compliance and content accuracy.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-audit-ooc-pages"></span></button></div>
+      </div>
+    </div>
+
+    <!-- WCM SCHOOLS -->
+    <h2>WCM Schools</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>School Web Content Management</h3><span class="section-count">2 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="left-navigation-structure" onclick="openNotes(this)">
+        <div><div class="assignment-name">Left Navigation Structure</div><div class="assignment-desc">Defining and standardizing the left navigation structure used across all school websites. Vanessa leading the design and implementation work.</div></div>
+        <div><div class="assignment-lead">Vanessa</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge completed">Completed</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-left-navigation-structure"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="automate-rejected-banners" onclick="openNotes(this)">
+        <div><div class="assignment-name">Automate Message For Rejected Banner Images</div><div class="assignment-desc">Automated rejection notification when school banner images fail to meet standards. Tricia leading; interns to assist. Banner form stays open via Teams - archive data, clear, reuse.</div></div>
+        <div><div class="assignment-lead">Tricia</div><div class="assignment-support">Melanie, Interns</div></div>
+        <div><span class="assignment-deadline">July 1, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-automate-rejected-banners"></span></button></div>
+      </div>
+    </div>
+
+    <!-- FINALSITE / MINIBASES -->
+    <h2>Finalsite Support &amp; Minibases</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Finalsite Platform &amp; Minibase Work</h3><span class="section-count">4 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="school-choice-minibase" onclick="openNotes(this)">
+        <div><div class="assignment-name">School Choice (Minibase)</div><div class="assignment-desc">Minibase supporting the district School Choice program. Pending initial outreach to minibase owners from Sean, with Tricia to follow up as needed.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-school-choice-minibase"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="minibase-training" onclick="openNotes(this)">
+        <div><div class="assignment-name">Minibase Training</div><div class="assignment-desc">Training minibase owners on content and file management. Decision pending on whether files will be hosted on Finalsite or through the District server.</div></div>
+        <div><div class="assignment-lead">Tricia</div><div class="assignment-support">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-minibase-training"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="school-board-records" onclick="openNotes(this)">
+        <div><div class="assignment-name">School Board Records</div><div class="assignment-desc">Managing School Board records access and publishing on Finalsite. Tricia has access; meeting with Noemi and Christine to be scheduled to move forward.</div></div>
+        <div><div class="assignment-lead">Tricia / Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-school-board-records"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="charter-schools" onclick="openNotes(this)">
+        <div><div class="assignment-name">Charter Schools (Matthew Cordova)</div><div class="assignment-desc">Web coordination and outreach for charter schools via Matthew Cordova. Initial contact and scoping conversation still pending from the district side.</div></div>
+        <div><div class="assignment-lead">-</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-charter-schools"></span></button></div>
+      </div>
+    </div>
+
+    <!-- COMMUNICATIONS -->
+    <h2>Communications</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>WCM Communications</h3><span class="section-count">3 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="wcm-communique-may12" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Communique - May 12</div><div class="assignment-desc">WCM newsletter edition for May 12. Collaborative effort across the web team with Vanessa, Sean, Andrea, and Felicia contributing content.</div></div>
+        <div><div class="assignment-lead">Vanessa / Sean A. Russell</div><div class="assignment-support">Andrea, Felicia</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-wcm-communique-may12"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="department-hot-labs" onclick="openNotes(this)">
+        <div><div class="assignment-name">Department Hot Labs</div><div class="assignment-desc">Twice-weekly open lab sessions providing live support and troubleshooting for department Web Content Managers. Standing recurring cadence.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline none">Ongoing</span></div>
+        <div><span class="status-badge ongoing">Ongoing</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-department-hot-labs"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="school-hot-labs" onclick="openNotes(this)">
+        <div><div class="assignment-name">School Hot Labs</div><div class="assignment-desc">Twice-weekly open lab sessions providing live support and troubleshooting for school Web Content Managers. Led by Rudy with Vanessa in support.</div></div>
+        <div><div class="assignment-lead">Rudy</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline none">Ongoing</span></div>
+        <div><span class="status-badge ongoing">Ongoing</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-school-hot-labs"></span></button></div>
+      </div>
+    </div>
+
+    <!-- PENDING -->
+    <h2>Pending Tasks</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Pending - Awaiting Action</h3><span class="section-count">3 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="school-maps-district-server" onclick="openNotes(this)">
+        <div><div class="assignment-name">Program School Maps on District Server</div><div class="assignment-desc">Programming and hosting interactive school maps on the District server. Assigned to Charlene; scope and timeline to be confirmed.</div></div>
+        <div><div class="assignment-lead">Charlene</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-school-maps-district-server"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="sharepoint-all-school-list" onclick="openNotes(this)">
+        <div><div class="assignment-name">SharePoint All School Master List</div><div class="assignment-desc">Master school directory in SharePoint with principals, assistant principals, and updated logos. Summer refresh in progress with Andrea in support.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Andrea</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-sharepoint-all-school-list"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="old-dillard-museum" onclick="openNotes(this)">
+        <div><div class="assignment-name">Old Dillard Museum</div><div class="assignment-desc">Web content project for the Old Dillard Museum. Pending content delivery from Edison, who did not meet the original deadline.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc-old-dillard-museum"></span></button></div>
+      </div>
+    </div>
+
+    <!-- COMPLETED -->
+    <h2>Completed Tasks</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Completed</h3><span class="section-count">24 items</span></div>
+      <div class="completed-grid">
+        <div class="completed-header"><div>Assignment</div><div>Lead</div><div>Completed</div></div>
+        <div class="completed-row" data-slug="assign-tasks-leads-support" onclick="openNotes(this)"><div class="completed-name">Assign Tasks for Leads and Support</div><div>Tricia / Sean A. Russell</div><div><span class="status-badge completed">Done</span></div></div>
+        <div class="completed-row" data-slug="wcm-communique-jan15" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Jan 15</div><div>Vanessa / Sean A. Russell</div><div>Jan 14, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-communique-feb11" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Feb 11</div><div>Vanessa / Sean A. Russell</div><div>Feb 10, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-dept-feb12" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Departments (Feb 12)</div><div>Sean A. Russell / Tricia</div><div>Feb 10, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-schools-feb20" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Schools (Feb 20)</div><div>Tricia / Sean A. Russell</div><div>Feb 20, 2026</div></div>
+        <div class="completed-row" data-slug="magnet-innovative-feb18" onclick="openNotes(this)"><div class="completed-name">Magnet/Innovative Online Info Session (Feb 18)</div><div>Vanessa / Rudy</div><div>Feb 20, 2026</div></div>
+        <div class="completed-row" data-slug="dual-languages" onclick="openNotes(this)"><div class="completed-name">Dual Languages</div><div>Vanessa</div><div>Feb 27, 2026</div></div>
+        <div class="completed-row" data-slug="hot-lab-calendar" onclick="openNotes(this)"><div class="completed-name">Create New Hot Lab Calendar</div><div>Sean A. Russell / Vanessa</div><div>Feb 27, 2026</div></div>
+        <div class="completed-row" data-slug="popups-dept-pages" onclick="openNotes(this)"><div class="completed-name">Pop-ups on Individual Department Pages</div><div>Sean A. Russell</div><div>Mar 6, 2026</div></div>
+        <div class="completed-row" data-slug="issues-with-caption" onclick="openNotes(this)"><div class="completed-name">Issues with Caption</div><div>Andrea</div><div>Mar 9, 2026</div></div>
+        <div class="completed-row" data-slug="email-errors-teams" onclick="openNotes(this)"><div class="completed-name">Email Errors from Canceling Teams Meeting</div><div>Sean A. Russell</div><div>Mar 9, 2026</div></div>
+        <div class="completed-row" data-slug="bsc-minibase" onclick="openNotes(this)"><div class="completed-name">Business Support Center (Minibase)</div><div>Tricia / Charlene</div><div>Mar 27, 2026</div></div>
+        <div class="completed-row" data-slug="launch-wcm-hub" onclick="openNotes(this)"><div class="completed-name">Launch WCM Hub (Website)</div><div>Vanessa / Sean A. Russell</div><div>Apr 1, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-communique-mar26" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Mar 26</div><div>Sean A. Russell / Vanessa</div><div>Mar 25, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-dept-apr9" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Departments (Apr 9)</div><div>Sean A. Russell / Tricia</div><div>Apr 13, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-schools-apr10" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Schools (Apr 10)</div><div>Tricia / Sean A. Russell</div><div>Mar 31, 2026</div></div>
+        <div class="completed-row" data-slug="missing-profile-image" onclick="openNotes(this)"><div class="completed-name">Missing Profile Image in Contact Info</div><div>Sean A. Russell</div><div>Mar 25, 2026</div></div>
+        <div class="completed-row" data-slug="popup-formatting-issues" onclick="openNotes(this)"><div class="completed-name">Multiple Pop-up Formatting Issues</div><div>Sean A. Russell</div><div>Mar 25, 2026</div></div>
+        <div class="completed-row" data-slug="ppo-minibase" onclick="openNotes(this)"><div class="completed-name">PPO Minibase</div><div>Tricia</div><div>Mar 27, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-communique-apr15" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Apr 15</div><div>Vanessa / Sean A. Russell</div><div>Apr 3, 2026</div></div>
+        <div class="completed-row" data-slug="maintenance-update-process" onclick="openNotes(this)"><div class="completed-name">Find Process for Maintenance Update</div><div>Tricia</div><div>-</div></div>
+        <div class="completed-row" data-slug="streamvu" onclick="openNotes(this)"><div class="completed-name">StreamVu</div><div>Sean A. Russell, Nakesha</div><div>May 19, 2026</div></div>
+        <div class="completed-row" data-slug="combination-schools-menu" onclick="openNotes(this)"><div class="completed-name">Combination Schools in Menu</div><div>Felicia</div><div>May 20, 2026</div></div>
+        <div class="completed-row" data-slug="confirm-lab-courses" onclick="openNotes(this)"><div class="completed-name">Confirm Lab Courses</div><div>Rudy</div><div><span class="status-badge completed">Done</span></div></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+
+<!-- NOTES MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <div class="modal-header-text">
+        <div class="modal-title" id="modal-title">Assignment Notes</div>
+        <div class="modal-subtitle">Notes Trail</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-notes" id="modal-notes-body">
+      <div class="notes-loading">Loading notes...</div>
+    </div>
+    <div class="modal-input">
+      <div class="recorder-bar">
+        <button class="mic-btn" id="mic-btn" type="button">
+          <span class="mic-dot"></span>
+          <span id="mic-label">Record</span>
+        </button>
+        <span class="live-transcript" id="live-transcript">Press Record to transcribe speech into a note.</span>
+      </div>
+      <textarea class="modal-text-input" id="note-input" placeholder="Type a note, or use Record above to speak it..." rows="2"></textarea>
+      <div class="modal-input-row">
+        <span id="author-display" style="font-size:11px;font-weight:800;color:#1672A7;text-transform:uppercase;letter-spacing:0.1em;padding:4px 0;"></span>
+        <button class="modal-submit" id="submit-btn" onclick="addNote()">Add Note</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+
+  let currentSlug = null;
+  let noteCounts = {};
+
+  // Load all note counts on page load
+  async function loadAllCounts() {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/bcps_assignment_notes?select=assignment_slug`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+      );
+      const rows = await res.json();
+      const counts = {};
+      rows.forEach(r => { counts[r.assignment_slug] = (counts[r.assignment_slug] || 0) + 1; });
+      noteCounts = counts;
+      Object.entries(counts).forEach(([slug, count]) => {
+        const el = document.getElementById('nc-' + slug);
+        if (el) { el.textContent = count; el.classList.add('has-notes'); }
+      });
+    } catch(e) { /* silent fail */ }
+  }
+
+  function openNotes(rowEl) {
+    const slug = rowEl.getAttribute('data-slug');
+    const nameEl = rowEl.querySelector('.assignment-name, .completed-name');
+    const name = nameEl ? nameEl.textContent : slug;
+    currentSlug = slug;
+    document.getElementById('modal-title').textContent = name;
+    document.getElementById('modal-overlay').classList.add('open');
+    document.getElementById('note-input').value = '';
+    loadNotes();
+    setTimeout(() => document.getElementById('note-input').focus(), 100);
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  }
+
+  async function loadNotes() {
+    const body = document.getElementById('modal-notes-body');
+    body.innerHTML = '<div class="notes-loading">Loading...</div>';
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/bcps_assignment_notes?assignment_slug=eq.${currentSlug}&order=created_at.asc`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+      );
+      const notes = await res.json();
+      if (!notes.length) {
+        body.innerHTML = '<div class="notes-empty">No notes yet. Add the first one below.</div>';
+        return;
+      }
+      const curUser = getCurrentUser();
+      body.innerHTML = notes.map(n => `
+        <div class="note-item">
+          <div class="note-meta">
+            <span class="note-author">${escHtml(n.author)}</span>
+            <span class="note-time">${formatDate(n.created_at)}</span>
+            ${curUser && n.author === curUser ? `<button class="note-delete" onclick="deleteNote('${n.id}')" title="Delete note">&#128465;</button>` : ''}
+          </div>
+          <div class="note-text">${escHtml(n.note_text)}</div>
+        </div>
+      `).join('');
+      body.scrollTop = body.scrollHeight;
+    } catch(e) {
+      body.innerHTML = '<div class="notes-empty">Could not load notes. Check connection.</div>';
+    }
+  }
+
+  async function addNote() {
+    const text = document.getElementById('note-input').value.trim();
+    const author = getCurrentUser() || 'Team';
+    if (!text || !currentSlug) return;
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/bcps_assignment_notes`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ assignment_slug: currentSlug, note_text: text, author: author })
+      });
+      document.getElementById('note-input').value = '';
+      // Update count badge
+      noteCounts[currentSlug] = (noteCounts[currentSlug] || 0) + 1;
+      const el = document.getElementById('nc-' + currentSlug);
+      if (el) { el.textContent = noteCounts[currentSlug]; el.classList.add('has-notes'); }
+      await loadNotes();
+    } catch(e) {
+      alert('Could not save note. Please try again.');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Add Note';
+  }
+
+  // Submit on Cmd/Ctrl+Enter
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') addNote();
+  });
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function switchVersion(v) {
+    document.querySelectorAll('.snapshot').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.version-btn').forEach(b => b.classList.remove('active'));
+    const snap = document.getElementById('snap-' + v);
+    if (snap) snap.classList.add('active');
+    const btn = document.querySelector('[data-v="' + v + '"]');
+    if (btn) btn.classList.add('active');
+  }
+
+  // ---- VOICE RECORDER ----
+  (function() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    var recog = null;
+    var isRecording = false;
+    var accumulated = '';
+    var committed = false;
+    var permissionBlocked = false;
+
+    function micBtn()  { return document.getElementById('mic-btn'); }
+    function micLbl()  { return document.getElementById('mic-label'); }
+    function liveEl()  { return document.getElementById('live-transcript'); }
+    function noteEl()  { return document.getElementById('note-input'); }
+
+    function setUI(recording) {
+      var b = micBtn(), l = micLbl();
+      if (b) b.classList.toggle('recording', recording);
+      if (l) l.textContent = recording ? 'Stop' : 'Record';
+    }
+
+    function setMsg(msg, active) {
+      var el = liveEl();
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.toggle('active', !!active);
+    }
+
+    function clean(t) {
+      t = t.trim();
+      if (!t) return '';
+      t = t.charAt(0).toUpperCase() + t.slice(1);
+      if (t.length > 15 && !/[.!?]$/.test(t)) t += '.';
+      return t;
+    }
+
+    function commit() {
+      if (committed) return;
+      committed = true;
+      var text = accumulated.trim();
+      accumulated = '';
+      if (!text) {
+        if (permissionBlocked) return; // error handler already set message
+        setMsg('Nothing captured - check that your microphone is enabled and speak clearly.', false);
+        return;
+      }
+      var inp = noteEl();
+      if (inp) {
+        inp.value = inp.value.trimEnd() ? inp.value.trimEnd() + ' ' + text : text;
+        inp.focus();
+        inp.setSelectionRange(inp.value.length, inp.value.length);
+      }
+      setMsg('Transcript added. Edit below and click Add Note.', false);
+    }
+
+    function runSession() {
+      if (!isRecording || !SR) return;
+      recog = new SR();
+      recog.continuous = false;
+      recog.interimResults = true;
+      recog.lang = 'en-US';
+
+      recog.onstart = function() {
+        setMsg('Listening...', true);
+      };
+
+      recog.onresult = function(e) {
+        var interim = '';
+        for (var i = 0; i < e.results.length; i++) {
+          var t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            var c = clean(t);
+            if (c) accumulated += (accumulated ? ' ' : '') + c;
+          } else {
+            interim += t;
+          }
+        }
+        if (interim) {
+          setMsg(interim, true);
+        } else if (accumulated) {
+          var preview = accumulated.length > 60 ? '...' + accumulated.slice(-57) : accumulated;
+          setMsg(preview, true);
+        }
+      };
+
+      recog.onerror = function(e) {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          permissionBlocked = true;
+          isRecording = false;
+          setUI(false);
+          setMsg('⚠️ Microphone blocked - click the lock icon in your address bar, allow microphone, then refresh.', false);
+        } else if (e.error === 'network') {
+          isRecording = false;
+          setUI(false);
+          setMsg('Network error - speech service unavailable.', false);
+        }
+        // no-speech / aborted: let onend handle restart
+      };
+
+      recog.onend = function() {
+        if (isRecording) {
+          setTimeout(runSession, 100);
+        } else {
+          commit();
+        }
+      };
+
+      try {
+        recog.start();
+      } catch (err) {
+        setTimeout(function() { if (isRecording) runSession(); }, 250);
+      }
+    }
+
+    function startRecording() {
+      if (!SR) {
+        setMsg('Voice input requires Chrome or Edge.', false);
+        return;
+      }
+      accumulated = '';
+      committed = false;
+      permissionBlocked = false;
+      isRecording = true;
+      setUI(true);
+      setMsg('Starting...', true);
+      runSession();
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      committed = false;
+      setUI(false);
+      if (recog) { try { recog.stop(); } catch (err) {} }
+      // Fallback: if onend never fires, commit after 500ms
+      setTimeout(function() {
+        if (!committed) commit();
+      }, 500);
+    }
+
+    // Wire up button via JS (not inline onclick)
+    document.addEventListener('DOMContentLoaded', function() {
+      var btn = document.getElementById('mic-btn');
+      if (btn) {
+        btn.addEventListener('click', function() {
+          if (isRecording) { stopRecording(); } else { startRecording(); }
+        });
+      }
+    });
+
+    // Expose stopRecording so closeModal can call it
+    window._recorderStop = function() {
+      if (isRecording) stopRecording();
+      setMsg('Press Record to transcribe speech into a note.', false);
+    };
+  })();
+
+  // ---- END VOICE RECORDER ----
+
+  function closeModal() {
+    if (window._recorderStop) window._recorderStop();
+    document.getElementById('modal-overlay').classList.remove('open');
+    currentSlug = null;
+  }
+
+  // Auto-load on page ready (no auth required)
+  window.addEventListener('load', () => {
+    loadAllCounts();
+  });
+</script>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+
+  let currentSlug = null;
+  let noteCounts = {};
+
+  // Load all note counts on page load
+  async function loadAllCounts() {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/bcps_assignment_notes?select=assignment_slug`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+      );
+      const rows = await res.json();
+      const counts = {};
+      rows.forEach(r => { counts[r.assignment_slug] = (counts[r.assignment_slug] || 0) + 1; });
+      noteCounts = counts;
+      Object.entries(counts).forEach(([slug, count]) => {
+        const el = document.getElementById('nc-' + slug);
+        if (el) { el.textContent = count; el.classList.add('has-notes'); }
+      });
+    } catch(e) { /* silent fail */ }
+  }
+
+  function openNotes(rowEl) {
+    const slug = rowEl.getAttribute('data-slug');
+    const nameEl = rowEl.querySelector('.assignment-name, .completed-name');
+    const name = nameEl ? nameEl.textContent : slug;
+    currentSlug = slug;
+    document.getElementById('modal-title').textContent = name;
+    document.getElementById('modal-overlay').classList.add('open');
+    document.getElementById('note-input').value = '';
+    loadNotes();
+    setTimeout(() => document.getElementById('note-input').focus(), 100);
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  }
+
+  async function loadNotes() {
+    const body = document.getElementById('modal-notes-body');
+    body.innerHTML = '<div class="notes-loading">Loading...</div>';
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/bcps_assignment_notes?assignment_slug=eq.${currentSlug}&order=created_at.asc`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+      );
+      const notes = await res.json();
+      if (!notes.length) {
+        body.innerHTML = '<div class="notes-empty">No notes yet. Add the first one below.</div>';
+        return;
+      }
+      const curUser = getCurrentUser();
+      body.innerHTML = notes.map(n => `
+        <div class="note-item">
+          <div class="note-meta">
+            <span class="note-author">${escHtml(n.author)}</span>
+            <span class="note-time">${formatDate(n.created_at)}</span>
+            ${curUser && n.author === curUser ? `<button class="note-delete" onclick="deleteNote('${n.id}')" title="Delete note">&#128465;</button>` : ''}
+          </div>
+          <div class="note-text">${escHtml(n.note_text)}</div>
+        </div>
+      `).join('');
+      body.scrollTop = body.scrollHeight;
+    } catch(e) {
+      body.innerHTML = '<div class="notes-empty">Could not load notes. Check connection.</div>';
+    }
+  }
+
+  async function addNote() {
+    const text = document.getElementById('note-input').value.trim();
+    const author = getCurrentUser() || 'Team';
+    if (!text || !currentSlug) return;
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/bcps_assignment_notes`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ assignment_slug: currentSlug, note_text: text, author: author })
+      });
+      document.getElementById('note-input').value = '';
+      // Update count badge
+      noteCounts[currentSlug] = (noteCounts[currentSlug] || 0) + 1;
+      const el = document.getElementById('nc-' + currentSlug);
+      if (el) { el.textContent = noteCounts[currentSlug]; el.classList.add('has-notes'); }
+      await loadNotes();
+    } catch(e) {
+      alert('Could not save note. Please try again.');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Add Note';
+  }
+
+  // Submit on Cmd/Ctrl+Enter
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') addNote();
+  });
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function switchVersion(v) {
+    document.querySelectorAll('.snapshot').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.version-btn').forEach(b => b.classList.remove('active'));
+    const snap = document.getElementById('snap-' + v);
+    if (snap) snap.classList.add('active');
+    const btn = document.querySelector('[data-v="' + v + '"]');
+    if (btn) btn.classList.add('active');
+  }
+
+  // ---- VOICE RECORDER ----
+  (function() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    var recog = null;
+    var isRecording = false;
+    var accumulated = '';
+    var committed = false;
+    var permissionBlocked = false;
+
+    function micBtn()  { return document.getElementById('mic-btn'); }
+    function micLbl()  { return document.getElementById('mic-label'); }
+    function liveEl()  { return document.getElementById('live-transcript'); }
+    function noteEl()  { return document.getElementById('note-input'); }
+
+    function setUI(recording) {
+      var b = micBtn(), l = micLbl();
+      if (b) b.classList.toggle('recording', recording);
+      if (l) l.textContent = recording ? 'Stop' : 'Record';
+    }
+
+    function setMsg(msg, active) {
+      var el = liveEl();
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.toggle('active', !!active);
+    }
+
+    function clean(t) {
+      t = t.trim();
+      if (!t) return '';
+      t = t.charAt(0).toUpperCase() + t.slice(1);
+      if (t.length > 15 && !/[.!?]$/.test(t)) t += '.';
+      return t;
+    }
+
+    function commit() {
+      if (committed) return;
+      committed = true;
+      var text = accumulated.trim();
+      accumulated = '';
+      if (!text) {
+        if (permissionBlocked) return; // error handler already set message
+        setMsg('Nothing captured - check that your microphone is enabled and speak clearly.', false);
+        return;
+      }
+      var inp = noteEl();
+      if (inp) {
+        inp.value = inp.value.trimEnd() ? inp.value.trimEnd() + ' ' + text : text;
+        inp.focus();
+        inp.setSelectionRange(inp.value.length, inp.value.length);
+      }
+      setMsg('Transcript added. Edit below and click Add Note.', false);
+    }
+
+    function runSession() {
+      if (!isRecording || !SR) return;
+      recog = new SR();
+      recog.continuous = false;
+      recog.interimResults = true;
+      recog.lang = 'en-US';
+
+      recog.onstart = function() {
+        setMsg('Listening...', true);
+      };
+
+      recog.onresult = function(e) {
+        var interim = '';
+        for (var i = 0; i < e.results.length; i++) {
+          var t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            var c = clean(t);
+            if (c) accumulated += (accumulated ? ' ' : '') + c;
+          } else {
+            interim += t;
+          }
+        }
+        if (interim) {
+          setMsg(interim, true);
+        } else if (accumulated) {
+          var preview = accumulated.length > 60 ? '...' + accumulated.slice(-57) : accumulated;
+          setMsg(preview, true);
+        }
+      };
+
+      recog.onerror = function(e) {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          permissionBlocked = true;
+          isRecording = false;
+          setUI(false);
+          setMsg('⚠️ Microphone blocked - click the lock icon in your address bar, allow microphone, then refresh.', false);
+        } else if (e.error === 'network') {
+          isRecording = false;
+          setUI(false);
+          setMsg('Network error - speech service unavailable.', false);
+        }
+        // no-speech / aborted: let onend handle restart
+      };
+
+      recog.onend = function() {
+        if (isRecording) {
+          setTimeout(runSession, 100);
+        } else {
+          commit();
+        }
+      };
+
+      try {
+        recog.start();
+      } catch (err) {
+        setTimeout(function() { if (isRecording) runSession(); }, 250);
+      }
+    }
+
+    function startRecording() {
+      if (!SR) {
+        setMsg('Voice input requires Chrome or Edge.', false);
+        return;
+      }
+      accumulated = '';
+      committed = false;
+      permissionBlocked = false;
+      isRecording = true;
+      setUI(true);
+      setMsg('Starting...', true);
+      runSession();
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      committed = false;
+      setUI(false);
+      if (recog) { try { recog.stop(); } catch (err) {} }
+      // Fallback: if onend never fires, commit after 500ms
+      setTimeout(function() {
+        if (!committed) commit();
+      }, 500);
+    }
+
+    // Wire up button via JS (not inline onclick)
+    document.addEventListener('DOMContentLoaded', function() {
+      var btn = document.getElementById('mic-btn');
+      if (btn) {
+        btn.addEventListener('click', function() {
+          if (isRecording) { stopRecording(); } else { startRecording(); }
+        });
+      }
+    });
+
+    // Expose stopRecording so closeModal can call it
+    window._recorderStop = function() {
+      if (isRecording) stopRecording();
+      setMsg('Press Record to transcribe speech into a note.', false);
+    };
+  })();
+
+  // ---- END VOICE RECORDER ----
+
+  function closeModal() {
+    if (window._recorderStop) window._recorderStop();
+    document.getElementById('modal-overlay').classList.remove('open');
+    currentSlug = null;
+  }
+
+  // Auto-load on page ready (no auth required)
+  window.addEventListener('load', () => {
+    loadAllCounts();
+  });
+</script>
+
+<script>
+  function toggleSidebar() {
+    const sb = document.getElementById('sidebar'), bd = document.getElementById('sidebarBackdrop');
+    const shell = document.querySelector('.app-shell');
+    const isOpen = sb.classList.contains('open');
+    sb.classList.toggle('open', !isOpen); sb.classList.toggle('closed', isOpen);
+    bd.classList.toggle('show', !isOpen);
+    shell.classList.toggle('sidebar-open', !isOpen);
+  }
+
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar').classList.add('closed');
+    document.getElementById('sidebarBackdrop').classList.remove('show');
+    document.querySelector('.app-shell').classList.remove('sidebar-open');
+  }
+
+  document.addEventListener('keydown', e => { if (e.key==='Escape') { closeDetail(); closeSidebar(); } });
+  if (window.innerWidth >= 900) {
+    document.getElementById('sidebar').classList.remove('closed');
+    document.getElementById('sidebar').classList.add('open');
+    document.querySelector('.app-shell').classList.add('sidebar-open');
+  }
+  loadDepts();
+
+</script>
+</body>
+</html>

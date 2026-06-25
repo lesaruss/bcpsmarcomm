@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Employee Records - BCPS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+  .bcps-header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .user-chip { font-size: 11px; font-weight: 600; color: var(--text-50); }
+  .back-link { font-size: 11px; font-weight: 700; color: var(--bcps-blue); text-transform: uppercase; letter-spacing: 0.1em; padding: 6px 14px; border: 1px solid rgba(22,114,167,0.3); border-radius: 6px; }
+  .back-link:hover { background: rgba(22,114,167,0.07); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+
+  .page-header { margin-bottom: 36px; }
+  .page-title { font-size: clamp(22px, 3vw, 34px); font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1.05; margin-bottom: 8px; }
+  .page-desc { font-size: 13px; color: var(--text-50); font-weight: 600; }
+
+  .access-denied {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 48px 32px; text-align: center; margin-top: 32px;
+  }
+  .access-denied .lock-icon { font-size: 36px; margin-bottom: 16px; color: var(--bcps-blue); }
+  .access-denied h2 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+  .access-denied p { font-size: 13px; color: var(--text-50); margin-bottom: 20px; }
+  .login-btn { display: inline-block; background: var(--bcps-blue); color: white; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 12px 24px; border-radius: 8px; cursor: pointer; border: none; font-family: inherit; }
+  .login-btn:hover { background: var(--bcps-blue-dark); }
+
+  .loading-state { text-align: center; padding: 48px; color: var(--text-50); font-size: 13px; font-weight: 600; }
+  .loading-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--bcps-blue); animation: pulse 1.4s ease-in-out infinite; margin: 0 3px; }
+  .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+
+  .section-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+  .tab-btn { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; padding: 10px 18px; border: none; background: none; cursor: pointer; color: var(--text-50); border-bottom: 3px solid transparent; margin-bottom: -1px; font-family: inherit; transition: all 0.15s; }
+  .tab-btn.active { color: var(--bcps-blue); border-bottom-color: var(--bcps-blue); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  .records-grid { display: grid; gap: 16px; }
+  .record-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; display: flex; gap: 20px; align-items: flex-start; transition: box-shadow 0.15s; }
+  .record-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+
+  .record-icon {
+    width: 44px; height: 44px; min-width: 44px; border-radius: 10px;
+    background: rgba(22,114,167,0.10); display: flex; align-items: center; justify-content: center;
+  }
+  .record-icon svg { width: 22px; height: 22px; }
+
+  .record-body { flex: 1; min-width: 0; }
+  .record-type-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: var(--bcps-blue); margin-bottom: 5px; }
+  .record-title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 6px; line-height: 1.3; }
+  .record-desc { font-size: 12px; color: var(--text-75); line-height: 1.65; margin-bottom: 12px; }
+
+  .record-meta { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .record-meta-item { display: flex; flex-direction: column; gap: 2px; }
+  .rml { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-30); }
+  .rmv { font-size: 11px; font-weight: 600; color: var(--text-50); }
+
+  .record-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .record-btn { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; padding: 7px 14px; border-radius: 6px; cursor: pointer; border: none; font-family: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .record-btn.primary { background: var(--bcps-blue); color: white; }
+  .record-btn.primary:hover { background: var(--bcps-blue-dark); }
+  .record-btn.secondary { background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .record-btn.secondary:hover { border-color: var(--bcps-blue); color: var(--bcps-blue); }
+
+  .badge { display: inline-block; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.12em; padding: 3px 8px; border-radius: 4px; }
+  .badge.green { background: rgba(22,117,12,0.10); border: 1px solid rgba(22,117,12,0.28); color: var(--bcps-green); }
+  .badge.blue { background: rgba(22,114,167,0.10); border: 1px solid rgba(22,114,167,0.28); color: var(--bcps-blue-dark); }
+  .badge.private { background: rgba(0,0,0,0.05); border: 1px solid var(--border); color: var(--text-30); }
+
+  .empty-state { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 48px 32px; text-align: center; color: var(--text-50); }
+  .empty-state p { font-size: 13px; font-weight: 600; }
+
+  .info-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 14px 18px; margin-bottom: 28px; font-size: 12px; color: var(--text-75); line-height: 1.65; }
+  .info-banner strong { color: var(--bcps-blue-dark); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">BCPS - Employee Records</span>
+  <div class="bcps-header-right">
+    <span class="user-chip" id="user-chip"></span>
+    <a href="/studio" class="back-link">Back to Studio</a>
+  </div>
+</header>
+
+<main>
+  <!-- Loading state -->
+  <div id="loading-state" class="loading-state">
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+  </div>
+
+  <!-- Access denied state (hidden by default) -->
+  <div id="access-denied" style="display:none;">
+    <div class="page-header">
+      <h1 class="page-title">Employee Records</h1>
+      <p class="page-desc">Personal employment documents, performance records, and district files</p>
+    </div>
+    <div class="access-denied">
+      <div class="lock-icon">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <h2>Sign In to View Your Records</h2>
+      <p>Employee Records are private and account-specific. Sign in with your LESARUSS HQ account to access your personal employment documents.</p>
+      <button class="login-btn" onclick="window.location.href='/login?redirect=/bcps/employee-records'">Sign In</button>
+    </div>
+  </div>
+
+  <!-- Authenticated state (hidden by default) -->
+  <div id="authenticated-view" style="display:none;">
+    <div class="page-header">
+      <h1 class="page-title">Employee Records</h1>
+      <p class="page-desc" id="records-subtitle">Personal employment documents, performance records, and district files</p>
+    </div>
+
+    <div class="info-banner">
+      <strong>Private &amp; Secure.</strong> These records are visible only to you. Records are stored in your LESARUSS account and are not accessible to other members or administrators unless you choose to share them.
+    </div>
+
+    <div class="section-tabs">
+      <button class="tab-btn active" onclick="filterRecords('all', this)">All Records</button>
+      <button class="tab-btn" onclick="filterRecords('performance_appraisal', this)">Performance Appraisals</button>
+      <button class="tab-btn" onclick="filterRecords('brief', this)">Meeting Briefs</button>
+      <button class="tab-btn" onclick="filterRecords('other', this)">Other</button>
+    </div>
+
+    <div id="records-grid" class="records-grid"></div>
+    <div id="empty-state" class="empty-state" style="display:none;"><p>No records found in this category.</p></div>
+  </div>
+</main>
+
+<script>
+const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let allRecords = [];
+let currentFilter = 'all';
+
+const RECORD_TYPE_LABELS = {
+  performance_appraisal: 'Performance Appraisal',
+  brief: 'Meeting Brief',
+  contract: 'Contract',
+  certification: 'Certification',
+  other: 'Document'
+};
+
+function recordTypeIcon(type) {
+  if (type === 'performance_appraisal') {
+    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1672A7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>`;
+  }
+  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1672A7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>`;
+}
+
+function ratingBadge(meta) {
+  if (!meta || !meta.overall_rating) return '';
+  const isH = meta.overall_rating.startsWith('H');
+  return `<span class="badge ${isH ? 'green' : 'blue'}">${meta.overall_rating}</span>`;
+}
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function renderRecords(records) {
+  const grid = document.getElementById('records-grid');
+  const empty = document.getElementById('empty-state');
+  if (!records || records.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = records.map(r => {
+    const meta = r.metadata || {};
+    const typeLabel = RECORD_TYPE_LABELS[r.record_type] || 'Document';
+    return `
+    <div class="record-card" data-type="${r.record_type}">
+      <div class="record-icon">${recordTypeIcon(r.record_type)}</div>
+      <div class="record-body">
+        <div class="record-type-label">${typeLabel} ${ratingBadge(meta)}</div>
+        <div class="record-title">${r.title}</div>
+        <div class="record-desc">${r.description || ''}</div>
+        <div class="record-meta">
+          ${r.school_year ? `<div class="record-meta-item"><span class="rml">School Year</span><span class="rmv">${r.school_year}</span></div>` : ''}
+          ${meta.supervisor ? `<div class="record-meta-item"><span class="rml">Supervisor</span><span class="rmv">${meta.supervisor}</span></div>` : ''}
+          ${meta.department ? `<div class="record-meta-item"><span class="rml">Department</span><span class="rmv">${meta.department}</span></div>` : ''}
+          <div class="record-meta-item"><span class="rml">Added</span><span class="rmv">${formatDate(r.created_at)}</span></div>
+          <div class="record-meta-item"><span class="rml">Visibility</span><span class="rmv"><span class="badge private">Private</span></span></div>
+        </div>
+        <div class="record-actions">
+          ${r.hq_url ? `<a href="${r.hq_url}" target="_blank" class="record-btn primary">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            View Document
+          </a>` : ''}
+          ${r.document_url && r.document_url !== r.hq_url ? `<a href="${r.document_url}" target="_blank" class="record-btn secondary">
+            External Link
+          </a>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterRecords(type, btn) {
+  currentFilter = type;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (type === 'all') {
+    renderRecords(allRecords);
+  } else if (type === 'other') {
+    renderRecords(allRecords.filter(r => !['performance_appraisal', 'brief'].includes(r.record_type)));
+  } else {
+    renderRecords(allRecords.filter(r => r.record_type === type));
+  }
+}
+
+async function init() {
+  const loading = document.getElementById('loading-state');
+  const denied = document.getElementById('access-denied');
+  const authView = document.getElementById('authenticated-view');
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+
+    if (!session) {
+      loading.style.display = 'none';
+      denied.style.display = '';
+      return;
+    }
+
+    const userEmail = session.user.email;
+    document.getElementById('user-chip').textContent = userEmail;
+    document.getElementById('records-subtitle').textContent = `Records for ${userEmail}`;
+
+    // Fetch records for this user (RLS enforces user-scoping)
+    const { data: records, error } = await sb
+      .from('employee_records')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    allRecords = records || [];
+
+    loading.style.display = 'none';
+    authView.style.display = '';
+    renderRecords(allRecords);
+
+  } catch (err) {
+    loading.style.display = 'none';
+    denied.style.display = '';
+    console.error('Employee Records error:', err);
+  }
+}
+
+init();
+</script>
+</body>
+</html>

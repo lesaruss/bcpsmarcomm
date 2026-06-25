@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documents - BCPS Marcomm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); flex: 1; }
+
+  main { width: 100%; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(24px, 4vw, 38px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 12px; }
+  .subtitle { font-size: 14px; font-weight: 400; color: var(--text-50); margin-bottom: 32px; line-height: 1.6; }
+
+  .docs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+
+  .doc-card {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .doc-card:hover {
+    border-color: var(--bcps-blue);
+    box-shadow: 0 4px 16px rgba(22,114,167,0.15);
+  }
+
+  .doc-card:active {
+    transform: scale(0.98);
+  }
+
+  .doc-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(22,114,167,0.08);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    font-size: 24px;
+  }
+
+  .doc-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+
+  .doc-description {
+    font-size: 13px;
+    color: var(--text-50);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .doc-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-30);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+
+  .doc-type {
+    background: rgba(22,114,167,0.10);
+    color: var(--bcps-blue);
+    padding: 3px 8px;
+    border-radius: 3px;
+  }
+
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 1000;
+  }
+
+  .lightbox.active {
+    display: flex;
+  }
+
+  .lightbox-content {
+    width: 100%;
+    max-width: 1120px;
+    height: 88vh;
+    background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+
+  .lightbox-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .lightbox-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .lightbox-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .lightbox-open-btn {
+    font-size: 11px;
+    font-weight: 700;
+    color: #7d4a00;
+    text-decoration: none;
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 6px 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--surface);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .lightbox-open-btn:hover {
+    border-color: #7d4a00;
+    background: rgba(125,74,0,0.04);
+  }
+
+  .lightbox-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    font-family: "Montserrat", sans-serif;
+    font-weight: 400;
+  }
+
+  .lightbox-close-btn:hover {
+    border-color: var(--text);
+    background: var(--surface2);
+  }
+
+  .lightbox-iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+  }
+
+  @media (max-width: 600px) {
+    main { padding: 84px 16px 60px; }
+    header.bcps-header { padding: 0 16px; gap: 10px; }
+    .bcps-header-title { font-size: 10px; }
+    .docs-grid { grid-template-columns: 1fr; }
+    .lightbox { padding: 12px; }
+    .lightbox-content { max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">Documents</span>
+</header>
+
+<main role="main">
+  <h1>Documents</h1>
+  <p class="subtitle">All BCPS marketing communications plans, governance documents, and implementation guides. Click any document to preview, or open full page to view standalone.</p>
+
+  <div class="docs-grid">
+    <!-- Website Governance Plan -->
+    <a href="bcps-website-governance-plan-2026-06-10.html" class="doc-card" onclick="openLightbox(event, 'bcps-website-governance-plan-2026-06-10.html', 'Website Governance Plan')">
+      <div class="doc-icon">📋</div>
+      <div class="doc-title">Website Governance Plan</div>
+      <p class="doc-description">Strategic governance framework for the BCPS website, including roles, responsibilities, and decision-making processes.</p>
+      <div class="doc-meta">
+        <span class="doc-type">Plan</span>
+        <span>June 10, 2026</span>
+      </div>
+    </a>
+
+    <!-- APPAS Self-Evaluation -->
+    <a href="bcps-appas-self-eval-2024-2025.html" class="doc-card" onclick="openLightbox(event, 'bcps-appas-self-eval-2024-2025.html', 'APPAS Self-Evaluation 2024-2025')">
+      <div class="doc-icon">📊</div>
+      <div class="doc-title">APPAS Self-Evaluation</div>
+      <p class="doc-description">Annual Accessibility Progress and Accessibility Standards self-evaluation for 2024-2025 school year.</p>
+      <div class="doc-meta">
+        <span class="doc-type">Report</span>
+        <span>2024-2025</span>
+      </div>
+    </a>
+
+    <!-- APPAS Evaluation -->
+    <a href="bcps-appas-evaluation.html" class="doc-card" onclick="openLightbox(event, 'bcps-appas-evaluation.html', 'APPAS Evaluation')">
+      <div class="doc-icon">✓</div>
+      <div class="doc-title">APPAS Evaluation</div>
+      <p class="doc-description">Complete accessibility standards evaluation and recommendations for continuous improvement.</p>
+      <div class="doc-meta">
+        <span class="doc-type">Assessment</span>
+        <span>2026</span>
+      </div>
+    </a>
+
+    <!-- Implementation Plan -->
+    <a href="bcps-implementation-plan-2026-2027.pdf" class="doc-card" onclick="openLightbox(event, 'bcps-implementation-plan-2026-2027.pdf', 'Implementation Plan 2026-2027')">
+      <div class="doc-icon">🗺️</div>
+      <div class="doc-title">Implementation Plan</div>
+      <p class="doc-description">Strategic implementation roadmap for accessibility and communications improvements across the district.</p>
+      <div class="doc-meta">
+        <span class="doc-type">Plan</span>
+        <span>2026-2027</span>
+      </div>
+    </a>
+  </div>
+</main>
+
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-content" onclick="event.stopPropagation()">
+    <div class="lightbox-header">
+      <span class="lightbox-title" id="lightbox-title"></span>
+      <div class="lightbox-actions">
+        <a class="lightbox-open-btn" id="lightbox-open-btn" target="_blank" rel="noopener noreferrer">Open full page ↗</a>
+        <button class="lightbox-close-btn" onclick="closeLightbox()" aria-label="Close preview">×</button>
+      </div>
+    </div>
+    <iframe class="lightbox-iframe" id="lightbox-iframe" title="Document preview"></iframe>
+  </div>
+</div>
+
+<script>
+  const lightbox = document.getElementById('lightbox');
+  const lightboxTitle = document.getElementById('lightbox-title');
+  const lightboxIframe = document.getElementById('lightbox-iframe');
+  const lightboxOpenBtn = document.getElementById('lightbox-open-btn');
+
+  function openLightbox(event, url, title) {
+    event.preventDefault();
+    lightboxTitle.textContent = title;
+    lightboxIframe.src = url;
+    lightboxOpenBtn.href = url;
+    lightbox.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove('active');
+    lightboxIframe.src = '';
+    document.body.style.overflow = '';
+  }
+
+  // Close on backdrop click
+  lightbox.addEventListener('click', (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && lightbox.classList.contains('active')) {
+      closeLightbox();
+    }
+  });
+</script>
+
+</body>
+</html>
