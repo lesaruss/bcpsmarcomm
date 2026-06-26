@@ -35,6 +35,7 @@ const PAGE_TITLES: Record<PageId, { title: string; sub: string }> = {
   reports: { title: 'Reports', sub: 'BCPS Audit Reports' },
   documents: { title: 'Documents', sub: 'BCPS Resource Library' },
   permissions: { title: 'Permissions', sub: 'Roles & Access Control' },
+  members: { title: 'Members', sub: 'Team Directory' },
   department:               { title: 'Department Profile',      sub: 'Audit & Analytics' },
 }
 
