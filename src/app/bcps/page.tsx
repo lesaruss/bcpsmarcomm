@@ -23,6 +23,7 @@ import EmployeeRecordsPage from '@/components/pages/EmployeeRecordsPage'
 import GraphicsPage from '@/components/pages/GraphicsPage'
 import ReportsPage from '@/components/pages/ReportsPage'
 import MembersPage from '@/components/pages/MembersPage'
+import CommunityRelationsPage from '@/components/pages/CommunityRelationsPage'
 import type { UserRole } from '@/components/Sidebar'
 
 const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm', 'reports'])
@@ -88,6 +89,7 @@ function HomeInner() {
       {nav.page === 'reports'                  && effectiveRole === 'superadmin' && <ReportsPage />}
       {nav.page === 'bcps-certification'       && <CertificationPage />}
       {nav.page === 'members'                  && <MembersPage />}
+      {nav.page === 'community-relations'      && <CommunityRelationsPage />}
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>

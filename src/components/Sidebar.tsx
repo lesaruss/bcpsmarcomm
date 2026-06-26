@@ -142,6 +142,11 @@ const Icons: Record<string, React.ReactNode> = {
       <polyline points="16 11 17 16 12 14 7 16 8 11"/>
     </svg>
   ),
+  'community-relations': (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+    </svg>
+  ),
 }
 
 // ── Nav config ─────────────────────────────────────────────────────────────
@@ -161,6 +166,9 @@ const SECTIONS: NavSection[] = [
     { id: 'documents', label: 'Documents' },
     { id: 'profile', label: 'My Profile' },
     { id: 'members', label: 'Members' },
+  ] },
+  { label: 'District Community Relations', items: [
+    { id: 'community-relations', label: 'Task Tracker' },
   ] },
   { label: 'MarComm', items: [
     { id: 'marcomm', label: 'Newsroom' },
