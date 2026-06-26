@@ -18,6 +18,7 @@ export type PageId =
   | 'reports'
   | 'documents'
   | 'permissions'
+  | 'members'
 
 export interface BreadcrumbItem {
   label: string

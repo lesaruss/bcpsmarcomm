@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 
 type Group = { id: string; slug: string; name: string; description: string | null }
-type Member = { user_id: string; email: string; name: string; role: string; last_sign_in_at: string | null; groups: string[] }
+type Member = { user_id: string; email: string; name: string; role: string; department_slug: string | null; last_sign_in_at: string | null; groups: string[] }
+type Dept = { slug: string; name: string }
 type Obj = { id: string; kind: string; slug: string; title: string; owner_id: string | null; visibility: string; sensitive: boolean }
 type Grant = { id: string; object_id: string; subject_type: string; subject_id: string; role: string }
 type Link = { id: string; object_id: string; token: string; role: string; expires_at: string | null }
@@ -29,6 +30,7 @@ export default function PermissionsPanel() {
   const [myDocuments, setMyDocuments] = useState<Obj[]>([])
   const [grants, setGrants] = useState<Grant[]>([])
   const [links, setLinks] = useState<Link[]>([])
+  const [departments, setDepartments] = useState<Dept[]>([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -40,7 +42,7 @@ export default function PermissionsPanel() {
     const r = await fetch('/api/bcps/permissions', { headers: { Authorization: `Bearer ${await token()}` } })
     const j = await r.json()
     if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
-    setGroups(j.groups); setMembers(j.members); setPages(j.pages); setMyDocuments(j.myDocuments); setGrants(j.grants); setLinks(j.links)
+    setGroups(j.groups); setMembers(j.members); setPages(j.pages); setMyDocuments(j.myDocuments); setGrants(j.grants); setLinks(j.links); setDepartments(j.departments || [])
     setLoading(false)
   }, [token])
 
@@ -127,6 +129,14 @@ export default function PermissionsPanel() {
                 </div>
               </div>
             )}
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ ...C.sublabel, margin: 0 }}>Department</span>
+              <select style={C.sel} value={m.department_slug || ''} disabled={busy}
+                onChange={e => act({ action: 'member_set_department', user_id: m.user_id, department_slug: e.target.value })}>
+                <option value="">No department</option>
+                {departments.map(d => <option key={d.slug} value={d.slug}>{d.name}</option>)}
+              </select>
+            </div>
             <div style={{ marginTop: 12 }}>
               <div style={C.sublabel}>Can reach {isSA || m.role === 'admin' ? '(all pages, ' + m.role + ')' : `(${reach.length} pages)`}</div>
               <div style={{ fontSize: 12, color: '#374151' }}>{reach.map(p => p.title).join(', ') || 'No pages yet'}</div>

@@ -160,6 +160,7 @@ const SECTIONS: NavSection[] = [
     { id: 'analytics', label: 'Analytics' },
     { id: 'documents', label: 'Documents' },
     { id: 'profile', label: 'My Profile' },
+    { id: 'members', label: 'Members' },
   ] },
   { label: 'MarComm', items: [
     { id: 'marcomm', label: 'Newsroom' },

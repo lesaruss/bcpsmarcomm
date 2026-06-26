@@ -30,6 +30,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   analytics:                { title: 'Analytics',               sub: 'Performance Insights' },
   superadmin:               { title: 'Platform Management',      sub: 'SuperAdmin' },
   permissions:              { title: 'Permissions Console',     sub: 'Access & Sharing' },
+  members:                  { title: 'Members',                 sub: 'Team Directory' },
   marcomm:                  { title: 'MarComm Console',         sub: 'Marketing & Communications' },
   graphics:                 { title: 'Graphics & Printing',      sub: 'Request Queue' },
   minutes:                  { title: 'Minutes Console',         sub: 'Create Meeting Records' },

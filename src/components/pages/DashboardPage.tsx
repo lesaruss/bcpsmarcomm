@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import type { PageId } from '@/lib/types'
 import { MEMBERS } from '@/lib/data'
@@ -99,6 +100,20 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   const [notesLoading, setNotesLoading] = useState(true)
   const [certProgress, setCertProgress] = useState<{ pct: number; completed: number; total: number; allDone: boolean } | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
+  const [openNote, setOpenNote] = useState<AssignmentNote | null>(null)
+  const [teamMembers, setTeamMembers] = useState<Array<{ user_id: string; name: string; initials: string; color: string; role: string; department: { slug: string; name: string; division: string | null } | null }>>([])
+  const [meId, setMeId] = useState<string | null>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    const supabase = createClient()
+    ;(async () => {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) return
+      const r = await fetch('/api/bcps/members', { headers: { Authorization: `Bearer ${token}` } })
+      if (r.ok) { const j = await r.json(); setTeamMembers(j.members); setMeId(j.me) }
+    })()
+  }, [])
 
   useEffect(() => {
     const supabase = createClient()
@@ -134,7 +149,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
       .from('bcps_assignment_notes')
       .select('id, assignment_slug, note_text, author, created_at')
       .order('created_at', { ascending: false })
-      .limit(5)
+      .limit(3)
       .then(({ data }) => {
         setNotes(data ?? [])
         setNotesLoading(false)
@@ -179,7 +194,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
               <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No notes yet.</div>
             ) : notes.map((note) => (
               <div key={note.id} className="note-list-item">
-                <div className="note-list-title">{slugToTitle(note.assignment_slug)}</div>
+                <button className="note-list-title" onClick={() => setOpenNote(note)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit', fontWeight: 700, color: 'var(--primary)' }}>{slugToTitle(note.assignment_slug)}</button>
                 <div className="note-list-meta">
                   <span>{note.author === 'June 10 Meeting' ? 'June 10 Meeting' : note.author}</span>
                   <span className="dot">·</span>
@@ -228,25 +243,53 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
           </div>
         )}
 
-        {/* Team Members */}
+        {/* Team Members - live from the directory */}
         <div className="dash-panel">
           <div className="dash-panel-header">
             <h3>Team</h3>
-            <button className="link-btn" onClick={() => onNavigate('superadmin')}>Manage &rarr;</button>
+            <button className="link-btn" onClick={() => onNavigate('members')}>View all &rarr;</button>
           </div>
           <div className="member-list">
-            {MEMBERS.map((m) => (
-              <div key={m.id} className="member-row">
+            {teamMembers.slice(0, 6).map((m) => (
+              <div key={m.user_id} className="member-row">
                 <div className="avatar avatar-sm" style={{ background: m.color }}>{m.initials}</div>
                 <div className="member-info">
-                  <strong>{m.name}</strong>
-                  <span>{m.role}</span>
+                  <strong>
+                    <button onClick={() => router.push(`/bcps?page=members&member=${m.user_id}`, { scroll: false })}
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontWeight: 700, color: 'var(--primary)' }}>
+                      {m.name}
+                    </button>
+                  </strong>
+                  <span>{m.department?.name || (m.role === 'superadmin' ? 'Superadmin' : 'Team Member')}</span>
                 </div>
                 <div className="member-status online" />
               </div>
             ))}
           </div>
         </div>
+
+        {/* My Department */}
+        {(() => {
+          const myDept = teamMembers.find(m => m.user_id === meId)?.department
+          return (
+            <div className="dash-panel">
+              <div className="dash-panel-header">
+                <h3>My Department</h3>
+                {myDept && <button className="link-btn" onClick={() => router.push(`/bcps?page=departments&dept=${myDept.slug}`, { scroll: false })}>Open profile &rarr;</button>}
+              </div>
+              <div style={{ padding: '4px 0' }}>
+                {myDept ? (
+                  <>
+                    <div style={{ fontSize: 16, fontWeight: 800 }}>{myDept.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{myDept.division || ''}</div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No department assigned yet.</div>
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Quick Actions */}
         <div className="dash-panel">
@@ -297,6 +340,19 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
           </div>
         </div>
       </div>
+
+      {openNote && (
+        <div onClick={() => setOpenNote(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 1000 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, maxWidth: 680, width: '100%', maxHeight: '85vh', overflow: 'auto', padding: 28 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{slugToTitle(openNote.assignment_slug)}</h2>
+              <button onClick={() => setOpenNote(null)} style={{ background: 'none', border: 'none', fontSize: 24, lineHeight: 1, cursor: 'pointer' }} aria-label="Close">&times;</button>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', margin: '6px 0 16px' }}>{openNote.author} &middot; {relativeTime(openNote.created_at)}</div>
+            <p style={{ fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: 0 }}>{openNote.note_text}</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

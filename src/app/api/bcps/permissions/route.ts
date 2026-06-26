@@ -35,13 +35,14 @@ export async function GET(req: NextRequest) {
   const user = await requireSuperadmin(req)
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const [groups, members, pages, myDocs, grants, links] = await Promise.all([
+  const [groups, members, pages, myDocs, grants, links, departments] = await Promise.all([
     svc.from('acl_groups').select('*').eq('brand', BRAND).order('name'),
-    svc.from('acl_member_roles').select('user_id, role').eq('brand', BRAND),
+    svc.from('acl_member_roles').select('user_id, role, department_slug').eq('brand', BRAND),
     svc.from('acl_objects').select('*').eq('brand', BRAND).eq('kind', 'page').order('title'),
     svc.from('acl_objects').select('*').eq('brand', BRAND).eq('kind', 'document').eq('owner_id', user.id).order('title'),
     svc.from('acl_grants').select('*'),
     svc.from('acl_public_links').select('*').eq('revoked', false),
+    svc.from('bcps_departments').select('slug, name').order('name'),
   ])
 
   // Resolve member identities + their group memberships.
@@ -57,6 +58,7 @@ export async function GET(req: NextRequest) {
       email: u?.email ?? '(unknown)',
       name: (u?.user_metadata as any)?.name || (u?.user_metadata as any)?.full_name || u?.email?.split('@')[0] || '',
       role: m.role,
+      department_slug: m.department_slug ?? null,
       last_sign_in_at: u?.last_sign_in_at ?? null,
       groups: (gm ?? []).filter(x => x.user_id === m.user_id).map(x => x.group_id),
     }
@@ -70,6 +72,7 @@ export async function GET(req: NextRequest) {
     myDocuments: myDocs.data ?? [],
     grants: grants.data ?? [],
     links: links.data ?? [],
+    departments: departments.data ?? [],
   })
 }
 
@@ -106,6 +109,13 @@ export async function POST(req: NextRequest) {
           .upsert({ user_id: body.user_id, brand: BRAND, role: body.role }, { onConflict: 'user_id,brand' })
         if (error) throw error
         await audit(user.id, 'member_set_role', null, { user: body.user_id, role: body.role })
+        return NextResponse.json({ ok: true })
+      }
+      case 'member_set_department': {
+        const { error } = await svc.from('acl_member_roles')
+          .upsert({ user_id: body.user_id, brand: BRAND, department_slug: body.department_slug || null }, { onConflict: 'user_id,brand' })
+        if (error) throw error
+        await audit(user.id, 'member_set_department', null, { user: body.user_id, department: body.department_slug })
         return NextResponse.json({ ok: true })
       }
       case 'member_set_group': {
