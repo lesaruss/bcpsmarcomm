@@ -115,24 +115,54 @@ export default function MembersPage() {
     )
   }
 
-  // ── Directory view ───────────────────────────────────────────────────
+  // ── Directory view (tiles, Departments look & feel) ────────────
+  const fmtLogin = (iso: string | null) => iso
+    ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : 'Never signed in'
   return (
-    <div style={{ padding: 32, maxWidth: 1000 }}>
+    <div className="mp-root">
+      <style>{`
+        .mp-root{max-width:1120px}
+        .mp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+        .mp-card{background:#fff;border:1px solid #dde3ea;border-radius:12px;padding:20px;display:flex;flex-direction:column;transition:box-shadow .15s,border-color .15s;min-height:190px}
+        .mp-card:hover{box-shadow:0 4px 20px rgba(22,114,167,.13);border-color:#1672A7}
+        .mp-top{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+        .mp-name{font-size:16px;font-weight:800;color:#1a1a1a;line-height:1.2}
+        .mp-title{font-size:12px;color:#525252;font-weight:600;margin-top:2px}
+        .mp-email{font-size:12px;color:#0e4e73;text-decoration:none}
+        .mp-meta{border-top:1px solid #eef1f5;padding-top:12px;margin-top:auto;display:flex;flex-direction:column;gap:8px}
+        .mp-row{font-size:12px;color:#525252}
+        .mp-row b{color:#1a1a1a;font-weight:700}
+        .mp-tags{display:flex;flex-wrap:wrap;gap:5px}
+        .mp-tag{font-size:10px;font-weight:700;background:#e8f1f8;color:#0e4e73;padding:2px 8px;border-radius:20px}
+        @media(max-width:900px){.mp-grid{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:600px){.mp-grid{grid-template-columns:1fr}}
+      `}</style>
       <h1 style={{ fontSize: 24, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Members</h1>
-      <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 22px' }}>Everyone on the BCPS web team. Click a person to view their profile.</p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14 }}>
-        {members.map(m => (
-          <button key={m.user_id} onClick={() => go(`/bcps?page=members&member=${m.user_id}`)}
-            style={{ ...card, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12 }}>
-            {m.photo_url
-              ? <img src={m.photo_url} alt={m.name} style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-              : <div style={{ width: 42, height: 42, borderRadius: '50%', background: m.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, flexShrink: 0 }}>{m.initials}</div>}
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 14, color: '#0e4e73', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-              <div style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title || m.department?.name || (m.role === 'superadmin' ? 'Superadmin' : 'Team Member')}</div>
+      <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 22px' }}>{members.length} people on the BCPS web team.</p>
+      <div className="mp-grid">
+        {members.map(m => {
+          const roleLabel = m.role === 'superadmin' ? 'Superadmin' : m.role === 'admin' ? 'Administrator' : 'Team Member'
+          return (
+            <div key={m.user_id} className="mp-card">
+              <div className="mp-top">
+                {m.photo_url
+                  ? <img src={m.photo_url} alt={m.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                  : <div style={{ width: 52, height: 52, borderRadius: '50%', background: m.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, flexShrink: 0 }}>{m.initials}</div>}
+                <div style={{ minWidth: 0 }}>
+                  <div className="mp-name">{m.name}</div>
+                  <div className="mp-title">{m.title || roleLabel}</div>
+                  <a className="mp-email" href={`mailto:${m.email}`}>{m.email}</a>
+                </div>
+              </div>
+              <div className="mp-meta">
+                <div className="mp-row">Department: <b>{m.department?.name || 'Unassigned'}</b></div>
+                {m.groups.length > 0 && <div className="mp-tags">{m.groups.map(g => <span key={g} className="mp-tag">{g}</span>)}</div>}
+                <div className="mp-row">Last login: <b>{fmtLogin(m.last_sign_in_at)}</b></div>
+              </div>
             </div>
-          </button>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
