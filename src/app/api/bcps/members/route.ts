@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const [{ data: roles }, { data: groups }, { data: gm }, { data: depts }, { data: authList }] = await Promise.all([
-    svc.from('acl_member_roles').select('user_id, role, department_slug').eq('brand', BRAND),
+    svc.from('acl_member_roles').select('user_id, role, department_slug, title, bio, photo_url').eq('brand', BRAND),
     svc.from('acl_groups').select('id, name').eq('brand', BRAND),
     svc.from('acl_group_members').select('group_id, user_id'),
     svc.from('bcps_departments').select('slug, name, division, director_name'),
@@ -52,6 +52,9 @@ export async function GET(req: NextRequest) {
       role: r.role,
       initials: initials(name),
       color: colorFor(r.user_id),
+      title: r.title ?? null,
+      bio: r.bio ?? null,
+      photo_url: r.photo_url ?? null,
       last_sign_in_at: u?.last_sign_in_at ?? null,
       groups: (gm ?? []).filter(x => x.user_id === r.user_id).map(x => groupName.get(x.group_id)).filter(Boolean),
       department: dept ? { slug: dept.slug, name: dept.name, division: dept.division, director_name: dept.director_name } : null,
