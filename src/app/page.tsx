@@ -36,6 +36,7 @@ const PAGE_TITLES: Record<PageId, { title: string; sub: string }> = {
   documents: { title: 'Documents', sub: 'BCPS Resource Library' },
   permissions: { title: 'Permissions', sub: 'Roles & Access Control' },
   members: { title: 'Members', sub: 'Team Directory' },
+  'community-relations': { title: 'Community Relations Tracker', sub: 'District Community Relations' },
   department:               { title: 'Department Profile',      sub: 'Audit & Analytics' },
 }
 
