@@ -35,6 +35,17 @@ interface Task {
   updated_at: string
 }
 
+interface WeeklyFormData {
+  week_ending: string
+  accomplishments: string
+  outstanding: string
+  deadlines: string
+  challenges: string
+  solutions: string
+  ssp_status: string
+  awards_status: string
+}
+
 interface WeeklyReport {
   id: string
   week_ending: string
@@ -62,7 +73,7 @@ const inputStyle: React.CSSProperties = {
 }
 
 // Build a plain-English weekly summary draft from live task data.
-function buildWeeklySummaryDraft(tasks: Task[]): Record<string, string> {
+function buildWeeklySummaryDraft(tasks: Task[]): Omit<WeeklyFormData, 'week_ending'> {
   const done        = tasks.filter(t => t.status === 'done')
   const inProgress  = tasks.filter(t => t.status === 'in_progress')
   const blocked     = tasks.filter(t => t.status === 'blocked')
@@ -549,7 +560,7 @@ function AddTaskCard({ onCreate }: { onCreate: (p: Record<string, unknown>) => v
 function WeeklyDraftCard({ tasks, onSubmit }: { tasks: Task[]; onSubmit: (p: Record<string, unknown>) => void }) {
   const draft = useMemo(() => buildWeeklySummaryDraft(tasks), [tasks])
 
-  const [f, setF] = useState({ ...draft, week_ending: '' })
+  const [f, setF] = useState<WeeklyFormData>({ ...draft, week_ending: '' })
 
   // Refresh draft when tasks change
   useEffect(() => {
