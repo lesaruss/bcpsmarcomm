@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 const ACCESS_KEY = 'lr-dcr-7b2e4a90'
 
@@ -115,6 +116,9 @@ export default function CommunityRelationsPage() {
   const [toast,   setToast]   = useState<string | null>(null)
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
+  const searchParams = useSearchParams()
+  const readOnly = searchParams.get('view') === 'board'
+
   const flash = useCallback((m: string) => {
     setToast(m)
     setTimeout(() => setToast(null), 2800)
@@ -188,8 +192,8 @@ export default function CommunityRelationsPage() {
         </p>
       </div>
 
-      {/* Starter kit banner */}
-      {!bannerDismissed && isSeeded && (
+      {/* Starter kit banner - hide in read-only view */}
+      {!readOnly && !bannerDismissed && isSeeded && (
         <div style={{
           background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8,
           padding: '12px 16px', marginBottom: 16,
@@ -217,8 +221,7 @@ export default function CommunityRelationsPage() {
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, borderBottom: '1.5px solid var(--border)' }}>
         {([
           ['board',   'Department Board'],
-          ['mywork',  'My Work'],
-          ['reports', 'Reports'],
+          ...(!readOnly ? [['mywork',  'My Work'], ['reports', 'Reports']] as [Tab, string][] : []),
         ] as [Tab, string][]).map(([id, label]) => (
           <button
             key={id}
@@ -278,6 +281,7 @@ export default function CommunityRelationsPage() {
                       <TaskCard
                         key={t.id}
                         task={t}
+                        readOnly={readOnly}
                         onStatusChange={updateStatus}
                         onEdit={async (updated) => {
                           const ok = await post({ action: 'task_update', ...updated })
@@ -385,12 +389,13 @@ export default function CommunityRelationsPage() {
 
 interface TaskCardProps {
   task: Task
+  readOnly?: boolean
   onStatusChange: (id: string, status: string) => void
   onEdit: (updated: Partial<Task> & { id: string }) => void
   onDelete: (id: string) => void
 }
 
-function TaskCard({ task, onStatusChange, onEdit, onDelete }: TaskCardProps) {
+function TaskCard({ task, readOnly, onStatusChange, onEdit, onDelete }: TaskCardProps) {
   const [editing, setEditing]     = useState(false)
   const [title,   setTitle]       = useState(task.title)
   const [detail,  setDetail]      = useState(task.detail ?? '')
@@ -453,15 +458,17 @@ function TaskCard({ task, onStatusChange, onEdit, onDelete }: TaskCardProps) {
     <div className="card" style={{ padding: 12 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', flex: 1 }}>{task.title}</div>
-        <button
-          onClick={() => setEditing(true)}
-          title="Edit task"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)', padding: '0 2px', lineHeight: 1 }}
-          aria-label="Edit task"
-        >
-          &#9998;
-        </button>
-        {confirming ? (
+        {!readOnly && (
+          <button
+            onClick={() => setEditing(true)}
+            title="Edit task"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)', padding: '0 2px', lineHeight: 1 }}
+            aria-label="Edit task"
+          >
+            &#9998;
+          </button>
+        )}
+        {!readOnly && confirming ? (
           <>
             <button
               onClick={() => onDelete(task.id)}
@@ -477,14 +484,16 @@ function TaskCard({ task, onStatusChange, onEdit, onDelete }: TaskCardProps) {
             </button>
           </>
         ) : (
-          <button
-            onClick={() => setConfirming(true)}
-            title="Remove task"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', padding: '0 2px', lineHeight: 1 }}
-            aria-label="Remove task"
-          >
-            &times;
-          </button>
+          !readOnly && (
+            <button
+              onClick={() => setConfirming(true)}
+              title="Remove task"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)', padding: '0 2px', lineHeight: 1 }}
+              aria-label="Remove task"
+            >
+              &times;
+            </button>
+          )
         )}
       </div>
       {task.detail && (
@@ -495,14 +504,20 @@ function TaskCard({ task, onStatusChange, onEdit, onDelete }: TaskCardProps) {
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{task.assignee}</span>
         {task.due_date && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Due {task.due_date}</span>}
       </div>
-      <select
-        value={task.status}
-        onChange={e => onStatusChange(task.id, e.target.value)}
-        style={{ ...inputStyle, padding: '5px 8px', fontSize: 12 }}
-        aria-label="Task status"
-      >
-        {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-      </select>
+      {readOnly ? (
+        <span className={`badge ${STATUSES.find(s => s.id === task.status)?.badge ?? 'badge-gray'}`} style={{ fontSize: 11 }}>
+          {STATUSES.find(s => s.id === task.status)?.label ?? task.status}
+        </span>
+      ) : (
+        <select
+          value={task.status}
+          onChange={e => onStatusChange(task.id, e.target.value)}
+          style={{ ...inputStyle, padding: '5px 8px', fontSize: 12 }}
+          aria-label="Task status"
+        >
+          {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+      )}
     </div>
   )
 }
@@ -626,3 +641,4 @@ function ReportLine({ label, value }: { label: string; value: string | null }) {
     </div>
   )
 }
+
