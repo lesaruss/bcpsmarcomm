@@ -1,10 +1,11 @@
 // src/app/briefs/[slug]/page.tsx
-// Public route for BCPS briefs -- no auth required.
-// Route: bcpsmarcomm.com/briefs/[slug]
+// BCPS briefs route. Public by default.
+// If bcps_brief_recipients has rows for this slug, requires authenticated session with matching email.
 
 import { createClient } from '@supabase/supabase-js'
-import { notFound } from 'next/navigation'
-import { headers } from 'next/headers'
+import { notFound, redirect } from 'next/navigation'
+import { headers, cookies } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -20,6 +21,26 @@ function serviceClient() {
   return createClient(url, key)
 }
 
+async function getSessionEmail(): Promise<string | null> {
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!url || !anonKey) return null
+
+    const cookieStore = await cookies()
+    const supabase = createServerClient(url, anonKey, {
+      cookies: {
+        getAll() { return cookieStore.getAll() },
+        setAll() {},
+      },
+    })
+    const { data: { user } } = await supabase.auth.getUser()
+    return user?.email ?? null
+  } catch {
+    return null
+  }
+}
+
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
   return { title: `${slug} | BCPS Brief` }
@@ -27,12 +48,26 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function BcpsPublicBriefPage({ params }: Props) {
   const { slug } = await params
-
-  // Force no-cache so Vercel edge never serves stale content
-  const headersList = await headers()
+  await headers()
 
   const db = serviceClient()
   if (!db) notFound()
+
+  // Check if this brief has restricted recipients
+  const { data: recipients } = await db
+    .from('bcps_brief_recipients')
+    .select('attendee_email')
+    .eq('brief_slug', slug)
+
+  const isRestricted = recipients && recipients.length > 0
+
+  if (isRestricted) {
+    const sessionEmail = await getSessionEmail()
+    const allowed = recipients.map((r: { attendee_email: string }) => r.attendee_email.toLowerCase())
+    if (!sessionEmail || !allowed.includes(sessionEmail.toLowerCase())) {
+      redirect(`/login?next=/briefs/${slug}`)
+    }
+  }
 
   const { data, error } = await db
     .from('mock_pages')
