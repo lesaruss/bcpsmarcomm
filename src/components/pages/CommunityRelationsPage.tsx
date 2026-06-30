@@ -31,7 +31,7 @@ interface Resource {
   description: string
   type: string
   tags: string[]
-  url: string
+  url: string | null
 }
 
 const DCR_RESOURCES: Resource[] = [
@@ -41,7 +41,7 @@ const DCR_RESOURCES: Resource[] = [
     description: 'North Highlands SSP operational work plan outlining program goals, milestones, and responsible parties.',
     type: 'PDF',
     tags: ['SSP'],
-    url: '/briefs/nh-ssp-work-plan',
+    url: null,
   },
   {
     slug: 'nh-operational-accountability-plan',
@@ -49,7 +49,7 @@ const DCR_RESOURCES: Resource[] = [
     description: 'North Highlands school accountability plan with performance targets and action steps.',
     type: 'PDF',
     tags: ['SSP'],
-    url: '/briefs/nh-operational-accountability-plan',
+    url: null,
   },
   {
     slug: 'caliber-awards-timeline-2027',
@@ -57,7 +57,7 @@ const DCR_RESOURCES: Resource[] = [
     description: 'Full submission and review calendar for the 2027 Caliber Awards cycle.',
     type: 'PDF',
     tags: ['Caliber Awards'],
-    url: '/briefs/caliber-awards-timeline-2027',
+    url: null,
   },
   {
     slug: 'caliber-awards-work-plan',
@@ -65,7 +65,7 @@ const DCR_RESOURCES: Resource[] = [
     description: 'Step-by-step coordination plan for Caliber Awards nominations, judging, and ceremony.',
     type: 'PDF',
     tags: ['Caliber Awards'],
-    url: '/briefs/caliber-awards-work-plan',
+    url: null,
   },
   {
     slug: 'ssp-review-process',
@@ -73,7 +73,7 @@ const DCR_RESOURCES: Resource[] = [
     description: 'Standardized review checklist and process document for SSP site visits.',
     type: 'PDF',
     tags: ['SSP'],
-    url: '/briefs/ssp-review-process',
+    url: null,
   },
   {
     slug: 'pie-program-guide',
@@ -81,7 +81,7 @@ const DCR_RESOURCES: Resource[] = [
     description: 'Overview of the PIE partnership program, partnership categories, and onboarding steps.',
     type: 'PDF',
     tags: ['Partners In Education'],
-    url: '/briefs/pie-program-guide',
+    url: null,
   },
   {
     slug: 'cia-submission-guide',
@@ -89,7 +89,7 @@ const DCR_RESOURCES: Resource[] = [
     description: 'Application requirements, eligibility criteria, and submission instructions for CIA nominees.',
     type: 'PDF',
     tags: ['Community Involvement Awards'],
-    url: '/briefs/cia-submission-guide',
+    url: null,
   },
   {
     slug: 'dcr-customer-service-standards',
@@ -97,7 +97,7 @@ const DCR_RESOURCES: Resource[] = [
     description: 'Approved service standards and communication protocols for internal and external stakeholders.',
     type: 'PDF',
     tags: ['Customer Service'],
-    url: '/briefs/dcr-customer-service-standards',
+    url: null,
   },
 ]
 // ─────────────────────────────────────────────────────────────────────────────
@@ -649,12 +649,20 @@ function ProjectsTab({ tasks, projectNotes, onNoteSave }: ProjectsTabProps) {
                 &times;
               </button>
             </div>
-            <div style={{ flex: 1, overflow: 'hidden', minHeight: 480 }}>
-              <iframe
-                src={previewResource.url}
-                style={{ width: '100%', height: '100%', minHeight: 480, border: 'none' }}
-                title={previewResource.title}
-              />
+            <div style={{ flex: 1, overflow: 'hidden', minHeight: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {previewResource.url ? (
+                <iframe
+                  src={previewResource.url}
+                  style={{ width: '100%', height: '100%', minHeight: 480, border: 'none' }}
+                  title={previewResource.title}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.3 }}>&#128196;</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Document not yet uploaded</div>
+                  <div style={{ fontSize: 13 }}>Upload this document and link it to make it available here.</div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -786,9 +794,10 @@ function ProjectCard({ area, tasks, note, expanded, onToggle, onNoteSave, onPrev
                   >
                     <span style={{ fontSize: 10.5, color: 'var(--blue)', fontWeight: 700, minWidth: 28 }}>{r.type}</span>
                     <button
-                      onClick={() => onPreviewResource(r)}
+                      onClick={r.url ? () => onPreviewResource(r) : undefined}
                       style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
+                        background: 'none', border: 'none',
+                        cursor: r.url ? 'pointer' : 'default',
                         fontSize: 12.5, color: 'var(--text-primary)', fontWeight: 600,
                         flex: 1, textAlign: 'left', padding: 0,
                       }}
@@ -868,10 +877,15 @@ function ResourceCard({ resource, projectNotes, onPreview, onPinToggle }: Resour
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           className="btn"
-          style={{ fontSize: 12, padding: '5px 12px', border: '1px solid var(--border)', background: 'none' }}
-          onClick={onPreview}
+          style={{
+            fontSize: 12, padding: '5px 12px',
+            border: '1px solid var(--border)', background: 'none',
+            opacity: resource.url ? 1 : 0.45, cursor: resource.url ? 'pointer' : 'default',
+          }}
+          onClick={resource.url ? onPreview : undefined}
+          title={resource.url ? undefined : 'Document not yet uploaded'}
         >
-          Preview
+          {resource.url ? 'Preview' : 'Not uploaded'}
         </button>
         <button
           className="btn"
