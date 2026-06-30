@@ -116,6 +116,12 @@ export default function CommunityRelationsPage() {
   const [toast,   setToast]   = useState<string | null>(null)
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
+  // ── Drag state ──────────────────────────────────────────────────────────
+  const [draggingId,  setDraggingId]  = useState<string | null>(null)
+  const [dragOverId,  setDragOverId]  = useState<string | null>(null)
+  const [dragAbove,   setDragAbove]   = useState(true)
+  // ────────────────────────────────────────────────────────────────────────
+
   const searchParams = useSearchParams()
   const readOnly = searchParams.get('view') === 'board'
 
@@ -159,6 +165,44 @@ export default function CommunityRelationsPage() {
     await post({ action: 'task_delete', id })
     flash('Task removed.')
   }, [post, flash])
+
+  // ── Drag reorder ─────────────────────────────────────────────────────────
+  const handleReorder = useCallback((
+    newStatus: string,
+    targetId: string | null,
+    above = true,
+  ) => {
+    if (!draggingId) return
+    const currentId = draggingId
+
+    setTasks(prev => {
+      const draggedTask = prev.find(t => t.id === currentId)
+      if (!draggedTask || currentId === targetId) return prev
+
+      const without = prev.filter(t => t.id !== currentId)
+      const updated  = { ...draggedTask, status: newStatus }
+
+      if (!targetId) return [...without, updated]
+
+      const targetIdx = without.findIndex(t => t.id === targetId)
+      if (targetIdx === -1) return [...without, updated]
+
+      const result = [...without]
+      result.splice(above ? targetIdx : targetIdx + 1, 0, updated)
+      return result
+    })
+
+    // Persist only if status actually changed
+    const draggedTask = tasks.find(t => t.id === currentId)
+    if (draggedTask && draggedTask.status !== newStatus) {
+      post({ action: 'task_update', id: currentId, status: newStatus })
+      if (newStatus === 'blocked') flash('Needs Support flagged - Dr. Stewart has been notified.')
+    }
+
+    setDraggingId(null)
+    setDragOverId(null)
+  }, [draggingId, tasks, post, flash])
+  // ────────────────────────────────────────────────────────────────────────
 
   const visibleTasks = useMemo(
     () => filter === 'all' ? tasks : tasks.filter(t => t.program_area === filter),
@@ -276,22 +320,81 @@ export default function CommunityRelationsPage() {
                     <span className={`badge ${col.badge}`}>{col.label}</span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>{colTasks.length}</span>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+                  {/* ── Cards container — drop target for empty-column drops ── */}
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={e => {
+                      e.preventDefault()
+                      // Only fires when dropping on the column itself (not on a card,
+                      // since card drops call stopPropagation). Appends to end.
+                      handleReorder(col.id, null, false)
+                    }}
+                  >
                     {colTasks.map(t => (
-                      <TaskCard
+                      <div
                         key={t.id}
-                        task={t}
-                        readOnly={readOnly}
-                        onStatusChange={updateStatus}
-                        onEdit={async (updated) => {
-                          const ok = await post({ action: 'task_update', ...updated })
-                          if (ok) {
-                            setTasks(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x))
+                        draggable={!readOnly}
+                        onDragStart={e => {
+                          e.stopPropagation()
+                          setDraggingId(t.id)
+                        }}
+                        onDragEnd={() => {
+                          setDraggingId(null)
+                          setDragOverId(null)
+                        }}
+                        onDragOver={e => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          const above = e.clientY < rect.top + rect.height / 2
+                          if (dragOverId !== t.id || dragAbove !== above) {
+                            setDragOverId(t.id)
+                            setDragAbove(above)
                           }
                         }}
-                        onDelete={deleteTask}
-                      />
+                        onDrop={e => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          handleReorder(col.id, t.id, dragAbove)
+                        }}
+                        style={{
+                          opacity: draggingId === t.id ? 0.4 : 1,
+                          cursor: readOnly ? 'default' : 'grab',
+                        }}
+                      >
+                        {/* Insertion indicator — above */}
+                        {dragOverId === t.id && dragAbove && draggingId !== t.id && (
+                          <div style={{
+                            height: 3, background: '#1a56db', borderRadius: 2,
+                            marginBottom: 6, pointerEvents: 'none',
+                          }} />
+                        )}
+
+                        <TaskCard
+                          task={t}
+                          readOnly={readOnly}
+                          onStatusChange={updateStatus}
+                          onEdit={async (updated) => {
+                            const ok = await post({ action: 'task_update', ...updated })
+                            if (ok) {
+                              setTasks(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x))
+                            }
+                          }}
+                          onDelete={deleteTask}
+                        />
+
+                        {/* Insertion indicator — below */}
+                        {dragOverId === t.id && !dragAbove && draggingId !== t.id && (
+                          <div style={{
+                            height: 3, background: '#1a56db', borderRadius: 2,
+                            marginTop: 6, pointerEvents: 'none',
+                          }} />
+                        )}
+                      </div>
                     ))}
+
                     {colTasks.length === 0 && (
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '6px 2px' }}>None</div>
                     )}
@@ -641,4 +744,3 @@ function ReportLine({ label, value }: { label: string; value: string | null }) {
     </div>
   )
 }
-
