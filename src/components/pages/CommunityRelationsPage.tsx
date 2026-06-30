@@ -222,7 +222,7 @@ export default function CommunityRelationsPage() {
   })
 
   return (
-    <div className="content" style={{ padding: '24px 28px', maxWidth: 1120, margin: '0 auto' }}>
+    <div className="content" style={{ padding: '24px 28px' }}>
 
       {/* Header */}
       <div className="card" style={{ padding: 20, marginBottom: 18 }}>
