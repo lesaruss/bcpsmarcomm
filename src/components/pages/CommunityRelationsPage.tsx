@@ -197,8 +197,7 @@ export default function CommunityRelationsPage() {
   const [projectNotes, setProjectNotes] = useState<ProjectNote[]>([])
   const [loading,      setLoading]      = useState(true)
   const [filter,       setFilter]       = useState<string>('all')
-  const [toast,        setToast]        = useState<string | null>(null)
-  const [bannerDismissed, setBannerDismissed] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
@@ -310,8 +309,6 @@ export default function CommunityRelationsPage() {
     return { byStatus, total: tasks.length }
   }, [tasks])
 
-  const isSeeded = tasks.length > 0 && tasks.every(t => new Date(t.created_at) < new Date('2026-07-01'))
-
   return (
     <div className="content" style={{ padding: '24px 28px' }}>
 
@@ -325,27 +322,6 @@ export default function CommunityRelationsPage() {
           The Director and Coordinator see the board in real time.
         </p>
       </div>
-
-      {!readOnly && !bannerDismissed && isSeeded && (
-        <div style={{
-          background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8,
-          padding: '12px 16px', marginBottom: 16,
-          display: 'flex', alignItems: 'flex-start', gap: 12,
-        }}>
-          <div style={{ flex: 1, fontSize: 13, color: '#78350f', lineHeight: 1.55 }}>
-            <strong>Starter tasks loaded.</strong> These seven tasks are suggested starting points
-            based on the department&apos;s program areas. Edit the titles, add detail, change due dates,
-            or delete anything that does not fit - make the board yours.
-          </div>
-          <button
-            onClick={() => setBannerDismissed(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#92400e', lineHeight: 1, padding: 2 }}
-            aria-label="Dismiss"
-          >
-            &times;
-          </button>
-        </div>
-      )}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, borderBottom: '1.5px solid var(--border)' }}>
