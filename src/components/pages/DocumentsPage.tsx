@@ -62,6 +62,24 @@ const DOCUMENTS: Document[] = [
     url: '/bcps-implementation-plan-2026-2027.pdf',
     icon: '🗺️',
   },
+  {
+    id: 'wcm-scope',
+    title: 'WCM Scope of Work',
+    description: 'Web Content Manager program scope: assignment workflow, certification tracking, multi-year audit management, and role-based access control.',
+    type: 'Scope',
+    date: 'June 24, 2026',
+    url: '/briefs/bcps-wcm-scope-2026.html',
+    icon: '🌐',
+    restricted: [
+      'contact@lesaruss.com',
+      'farrah.wilson@browardschools.com',
+      'felicia.hicks@browardschools.com',
+      'rodolfo.carril@browardschools.com',
+      'tricia.allen@browardschools.com',
+      'vanessa.deslandes@browardschools.com',
+      'yaco.abuelafia@browardschools.com',
+    ],
+  },
 ]
 
 export default function DocumentsPage() {
