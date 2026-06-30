@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WCM Scope of Work - BCPS</title>
+<title>WCM Program Scope - BCPS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -164,6 +164,16 @@
   .priority-card.watch .priority-label { color: var(--bcps-orange); }
   .priority-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
   .priority-note { font-size: 12px; color: var(--text-50); line-height: 1.55; }
+
+  .version-select-wrap { display:flex; flex-direction:column; gap:4px; }
+  .version-select { font-family: "Montserrat", sans-serif; font-size:12px; font-weight:700;
+    border:1px solid var(--border); border-radius:4px; padding:4px 8px; color:var(--text);
+    background:#fff; cursor:pointer; }
+  .version-select:focus { outline:3px solid var(--bcps-blue); }
+  .session-tag { display:inline-block; font-size:9px; font-weight:800; text-transform:uppercase;
+    letter-spacing:0.12em; padding:2px 6px; border-radius:3px; margin-left:6px;
+    background:rgba(22,114,167,0.1); color:var(--bcps-blue); vertical-align:middle; }
+  .completed-list li .session-tag { vertical-align:baseline; }
 </style>
 </head>
 <body>
@@ -171,7 +181,7 @@
 <header class="bcps-header" role="banner">
   <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
   <div class="bcps-header-divider"></div>
-  <span class="bcps-header-title">BCPS - WCM Scope Review</span>
+  <span class="bcps-header-title">WCM Program Scope</span>
   <div id="header-actions">
     <button id="download-btn" onclick="downloadHTML()">Download</button>
     <button id="edit-btn" onclick="toggleEdit()">Edit</button>
@@ -179,38 +189,35 @@
 </header>
 
 <main>
-  <h1>Website Management Center<br>Scope Review - June 9, 2026</h1>
+  <h1>Web Content Manager<br>Program Scope</h1>
 
   <div class="meta-row">
     <div class="meta-item">
-      <span class="meta-label">Date</span>
-      <span class="meta-value">June 9, 2026</span>
+      <span class="meta-label">Last Updated</span>
+      <span class="meta-value">June 30, 2026</span>
     </div>
     <div class="meta-item">
-      <span class="meta-label">Platform</span>
-      <span class="meta-value">Microsoft Teams</span>
+      <span class="meta-label">Maintained By</span>
+      <span class="meta-value">Office of Communications</span>
     </div>
     <div class="meta-item">
-      <span class="meta-label">Attendees</span>
-      <span class="meta-value">5 People</span>
+      <span class="meta-label">Status</span>
+      <span class="meta-value">Active</span>
     </div>
-    <div class="meta-item">
+    <div class="meta-item version-select-wrap">
       <span class="meta-label">Version</span>
-      <span class="meta-value">v2 - June 9, 2026</span>
-    </div>
-    <div class="meta-item">
-      <span class="meta-label">Previous Brief</span>
-      <span class="meta-value"><a href="/briefs/bcps-wcm-scope-2026-06-08.html" target="_blank">v1 - June 8, 2026</a></span>
+      <select class="version-select" onchange="if(this.value)window.location.href=this.value;">
+        <option value="">v3 - June 30, 2026 (current)</option>
+        <option value="https://bcps.k12unlocked.com/bcps/bcps-wcm-scope-2026-06-09.html">v2 - June 9, 2026</option>
+        <option value="https://bcps.k12unlocked.com/briefs/bcps-wcm-scope-2026-06-08.html">v1 - June 8, 2026</option>
+      </select>
     </div>
   </div>
 
   <div class="audience-banner">
-    <p><strong>Audience:</strong> Tricia A. Allen (Application Services), Vanessa C. Deslandes-Auguste (Application Services), Yaco D. Abuelafia (Application Services), Rodolfo M. Carril (Application Services), and Sean A. Russell (Office of Communications). This brief supersedes the June 8 scope document and incorporates context from the June 9 review session.</p>
+    <p><strong>Audience:</strong> Tricia A. Allen, Vanessa C. Deslandes-Auguste, Yaco D. Abuelafia, Rodolfo M. Carril (Application Services) and Sean A. Russell, District Webmaster, Office of Communications. This document is the living scope reference for the BCPS Central WCM program. It incorporates decisions from the June 9, June 24, and June 25, 2026 review sessions and reflects the current state of the program.</p>
   </div>
 
-  <div class="notice-banner">
-    <p><strong>Context note from June 9 review:</strong> The team reviewed the v1 brief during this session. Yaco D. Abuelafia noted it lacked the technical context discussed in prior meetings and flagged several items that need more precise scoping before development begins. This v2 incorporates those clarifications directly.</p>
-  </div>
 
   <h2>Attendees</h2>
   <div class="attendee-grid">
@@ -236,12 +243,17 @@
     </div>
   </div>
 
-  <h2>Completed Since Last Session</h2>
+  <h2>Completed Items</h2>
   <div class="section-block">
     <ul class="completed-list">
-      <li><strong>WCM Management Controls - Separate Subpage.</strong> The management controls panel has been moved to a dedicated subpage within BCPS Central. This item is fully resolved.</li>
-      <li><strong>Principal Approval Bypass Setting.</strong> Yaco D. Abuelafia confirmed this feature was added prior to the June 9 session. Checklist settings now include a configurable toggle per checklist: audits require principal approval; monthly updates bypass approval. Ready for testing.</li>
-      <li><strong>Category Label System - Training Complete.</strong> Vanessa C. Deslandes-Auguste has been trained on how to build checklists using the category label system. No further development action required for this item.</li>
+      <li><strong>WCM Management Controls - Separate Subpage.</strong> The management controls panel has been moved to a dedicated subpage within BCPS Central. This item is fully resolved. <span class="session-tag">Jun 9</span></li>
+      <li><strong>Principal Approval Bypass Setting.</strong> Checklist settings include a configurable toggle per checklist: audits require principal approval; monthly updates bypass approval. <span class="session-tag">Jun 9</span></li>
+      <li><strong>Category Label System - Training Complete.</strong> Vanessa C. Deslandes-Auguste has been trained on how to build checklists using the category label system. No further development action required. <span class="session-tag">Jun 9</span></li>
+      <li><strong>WCM Assignment Module - Functionality Confirmed.</strong> Live walkthrough completed. Principals can assign and confirm WCMs. Welcome email trigger working. Panel layout finalized (confirm existing left, add new right). <span class="session-tag">Jun 24</span></li>
+      <li><strong>"Enter Documents" Renamed to "Website Monitoring Task."</strong> Label update complete across BCPS Central. <span class="session-tag">Jun 25</span></li>
+      <li><strong>2026-27 Checklist Moved to Correct Year.</strong> Checklist now properly assigned to the 2026-27 school year in the system. <span class="session-tag">Jun 25</span></li>
+      <li><strong>Submit/Lock Button Labels Updated.</strong> Buttons renamed to Save, Submit, and Back across the audit workflow. <span class="session-tag">Jun 25</span></li>
+      <li><strong>Access Management.</strong> Nakesha Ali-Sirju (P00040910) and Jeune Tilus/JT (P00088153, manage module) added. Andrea Barton restored. Mavens Longchamp removed (student account). <span class="session-tag">Jun 25</span></li>
     </ul>
   </div>
 
@@ -281,7 +293,52 @@
     <div class="decision-item">
       <div class="decision-title">Group-Based Checklist Assignment Needs Definition Before Build</div>
       <div class="decision-detail">Yaco D. Abuelafia raised the possibility of assigning checklists by school type or group (e.g., high schools get 10 items, elementary schools get 6). Vanessa C. Deslandes-Auguste confirmed this is a likely future need. This feature is not in scope for June 30 - it requires Vanessa to define which school groups receive which checklist sets before development can begin.</div>
+
+    <div class="decision-item">
+      <div class="decision-title">WCM Assignment UI - Panel Layout Finalized <span class="session-tag">Jun 24</span></div>
+      <div class="decision-detail">Left panel: prior year WCMs displayed for principal review and confirmation. Right panel: search existing users or add new by first name, last name, and email. Section titled "Assign Web Content Managers" and "Add Additional Web Content Managers." Principals who have no changes leave existing WCMs as-is - no action required. Bulk upload feature in development for multi-user imports.</div>
     </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Welcome Email - WCM Only, No Principal Copy <span class="session-tag">Jun 24</span></div>
+      <div class="decision-detail">The principal does not receive a copy of the welcome email - this is redundant since the principal initiated the assignment. Email addresses the WCM by first name, last name (falls back to "Web Content Manager" if unavailable). Includes link to certification course enrollment. Florida law disclaimer at standard 8pt included. Template formatting being finalized; functionality confirmed working.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Designation Record Label Format <span class="session-tag">Jun 24</span></div>
+      <div class="decision-detail">Each WCM record displays: "[Principal Name] designated [WCM Name] as WCM on [date]." This field is separate from certification status and accommodates cases where an assistant principal or office manager performs the entry on behalf of the principal. Visible to the internal admin team; read-only for principals.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Certification: Single Linear Status Field Confirmed <span class="session-tag">Jun 24</span></div>
+      <div class="decision-detail">A single status field with four statuses in linear progression: Not Registered &rarr; Registered &rarr; Incomplete &rarr; Certified. Two separate fields (registration status and certification status) are not needed - the linear sequence enforces the logic. Status field also captures enrollment start date and certification valid-through date. Principals see status in read-only mode; admin team updates manually. Bulk update report interface planned for V2.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Multi-Year Audit: Year Selector, No Year in Checklist Title <span class="session-tag">Jun 24</span></div>
+      <div class="decision-detail">The year selector dropdown at the top of the audit page controls which school year data is displayed. Checklists are stored under their actual school year - the year is not embedded in the checklist title. This keeps reports accurate when filtering by year. The 2025-26 incomplete items remain in the 2025-26 bucket. Approximately 60-100 schools have outstanding 2025-26 items.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Cross-Year Alert Indicator - In Development <span class="session-tag">Jun 24</span></div>
+      <div class="decision-detail">Schools with prior year incomplete items will see an alert on the current year view so they are not misled into thinking they are fully compliant. Alert only appears for schools with outstanding prior year items. Schools that passed see nothing. Admin report center also provides district-wide cross-year visibility.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Email Audit Trail Added to Scope <span class="session-tag">Jun 24</span></div>
+      <div class="decision-detail">The system will maintain a database record for every email sent: sender, recipient, timestamp, and email content. Allows the admin team to confirm delivery if a WCM disputes receipt. The principal can verify a send date without needing to receive their own copy of the email.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">% Completed Metric Fix - Added to Scope <span class="session-tag">Jun 25</span></div>
+      <div class="decision-detail">The % Completed metric currently counts all answered questions, not correctly-answered ones. The team agreed to preserve existing history and add a new column for incorrect-answer count. This requires a scope update and is currently TBD for scheduling.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Bulk Report Page Added to Future Phases <span class="session-tag">Jun 24</span></div>
+      <div class="decision-detail">Rather than updating certification status school by school, a future bulk report page will let the admin team select multiple schools and apply status updates in a single action. Added to the V2/V3 roadmap.</div>
+    </div>
+
 
   </div>
 
@@ -594,33 +651,38 @@ District Web Team
   <div class="section-block">
 
     <div class="decision-item">
-      <span class="tag pending">Pending</span>
-      <div class="decision-title" style="margin-top: 8px;">Certification Module Timeline - June 30 at Risk</div>
-      <div class="decision-detail">Yaco D. Abuelafia identified certification status tracking as the most complex item in the scope and the most likely to slip past June 30. A scalable, globally reusable architecture is required. Decision needed: defer to phase 2, or build a minimal WCM-only version first and refactor later.</div>
+      <div class="decision-title"><span class="tag pending">Pending</span> Certification Module - Scope at Risk</div>
+      <div class="decision-detail">Yaco D. Abuelafia identified certification status tracking as the most complex item and most likely to slip past June 30. Decision still needed: build a minimal WCM-only version first and refactor later, or defer to V2. Scalable, globally reusable architecture is required.</div>
     </div>
 
     <div class="decision-item">
-      <span class="tag open">Open</span>
-      <div class="decision-title" style="margin-top: 8px;">2025-26 Audit Data Format - Migration Script Not Yet Scoped</div>
-      <div class="decision-detail">The existing 2025-26 audit records are not in a format that easily maps to BCPS Central. Yaco D. Abuelafia needs to analyze the raw data before confirming whether a migration script is feasible within the June 30 window.</div>
+      <div class="decision-title"><span class="tag open">Open</span> 2025-26 Audit Data Format - Migration Script Not Confirmed</div>
+      <div class="decision-detail">Existing 2025-26 audit records are not in a format that maps directly to BCPS Central. Yaco D. Abuelafia needs to analyze the raw data before confirming whether a migration script is feasible within the June 30 window.</div>
     </div>
 
     <div class="decision-item">
-      <span class="tag resolved">Resolved - V1</span>
-      <div class="decision-title" style="margin-top: 8px;">V1 Email Template Provided - V2 Templates Still Needed</div>
-      <div class="decision-detail">Vanessa C. Deslandes-Auguste provided the WCM assignment notification email template after the June 9 session. V1 email development is unblocked. V2 templates (audit confirmation, audit review, automated reminders, incomplete audit follow-up) are still required before V2 development can begin; Vanessa to provide by August 2026.</div>
+      <div class="decision-title"><span class="tag open">Open</span> Group-Based Checklist Assignment Rules Not Defined</div>
+      <div class="decision-detail">Vanessa C. Deslandes-Auguste has not yet documented which school groups (by type) receive which checklists. This definition is required before development can begin. Targeted for V2. Definition due July 15, 2026.</div>
     </div>
 
     <div class="decision-item">
-      <span class="tag open">Open</span>
-      <div class="decision-title" style="margin-top: 8px;">Group-Based Checklist Assignment Rules Not Defined</div>
-      <div class="decision-detail">Vanessa C. Deslandes-Auguste has not yet documented which school groups receive which checklists. This definition is required before development can begin. Targeted for phase 2.</div>
+      <div class="decision-title"><span class="tag pending">Pending</span> % Completed Metric Fix</div>
+      <div class="decision-detail">Metric currently counts all answered questions, not correctly-answered ones. Agreed fix: preserve history, add incorrect-answer count column. Scope update required; scheduling TBD. <span class="session-tag">Jun 25</span></div>
     </div>
 
     <div class="decision-item">
-      <span class="tag resolved">Resolved</span>
-      <div class="decision-title" style="margin-top: 8px;">Principal Approval Bypass - Completed</div>
-      <div class="decision-detail">Yaco D. Abuelafia confirmed this feature is live. Audits require principal approval; monthly updates bypass it. This item is closed pending UAT sign-off from Vanessa C. Deslandes-Auguste.</div>
+      <div class="decision-title"><span class="tag open">Open</span> DB Copy of Send-Back Emails Not Saved</div>
+      <div class="decision-detail">Global send-back message templates were provided and email delivery is confirmed working. Database copy/audit trail for send-back emails has been deferred. To be addressed in a future sprint. <span class="session-tag">Jun 25</span></div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title"><span class="tag resolved">Resolved</span> V1 Email Template Provided</div>
+      <div class="decision-detail">Vanessa C. Deslandes-Auguste provided the WCM assignment notification email template. V1 email development is unblocked. V2 templates (audit confirmation, audit review, automated reminders) still required; Vanessa to provide by August 2026.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title"><span class="tag resolved">Resolved</span> Principal Approval Bypass</div>
+      <div class="decision-detail">Feature is live. Audits require principal approval; monthly updates bypass it. Closed pending UAT sign-off from Vanessa C. Deslandes-Auguste.</div>
     </div>
 
   </div>
@@ -666,131 +728,6 @@ District Web Team
     <div class="timeline-row highlight">
       <div class="timeline-date">October 2026</div>
       <div class="timeline-text"><strong>V3 target release.</strong> Automated certification recognition (congratulations email, digital badge, certificate of completion) and Recognition and Achievement Dashboard showing certified WCMs by school and region.</div>
-    </div>
-  </div>
-
-
-  <h2>Updates - June 24, 2026</h2>
-  <p style="font-size:13px;color:rgba(26,26,26,0.6);margin-bottom:20px;">The following decisions were confirmed during a live system review of BCPS Central. Session recorded via Fieldy.</p>
-
-  <div class="section-block">
-    <div class="decision-item">
-      <div class="decision-title">WCM Assignment UI Layout Confirmed</div>
-      <div class="decision-detail">Panel order finalized: left panel shows prior year WCMs for principal review and confirmation; right panel allows search and addition of new WCMs. The section is titled "Assign Web Content Managers" and "Add Additional Web Content Managers." Principals who have no changes simply leave the existing WCMs as-is - no action required. Vanessa's access was restored during the session for live testing (had been removed the prior week).</div>
-    </div>
-    <div class="decision-item">
-      <div class="decision-title">Welcome Email - Principal Copy Removed</div>
-      <div class="decision-detail">The principal does not receive a copy of the WCM welcome email. This is redundant since the principal is the one who initiated the assignment. Email goes to the WCM only. Email addresses the WCM by first name, last name (falls back to "Web Content Manager" if name is unavailable). Template formatting is still being polished; functionality confirmed working. Florida law disclaimer included at standard 8pt size.</div>
-    </div>
-    <div class="decision-item">
-      <div class="decision-title">Designation Record Label Format</div>
-      <div class="decision-detail">Each WCM record displays: "[Principal Name] designated [WCM Name] as WCM on [date]." This field is separate from the certification section and accommodates cases where an assistant principal or office manager performs the data entry on behalf of the principal. Visible to the internal admin team; read-only for principals.</div>
-    </div>
-    <div class="decision-item">
-      <div class="decision-title">Certification: Single Linear Status Field Confirmed</div>
-      <div class="decision-detail">The team confirmed a single status field with four statuses in linear progression: Not Registered &rarr; Registered &rarr; Incomplete &rarr; Certified. Two separate fields (registration status + certification status) are not needed. A WCM cannot be certified without first being registered, so the statuses naturally enforce the sequence. The status field also captures enrollment start date and certification valid-through date.</div>
-    </div>
-    <div class="decision-item">
-      <div class="decision-title">Multi-Year Audit: Year Selector Approach</div>
-      <div class="decision-detail">The year selector dropdown at the top of the audit page controls which school year's data is displayed. Checklists are stored under their actual school year - the year is not embedded in the checklist title. This keeps reports accurate when filtering by year. The 2025-26 incomplete items remain in the 2025-26 bucket; the 2026-27 checklists go to the 2026-27 year. Approximately 60-100 schools have outstanding 2025-26 items.</div>
-    </div>
-    <div class="decision-item">
-      <div class="decision-title">Cross-Year Alert Indicator - In Development</div>
-      <div class="decision-detail">Schools with prior year incomplete items should see an alert on the current year view so they are not misled into thinking they are fully compliant. A cross-year alert banner concept was demoed during the session and is in development. Schools that passed the prior year see no alert. The admin report center will also provide district-wide cross-year visibility.</div>
-    </div>
-    <div class="decision-item">
-      <div class="decision-title">Email Audit Trail - Added to Scope</div>
-      <div class="decision-detail">The system will maintain a database record for every email sent: sender, recipient, timestamp, and content. This allows the principal or admin team to confirm delivery if a WCM claims they did not receive the welcome email. The principal can go back and confirm the email was sent on a specific date without needing to receive their own copy.</div>
-    </div>
-    <div class="decision-item">
-      <div class="decision-title">Bulk Report Page - Added to Future Phases</div>
-      <div class="decision-detail">Rather than updating certification status school by school and user by user, a future bulk report page will allow the admin team to select multiple schools, apply certification status updates in a single action. Added to the V2/V3 roadmap.</div>
-    </div>
-  </div>
-
-  <h2>Updates - June 25, 2026</h2>
-  <p style="font-size:13px;color:rgba(26,26,26,0.6);margin-bottom:20px;">The following items were submitted by the BCPS web team via Teams and reviewed by Sean A. Russell, District Webmaster, Office of Communications.</p>
-
-  <div class="section-block">
-    <div class="decision-item">
-      <div class="decision-title">BCPS Central Feedback - Yaco Abuelafia <span class="tag resolved" style="font-size:9px;margin-left:8px;">4 of 5 actioned</span></div>
-      <div class="decision-detail">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;">
-          <thead>
-            <tr>
-              <th style="text-align:left;padding:6px 10px;border-bottom:2px solid rgba(0,0,0,0.09);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:rgba(26,26,26,0.35);">#</th>
-              <th style="text-align:left;padding:6px 10px;border-bottom:2px solid rgba(0,0,0,0.09);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:rgba(26,26,26,0.35);">Item</th>
-              <th style="text-align:left;padding:6px 10px;border-bottom:2px solid rgba(0,0,0,0.09);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:rgba(26,26,26,0.35);">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);vertical-align:top;">1</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);vertical-align:top;">% Completed counts all answered questions, not correctly-answered ones. Team wants prior history preserved and a new incorrect-answer count column.</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);vertical-align:top;"><span class="tag pending">TBD</span></td>
-            </tr>
-            <tr>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);vertical-align:top;">2</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);vertical-align:top;">Rename "Enter Documents" to "Website Monitoring Task."</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);vertical-align:top;"><span class="tag resolved">Done</span></td>
-            </tr>
-            <tr>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);vertical-align:top;">3</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);vertical-align:top;">Move 2026-27 checklist to proper school year.</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);vertical-align:top;"><span class="tag resolved">Done</span></td>
-            </tr>
-            <tr>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);vertical-align:top;">4</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);vertical-align:top;">Submit/Lock button labels renamed to Save, Submit, and Back.</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);vertical-align:top;"><span class="tag resolved">Done</span></td>
-            </tr>
-            <tr>
-              <td style="padding:10px 10px;color:rgba(26,26,26,0.78);vertical-align:top;">5</td>
-              <td style="padding:10px 10px;color:rgba(26,26,26,0.78);vertical-align:top;">Global send-back messages. Team provided full templates for Audit and Updates (Completed and Incomplete variants). Email delivery confirmed working. DB copy of emails not yet saved.</td>
-              <td style="padding:10px 10px;vertical-align:top;"><span class="tag open">Deferred</span></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="section-block">
-    <div class="decision-item">
-      <div class="decision-title">Access Management Changes <span class="tag resolved" style="font-size:9px;margin-left:8px;">June 25</span></div>
-      <div class="decision-detail">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;">
-          <thead>
-            <tr>
-              <th style="text-align:left;padding:6px 10px;border-bottom:2px solid rgba(0,0,0,0.09);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:rgba(26,26,26,0.35);">Name</th>
-              <th style="text-align:left;padding:6px 10px;border-bottom:2px solid rgba(0,0,0,0.09);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:rgba(26,26,26,0.35);">Employee ID</th>
-              <th style="text-align:left;padding:6px 10px;border-bottom:2px solid rgba(0,0,0,0.09);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;color:rgba(26,26,26,0.35);">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);">Nakesha Ali-Sirju</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);">P00040910</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);">Access granted</td>
-            </tr>
-            <tr>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);">Jeune Tilus (JT)</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);">P00088153</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);">Manage module access granted</td>
-            </tr>
-            <tr>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);">Andrea Barton</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);">-</td>
-              <td style="padding:10px 10px;border-bottom:1px solid rgba(0,0,0,0.07);color:rgba(26,26,26,0.78);">Access restored</td>
-            </tr>
-            <tr>
-              <td style="padding:10px 10px;color:rgba(26,26,26,0.78);">Mavens Longchamp</td>
-              <td style="padding:10px 10px;color:rgba(26,26,26,0.78);">-</td>
-              <td style="padding:10px 10px;color:rgba(26,26,26,0.78);">Removed (student account - not eligible)</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
     </div>
   </div>
 
