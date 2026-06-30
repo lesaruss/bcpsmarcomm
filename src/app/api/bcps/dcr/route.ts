@@ -6,10 +6,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Shared prototype access token for the District Community Relations tracker.
 const ACCESS_KEY = 'lr-dcr-7b2e4a90'
 
-// Notify Dr. Stewart when a task is flagged as Needs Support.
 async function notifyNeedsSupport(taskTitle: string, programArea: string) {
   const key = process.env.RESEND_API_KEY
   if (!key) return
@@ -55,32 +53,31 @@ async function notifyNeedsSupport(taskTitle: string, programArea: string) {
   }
 }
 
-// GET: return tasks and recent weekly reports.
 export async function GET(req: NextRequest) {
   const key = req.nextUrl.searchParams.get('key')
   if (key !== ACCESS_KEY) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const [tasks, weekly] = await Promise.all([
+  const [tasks, weekly, notes] = await Promise.all([
     supabase.from('dcr_tasks').select('*').order('created_at', { ascending: true }),
     supabase.from('dcr_weekly_reports').select('*').order('week_ending', { ascending: false }).limit(30),
+    supabase.from('dcr_project_notes').select('*'),
   ])
-  const err = tasks.error || weekly.error
+  const err = tasks.error || weekly.error || notes.error
   if (err) return NextResponse.json({ error: err.message }, { status: 500 })
   return NextResponse.json({
     ok: true,
-    tasks: tasks.data ?? [],
-    weekly: weekly.data ?? [],
+    tasks:        tasks.data ?? [],
+    weekly:       weekly.data ?? [],
+    projectNotes: notes.data ?? [],
   })
 }
 
-// POST: action-based mutations.
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { key, action } = body
     if (key !== ACCESS_KEY) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // ── Create task ──────────────────────────────────────────────────────────
     if (action === 'task_create') {
       const { program_area, title, detail, assignee, due_date } = body
       if (!program_area || !title) {
@@ -98,7 +95,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // ── Update task ──────────────────────────────────────────────────────────
     if (action === 'task_update') {
       const { id, status, title, detail, due_date, program_area, assignee } = body
       if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
@@ -114,22 +110,15 @@ export async function POST(req: NextRequest) {
       const { error } = await supabase.from('dcr_tasks').update(update).eq('id', id)
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-      // Send notification when a task is flagged as Needs Support.
       if (status === 'blocked') {
         const { data: task } = await supabase
-          .from('dcr_tasks')
-          .select('title, program_area')
-          .eq('id', id)
-          .single()
-        if (task) {
-          notifyNeedsSupport(task.title, task.program_area)
-        }
+          .from('dcr_tasks').select('title, program_area').eq('id', id).single()
+        if (task) notifyNeedsSupport(task.title, task.program_area)
       }
 
       return NextResponse.json({ ok: true })
     }
 
-    // ── Delete task ──────────────────────────────────────────────────────────
     if (action === 'task_delete') {
       const { id } = body
       if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
@@ -138,7 +127,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // ── Weekly summary ───────────────────────────────────────────────────────
     if (action === 'weekly_submit') {
       const {
         week_ending, specialist,
@@ -156,6 +144,20 @@ export async function POST(req: NextRequest) {
         ssp_status:     ssp_status ?? null,
         awards_status:  awards_status ?? null,
       })
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ ok: true })
+    }
+
+    // ── Project notes + pinned resources ─────────────────────────────────────
+    if (action === 'project_note_save') {
+      const { program_area, notes, pinned_slugs } = body
+      if (!program_area) return NextResponse.json({ error: 'program_area required' }, { status: 400 })
+      const { error } = await supabase.from('dcr_project_notes').upsert({
+        program_area,
+        notes:        notes ?? null,
+        pinned_slugs: pinned_slugs ?? [],
+        updated_at:   new Date().toISOString(),
+      }, { onConflict: 'program_area' })
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
       return NextResponse.json({ ok: true })
     }
