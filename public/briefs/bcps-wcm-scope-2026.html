@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WCM Scope of Work - BCPS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+
+  h1 { font-size: clamp(26px, 4vw, 44px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 18px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+  .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
+
+  .item-list { list-style: none; margin: 0; }
+  .item-list li { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text-75); line-height: 1.55; }
+  .item-list li:last-child { border-bottom: none; }
+  .item-list li::before { content: ''; width: 6px; height: 6px; background: var(--bcps-blue); border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+
+  .role-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; margin-bottom: 12px; }
+  .role-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); margin-bottom: 6px; }
+  .role-name { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+  .role-access { font-size: 13px; color: var(--text-75); margin-bottom: 6px; }
+  .role-note { font-size: 12px; color: var(--text-50); }
+
+  .status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .status-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; }
+  .status-name { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+  .status-desc { font-size: 12px; color: var(--text-50); line-height: 1.5; }
+
+  .sprint-block { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--bcps-blue); border-radius: 8px; padding: 20px 24px; margin-bottom: 12px; }
+  .sprint-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin-bottom: 8px; }
+
+  .pending-block { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid rgba(197,83,38,0.5); border-radius: 8px; padding: 20px 24px; margin-bottom: 12px; }
+  .pending-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-orange); margin-bottom: 8px; }
+
+  .future-block { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid rgba(0,0,0,0.12); border-radius: 8px; padding: 20px 24px; margin-bottom: 12px; }
+  .future-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); margin-bottom: 8px; }
+
+  .doc-footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; gap: 32px; flex-wrap: wrap; }
+  .doc-footer-item { display: flex; flex-direction: column; gap: 4px; }
+  .doc-footer-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .doc-footer-value { font-size: 12px; color: var(--text-50); }
+
+  @media (max-width: 600px) {
+    main { padding: 88px 16px 60px; }
+    .meta-row { gap: 16px; }
+    .status-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bcps-header">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider"></div>
+  <span class="bcps-header-title">WCM Scope of Work</span>
+</header>
+
+<main>
+  <h1>Web Content Manager<br>Scope of Work</h1>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Last Updated</span>
+      <span class="meta-value">June 24, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Maintained By</span>
+      <span class="meta-value">Office of Communications</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Document Type</span>
+      <span class="meta-value">Program Scope</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Status</span>
+      <span class="meta-value">Active</span>
+    </div>
+  </div>
+
+  <h2>Executive Summary</h2>
+  <p>The Web Content Manager (WCM) program establishes standardized website governance across Broward County Public Schools. School principals designate WCMs who complete certification coursework and maintain compliance with BCPS website standards.</p>
+
+  <h2>WCM Assignment and Certification Workflow</h2>
+  <div class="section-block">
+    <h3>Principal-Level Assignment</h3>
+    <p>Principals log into BCPS Central, select their school, and designate WCMs from existing staff or new users. The system automatically sends a welcome email with a course enrollment link. All assignments are timestamped with administrator identity for audit trail purposes.</p>
+    <ul class="item-list">
+      <li>Confirm existing WCMs from prior school year</li>
+      <li>Add new WCMs via staff search or manual entry</li>
+      <li>Automated welcome email with dynamic school and WCM details</li>
+      <li>Bulk upload capability currently in development</li>
+    </ul>
+  </div>
+
+  <h2>Certification Status Tracking</h2>
+  <div class="status-grid">
+    <div class="status-card">
+      <div class="status-name">Not Registered</div>
+      <div class="status-desc">WCM designated, awaiting course enrollment</div>
+    </div>
+    <div class="status-card">
+      <div class="status-name">Registered</div>
+      <div class="status-desc">Enrolled in WCM certification course, in progress</div>
+    </div>
+    <div class="status-card">
+      <div class="status-name">Incomplete</div>
+      <div class="status-desc">Working through course modules, not yet certified</div>
+    </div>
+    <div class="status-card">
+      <div class="status-name">Certified</div>
+      <div class="status-desc">Course completed and certification achieved</div>
+    </div>
+  </div>
+  <p>Each certification includes a start date (enrollment) and end date (expiration). Principals see read-only status; central admin updates status as WCMs progress.</p>
+
+  <h2>Multi-Year Audit and Compliance Management</h2>
+  <div class="section-block">
+    <h3>Cross-Year Item Management</h3>
+    <p><strong>Challenge:</strong> Schools may carry incomplete audit items from prior years (2025-26). These must be surfaced without cluttering the current year view.</p>
+    <ul class="item-list">
+      <li>Outstanding items remain segregated in prior school year</li>
+      <li>Year selector dropdown at top of audit page organizes view</li>
+      <li>Clear cross-year alert system notifies schools with pending items</li>
+      <li>Report center provides administrative cross-year visibility</li>
+      <li>Estimated 60-100+ schools currently have unresolved 2025-26 items</li>
+    </ul>
+  </div>
+  <div class="section-block">
+    <h3>Checklist and Status Tracking</h3>
+    <ul class="item-list">
+      <li>All schools receive audit checklist per school year</li>
+      <li>Central admin manually updates school compliance status as items are checked off</li>
+      <li>Three terminal statuses: Pass, Incomplete, Fail</li>
+      <li>Automated status computation script in development (rules being finalized)</li>
+      <li>Bulk reporting and update interface planned</li>
+    </ul>
+  </div>
+
+  <h2>Role-Based Access Control</h2>
+  <div class="role-block">
+    <div class="role-label">Role</div>
+    <div class="role-name">Office of Communications (OOC)</div>
+    <div class="role-access">Access: MarComm Portal, Graphics Library, Minutes Archive, Annual Reports</div>
+    <div class="role-note">District-level communications and branded materials management</div>
+  </div>
+  <div class="role-block">
+    <div class="role-label">Role</div>
+    <div class="role-name">Department Web Team (DWT)</div>
+    <div class="role-access">Access: MarComm Portal, WCM Certification Module, Minutes Archive, Annual Reports</div>
+    <div class="role-note">Technical implementation and cross-district coordination</div>
+  </div>
+  <div class="role-block">
+    <div class="role-label">Role</div>
+    <div class="role-name">Super Admin</div>
+    <div class="role-access">Access: System configuration, permissions panel, advanced settings</div>
+    <div class="role-note">Limited to Sean Russell and designated district leadership</div>
+  </div>
+
+  <h2>Operational Implementation</h2>
+  <div class="sprint-block">
+    <div class="sprint-label">Current Sprint</div>
+    <ul class="item-list">
+      <li>Execute script to grant all principals WCM assignment permissions (~30 minutes)</li>
+      <li>Send Pivot memo to principals explaining assignment process and expectations</li>
+      <li>Begin processing 60-100+ incomplete school audits from 2025-26</li>
+      <li>Complete WCM bulk upload feature for multi-user imports</li>
+      <li>Verify permission matrix across all 7 restricted pages</li>
+    </ul>
+  </div>
+  <div class="pending-block">
+    <div class="pending-label">Pending Decisions</div>
+    <ul class="item-list">
+      <li>Email audit trail and record-keeping (sender, recipient, timestamp, content for dispute resolution)</li>
+      <li>Checklist assignment by school type (Title I schools, etc.)</li>
+      <li>Bulk status update reporting interface</li>
+      <li>Progress indicator for WCM course module completion</li>
+    </ul>
+  </div>
+  <div class="future-block">
+    <div class="future-label">Future Phases</div>
+    <ul class="item-list">
+      <li>Automated Pass/Incomplete/Fail status computation based on checklist completion</li>
+      <li>Dashboard enhancements for multi-year compliance overview</li>
+      <li>Cross-year alert system for outstanding items from prior years</li>
+    </ul>
+  </div>
+
+  <div class="doc-footer">
+    <div class="doc-footer-item">
+      <span class="doc-footer-label">Maintained By</span>
+      <span class="doc-footer-value">BCPS Office of Communications</span>
+    </div>
+    <div class="doc-footer-item">
+      <span class="doc-footer-label">Last Updated</span>
+      <span class="doc-footer-value">June 24, 2026</span>
+    </div>
+    <div class="doc-footer-item">
+      <span class="doc-footer-label">Previous Versions</span>
+      <span class="doc-footer-value">June 9, 2026 | June 8, 2026</span>
+    </div>
+  </div>
+</main>
+
+</body>
+</html>
