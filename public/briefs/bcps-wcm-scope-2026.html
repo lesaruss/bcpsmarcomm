@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WCM Scope of Work - BCPS</title>
+<title>WCM Scope Review - June 9, 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -11,9 +11,11 @@
   :root {
     --bcps-blue: #1672A7;
     --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
     --bcps-orange: #C55326;
     --bg: #f5f5f5;
     --surface: #ffffff;
+    --surface2: #fafafa;
     --border: rgba(0,0,0,0.09);
     --text: #1a1a1a;
     --text-75: rgba(26,26,26,0.78);
@@ -38,210 +40,641 @@
   .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
 
   main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
-
   h1 { font-size: clamp(26px, 4vw, 44px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 18px; }
   h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
   p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
   p strong { color: var(--text); font-weight: 700; }
 
-  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
   .meta-item { display: flex; flex-direction: column; gap: 4px; }
   .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
   .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+  .meta-value a { color: var(--bcps-blue); text-decoration: underline; }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  .notice-banner { background: rgba(197,83,38,0.06); border: 1px solid rgba(197,83,38,0.25); border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; }
+  .notice-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .notice-banner p strong { color: var(--bcps-orange); }
+
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .outcome-banner p strong { color: var(--text); }
+
+  .decision-item { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .decision-item:last-child { border-bottom: none; }
+  .decision-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .decision-detail { font-size: 13px; color: var(--text-75); line-height: 1.65; }
 
   .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
   .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
 
-  .item-list { list-style: none; margin: 0; }
-  .item-list li { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text-75); line-height: 1.55; }
-  .item-list li:last-child { border-bottom: none; }
-  .item-list li::before { content: ''; width: 6px; height: 6px; background: var(--bcps-blue); border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+  .tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 4px; margin: 2px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .tag.open { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.28); color: var(--bcps-blue-dark); }
+  .tag.resolved { background: rgba(22,117,12,0.10); border-color: rgba(22,117,12,0.30); color: var(--bcps-green); }
+  .tag.pending { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.28); color: var(--bcps-orange); }
 
-  .role-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; margin-bottom: 12px; }
-  .role-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); margin-bottom: 6px; }
-  .role-name { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
-  .role-access { font-size: 13px; color: var(--text-75); margin-bottom: 6px; }
-  .role-note { font-size: 12px; color: var(--text-50); }
+  .timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 110px; padding-top: 2px; }
+  .timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .timeline-text strong { color: var(--text); }
+  .timeline-row.highlight .timeline-date { color: var(--bcps-green); }
+  .timeline-row.highlight .timeline-text { color: var(--text); }
 
-  .status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .status-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; }
-  .status-name { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
-  .status-desc { font-size: 12px; color: var(--text-50); line-height: 1.5; }
+  .priority-desc { font-size: 12px; color: var(--text-75); line-height: 1.6; margin-bottom: 8px; }
+  .priority-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+  .priority-list li { font-size: 12px; color: var(--text-75); line-height: 1.5; display: flex; gap: 6px; }
+  .priority-list li::before { content: ""; display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--bcps-blue); margin-top: 6px; flex-shrink: 0; }
 
-  .sprint-block { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--bcps-blue); border-radius: 8px; padding: 20px 24px; margin-bottom: 12px; }
-  .sprint-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin-bottom: 8px; }
 
-  .pending-block { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid rgba(197,83,38,0.5); border-radius: 8px; padding: 20px 24px; margin-bottom: 12px; }
-  .pending-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-orange); margin-bottom: 8px; }
-
-  .future-block { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid rgba(0,0,0,0.12); border-radius: 8px; padding: 20px 24px; margin-bottom: 12px; }
-  .future-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); margin-bottom: 8px; }
-
-  .doc-footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; gap: 32px; flex-wrap: wrap; }
-  .doc-footer-item { display: flex; flex-direction: column; gap: 4px; }
-  .doc-footer-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
-  .doc-footer-value { font-size: 12px; color: var(--text-50); }
-
-  @media (max-width: 600px) {
-    main { padding: 88px 16px 60px; }
-    .meta-row { gap: 16px; }
-    .status-grid { grid-template-columns: 1fr; }
+  .acc-item { border-bottom: 1px solid var(--border); }
+  .acc-item:last-child { border-bottom: none; }
+  .acc-trigger {
+    width: 100%; background: none; border: none; padding: 14px 20px;
+    display: flex; align-items: center; gap: 12px; cursor: pointer;
+    text-align: left; font-family: "Montserrat", sans-serif;
+    transition: background 0.12s;
   }
+  .acc-trigger:hover { background: var(--surface2); }
+  .acc-trigger[aria-expanded="true"] { background: rgba(22,114,167,0.05); }
+  .acc-num { font-size: 18px; font-weight: 900; color: var(--bcps-blue); min-width: 28px; line-height: 1; flex-shrink: 0; }
+  .acc-title { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
+  .acc-chip { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-30); white-space: nowrap; display: block; }
+  @media (min-width: 600px) { .acc-chip { display: block; } }
+  .acc-title-block { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .acc-deadline-inline { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); }
+  .acc-chevron { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-30); transition: transform 0.2s; }
+  .acc-trigger[aria-expanded="true"] .acc-chevron { transform: rotate(180deg); }
+  .acc-body { display: none; padding: 4px 20px 18px 60px; }
+  .acc-trigger[aria-expanded="true"] + .acc-body { display: block; }
+  .acc-detail { font-size: 13px; color: var(--text-75); line-height: 1.7; margin-bottom: 10px; }
+  .acc-meta { display: flex; flex-direction: column; gap: 4px; }
+  .acc-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); }
+  .acc-deadline { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); }
+
+
+  .template-section { margin-top: 32px; }
+  .template-instructions { font-size: 13px; color: var(--text-75); line-height: 1.7; margin-bottom: 16px; }
+  .template-box {
+    background: #f8fbfd; border: 1px solid rgba(22,114,167,0.18);
+    border-radius: 6px; padding: 20px 22px; font-size: 13px;
+    color: var(--text); line-height: 1.8; white-space: pre-wrap;
+    font-family: "Montserrat", sans-serif; position: relative;
+  }
+  .template-subject { font-size: 12px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--bcps-blue); margin-bottom: 12px; }
+  .template-copy-btn {
+    position: absolute; top: 12px; right: 14px;
+    font-family: "Montserrat", sans-serif; font-size: 10px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.1em; padding: 5px 12px;
+    border-radius: 4px; border: 1.5px solid var(--bcps-blue);
+    color: var(--bcps-blue); background: #fff; cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .template-copy-btn:hover { background: var(--bcps-blue); color: #fff; }
+  .template-placeholder { color: var(--bcps-orange); font-weight: 700; }
+
+  .priority-group-label {
+    font-size: 10px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.22em; color: var(--bcps-blue-dark);
+    padding: 18px 0 10px; border-top: 1px solid var(--border);
+    margin-top: 8px; grid-column: 1 / -1;
+  }
+  .priority-group-label:first-child { border-top: none; margin-top: 0; padding-top: 4px; }
+  .attendee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 8px; }
+  .attendee-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+  .attendee-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .attendee-title { font-size: 11px; color: var(--text-50); font-weight: 600; }
+
+  .completed-list { list-style: none; padding: 0; }
+  .completed-list li { font-size: 13px; color: var(--text-75); padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; }
+  .completed-list li:last-child { border-bottom: none; }
+  .completed-list li::before { content: ""; display: block; width: 16px; height: 16px; min-width: 16px; margin-top: 1px; background: var(--bcps-green); border-radius: 50%; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 8l3 3 5-5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-size: cover; }
+
+  .priority-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .priority-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; }
+  .priority-card.must { border-color: rgba(22,117,12,0.35); background: rgba(22,117,12,0.04); }
+  .priority-card.watch { border-color: rgba(197,83,38,0.30); background: rgba(197,83,38,0.04); }
+  .priority-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 6px; }
+  .priority-card.must .priority-label { color: var(--bcps-green); }
+  .priority-card.watch .priority-label { color: var(--bcps-orange); }
+  .priority-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .priority-note { font-size: 12px; color: var(--text-50); line-height: 1.55; }
 </style>
 </head>
 <body>
 
-<header class="bcps-header">
+<header class="bcps-header" role="banner">
   <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
   <div class="bcps-header-divider"></div>
-  <span class="bcps-header-title">WCM Scope of Work</span>
+  <span class="bcps-header-title">BCPS - WCM Scope Review</span>
+
 </header>
 
 <main>
-  <h1>Web Content Manager<br>Scope of Work</h1>
+  <h1>Website Management Center<br>Scope Review - June 9, 2026</h1>
 
   <div class="meta-row">
     <div class="meta-item">
-      <span class="meta-label">Last Updated</span>
-      <span class="meta-value">June 24, 2026</span>
+      <span class="meta-label">Date</span>
+      <span class="meta-value">June 9, 2026</span>
     </div>
     <div class="meta-item">
-      <span class="meta-label">Maintained By</span>
-      <span class="meta-value">Office of Communications</span>
+      <span class="meta-label">Platform</span>
+      <span class="meta-value">Microsoft Teams</span>
     </div>
     <div class="meta-item">
-      <span class="meta-label">Document Type</span>
-      <span class="meta-value">Program Scope</span>
+      <span class="meta-label">Attendees</span>
+      <span class="meta-value">5 People</span>
     </div>
     <div class="meta-item">
-      <span class="meta-label">Status</span>
-      <span class="meta-value">Active</span>
+      <span class="meta-label">Version</span>
+      <span class="meta-value">v2 - June 9, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Previous Brief</span>
+      <span class="meta-value"><a href="/briefs/bcps-wcm-scope-2026-06-08.html" target="_blank">v1 - June 8, 2026</a></span>
     </div>
   </div>
 
-  <h2>Executive Summary</h2>
-  <p>The Web Content Manager (WCM) program establishes standardized website governance across Broward County Public Schools. School principals designate WCMs who complete certification coursework and maintain compliance with BCPS website standards.</p>
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> Tricia A. Allen (Application Services), Vanessa C. Deslandes-Auguste (Application Services), Yaco D. Abuelafia (Application Services), Rodolfo M. Carril (Application Services), and Sean A. Russell (Office of Communications). This brief supersedes the June 8 scope document and incorporates context from the June 9 review session.</p>
+  </div>
 
-  <h2>WCM Assignment and Certification Workflow</h2>
+  <div class="notice-banner">
+    <p><strong>Context note from June 9 review:</strong> The team reviewed the v1 brief during this session. Yaco D. Abuelafia noted it lacked the technical context discussed in prior meetings and flagged several items that need more precise scoping before development begins. This v2 incorporates those clarifications directly.</p>
+  </div>
+
+  <h2>Attendees</h2>
+  <div class="attendee-grid">
+    <div class="attendee-card">
+      <div class="attendee-name">Tricia A. Allen</div>
+      <div class="attendee-title">Assistant Director, Application Services</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Vanessa C. Deslandes-Auguste</div>
+      <div class="attendee-title">Process Analyst - Change Management / Webmaster, Application Services / ISD</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Yaco D. Abuelafia</div>
+      <div class="attendee-title">Software Engineer, Application Services</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Rodolfo M. Carril</div>
+      <div class="attendee-title">Technical Support Analyst III, Application Services</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Sean A. Russell</div>
+      <div class="attendee-title">District Webmaster, Office of Communications</div>
+    </div>
+  </div>
+
+  <h2>Completed Since Last Session</h2>
   <div class="section-block">
-    <h3>Principal-Level Assignment</h3>
-    <p>Principals log into BCPS Central, select their school, and designate WCMs from existing staff or new users. The system automatically sends a welcome email with a course enrollment link. All assignments are timestamped with administrator identity for audit trail purposes.</p>
-    <ul class="item-list">
-      <li>Confirm existing WCMs from prior school year</li>
-      <li>Add new WCMs via staff search or manual entry</li>
-      <li>Automated welcome email with dynamic school and WCM details</li>
-      <li>Bulk upload capability currently in development</li>
+    <ul class="completed-list">
+      <li><strong>WCM Management Controls - Separate Subpage.</strong> The management controls panel has been moved to a dedicated subpage within BCPS Central. This item is fully resolved.</li>
+      <li><strong>Principal Approval Bypass Setting.</strong> Yaco D. Abuelafia confirmed this feature was added prior to the June 9 session. Checklist settings now include a configurable toggle per checklist: audits require principal approval; monthly updates bypass approval. Ready for testing.</li>
+      <li><strong>Category Label System - Training Complete.</strong> Vanessa C. Deslandes-Auguste has been trained on how to build checklists using the category label system. No further development action required for this item.</li>
     </ul>
   </div>
 
-  <h2>Certification Status Tracking</h2>
-  <div class="status-grid">
-    <div class="status-card">
-      <div class="status-name">Not Registered</div>
-      <div class="status-desc">WCM designated, awaiting course enrollment</div>
-    </div>
-    <div class="status-card">
-      <div class="status-name">Registered</div>
-      <div class="status-desc">Enrolled in WCM certification course, in progress</div>
-    </div>
-    <div class="status-card">
-      <div class="status-name">Incomplete</div>
-      <div class="status-desc">Working through course modules, not yet certified</div>
-    </div>
-    <div class="status-card">
-      <div class="status-name">Certified</div>
-      <div class="status-desc">Course completed and certification achieved</div>
-    </div>
-  </div>
-  <p>Each certification includes a start date (enrollment) and end date (expiration). Principals see read-only status; central admin updates status as WCMs progress.</p>
-
-  <h2>Multi-Year Audit and Compliance Management</h2>
+  <h2>Key Decisions</h2>
   <div class="section-block">
-    <h3>Cross-Year Item Management</h3>
-    <p><strong>Challenge:</strong> Schools may carry incomplete audit items from prior years (2025-26). These must be surfaced without cluttering the current year view.</p>
-    <ul class="item-list">
-      <li>Outstanding items remain segregated in prior school year</li>
-      <li>Year selector dropdown at top of audit page organizes view</li>
-      <li>Clear cross-year alert system notifies schools with pending items</li>
-      <li>Report center provides administrative cross-year visibility</li>
-      <li>Estimated 60-100+ schools currently have unresolved 2025-26 items</li>
-    </ul>
+
+    <div class="decision-item">
+      <div class="decision-title">v1 Brief Superseded - Context Must Drive the Document</div>
+      <div class="decision-detail">Yaco D. Abuelafia reviewed the June 8 brief and identified that it lacked the technical specificity discussed in prior meetings. The team agreed the brief should reflect the actual development context, not a generic summary. This v2 document is the authoritative scope reference going forward.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Certification Module: 4 Statuses Defined, V1 Must-Ship by June 30</div>
+      <div class="decision-detail">Vanessa C. Deslandes-Auguste's roadmap designates WCM Certification Status Tracking as a V1 must-ship by June 30, 2026. Yaco D. Abuelafia to add the certification status column to the WCM table with four defined statuses: Not Registered (default), Registered (enrolled), Certified (completed), and Incomplete (started but not finished). The module should be designed for district-wide reuse. WCM certification training deadline is September 30, 2026.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">3-Status Audit System Confirmed: Pass / Incomplete / Fail</div>
+      <div class="decision-detail">The run/pass/fail script requires three distinct statuses, not two. <strong>Pass:</strong> all surveys for the school are 100% complete and district-approved. <strong>Incomplete:</strong> one or more surveys remain unfinished. <strong>Fail:</strong> the school has not started any surveys. Vanessa C. Deslandes-Auguste confirmed this distinction. The data migration strategy for pre-existing 2025-26 records is still under analysis by Yaco D. Abuelafia.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">School-Specific Incomplete Checklists - Each School Has Different Outstanding Items</div>
+      <div class="decision-detail">Vanessa C. Deslandes-Auguste confirmed that incomplete schools from the 2025-26 audit do not share the same outstanding items - each school's remaining tasks are different. The agreed approach: create a master checklist template with all audit items, then allow Vanessa to mark completed items per school so only the true outstanding tasks are visible to each school. Yaco D. Abuelafia proposed an alternative via programmatic bulk-marking of completed items by school location number.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">June 30 Deadline Requires Priority Ranking</div>
+      <div class="decision-detail">Yaco D. Abuelafia stated clearly that not all scope items can be completed by June 30, 2026. The team began prioritizing at the end of the session. Tricia A. Allen identified the 2025-26 audit pass/fail record as the top priority. Email automation (except the welcome email) was deferred to a post-June 30 phase. Yaco will complete the pass/fail script and priority items first.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Three-Phase Roadmap Established: V1 (June 30), V2 (August 30), V3 (October 2026)</div>
+      <div class="decision-detail">Vanessa C. Deslandes-Auguste provided a formal phased roadmap after the June 9 session. <strong>V1 (June 30):</strong> WCM assignment notification, 2025-26 audit status display, WCM certification status column. <strong>V2 (August 30):</strong> Audit dashboard enhancements (by region/school, filter/sort, PBI export), 2026-27 audit and update notifications, 2025-26 incomplete audit follow-up with automated reminders. <strong>V3 (October 2026):</strong> Automated certification recognition, digital badge, certificate, and Recognition and Achievement Dashboard.</div>
+    </div>
+
+    <div class="decision-item">
+      <div class="decision-title">Group-Based Checklist Assignment Needs Definition Before Build</div>
+      <div class="decision-detail">Yaco D. Abuelafia raised the possibility of assigning checklists by school type or group (e.g., high schools get 10 items, elementary schools get 6). Vanessa C. Deslandes-Auguste confirmed this is a likely future need. This feature is not in scope for June 30 - it requires Vanessa to define which school groups receive which checklist sets before development can begin.</div>
+    </div>
+
   </div>
+
+  <h2>June 30 Priority Ranking</h2>
+  <div class="priority-grid">
+    <div class="priority-group-label">V1 Priority Rankings</div>
+    <div class="priority-card must">
+      <div class="priority-label">Must Ship - V1 June 30</div>
+      <div class="priority-title">WCM Assignment Notification Email</div>
+      <p class="priority-desc">Send an automated email to newly assigned WCMs with role details and next steps for certification.</p>
+      <ul class="priority-list">
+        <li>CC school administrators on all WCM assignment emails</li>
+        <li>Include WCM Certification Training CTA and registration link</li>
+        <li>State September 30, 2026 certification deadline</li>
+        <li>Save the Date: WCM Kickoff Meeting, September 11, 2026 - Pompano Beach High School</li>
+        <li>Email template provided by Vanessa C. Deslandes-Auguste</li>
+      </ul>
+    </div>
+    <div class="priority-card must">
+      <div class="priority-label">Must Ship - V1 June 30</div>
+      <div class="priority-title">2025-26 Audit Status</div>
+      <p class="priority-desc">Display each school's audit status based on survey completion. Covers all 7 sub-items from Vanessa's roadmap.</p>
+      <ul class="priority-list">
+        <li>a. Vanessa to create the 2025-26 Audit Checklist in BCPS Central</li>
+        <li>b. Display school audit status: Pass, Fail, or Incomplete</li>
+        <li>c. Pass - automatically assign Pass to confirmed passing schools</li>
+        <li>d. Fail - confirm schools with no activity are marked Fail</li>
+        <li>e. Incomplete - assign outstanding items to specific schools</li>
+        <li>f. Allow administrators and WCMs to view audit status</li>
+        <li>g. District Web Team can add notes when a task is completed</li>
+      </ul>
+    </div>
+    <div class="priority-card must">
+      <div class="priority-label">Must Ship - V1 June 30</div>
+      <div class="priority-title">WCM Certification Status Tracking</div>
+      <p class="priority-desc">Add a certification status column to the WCM table. Training deadline: September 30, 2026.</p>
+      <ul class="priority-list">
+        <li>a. Add WCM Certification Status column to the WCM table</li>
+        <li>b. Display four statuses:</li>
+        <li style="padding-left:14px;">i. Not Registered (default on assignment)</li>
+        <li style="padding-left:14px;">ii. Registered (enrolled in certification course)</li>
+        <li style="padding-left:14px;">iii. Certified (course completed)</li>
+        <li style="padding-left:14px;">iv. Incomplete (started but not finished)</li>
+      </ul>
+    </div>
+    <div class="priority-group-label">V2 Priority Rankings</div>
+    <div class="priority-card watch">
+      <div class="priority-label">V2 - August 30, 2026</div>
+      <div class="priority-title">Audit Dashboard Enhancements</div>
+      <p class="priority-desc">Expand reporting capabilities for the audit results view.</p>
+      <ul class="priority-list">
+        <li>a. View audit results by Region</li>
+        <li>b. View audit results by School</li>
+        <li>c. Filter and sort audit data</li>
+        <li>d. Identify schools with Pass, Fail, or Incomplete status</li>
+        <li>e. Allow export of data for Power BI</li>
+      </ul>
+    </div>
+    <div class="priority-card watch">
+      <div class="priority-label">V2 - August 30, 2026</div>
+      <div class="priority-title">2026-27 Audit and Website Update Notifications</div>
+      <p class="priority-desc">Automate communications for the 2026-27 audit cycle and required website updates.</p>
+      <ul class="priority-list">
+        <li>a. Audit Confirmation - automated message to school admins, CC WCMs</li>
+        <li>b. Audit Review - automated message to WCMs, CC admins</li>
+        <li>c. Automated reminders for required website updates</li>
+        <li>d. Vanessa C. Deslandes-Auguste to provide all email content</li>
+      </ul>
+    </div>
+    <div class="priority-card watch">
+      <div class="priority-label">V2 - August 30, 2026</div>
+      <div class="priority-title">2025-26 Incomplete Audit Follow-Up</div>
+      <p class="priority-desc">Automated follow-up for schools that did not complete the 2025-26 audit.</p>
+      <ul class="priority-list">
+        <li>a. Automated notifications for schools with incomplete audit items</li>
+        <li>b. School-specific audit task assignments</li>
+        <li>c. Reminder communications until completion</li>
+      </ul>
+    </div>
+    <div class="priority-group-label">V3 Priority Rankings</div>
+    <div class="priority-card watch">
+      <div class="priority-label">V3 - October 2026</div>
+      <div class="priority-title">Automated WCM Certification Recognition</div>
+      <p class="priority-desc">Recognize WCMs automatically upon completing the certification course.</p>
+      <ul class="priority-list">
+        <li>a. Automated congratulations email upon certification completion</li>
+        <li>b. Digital badge distribution</li>
+        <li>c. Certificate of completion</li>
+      </ul>
+    </div>
+    <div class="priority-card watch">
+      <div class="priority-label">V3 - October 2026</div>
+      <div class="priority-title">Recognition and Achievement Dashboard</div>
+      <p class="priority-desc">Surface certification completion data across schools and regions.</p>
+      <ul class="priority-list">
+        <li>a. Display certified WCMs by school</li>
+        <li>b. Track certification completion rates by school and region</li>
+        <li>c. Highlight schools with fully certified WCM teams</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Action Items</h2>
+    <div class="section-block" style="padding:0;">
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num">1</span>
+        <span class="acc-title-block"><span class="acc-title">Build WCM Assignment Notification Email (V1 - Template Provided)</span><span class="acc-deadline-inline">V1 (WCM assignment email): June 30, 2026 / V2 (audit notifications): August 30, 2026</span></span>
+        <span class="acc-chip">Yaco D. Abuelafia</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="acc-detail">Vanessa C. Deslandes-Auguste has provided the V1 email template. Subject: "Congratulations! You Have Been Selected as a 2026-2027 Web Content Manager." Notifies newly assigned WCMs of their role, links to certification course registration, states September 30, 2026 deadline, and includes Save the Date for WCM Kickoff Meeting (September 11, 2026, Pompano Beach High School, in-person required). School admins are CC'd. Yaco D. Abuelafia to build automated trigger: fires when a principal adds a new WCM in BCPS Central. V2 email templates (audit confirmation, audit review, automated reminders) still required from Vanessa by August 2026.</div>
+        <div class="acc-meta">
+          <span class="acc-owner">Owner: Yaco D. Abuelafia (build) / Vanessa C. Deslandes-Auguste (V2 content)</span>
+        </div>
+      </div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num">2</span>
+        <span class="acc-title-block"><span class="acc-title">Vanessa to Build 2025-26 Audit Checklist in BCPS Central</span><span class="acc-deadline-inline">Due: As soon as possible - hard blocker for audit status build</span></span>
+        <span class="acc-chip">Vanessa C. Deslandes-Auguste</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="acc-detail">Vanessa C. Deslandes-Auguste to create the 2025-26 audit checklist using the category label system (text label question type, sort order 0 for section headers). This master checklist is required before Yaco D. Abuelafia can build school-specific incomplete assignments and run the audit status script. Blocker for action item 4.</div>
+        <div class="acc-meta">
+          <span class="acc-owner">Owner: Vanessa C. Deslandes-Auguste</span>
+        </div>
+      </div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num">3</span>
+        <span class="acc-title-block"><span class="acc-title">Build 2025-26 Audit Status Display (Pass / Incomplete / Fail)</span><span class="acc-deadline-inline">Due: June 30, 2026 - Top priority</span></span>
+        <span class="acc-chip">Yaco D. Abuelafia</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="acc-detail">Full V1 scope per Vanessa roadmap: (b/c) display Pass/Fail/Incomplete per school; (c) auto-assign Pass to confirmed passing schools via script; (d) confirm schools with no activity are Fail; (e) assign Incomplete items to specific schools (school-specific checklist assignment); (f) audit status visible to both administrators and WCMs in BCPS Central; (g) District Web Team can add notes when a task is completed. Pre-population: one-question survey per school, set status programmatically. Yaco D. Abuelafia to analyze 2025-26 data format and confirm migration feasibility.</div>
+        <div class="acc-meta">
+          <span class="acc-owner">Owner: Yaco D. Abuelafia, Software Engineer - Application Services</span>
+        </div>
+      </div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num">4</span>
+        <span class="acc-title-block"><span class="acc-title">Build School-Specific Checklist Assignment for 2025-26 Incomplete Schools</span><span class="acc-deadline-inline">Due: June 30, 2026</span></span>
+        <span class="acc-chip">Yaco D. Abuelafia</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="acc-detail">Add a feature in Checklist Settings that allows assignment of audit items by school name. Each incomplete school from the 2025-26 year has a different set of outstanding items. Workflow: create a master template with all audit items, then mark per-school which items are already complete so only outstanding items are visible to each school. Alternatively, Yaco D. Abuelafia will explore programmatically bulk-marking completed items by school location number.</div>
+        <div class="acc-meta">
+          <span class="acc-owner">Owner: Yaco D. Abuelafia (build) / Vanessa C. Deslandes-Auguste (data input)</span>
+        </div>
+      </div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num">5</span>
+        <span class="acc-title-block"><span class="acc-title">Build WCM Certification Status Column (4 Statuses)</span><span class="acc-deadline-inline">Due: June 30, 2026 (V1 must-ship per Vanessa roadmap)</span></span>
+        <span class="acc-chip">Yaco D. Abuelafia</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="acc-detail">Yaco D. Abuelafia to add the certification status column to the WCM table. Vanessa C. Deslandes-Auguste has defined four statuses: <strong>Not Registered</strong> (default on assignment), <strong>Registered</strong> (enrolled in course), <strong>Certified</strong> (completed), <strong>Incomplete</strong> (started but not finished). Module should be designed for district-wide reuse. Certification training deadline for WCMs: September 30, 2026.</div>
+        <div class="acc-meta">
+          <span class="acc-owner">Owner: Yaco D. Abuelafia, Software Engineer - Application Services</span>
+        </div>
+      </div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num">6</span>
+        <span class="acc-title-block"><span class="acc-title">Send Pass / Fail Results to 130 Schools</span><span class="acc-deadline-inline">June 30, 2026 (manual) / Phase 2 (automated)</span></span>
+        <span class="acc-chip">Yaco D. Abuelafia</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="acc-detail">Once the pass/fail script is complete, automated or batch notifications go to all ~130 schools with their audit status. This item is directly dependent on action item 2 (script) and action item 4 (email templates). Email automation for this notification is phase 2; manual Outlook fallback is acceptable for the initial June 30 release.</div>
+        <div class="acc-meta">
+          <span class="acc-owner">Owner: Yaco D. Abuelafia (automation) / Vanessa C. Deslandes-Auguste (manual fallback)</span>
+        </div>
+      </div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num">7</span>
+        <span class="acc-title-block"><span class="acc-title">Document Role Download Instructions</span><span class="acc-deadline-inline">June 30, 2026</span></span>
+        <span class="acc-chip">Vanessa C. Deslandes-Auguste</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="acc-detail">Create documentation covering how to download and manage WCM roles within BCPS Central. This is a documentation task, not a development task.</div>
+        <div class="acc-meta">
+          <span class="acc-owner">Owner: Vanessa C. Deslandes-Auguste</span>
+        </div>
+      </div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num">8</span>
+        <span class="acc-title-block"><span class="acc-title">Complete UAT for WCM Management View</span><span class="acc-deadline-inline">June 30, 2026</span></span>
+        <span class="acc-chip">Vanessa C. Deslandes-Auguste</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="acc-detail">Vanessa C. Deslandes-Auguste and team to complete user acceptance testing for the WCM management module, including the newly completed principal approval bypass setting. Yaco D. Abuelafia requested that the pass/by setting be marked as complete in the brief and tested with feedback submitted before the next meeting. Rodolfo M. Carril also has open email-related questions queued for the next session.</div>
+        <div class="acc-meta">
+          <span class="acc-owner">Owner: Vanessa C. Deslandes-Auguste (UAT lead) / Yaco D. Abuelafia (support)</span>
+        </div>
+      </div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num">9</span>
+        <span class="acc-title-block"><span class="acc-title">Define Group-Based Checklist Assignment Rules</span><span class="acc-deadline-inline">Phase 2 - Define by: July 15, 2026</span></span>
+        <span class="acc-chip">Vanessa C. Deslandes-Auguste</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="acc-detail">Vanessa C. Deslandes-Auguste to define which school groups (by type, e.g., high school vs. elementary) receive which checklist sets, and whether checklists should be manually assigned per school or automatically by group. This definition is required before Yaco D. Abuelafia can build the group assignment feature. Not in scope for June 30.</div>
+        <div class="acc-meta">
+          <span class="acc-owner">Owner: Vanessa C. Deslandes-Auguste (definition) / Tricia A. Allen (approval)</span>
+        </div>
+      </div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num">10</span>
+        <span class="acc-title" style="text-decoration:line-through;color:var(--text-50);">Vanessa to Send This Meeting&#x2019;s Transcript Link to Sean</span>
+        <span class="tag resolved" style="font-size:9px;padding:3px 8px;margin-right:4px;">Done</span>
+        <span class="acc-chip">Vanessa C. Deslandes-Auguste</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="acc-detail">Vanessa C. Deslandes-Auguste agreed to send the Teams recording transcript link (same format as the June 8 link) to Sean A. Russell for documentation purposes. This is the same workflow used after the previous session.</div>
+        <div class="acc-meta">
+          <span class="acc-owner">Owner: Vanessa C. Deslandes-Auguste</span>
+        </div>
+      </div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num">11</span>
+        <span class="acc-title-block"><span class="acc-title">Confirm June 30 Priority List with Yaco</span><span class="acc-deadline-inline">Before next meeting</span></span>
+        <span class="acc-chip">Tricia A. Allen</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="acc-detail">Tricia A. Allen and Vanessa C. Deslandes-Auguste to confirm the final priority ranking for June 30 deliverables with Yaco D. Abuelafia asynchronously. The team ran out of meeting time before completing this exercise. Must confirm: which 3 items are absolute must-ship by June 30, and which items move to the post-launch phase.</div>
+        <div class="acc-meta">
+          <span class="acc-owner">Owner: Tricia A. Allen</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Email Templates</h2>
+  <div class="section-block template-section">
+    <p class="template-instructions">Use the following template for the automated WCM assignment notification email. Placeholder text in <strong style="color:var(--bcps-orange);">orange</strong> must be updated before sending. The email should be CC&#x2019;d to the school administrator.</p>
+    <div class="acc-item">
+      <button class="acc-trigger" aria-expanded="false" onclick="this.setAttribute('aria-expanded',this.getAttribute('aria-expanded')==='true'?'false':'true')">
+        <span class="acc-num" style="font-size:14px;">&#9993;</span>
+        <span class="acc-title">WCM Assignment Notification Email</span>
+        <span class="acc-chip">Provided by Vanessa</span>
+        <svg class="acc-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="5 8 10 13 15 8"/></svg>
+      </button>
+      <div class="acc-body">
+        <div class="template-box" id="email-template-1">
+          <button class="template-copy-btn" onclick="copyTemplate('email-template-1', this)">Copy</button>
+Subject: Congratulations! You Have Been Selected as a 2026-2027 Web Content Manager
+
+Dear Web Content Manager,
+
+Congratulations! You have been selected to serve as a Web Content Manager (WCM) for the 2026-2027 school year.
+
+As a Web Content Manager, you play an important role in ensuring your school&#x2019;s website remains accurate, accessible, and aligned with Broward County Public Schools&#x2019; website standards.
+
+<strong>Required WCM Certification Training</strong>
+
+To receive and maintain access to the Finalsite Composer website management system, all Web Content Managers must successfully complete the WCM Certification Course.
+
+Registration is now open &#x2014; All WCMs must register for the course using this link: <span class="template-placeholder">[Insert Registration Link]</span>
+
+<strong>Important Deadline:</strong> The WCM certification training must be completed by September 30, 2026.
+
+<strong>Save the Date &#x2014; WCM Kickoff Meeting</strong>
+Date: September 11, 2026
+Location: Pompano Beach High School
+Format: In-Person (Required)
+
+This kickoff meeting is designed to set you up for success by providing important updates, district expectations, website standards, available resources, and opportunities to connect with fellow Web Content Managers and the District Web Team.
+
+Additional meeting details and registration information will be shared soon.
+
+Thank you for your commitment to maintaining a high-quality online presence for your school community. We look forward to supporting you throughout the 2026-2027 school year.
+
+Sincerely,
+District Web Team
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Open Issues</h2>
   <div class="section-block">
-    <h3>Checklist and Status Tracking</h3>
-    <ul class="item-list">
-      <li>All schools receive audit checklist per school year</li>
-      <li>Central admin manually updates school compliance status as items are checked off</li>
-      <li>Three terminal statuses: Pass, Incomplete, Fail</li>
-      <li>Automated status computation script in development (rules being finalized)</li>
-      <li>Bulk reporting and update interface planned</li>
-    </ul>
+
+    <div class="decision-item">
+      <span class="tag pending">Pending</span>
+      <div class="decision-title" style="margin-top: 8px;">Certification Module Timeline - June 30 at Risk</div>
+      <div class="decision-detail">Yaco D. Abuelafia identified certification status tracking as the most complex item in the scope and the most likely to slip past June 30. A scalable, globally reusable architecture is required. Decision needed: defer to phase 2, or build a minimal WCM-only version first and refactor later.</div>
+    </div>
+
+    <div class="decision-item">
+      <span class="tag open">Open</span>
+      <div class="decision-title" style="margin-top: 8px;">2025-26 Audit Data Format - Migration Script Not Yet Scoped</div>
+      <div class="decision-detail">The existing 2025-26 audit records are not in a format that easily maps to BCPS Central. Yaco D. Abuelafia needs to analyze the raw data before confirming whether a migration script is feasible within the June 30 window.</div>
+    </div>
+
+    <div class="decision-item">
+      <span class="tag resolved">Resolved - V1</span>
+      <div class="decision-title" style="margin-top: 8px;">V1 Email Template Provided - V2 Templates Still Needed</div>
+      <div class="decision-detail">Vanessa C. Deslandes-Auguste provided the WCM assignment notification email template after the June 9 session. V1 email development is unblocked. V2 templates (audit confirmation, audit review, automated reminders, incomplete audit follow-up) are still required before V2 development can begin; Vanessa to provide by August 2026.</div>
+    </div>
+
+    <div class="decision-item">
+      <span class="tag open">Open</span>
+      <div class="decision-title" style="margin-top: 8px;">Group-Based Checklist Assignment Rules Not Defined</div>
+      <div class="decision-detail">Vanessa C. Deslandes-Auguste has not yet documented which school groups receive which checklists. This definition is required before development can begin. Targeted for phase 2.</div>
+    </div>
+
+    <div class="decision-item">
+      <span class="tag resolved">Resolved</span>
+      <div class="decision-title" style="margin-top: 8px;">Principal Approval Bypass - Completed</div>
+      <div class="decision-detail">Yaco D. Abuelafia confirmed this feature is live. Audits require principal approval; monthly updates bypass it. This item is closed pending UAT sign-off from Vanessa C. Deslandes-Auguste.</div>
+    </div>
+
   </div>
 
-  <h2>Role-Based Access Control</h2>
-  <div class="role-block">
-    <div class="role-label">Role</div>
-    <div class="role-name">Office of Communications (OOC)</div>
-    <div class="role-access">Access: MarComm Portal, Graphics Library, Minutes Archive, Annual Reports</div>
-    <div class="role-note">District-level communications and branded materials management</div>
-  </div>
-  <div class="role-block">
-    <div class="role-label">Role</div>
-    <div class="role-name">Department Web Team (DWT)</div>
-    <div class="role-access">Access: MarComm Portal, WCM Certification Module, Minutes Archive, Annual Reports</div>
-    <div class="role-note">Technical implementation and cross-district coordination</div>
-  </div>
-  <div class="role-block">
-    <div class="role-label">Role</div>
-    <div class="role-name">Super Admin</div>
-    <div class="role-access">Access: System configuration, permissions panel, advanced settings</div>
-    <div class="role-note">Limited to Sean Russell and designated district leadership</div>
+  <h2>Next Steps</h2>
+  <div class="section-block">
+    <div class="timeline-row">
+      <div class="timeline-date">June 9, 2026</div>
+      <div class="timeline-text"><strong>Transcript link sent.</strong> Vanessa C. Deslandes-Auguste sends Teams recording link to Sean A. Russell.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">June 9-11, 2026</div>
+      <div class="timeline-text"><strong>Priority list confirmed.</strong> Tricia A. Allen confirms final June 30 priority ranking with Yaco D. Abuelafia asynchronously.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">ASAP</div>
+      <div class="timeline-text"><strong>Email documentation submitted.</strong> Vanessa C. Deslandes-Auguste documents all notification email scenarios and recipient inboxes for Yaco D. Abuelafia.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Week of June 16</div>
+      <div class="timeline-text"><strong>Data migration analysis complete.</strong> Yaco D. Abuelafia reports back on whether the 2025-26 audit data can be migrated into BCPS Central before June 30.</div>
+    </div>
+    <div class="timeline-row highlight">
+      <div class="timeline-date">June 30, 2026</div>
+      <div class="timeline-text"><strong>Phase 1 deadline.</strong> Pass/incomplete/fail script live, school-specific incomplete checklists assigned, welcome email triggered, WCM management UAT signed off. Phase 2 items (advanced notifications, group-based checklists, certification module) move to post-launch roadmap.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">July 15, 2026</div>
+      <div class="timeline-text"><strong>V2 scoping begins.</strong> Vanessa C. Deslandes-Auguste drafts V2 audit notification templates. Group-based checklist rules defined. Yaco D. Abuelafia confirms V2 architecture.</div>
+    </div>
+    <div class="timeline-row highlight">
+      <div class="timeline-date">August 30, 2026</div>
+      <div class="timeline-text"><strong>V2 target release.</strong> Audit dashboard with region/school views, filter/sort, Power BI export. 2026-27 audit and website update notification automation. 2025-26 incomplete audit follow-up with automated reminders and school-specific assignments.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">September 11, 2026</div>
+      <div class="timeline-text"><strong>WCM Kickoff Meeting.</strong> In-person at Pompano Beach High School. Required for all Web Content Managers. District expectations, website standards, and resources for the 2026-27 school year.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">September 30, 2026</div>
+      <div class="timeline-text"><strong>WCM Certification Training deadline.</strong> All Web Content Managers must complete the WCM Certification Course to maintain access to Finalsite Composer.</div>
+    </div>
+    <div class="timeline-row highlight">
+      <div class="timeline-date">October 2026</div>
+      <div class="timeline-text"><strong>V3 target release.</strong> Automated certification recognition (congratulations email, digital badge, certificate of completion) and Recognition and Achievement Dashboard showing certified WCMs by school and region.</div>
+    </div>
   </div>
 
-  <h2>Operational Implementation</h2>
-  <div class="sprint-block">
-    <div class="sprint-label">Current Sprint</div>
-    <ul class="item-list">
-      <li>Execute script to grant all principals WCM assignment permissions (~30 minutes)</li>
-      <li>Send Pivot memo to principals explaining assignment process and expectations</li>
-      <li>Begin processing 60-100+ incomplete school audits from 2025-26</li>
-      <li>Complete WCM bulk upload feature for multi-user imports</li>
-      <li>Verify permission matrix across all 7 restricted pages</li>
-    </ul>
-  </div>
-  <div class="pending-block">
-    <div class="pending-label">Pending Decisions</div>
-    <ul class="item-list">
-      <li>Email audit trail and record-keeping (sender, recipient, timestamp, content for dispute resolution)</li>
-      <li>Checklist assignment by school type (Title I schools, etc.)</li>
-      <li>Bulk status update reporting interface</li>
-      <li>Progress indicator for WCM course module completion</li>
-    </ul>
-  </div>
-  <div class="future-block">
-    <div class="future-label">Future Phases</div>
-    <ul class="item-list">
-      <li>Automated Pass/Incomplete/Fail status computation based on checklist completion</li>
-      <li>Dashboard enhancements for multi-year compliance overview</li>
-      <li>Cross-year alert system for outstanding items from prior years</li>
-    </ul>
-  </div>
-
-  <div class="doc-footer">
-    <div class="doc-footer-item">
-      <span class="doc-footer-label">Maintained By</span>
-      <span class="doc-footer-value">BCPS Office of Communications</span>
-    </div>
-    <div class="doc-footer-item">
-      <span class="doc-footer-label">Last Updated</span>
-      <span class="doc-footer-value">June 24, 2026</span>
-    </div>
-    <div class="doc-footer-item">
-      <span class="doc-footer-label">Previous Versions</span>
-      <span class="doc-footer-value">June 9, 2026 | June 8, 2026</span>
-    </div>
-  </div>
 </main>
 
-</body>
-</html>
+<script>
+function copyTemplate(id, btn) {
+  var box = document.getElementById(id);
+  var text = box.innerText.replace(/^Copy\n/, '');
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+</script>
