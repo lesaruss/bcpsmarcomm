@@ -504,13 +504,14 @@ function TaskCard({ task, readOnly, onStatusChange, onEdit, onDelete }: TaskCard
   const [detail,  setDetail]      = useState(task.detail ?? '')
   const [area,    setArea]        = useState<ProgramArea>(task.program_area as ProgramArea)
   const [due,     setDue]         = useState(task.due_date ?? '')
+  const [status,  setStatus]      = useState(task.status)
   const [saving,  setSaving]      = useState(false)
   const [confirming, setConfirming] = useState(false)
 
   const saveEdit = async () => {
     if (!title.trim()) return
     setSaving(true)
-    await onEdit({ id: task.id, title: title.trim(), detail: detail || null, program_area: area, due_date: due || null })
+    await onEdit({ id: task.id, title: title.trim(), detail: detail || null, program_area: area, due_date: due || null, status })
     setSaving(false)
     setEditing(false)
   }
@@ -537,6 +538,10 @@ function TaskCard({ task, readOnly, onStatusChange, onEdit, onDelete }: TaskCard
         </select>
         <label style={labelStyle}>Due date</label>
         <input type="date" style={inputStyle} value={due} onChange={e => setDue(e.target.value)} />
+        <label style={labelStyle}>Status</label>
+        <select value={status} onChange={e => setStatus(e.target.value)} style={inputStyle}>
+          {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           <button className="btn btn-primary" style={{ flex: 1, fontSize: 12.5 }} onClick={saveEdit} disabled={saving || !title.trim()}>
             {saving ? 'Saving...' : 'Save'}
@@ -547,6 +552,7 @@ function TaskCard({ task, readOnly, onStatusChange, onEdit, onDelete }: TaskCard
             onClick={() => {
               setTitle(task.title); setDetail(task.detail ?? '')
               setArea(task.program_area as ProgramArea); setDue(task.due_date ?? '')
+              setStatus(task.status)
               setEditing(false)
             }}
           >
@@ -607,20 +613,9 @@ function TaskCard({ task, readOnly, onStatusChange, onEdit, onDelete }: TaskCard
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{task.assignee}</span>
         {task.due_date && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Due {task.due_date}</span>}
       </div>
-      {readOnly ? (
-        <span className={`badge ${STATUSES.find(s => s.id === task.status)?.badge ?? 'badge-gray'}`} style={{ fontSize: 11 }}>
-          {STATUSES.find(s => s.id === task.status)?.label ?? task.status}
-        </span>
-      ) : (
-        <select
-          value={task.status}
-          onChange={e => onStatusChange(task.id, e.target.value)}
-          style={{ ...inputStyle, padding: '5px 8px', fontSize: 12 }}
-          aria-label="Task status"
-        >
-          {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-        </select>
-      )}
+      <span className={`badge ${STATUSES.find(s => s.id === task.status)?.badge ?? 'badge-gray'}`} style={{ fontSize: 11 }}>
+        {STATUSES.find(s => s.id === task.status)?.label ?? task.status}
+      </span>
     </div>
   )
 }
