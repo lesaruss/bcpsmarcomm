@@ -277,6 +277,16 @@
   var searchEl = document.getElementById("fif-search-input");
   var clearBtn = document.getElementById("fif-clear");
 
+  // Auto height for iframe embeds. Harmless when pasted directly into a page
+  // (no iframe parent), required when loaded via <iframe src="...">.
+  var lastPostedHeight = 0;
+  function postHeight() {
+    var height = Math.ceil(document.body.getBoundingClientRect().height);
+    if (Math.abs(height - lastPostedHeight) < 2) return;
+    lastPostedHeight = height;
+    window.parent.postMessage({ type: "fif-resize", slug: "find-it-fast", height: height }, "*");
+  }
+
   function externalIcon() {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>';
   }
@@ -333,6 +343,8 @@
         '<a class="fif-visit" href="' + link.url + '" target="_blank" rel="noopener noreferrer">Visit page' + externalIcon() + '</a>' +
         '</article>';
     }).join("");
+
+    postHeight();
   }
 
   searchEl.addEventListener("input", function (e) {
@@ -350,6 +362,14 @@
 
   renderCats();
   render();
+
+  window.addEventListener("load", postHeight);
+  window.addEventListener("resize", postHeight);
+  if (window.ResizeObserver) {
+    new ResizeObserver(postHeight).observe(document.body);
+  } else {
+    setInterval(postHeight, 500);
+  }
 })();
 </script>
 
