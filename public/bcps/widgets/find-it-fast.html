@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find It Fast - BCPS Back to School</title>
+<style>
+  #fif-module, #fif-module * { box-sizing: border-box; }
+  #fif-module {
+    --fif-green: #1B5E3A;
+    --fif-green-dark: #123D26;
+    --fif-gold: #D9A404;
+    --fif-text: #1a1a1a;
+    --fif-secondary: #555555;
+    --fif-muted: #767676;
+    --fif-border: #e2e6ea;
+    --fif-bg-tint: #f4f8f6;
+    font-family: "Segoe UI", "Open Sans", Arial, Helvetica, sans-serif;
+    background: #ffffff;
+    color: var(--fif-text);
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 28px 24px 32px;
+    border: 1px solid var(--fif-border);
+    border-radius: 10px;
+  }
+  #fif-module .fif-eyebrow {
+    color: var(--fif-green);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 13px;
+    margin: 0 0 6px;
+  }
+  #fif-module h2 {
+    margin: 0 0 8px;
+    font-size: 28px;
+    line-height: 1.2;
+    color: var(--fif-text);
+  }
+  #fif-module .fif-intro {
+    margin: 0 0 20px;
+    color: var(--fif-secondary);
+    font-size: 15px;
+    max-width: 640px;
+  }
+  #fif-module .fif-search-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  #fif-module .fif-search-wrap {
+    position: relative;
+    flex: 1;
+  }
+  #fif-module .fif-search-wrap svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: var(--fif-muted);
+  }
+  #fif-module input[type="search"] {
+    width: 100%;
+    padding: 12px 14px 12px 38px;
+    border: 1px solid #c7ced4;
+    border-radius: 8px;
+    font-size: 15px;
+    color: var(--fif-text);
+  }
+  #fif-module input[type="search"]:focus,
+  #fif-module button:focus-visible {
+    outline: 3px solid var(--fif-gold);
+    outline-offset: 2px;
+  }
+  #fif-module .fif-clear-btn {
+    background: #ffffff;
+    border: 1px solid #c7ced4;
+    border-radius: 8px;
+    padding: 0 18px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fif-text);
+    cursor: pointer;
+  }
+  #fif-module .fif-clear-btn:hover { background: var(--fif-bg-tint); }
+  #fif-module .fif-cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+  #fif-module .fif-cat-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 999px;
+    border: 1px solid #c7ced4;
+    background: #ffffff;
+    color: var(--fif-text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #fif-module .fif-cat-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+  #fif-module .fif-cat-btn:hover { background: var(--fif-bg-tint); }
+  #fif-module .fif-cat-btn[aria-pressed="true"] {
+    background: var(--fif-green);
+    border-color: var(--fif-green);
+    color: #ffffff;
+  }
+  #fif-module .fif-count {
+    font-size: 13px;
+    color: var(--fif-muted);
+    margin-bottom: 10px;
+  }
+  #fif-module .fif-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+  #fif-module .fif-card {
+    border: 1px solid var(--fif-border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #ffffff;
+  }
+  #fif-module .fif-card-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--fif-green);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  #fif-module .fif-card-tag svg { width: 14px; height: 14px; }
+  #fif-module .fif-card h3 {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.3;
+  }
+  #fif-module .fif-card h3 a {
+    color: var(--fif-text);
+    text-decoration: none;
+  }
+  #fif-module .fif-card h3 a:hover,
+  #fif-module .fif-card h3 a:focus-visible {
+    color: var(--fif-green);
+    text-decoration: underline;
+  }
+  #fif-module .fif-card p {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--fif-secondary);
+    line-height: 1.45;
+  }
+  #fif-module .fif-card .fif-visit {
+    margin-top: auto;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--fif-green-dark);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  #fif-module .fif-card .fif-visit:hover,
+  #fif-module .fif-card .fif-visit:focus-visible { text-decoration: underline; }
+  #fif-module .fif-card .fif-visit svg { width: 13px; height: 13px; }
+  #fif-module .fif-empty {
+    padding: 30px 10px;
+    text-align: center;
+    color: var(--fif-muted);
+    font-size: 14px;
+  }
+  #fif-module .fif-sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+  @media (max-width: 520px) {
+    #fif-module { padding: 20px 16px 24px; }
+    #fif-module h2 { font-size: 22px; }
+    #fif-module .fif-search-row { flex-direction: column; }
+    #fif-module .fif-clear-btn { padding: 10px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<section id="fif-module" aria-labelledby="fif-heading">
+  <p class="fif-eyebrow">Back To School 2026/27</p>
+  <h2 id="fif-heading">Find It Fast</h2>
+  <p class="fif-intro">Search or browse by topic to get straight to enrollment forms, calendars, family resources, and more. Every link opens the source page directly.</p>
+
+  <div class="fif-search-row">
+    <div class="fif-search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <label for="fif-search-input" class="fif-sr-only">Search Find It Fast</label>
+      <input type="search" id="fif-search-input" placeholder="Search for a topic, form, or resource">
+    </div>
+    <button type="button" class="fif-clear-btn" id="fif-clear">Clear</button>
+  </div>
+
+  <div class="fif-cats" role="group" aria-label="Filter by category" id="fif-cats"></div>
+
+  <p class="fif-count" id="fif-count" aria-live="polite"></p>
+  <div class="fif-grid" id="fif-grid"></div>
+  <p class="fif-empty" id="fif-empty" hidden>No matches yet. Try a different word or clear the search.</p>
+</section>
+
+<script>
+(function () {
+  var ICONS = {
+    enroll: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 3v2h6V3"/><path d="M9 12l2 2 4-4"/></svg>',
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>',
+    forms: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>',
+    support: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 8.3a4.5 4.5 0 0 0-7.6-3.1L12 6.4l-1.2-1.2A4.5 4.5 0 1 0 4.3 11.6L12 19l7.7-7.4a4.5 4.5 0 0 0 1.1-3.3z"/></svg>',
+    portal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+    transport: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="11" rx="2"/><path d="M3 12h18M7 17v2M17 17v2"/><circle cx="7.5" cy="17" r="0.5"/><circle cx="16.5" cy="17" r="0.5"/></svg>'
+  };
+
+  var CATEGORIES = [
+    { id: "all", label: "All", icon: "" },
+    { id: "enroll", label: "Enrollment & Registration", icon: ICONS.enroll },
+    { id: "calendar", label: "Calendars & Key Dates", icon: ICONS.calendar },
+    { id: "forms", label: "Forms & Paperwork", icon: ICONS.forms },
+    { id: "support", label: "Family & Student Support", icon: ICONS.support },
+    { id: "portal", label: "Family Portal & Technology", icon: ICONS.portal },
+    { id: "transport", label: "Transportation & Nutrition", icon: ICONS.transport }
+  ];
+
+  var LINKS = [
+    { cat: "enroll", title: "New Student Registration", url: "https://www.browardschools.com/directory/our-schools", blurb: "Find your zoned school and start the registration process for the 2026/27 school year." },
+    { cat: "enroll", title: "Welcome To Kindergarten", url: "https://www.browardschools.com/academics/welcome-to-kindergarten", blurb: "What incoming kindergarten families need to know before the first day, from readiness to required documents." },
+    { cat: "enroll", title: "Exceptional Student Education", url: "https://www.browardschools.com/bcps-departments/exceptional-student-education/overview", blurb: "Enrollment and services information for students who receive ESE support." },
+
+    { cat: "calendar", title: "District Calendar", url: "https://www.browardschools.com/calendar-e3", blurb: "First day of school, holidays, early release days, and school board meeting dates in one place." },
+    { cat: "calendar", title: "Employee & Student Planning Days", url: "https://www.browardschools.com/calendar-e3", blurb: "Confirm which days students are not in session so you can plan ahead." },
+    { cat: "calendar", title: "School Board Meeting Schedule", url: "https://www.browardschools.com/school-board/upcoming-school-board-meetings", blurb: "Dates and times for upcoming public board meetings and workshops." },
+
+    { cat: "forms", title: "Back To School Online Forms", url: "https://www.browardschools.com/back-to-school-online-forms", blurb: "Complete required start of year paperwork online instead of on paper at open house." },
+    { cat: "forms", title: "Public Records Request", url: "https://www.browardschools.com/public-records-request", blurb: "How to file a request for district records." },
+    { cat: "forms", title: "The Code Book for Student Conduct", url: "https://www.browardschools.com/the-code-book-for-student-conduct", blurb: "District expectations and policies for student behavior for the current school year." },
+
+    { cat: "support", title: "Parents & Families Hub", url: "https://www.browardschools.com/parentsstudentsstaff/parents-families", blurb: "A starting point for parent resources, guides, and ways to get involved this year." },
+    { cat: "support", title: "Mental Health Support", url: "https://www.browardschools.com/bcps-departments/mental-health-services", blurb: "Resources and contacts for students and families who need mental health support." },
+    { cat: "support", title: "Customer Service", url: "https://www.browardschools.com/parentsstudentsstaff/customer-service", blurb: "Have a question that is not answered here. Reach the district customer service team directly." },
+
+    { cat: "portal", title: "Single Sign-On (Focus & Family Access)", url: "https://sso.browardschools.com", blurb: "Log in to check grades, attendance, and school announcements throughout the year." },
+    { cat: "portal", title: "Students Hub", url: "https://www.browardschools.com/parentsstudentsstaff/students", blurb: "Student focused resources including technology access and academic tools." },
+    { cat: "portal", title: "Important Phone Numbers", url: "https://www.browardschools.com/directory/important-phone-numbers", blurb: "District and department phone numbers if you would rather call than search online." },
+
+    { cat: "transport", title: "Food and Nutrition Services", url: "https://www.browardschools.com/bcps-departments/food-and-nutrition-services", blurb: "Meal program details, free and reduced price eligibility, and cafeteria information." },
+    { cat: "transport", title: "Power Up Menus", url: "https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus", blurb: "This month's breakfast and lunch menus by school level." },
+    { cat: "transport", title: "Bus Route Information", url: "https://www.browardschools.com/directory/important-phone-numbers", blurb: "Confirm pickup and drop off times through your school or the transportation department." }
+  ];
+
+  var state = { cat: "all", q: "" };
+
+  var catsEl = document.getElementById("fif-cats");
+  var gridEl = document.getElementById("fif-grid");
+  var countEl = document.getElementById("fif-count");
+  var emptyEl = document.getElementById("fif-empty");
+  var searchEl = document.getElementById("fif-search-input");
+  var clearBtn = document.getElementById("fif-clear");
+
+  function externalIcon() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>';
+  }
+
+  function renderCats() {
+    catsEl.innerHTML = CATEGORIES.map(function (c) {
+      return '<button type="button" class="fif-cat-btn" data-cat="' + c.id + '" aria-pressed="' + (state.cat === c.id) + '">' +
+        c.icon + '<span>' + c.label + '</span></button>';
+    }).join("");
+    Array.prototype.forEach.call(catsEl.querySelectorAll(".fif-cat-btn"), function (btn) {
+      btn.addEventListener("click", function () {
+        state.cat = btn.getAttribute("data-cat");
+        render();
+      });
+    });
+  }
+
+  function matches(link) {
+    var inCat = state.cat === "all" || link.cat === state.cat;
+    if (!inCat) return false;
+    if (!state.q) return true;
+    var haystack = (link.title + " " + link.blurb).toLowerCase();
+    return haystack.indexOf(state.q.toLowerCase()) !== -1;
+  }
+
+  function catLabel(id) {
+    for (var i = 0; i < CATEGORIES.length; i++) {
+      if (CATEGORIES[i].id === id) return CATEGORIES[i].label;
+    }
+    return "";
+  }
+
+  function render() {
+    Array.prototype.forEach.call(catsEl.querySelectorAll(".fif-cat-btn"), function (btn) {
+      btn.setAttribute("aria-pressed", String(btn.getAttribute("data-cat") === state.cat));
+    });
+
+    var results = LINKS.filter(matches);
+
+    countEl.textContent = results.length + (results.length === 1 ? " result" : " results");
+
+    if (results.length === 0) {
+      gridEl.innerHTML = "";
+      emptyEl.hidden = false;
+      return;
+    }
+    emptyEl.hidden = true;
+
+    gridEl.innerHTML = results.map(function (link) {
+      return '<article class="fif-card">' +
+        '<span class="fif-card-tag">' + ICONS[link.cat] + catLabel(link.cat) + '</span>' +
+        '<h3><a href="' + link.url + '" target="_blank" rel="noopener noreferrer">' + link.title + '</a></h3>' +
+        '<p>' + link.blurb + '</p>' +
+        '<a class="fif-visit" href="' + link.url + '" target="_blank" rel="noopener noreferrer">Visit page' + externalIcon() + '</a>' +
+        '</article>';
+    }).join("");
+  }
+
+  searchEl.addEventListener("input", function (e) {
+    state.q = e.target.value;
+    render();
+  });
+
+  clearBtn.addEventListener("click", function () {
+    state.q = "";
+    state.cat = "all";
+    searchEl.value = "";
+    render();
+    searchEl.focus();
+  });
+
+  renderCats();
+  render();
+})();
+</script>
+
+</body>
+</html>
