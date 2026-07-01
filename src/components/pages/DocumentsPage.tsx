@@ -12,7 +12,14 @@ interface Document {
   url: string
   icon: string
   restricted?: string[]
+  section: 'documents' | 'meeting-notes' | 'records'
 }
+
+const SECTIONS = [
+  { key: 'documents', label: 'Documents', description: 'Plans, governance frameworks, implementation guides, and reference documents.' },
+  { key: 'meeting-notes', label: 'Meeting Notes', description: 'Notes and action items from platform sessions, hot labs, and planning meetings.' },
+  { key: 'records', label: 'Records', description: 'Performance appraisals and confidential employment records.' },
+]
 
 const DOCUMENTS: Document[] = [
   {
@@ -23,6 +30,7 @@ const DOCUMENTS: Document[] = [
     date: 'June 10, 2026',
     url: '/briefs/bcps-website-governance-plan-2026-06-10.html',
     icon: '📋',
+    section: 'documents',
   },
   {
     id: 'google-governance',
@@ -32,16 +40,7 @@ const DOCUMENTS: Document[] = [
     date: '2026',
     url: '/briefs/google-governance-plan.html',
     icon: '🔒',
-  },
-  {
-    id: 'appas-eval',
-    title: 'APPAS Self-Evaluation',
-    description: 'Annual Accessibility Progress and Accessibility Standards self-evaluation for 2024-2025 school year.',
-    type: 'Report',
-    date: '2024-2025',
-    url: '/bcps-appas-self-eval-2024-2025.html',
-    icon: '📊',
-    restricted: ['contact@lesaruss.com', 'farrah.wilson@browardschools.com'],
+    section: 'documents',
   },
   {
     id: 'appas',
@@ -52,6 +51,7 @@ const DOCUMENTS: Document[] = [
     url: '/bcps-appas-evaluation.html',
     icon: '✓',
     restricted: ['contact@lesaruss.com', 'farrah.wilson@browardschools.com'],
+    section: 'documents',
   },
   {
     id: 'impl-plan',
@@ -61,6 +61,7 @@ const DOCUMENTS: Document[] = [
     date: '2026-2027',
     url: '/bcps-implementation-plan-2026-2027.pdf',
     icon: '🗺️',
+    section: 'documents',
   },
   {
     id: 'wcm-scope',
@@ -79,6 +80,48 @@ const DOCUMENTS: Document[] = [
       'vanessa.deslandes@browardschools.com',
       'yaco.abuelafia@browardschools.com',
     ],
+    section: 'documents',
+  },
+  {
+    id: 'dept-migrations',
+    title: 'Departmental Migrations and Platform Pilots',
+    description: 'Org chart transition response plan, platform pilot status, and departmental migration workflow for the July 1, 2026 org changes.',
+    type: 'Planning',
+    date: 'July 1, 2026',
+    url: '/briefs/bcps-dept-migrations-2026-06-29',
+    icon: '🗂️',
+    restricted: [
+      'contact@lesaruss.com',
+      'farrah.wilson@browardschools.com',
+      'felicia.hicks@browardschools.com',
+    ],
+    section: 'documents',
+  },
+  {
+    id: 'hot-lab-2026-07-01',
+    title: 'Hot Lab for Department WCMs - July 1, 2026',
+    description: 'Platform demo and org chart migration confirmations with Lorena Balharry, Angela Tillman, Ronee Stratman, and Allan Llanos.',
+    type: 'Meeting Notes',
+    date: 'July 1, 2026',
+    url: '/briefs/bcps-hot-lab-dept-wcms-2026-07-01',
+    icon: '📝',
+    restricted: [
+      'contact@lesaruss.com',
+      'farrah.wilson@browardschools.com',
+      'felicia.hicks@browardschools.com',
+    ],
+    section: 'meeting-notes',
+  },
+  {
+    id: 'appas-eval',
+    title: 'APPAS Self-Evaluation 2024-2025',
+    description: 'Performance evidence portfolio for the 2024-2025 BCPS APPAS Final appraisal. All seven domains with Highly Effective rating support.',
+    type: 'Performance Appraisal',
+    date: '2024-2025',
+    url: '/bcps-appas-self-eval-2024-2025.html',
+    icon: '📄',
+    restricted: ['contact@lesaruss.com', 'farrah.wilson@browardschools.com'],
+    section: 'records',
   },
 ]
 
@@ -100,6 +143,7 @@ export default function DocumentsPage() {
           const j = await r.json()
           setEngineDocs((j.documents || []).map((d: { slug: string; title: string; url: string }) => ({
             id: 'eng-' + d.slug, title: d.title, description: 'Shared with you', type: 'Document', date: '', url: d.url, icon: '',
+            section: 'documents' as const,
           })))
         }
       } catch { /* ignore */ }
@@ -137,6 +181,28 @@ export default function DocumentsPage() {
           color: rgba(26,26,26,0.55);
           margin: 0 0 32px 0;
           line-height: 1.6;
+        }
+        .docs-section-group {
+          margin-bottom: 48px;
+        }
+        .docs-section-label {
+          font-size: 11px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.2em;
+          color: #1672A7;
+          margin: 0 0 6px 0;
+        }
+        .docs-section-desc {
+          font-size: 12px;
+          color: rgba(26,26,26,0.45);
+          margin: 0 0 20px 0;
+          font-weight: 600;
+        }
+        .docs-section-divider {
+          height: 1px;
+          background: rgba(0,0,0,0.07);
+          margin-bottom: 20px;
         }
         .docs-grid {
           display: grid;
@@ -198,6 +264,18 @@ export default function DocumentsPage() {
         .doc-type {
           background: rgba(22,114,167,0.10);
           color: #1672A7;
+          padding: 3px 8px;
+          border-radius: 3px;
+        }
+        .doc-type-notes {
+          background: rgba(22,117,12,0.08);
+          color: #16750C;
+          padding: 3px 8px;
+          border-radius: 3px;
+        }
+        .doc-type-record {
+          background: rgba(197,83,38,0.07);
+          color: #7d3018;
           padding: 3px 8px;
           border-radius: 3px;
         }
@@ -306,29 +384,44 @@ export default function DocumentsPage() {
       <div className="docs-section">
         <div className="docs-header">
           <h1>Documents</h1>
-          <p>All BCPS marketing communications plans, governance documents, and implementation guides. Click any document to preview, or open full page to view standalone.</p>
+          <p>BCPS marketing communications plans, governance documents, meeting notes, and records. Click any document to preview.</p>
         </div>
 
-        <div className="docs-grid">
-          {visibleDocs.map(doc => (
-            <button
-              key={doc.id}
-              className="doc-card"
-              onClick={() => setPreview(doc)}
-              style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', all: 'unset' }}
-            >
-              <div className="doc-card" style={{ cursor: 'pointer' }}>
-                <div className="doc-icon">{doc.icon}</div>
-                <h2 className="doc-title">{doc.title}</h2>
-                <p className="doc-description">{doc.description}</p>
-                <div className="doc-meta">
-                  <span className="doc-type">{doc.type}</span>
-                  <span>{doc.date}</span>
-                </div>
+        {SECTIONS.map(section => {
+          const sectionDocs = visibleDocs.filter(d => (d.section || 'documents') === section.key)
+          if (sectionDocs.length === 0) return null
+          return (
+            <div key={section.key} className="docs-section-group">
+              <h2 className="docs-section-label">{section.label}</h2>
+              <p className="docs-section-desc">{section.description}</p>
+              <div className="docs-section-divider" />
+              <div className="docs-grid">
+                {sectionDocs.map(doc => (
+                  <button
+                    key={doc.id}
+                    className="doc-card"
+                    onClick={() => setPreview(doc)}
+                    style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', all: 'unset' }}
+                  >
+                    <div className="doc-card" style={{ cursor: 'pointer' }}>
+                      <div className="doc-icon">{doc.icon}</div>
+                      <h2 className="doc-title">{doc.title}</h2>
+                      <p className="doc-description">{doc.description}</p>
+                      <div className="doc-meta">
+                        <span className={
+                          section.key === 'meeting-notes' ? 'doc-type-notes' :
+                          section.key === 'records' ? 'doc-type-record' :
+                          'doc-type'
+                        }>{doc.type}</span>
+                        <span>{doc.date}</span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </div>
-            </button>
-          ))}
-        </div>
+            </div>
+          )
+        })}
       </div>
 
       {preview && (
@@ -356,7 +449,7 @@ export default function DocumentsPage() {
                   onClick={() => setPreview(null)}
                   aria-label="Close preview"
                 >
-                  ×
+                  x
                 </button>
               </div>
             </div>
