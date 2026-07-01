@@ -172,7 +172,7 @@
   <div class="bcps-header-divider" aria-hidden="true"></div>
   <span class="bcps-header-title">BCPS - Living Team Tracker</span>
   <div class="bcps-header-spacer"></div>
-  <span class="version-pill" id="current-version-pill">Version 1 - June 10, 2026</span>
+  <span class="version-pill" id="current-version-pill">Version 2 - June 25, 2026</span>
 </header>
 
 <main>
@@ -182,7 +182,7 @@
   <div class="meta-row">
     <div class="meta-item">
       <span class="meta-label">Last Updated</span>
-      <span class="meta-value" id="meta-last-updated">June 10, 2026</span>
+      <span class="meta-value" id="meta-last-updated">June 25, 2026</span>
     </div>
     <div class="meta-item">
       <span class="meta-label">Source</span>
@@ -198,7 +198,7 @@
     </div>
     <div class="meta-item">
       <span class="meta-label">Version</span>
-      <span class="meta-value" id="meta-version">v1 - June 10, 2026</span>
+      <span class="meta-value" id="meta-version">v2 - June 25, 2026</span>
     </div>
   </div>
 
@@ -209,11 +209,12 @@
   <h2>Meeting Versions</h2>
   <div class="version-bar">
     <span class="version-bar-label">View As Of:</span>
-    <button class="version-btn active" onclick="switchVersion('v1')" data-v="v1">June 10, 2026</button>
+    <button class="version-btn" onclick="switchVersion('v1')" data-v="v1">June 10, 2026</button>
+    <button class="version-btn active" onclick="switchVersion('v2')" data-v="v2">June 25, 2026</button>
     <span class="version-note">New versions added after each meeting. Click any row to view or add notes.</span>
   </div>
 
-  <div class="snapshot active" id="snap-v1">
+  <div class="snapshot" id="snap-v1">
 
     <!-- GENERAL -->
     <h2>General</h2>
@@ -538,6 +539,84 @@
     </div>
 
   </div>
+
+  <div class="snapshot active" id="snap-v2">
+
+    <div style="background:rgba(22,114,167,0.07);border:1px solid rgba(22,114,167,0.22);border-radius:8px;padding:16px 20px;margin-bottom:28px;">
+      <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;color:var(--bcps-blue);margin-bottom:6px;">District Web Team Huddle - June 25, 2026</div>
+      <p style="font-size:13px;color:var(--text-75);margin:0;line-height:1.6;">Session focused on a live demo of the BCPS MarComm portal. Items below reflect status updates and decisions from this meeting. All other assignments are unchanged from v1. Click any row to view full notes from this session.</p>
+    </div>
+
+    <!-- ITEMS DISCUSSED JUNE 25 -->
+    <h2>Discussed This Session</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Assignment Updates - June 25, 2026</h3><span class="section-count">7 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Status</span><span>Update</span><span>Notes</span></div>
+
+      <div class="assignment-row" data-slug="analytics-dashboard" onclick="openNotes(this)">
+        <div><div class="assignment-name">Analytics Dashboard (Google Governance)</div><div class="assignment-desc">Demoed live to full web team. Pulls from Google API, department-level drill-down aligned to updated org chart. Manual and monthly auto-run confirmed. Pending embed feature for other pages and search term data (Vanessa request).</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div class="assignment-detail" style="font-size:11px;color:var(--bcps-blue);font-weight:700;">Status updated: Pending to In Progress</div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc2-analytics-dashboard"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="department-audit-dashboards" onclick="openNotes(this)">
+        <div><div class="assignment-name">Department Audit Dashboards</div><div class="assignment-desc">All departments synced to updated org chart. Wave tool now embedded as primary ADA method. Audit history tracked per run. Terminology fix needed: "page builder" should read "composer." WCM-fixable vs. FinalSite-fixable split logic in progress.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Vanessa, Brannon</div></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div class="assignment-detail" style="font-size:11px;color:var(--text-50);">Wave tool integration in progress</div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc2-department-audit-dashboards"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="wcm-audits-departments" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Audits - Departments</div><div class="assignment-desc">Wave tool confirmed as gold standard for ADA audit. Audit results now separating WCM-fixable items from FinalSite-fixable items. Logic fix still needed for full accuracy.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div class="assignment-detail" style="font-size:11px;color:var(--text-50);">Wave confirmed as ADA gold standard</div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc2-wcm-audits-departments"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="canvas-course-pilot" onclick="openNotes(this)">
+        <div><div class="assignment-name">Canvas Course Pilot Launch</div><div class="assignment-desc">Full Canvas course was recreated inside the portal as proof of concept only. Canvas remains primary certification path. Vanessa flagged potential state requirements for where WCM certification courses must live. Portal version is research only - not replacing Canvas.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell / Rudy</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div class="assignment-detail" style="font-size:11px;color:var(--text-50);">Canvas stays primary - portal version research only</div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc2-canvas-course-pilot"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="embed-page-powerapps" onclick="openNotes(this)">
+        <div><div class="assignment-name">Way to Embed a Page into PowerApps</div><div class="assignment-desc">Tricia and Vanessa asked about embedding the portal dashboard into BCPS Central/SharePoint. Iframe and API endpoint options explored. Previous Brannon dashboard embed in SharePoint failed - need specifics from Yaco on X-Frame-Options blocker. Testing with Yaco scheduled same afternoon.</div></div>
+        <div><div class="assignment-lead">Tricia</div></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div class="assignment-detail" style="font-size:11px;color:var(--bcps-orange);font-weight:700;">Testing with Yaco - follow up needed</div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc2-embed-page-powerapps"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="audioeye" onclick="openNotes(this)">
+        <div><div class="assignment-name">AudioEye</div><div class="assignment-desc">Tricia raised canceling AudioEye at contract renewal since the portal now handles ADA auditing via Wave tool. Sean confirmed Wave is the gold standard in use. Team to evaluate whether AudioEye can be dropped as a separate line item at next renewal.</div></div>
+        <div><div class="assignment-lead">Tricia / Sean A. Russell</div><div class="assignment-support">Vanessa, Rudy</div></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div class="assignment-detail" style="font-size:11px;color:var(--bcps-orange);font-weight:700;">Potential cancellation on renewal - evaluate</div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc2-audioeye"></span></button></div>
+      </div>
+
+      <div class="assignment-row" data-slug="security-concerns" onclick="openNotes(this)">
+        <div><div class="assignment-name">Security Concerns / Portal Access</div><div class="assignment-desc">Portal access is role-based - web team, MarCom, and department WCMs see different views. Email format issue discovered during demo: system used first-initial-last-name; BCPS uses first.last@browardschools.com. Email rate limit hit during forgot-password attempts. Sean to re-invite all team members individually with correct emails.</div></div>
+        <div><div class="assignment-lead">Tricia</div><div class="assignment-support">Vanessa, Sean A. Russell</div></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div class="assignment-detail" style="font-size:11px;color:var(--bcps-orange);font-weight:700;">Email format fix + re-invite required</div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc2-security-concerns"></span></button></div>
+      </div>
+
+    </div>
+
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 20px;margin-top:8px;">
+      <p style="font-size:12px;color:var(--text-50);margin:0;">All assignments not listed above are unchanged from the June 10 snapshot. Switch to June 10 to view the full tracker state.</p>
+    </div>
+
+  </div>
+
 </main>
 
 <!-- NOTES MODAL -->
@@ -863,3 +942,4 @@
 </script>
 </body>
 </html>
+
