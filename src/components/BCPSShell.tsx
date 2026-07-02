@@ -39,6 +39,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'bcps-google-governance': { title: 'Google Governance Plan',  sub: 'BCPS' },
   'bcps-assignments':       { title: 'Web Team Assignments',    sub: 'BCPS' },
   'community-relations':    { title: 'Community Relations Tracker', sub: 'District Community Relations' },
+  minibase:                 { title: 'Minibase',                    sub: 'Document Library' },
   'bcps-certification':     { title: 'Department Certification',sub: 'WCM Certification Program' },
   department:               { title: 'Department Profile',      sub: 'Audit & Analytics' },
 }
