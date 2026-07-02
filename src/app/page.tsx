@@ -37,6 +37,7 @@ const PAGE_TITLES: Record<PageId, { title: string; sub: string }> = {
   permissions: { title: 'Permissions', sub: 'Roles & Access Control' },
   members: { title: 'Members', sub: 'Team Directory' },
   'community-relations': { title: 'Community Relations Tracker', sub: 'District Community Relations' },
+  minibase:                { title: 'Minibase',                    sub: 'Document Library' },
   department:               { title: 'Department Profile',      sub: 'Audit & Analytics' },
 }
 
