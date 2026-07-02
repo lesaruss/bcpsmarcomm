@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
+import type { PageId, BreadcrumbItem } from '@/lib/types'
 
 const ACCESS_KEY = 'lr-ooc-web-9d2e7f14'
 
@@ -380,8 +381,9 @@ function TaskCard({ task, onStatusChange, onEdit, onDelete }: {
 
 /* ─── Main Page ───────────────────────────────────────────────────────────── */
 interface QueuePageProps {
-  onNavigate?: (page: string) => void
+  onNavigate?: (page: PageId, breadcrumb?: BreadcrumbItem, subPage?: string) => void
   onShowToast?: (msg: string) => void
+  viewAsUserId?: string
 }
 
 export default function QueuePage({ onShowToast }: QueuePageProps) {
