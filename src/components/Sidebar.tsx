@@ -147,6 +147,13 @@ const Icons: Record<string, React.ReactNode> = {
       <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
     </svg>
   ),
+  minibase: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5" rx="9" ry="3"/>
+      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+    </svg>
+  ),
 }
 
 // ── Nav config ─────────────────────────────────────────────────────────────
@@ -166,6 +173,7 @@ const SECTIONS: NavSection[] = [
     { id: 'documents', label: 'Documents' },
     { id: 'profile', label: 'My Profile' },
     { id: 'members', label: 'Members' },
+    { id: 'minibase', label: 'Minibase' },
   ] },
   { label: 'District Community Relations', items: [
     { id: 'community-relations', label: 'Task Tracker' },
