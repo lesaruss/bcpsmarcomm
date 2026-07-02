@@ -20,6 +20,7 @@ export type PageId =
   | 'permissions'
   | 'members'
   | 'community-relations'
+  | 'minibase'
 
 export interface BreadcrumbItem {
   label: string
