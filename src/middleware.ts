@@ -26,9 +26,6 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // ── Sensitive document gate (runs before everything else) ────────────────
-  // Personal APPAS evaluation files are owner/supervisor only. Block all others
-  // (including authenticated staff) and serve the real static file to the few
-  // authorized accounts.
   if (SENSITIVE_DOC.test(pathname)) {
     const supabase = readOnlyClient(request)
     const { data: { user } } = await supabase.auth.getUser()
@@ -39,17 +36,14 @@ export async function middleware(request: NextRequest) {
       url.search = '?page=documents&denied=1'
       return NextResponse.redirect(url)
     }
-    // Authorized: serve the real static file at its public-root path (no rewrite).
     return NextResponse.next()
   }
 
   // ── Standalone BCPS property (bcpsmarcomm.com) ───────────────────────────
-  // The entire domain is BCPS. Rewrite all non-prefixed paths to /bcps/*.
-  // Auth callback (/auth/*), Next internals (/_next/*), API routes (/api/*),
-  // and public brief routes (/briefs/*) are excluded from the rewrite.
   if (
     !pathname.startsWith('/bcps') &&
     !pathname.startsWith('/briefs/') &&
+    !pathname.startsWith('/embeds/') &&
     !pathname.startsWith('/auth/') &&
     !pathname.startsWith('/_next/') &&
     !pathname.startsWith('/api/')
@@ -127,6 +121,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/bcps/set-password') ||
     pathname.startsWith('/bcps/certification/login') ||
     pathname.startsWith('/briefs/') ||
+    pathname.startsWith('/embeds/') ||
     (pathname.startsWith('/bcps/') && /\.(html|pptx|pdf|png|jpg|svg|css|js|webp)(\?|$)/.test(pathname))
 
   if (isPublic) return supabaseResponse
