@@ -24,6 +24,7 @@ import GraphicsPage from '@/components/pages/GraphicsPage'
 import ReportsPage from '@/components/pages/ReportsPage'
 import MembersPage from '@/components/pages/MembersPage'
 import CommunityRelationsPage from '@/components/pages/CommunityRelationsPage'
+import MinibsePage from '@/components/pages/MinibsePage'
 import type { UserRole } from '@/components/Sidebar'
 
 const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm', 'reports'])
@@ -90,6 +91,7 @@ function HomeInner() {
       {nav.page === 'bcps-certification'       && <CertificationPage />}
       {nav.page === 'members'                  && <MembersPage />}
       {nav.page === 'community-relations'      && <CommunityRelationsPage />}
+      {nav.page === 'minibase'                   && <MinibsePage />}
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>
