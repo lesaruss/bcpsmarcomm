@@ -51,7 +51,7 @@ const DOCUMENTS: Document[] = [
     url: '/bcps-appas-evaluation.html',
     icon: '✓',
     restricted: ['contact@lesaruss.com', 'farrah.wilson@browardschools.com'],
-    section: 'documents',
+    section: 'records',
   },
   {
     id: 'impl-plan',
