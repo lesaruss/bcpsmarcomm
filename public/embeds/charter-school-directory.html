@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Charter School Directory - Broward County Public Schools</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #003F87;
+    --blue-light: #005CB9;
+    --blue-faint: #EBF1F8;
+    --teal: #00838F;
+    --teal-light: #E0F4F5;
+    --border: #D0D7E2;
+    --text: #1A1A2E;
+    --text-mid: #444;
+    --text-muted: #6B7280;
+    --white: #FFFFFF;
+    --bg: #F5F7FA;
+    --radius: 8px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--white);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* HEADER */
+  .module-header {
+    background: var(--blue);
+    color: #fff;
+    padding: 16px 20px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .module-header svg { flex-shrink: 0; }
+  .module-header h1 {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+  .module-header p {
+    font-size: 12px;
+    color: rgba(255,255,255,0.78);
+    margin-top: 1px;
+  }
+
+  /* CONTROLS */
+  .controls {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .search-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .search-wrap {
+    position: relative;
+    flex: 1;
+  }
+  .search-wrap svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  input[type="search"], select {
+    width: 100%;
+    padding: 8px 10px 8px 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--white);
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+  input[type="search"]:focus, select:focus {
+    border-color: var(--blue-light);
+    box-shadow: 0 0 0 3px rgba(0,92,185,0.12);
+  }
+  select {
+    padding-left: 10px;
+    cursor: pointer;
+    min-width: 160px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+  }
+
+  /* GRADE FILTERS */
+  .grade-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .grade-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 2px;
+  }
+  .grade-btn {
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--white);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .grade-btn:hover { border-color: var(--blue-light); color: var(--blue-light); }
+  .grade-btn.active {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: #fff;
+  }
+
+  /* RESULTS BAR */
+  .results-bar {
+    padding: 8px 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .results-bar strong { color: var(--text); }
+
+  /* GRID */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border-top: none;
+  }
+
+  /* CARD */
+  .card {
+    background: var(--white);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: background 0.1s;
+  }
+  .card:hover { background: var(--blue-faint); }
+
+  .card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.35;
+  }
+
+  .card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    line-height: 1.4;
+  }
+  .badge-grade {
+    background: var(--teal-light);
+    color: var(--teal);
+    border: 1px solid rgba(0,131,143,0.2);
+  }
+  .badge-city {
+    background: var(--blue-faint);
+    color: var(--blue);
+    border: 1px solid rgba(0,63,135,0.15);
+  }
+
+  .card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 2px;
+  }
+  .meta-row {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .meta-row svg { flex-shrink: 0; margin-top: 1px; }
+  .meta-row span { line-height: 1.35; }
+
+  .card-footer {
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--blue-light);
+    text-decoration: none;
+    transition: color 0.1s;
+  }
+  .card-link:hover { color: var(--blue); text-decoration: underline; }
+  .card-link:focus-visible {
+    outline: 2px solid var(--blue-light);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* EMPTY */
+  .empty {
+    grid-column: 1 / -1;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    background: var(--white);
+  }
+  .empty svg { display: block; margin: 0 auto 10px; opacity: 0.35; }
+
+  /* Scrollable container */
+  .scroll-wrap {
+    overflow-y: auto;
+    max-height: calc(100vh - 180px);
+  }
+
+  @media (max-width: 480px) {
+    .search-row { flex-direction: column; }
+    select { min-width: unset; width: 100%; }
+    .grid { grid-template-columns: 1fr; }
+    .module-header h1 { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="module-header">
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+    <rect width="28" height="28" rx="6" fill="rgba(255,255,255,0.15)"/>
+    <path d="M14 6L6 10v2h16v-2L14 6z" fill="#fff"/>
+    <rect x="8" y="12" width="3" height="8" fill="rgba(255,255,255,0.8)"/>
+    <rect x="12.5" y="12" width="3" height="8" fill="rgba(255,255,255,0.8)"/>
+    <rect x="17" y="12" width="3" height="8" fill="rgba(255,255,255,0.8)"/>
+    <rect x="6" y="20" width="16" height="2" fill="#fff"/>
+  </svg>
+  <div>
+    <h1>Charter School Directory</h1>
+    <p>Broward County Public Schools - 89 Charter Schools</p>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="search-row">
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input type="search" id="searchInput" placeholder="Search by school name, principal, or address..." aria-label="Search schools">
+    </div>
+    <select id="cityFilter" aria-label="Filter by city">
+      <option value="">All Cities</option>
+    </select>
+  </div>
+  <div class="grade-filters" role="group" aria-label="Filter by grade level">
+    <span class="grade-label">Grades:</span>
+    <button class="grade-btn active" data-grade="all">All</button>
+    <button class="grade-btn" data-grade="K-3">K-3</button>
+    <button class="grade-btn" data-grade="K-5">K-5</button>
+    <button class="grade-btn" data-grade="K-8">K-8</button>
+    <button class="grade-btn" data-grade="6-8">6-8</button>
+    <button class="grade-btn" data-grade="6-12">6-12</button>
+    <button class="grade-btn" data-grade="9-12">9-12</button>
+  </div>
+</div>
+
+<div class="results-bar">
+  <span>Showing <strong id="resultCount">89</strong> of 89 schools</span>
+  <span id="activeFilters"></span>
+</div>
+
+<div class="scroll-wrap">
+  <div class="grid" id="schoolGrid" aria-live="polite" aria-label="School results"></div>
+</div>
+
+<script>
+const SCHOOLS = [{"name":"Academic Solutions Academy","grades":"9-12","city":"Coral Springs","address":"10044 NW 31st Street, Coral Springs, FL 33065","phone":"(954) 572-6600","principal":"Andrew Kinlock","website":"https://www.asacharterschools.org"},{"name":"Academic Solutions Academy - A","grades":"9-12","city":"Coral Springs","address":"10044 NW 31st Street, Coral Springs, FL 33065","phone":"(954) 572-6600","principal":"Andrew Kinlock","website":"https://www.asacharterschools.org"},{"name":"Andrews High School (f/k/a Mavericks High School of North Broward)","grades":"9-12","city":"Pompano Beach","address":"3500 N. Andrews Avenue, Pompano Beach, FL 33064","phone":"(954) 944-4123","principal":"Kerry-Ann Brammer","website":"https://www.andrewshighschool.com"},{"name":"Ascend Career Academy","grades":"9-12","city":"Margate","address":"5251 Coconut Creek Parkway, Margate, FL 33063","phone":"(954) 978-4555","principal":"Neisha Billy","website":"https://www.ascendacademycharter.com"},{"name":"Atlantic Montessori Charter School","grades":"K-3","city":"Davie","address":"2550 South Flamingo Rd, Davie, FL 33325","phone":"(954) 423-9704","principal":"Dr. Monica Duenas","website":"https://www.atlanticmontessoricharter.com"},{"name":"Atlantic Montessori Charter School - West Campus","grades":"K-5","city":"Davie","address":"2550 South Flamingo Rd., Davie, FL 33325","phone":"(954) 423-9704","principal":"Dr. Monica Duenas","website":"https://www.atlanticmontessoricharter.com"},{"name":"Avant Garde Academy Foundation K8 (f/k/a Avant Garde Academy K8 West)","grades":"K-8","city":"Hollywood","address":"2025 Mckinley Street, Hollywood, FL 33020","phone":"(754) 816-6153","principal":"Nabile Hernandez","website":"https://www.agabroward.org"},{"name":"Avant Garde Academy K-5 Broward","grades":"K-5","city":"Hollywood","address":"2025 Mckinley Street, Hollywood, FL 33020","phone":"(754) 816-6153","principal":"Nabile Hernandez","website":"https://www.agabroward.org"},{"name":"Avant Garde Academy of Broward","grades":"6-12","city":"Hollywood","address":"2025 Mckinley Street, Hollywood, FL 33020","phone":"(754) 816-6153","principal":"Dr. Arlene Valdes","website":"https://www.agabroward.org"},{"name":"Ben Gamla Charter School","grades":"K-8","city":"Hollywood","address":"2620 Hollywood Boulevard, Hollywood, FL 33020","phone":"(954) 342-4064","principal":"Heather Confer","website":"https://www.bengamla-charter.com"},{"name":"Ben Gamla Charter School South Broward","grades":"K-8","city":"Hollywood","address":"2650 Van Buren Street, Hollywood, FL 33020","phone":"(954) 399-6724","principal":"Jennifer Jaynes","website":"https://www.bengamlaplantation.org"},{"name":"BridgePrep Academy of Broward K-8","grades":"K-8","city":"Hollywood","address":"1400 N. 46th Avenue, Hollywood, FL 33021","phone":"(954) 362-8268","principal":"Yaimy Siboret","website":"https://www.bridgeprepacademy.com"},{"name":"BridgePrep Academy of Hollywood Hills","grades":"K-5","city":"Hollywood","address":"1400 N. 46th Avenue, Hollywood, FL 33021","phone":"(954) 362-8268","principal":"Yaimy Siboret","website":"https://www.bridgeprepacademy.com"},{"name":"Broward Math and Science Schools","grades":"K-8","city":"Margate","address":"6101 N.W. 31st Street, Margate, FL 33063","phone":"(954) 969-8488","principal":"Hasan Kose","website":"https://www.bmsschools.org"},{"name":"Central Charter School","grades":"K-8","city":"Lauderdale Lakes","address":"4515 North State Road 7, Lauderdale Lakes, FL 33319","phone":"(954) 735-6295","principal":"John Billingsley","website":"https://www.centralcharterschool.org"},{"name":"Championship Academy of Distinction at Davie (f/k/a Florida Intercultural Academy West)","grades":"K-8","city":"Davie","address":"3367 N. University Drive, Davie, FL 33024","phone":"(954) 362-3415","principal":"Patsy Reid","website":"https://www.championshipacademy.org"},{"name":"Championship Academy of Distinction at Hollywood (f/k/a Florida Intercultural Academy)","grades":"K-5","city":"Hollywood","address":"1100 Hillcrest Drive, Hollywood, FL 33021","phone":"(954) 924-8006","principal":"Aquilah Malik","website":"https://www.championshipacademy.org"},{"name":"Championship Academy of Distinction Middle School","grades":"6-8","city":"Hollywood","address":"1100 Hillcrest Drive, Hollywood, FL 33021","phone":"(954) 924-8006","principal":"Aquilah Malik","website":"https://www.championshipacademy.org"},{"name":"Charter School of Excellence at Davie","grades":"K-5","city":"Pembroke Pines","address":"2801 N. University Drive, Pembroke Pines, FL 33024","phone":"(954) 433-8838","principal":"Lissette Torres","website":"https://www.charterschool.com"},{"name":"City of Pembroke Pines Central","grades":"K-5","city":"Pembroke Pines","address":"12350 Sheridan Street, Pembroke Pines, FL 33026","phone":"(954) 322-3300","principal":"Sean Chance","website":"https://www.pinescharter.net"},{"name":"City of Pembroke Pines East","grades":"K-5","city":"Pembroke Pines","address":"10801 Pembroke Road, Pembroke Pines, FL 33025","phone":"(954) 443-4800","principal":"Channale Augustin","website":"https://www.pinescharter.net"},{"name":"City of Pembroke Pines High","grades":"6-12","city":"Pembroke Pines","address":"17189 Sheridan Street, Pembroke Pines, FL 33331","phone":"(954) 538-3700","principal":"Peter Bayer","website":"https://www.pinescharter.net"},{"name":"City of Pembroke Pines Middle Central","grades":"6-8","city":"Pembroke Pines","address":"12350 Sheridan Street, Pembroke Pines, FL 33026","phone":"(954) 322-3300","principal":"Sean Chance","website":"https://www.pinescharter.net"},{"name":"City of Pembroke Pines Middle West","grades":"6-8","city":"Pembroke Pines","address":"18501 Pembroke Road, Pembroke Pines, FL 33029","phone":"(954) 443-4847","principal":"Mike Castellano","website":"https://www.pinescharter.net"},{"name":"City of Pembroke Pines West","grades":"K-5","city":"Pembroke Pines","address":"1680 S.W. 184th Avenue, Pembroke Pines, FL 33029","phone":"(954) 450-6990","principal":"Mike Castellano","website":"https://www.pinescharter.net"},{"name":"Coral Springs Charter School","grades":"6-12","city":"Coral Springs","address":"3205 N. University Drive, Coral Springs, FL 33065","phone":"(954) 340-4100","principal":"Jodi Robins","website":"https://www.coralspringscharter.org"},{"name":"Eagles' Nest Charter Academy (f/k/a Eagles' Nest Elementary Charter School)","grades":"K-8","city":"Lauderhill","address":"3698 NW 15th Street, Lauderhill, FL 33311","phone":"(954) 635-2308","principal":"Belinda Hope","website":"https://www.eaglesnestschools.org"},{"name":"Eagles' Nest Middle Charter School","grades":"6-8","city":"Coral Springs","address":"201 N. University Drive, Coral Springs, FL 33071","phone":"(954) 341-5550","principal":"Belinda Hope","website":"https://www.panaceaprep.org"},{"name":"Everest Charter School","grades":"K-8","city":"Tamarac","address":"10038-10044 W. McNab Road, Tamarac, FL 33321","phone":"(954) 532-3015","principal":"Marsha Reece","website":"https://www.everestcharter.org"},{"name":"Franklin Academy - Cooper City (f/k/a Franklin Academy E)","grades":"K-8","city":"Cooper City","address":"6301 Flamingo Road, Cooper City, FL 33330","phone":"(954) 780-5533","principal":"Alexandra Fox","website":"https://www.franklin-academy.org"},{"name":"Franklin Academy - Pembroke Pines (f/k/a Franklin Academy A)","grades":"K-8","city":"Pembroke Pines","address":"18800 Pines Boulevard, Pembroke Pines, FL 33029","phone":"(954) 703-2294","principal":"Elena Diaz","website":"https://www.franklin-academy.org"},{"name":"Franklin Academy - Sunrise (f/k/a Franklin Academy B)","grades":"K-8","city":"Sunrise","address":"4500 NW 103rd Avenue, Sunrise, FL 33351","phone":"(754) 206-0850","principal":"Shaina Dillman","website":"https://www.franklin-academy.org"},{"name":"Franklin Academy F","grades":"K-8","city":"Pembroke Pines","address":"5000 SW 207th Terrace, Pembroke Pines, FL 33332","phone":"(954) 315-0770","principal":"Sergio Delgado Ibanez","website":"https://www.franklin-academy.org"},{"name":"Franklin Academy Pembroke Pines High School (f/k/a Franklin Academy 3)","grades":"9-12","city":"Pembroke Pines","address":"5000 SW 207th Terrace, Pembroke Pines, FL 33332","phone":"(954) 315-0770","principal":"Sergio Delgado Ibanez","website":"https://www.franklin-academy.org"},{"name":"Greentree Preparatory Charter School","grades":"K-8","city":"Southwest Ranches","address":"6301 SW 160th Avenue, Southwest Ranches, FL 33331","phone":"(954) 780-8733","principal":"Roxana Castillo","website":"https://www.greentreeprep.com"},{"name":"Hollywood Academy of Arts and Science","grades":"K-5","city":"Hollywood","address":"1705 Van Buren Street, Hollywood, FL 33020","phone":"(954) 925-6404","principal":"Johna Giordano","website":"https://www.hollywoodcharter.org"},{"name":"Hollywood Academy of Arts and Science Middle","grades":"6-8","city":"Hollywood","address":"1705 Van Buren Street, Hollywood, FL 33020","phone":"(954) 925-6404","principal":"Johna Giordano","website":"https://www.hollywoodcharter.org"},{"name":"Imagine Charter School at North Lauderdale","grades":"K-5","city":"North Lauderdale","address":"1395 S State Road 7, North Lauderdale, FL 33068","phone":"(954) 973-8900","principal":"Sharon Bailey","website":"https://www.imagineNL.com"},{"name":"Imagine Charter School at Weston","grades":"K-8","city":"Weston","address":"2500 Glades Circle, Weston, FL 33327","phone":"(954) 659-3600","principal":"Nathan Berkowitz","website":"https://www.imagineweston.org"},{"name":"Imagine School at Broward","grades":"K-8","city":"Coral Springs","address":"9001 Westview Drive, Coral Springs, FL 33067","phone":"(954) 255-0020","principal":"Debra Darling","website":"https://www.imagineschoolatbroward.org"},{"name":"Imagine Schools - Plantation Campus","grades":"K-8","city":"Plantation","address":"8200 Peters Road, Plantation, FL 33324","phone":"(954) 358-4200","principal":"Ethiel Calvo","website":"https://www.imagineschoolsatplantation.com"},{"name":"Innovation Charter School","grades":"K-5","city":"Pompano Beach","address":"600 SW 3rd Street, Pompano Beach, FL 33060","phone":"(954) 715-1777","principal":"Marisa Anderson","website":"https://www.innovationcharter.net"},{"name":"International School of Broward","grades":"6-12","city":"Hollywood","address":"3100 N. 75th Avenue, Hollywood, FL 33024","phone":"(954) 987-2026","principal":"Dr. Henry Crawford","website":"https://www.isbcharterschool.org"},{"name":"International Studies Academy High School","grades":"9-12","city":"Hollywood","address":"2650 Van Buren Street, Hollywood, FL 33020","phone":"(954) 399-6724","principal":"Jennifer Jaynes","website":"https://isabroward.net"},{"name":"International Studies Academy Middle School","grades":"6-8","city":"Hollywood","address":"2650 Van Buren Street, Hollywood, FL 33020","phone":"(954) 399-6724","principal":"Jennifer Jaynes","website":"https://isabroward.net"},{"name":"New Life Charter Academy","grades":"K-5","city":"Fort Lauderdale","address":"3550 Davie Blvd, Fort Lauderdale, FL 33312","phone":"(954) 381-5199","principal":"Shirley Brunache","website":"https://www.newlifecharteracademy.org"},{"name":"North Broward Academy of Excellence Elementary School","grades":"K-5","city":"North Lauderdale","address":"8200 S.W. 17th Street, North Lauderdale, FL 33068","phone":"(954) 718-2211","principal":"Mark Hage","website":"https://www.northbrowardcharter.org"},{"name":"North Broward Academy of Excellence Middle School","grades":"6-8","city":"North Lauderdale","address":"8200 S.W. 17th Street, North Lauderdale, FL 33068","phone":"(954) 718-2211","principal":"Mark Hage","website":"https://www.northbrowardcharter.org"},{"name":"Panacea Prep Charter School","grades":"K-5","city":"Coral Springs","address":"201 N. University Drive, Coral Springs, FL 33071","phone":"(954) 341-5550","principal":"Belinda Hope","website":"https://www.panaceaprep.org"},{"name":"Paragon Academy of Technology","grades":"6-12","city":"Hollywood","address":"502 N. 28th Avenue, Hollywood, FL 33020","phone":"(954) 925-0155","principal":"Alejandro Camurri","website":"https://sunpatcharter.com"},{"name":"Renaissance at Cooper City","grades":"K-8","city":"Cooper City","address":"2800 N. Palm Avenue, Cooper City, FL 33026","phone":"(954) 668-2500","principal":"Angela LeCompte","website":"https://www.recscoopercity.org"},{"name":"Renaissance Charter Middle School at Pines","grades":"K-8","city":"Pembroke Pines","address":"10501 Pines Boulevard, Pembroke Pines, FL 33026","phone":"(954) 862-1283","principal":"Natasha Cavell","website":"https://www.recspines.org"},{"name":"Renaissance Charter School at Coral Springs","grades":"K-8","city":"Coral Springs","address":"6250 W. Sample Road, Coral Springs, FL 33067","phone":"(954) 369-1179","principal":"Lynette Self","website":"https://www.recscoralsprings.org"},{"name":"Renaissance Charter School at Plantation","grades":"K-8","city":"Plantation","address":"6701 W. Sunrise Boulevard, Plantation, FL 33313","phone":"(954) 556-9700","principal":"Sheriffee Humphrey","website":"https://www.plantationcharter.org"},{"name":"Renaissance Charter School at University","grades":"K-8","city":"Tamarac","address":"8399 N. University Drive, Tamarac, FL 33321","phone":"(954) 414-0996","principal":"Lisa Dean","website":"https://www.universitycharter.org"},{"name":"Renaissance Charter Schools at Pines","grades":"K-8","city":"Pembroke Pines","address":"10501 Pines Boulevard, Pembroke Pines, FL 33026","phone":"(954) 862-1283","principal":"Natasha Cavell","website":"https://www.recspines.org"},{"name":"RISE Academy School of Science and Technology","grades":"K-8","city":"Margate","address":"6101 N.W. 31st Street, Margate, FL 33063","phone":"(954) 968-7977","principal":"Adriana Guerra","website":"https://www.riseacademyschools.com"},{"name":"Sandra Marie Curtis High School (f/k/a Sunrise High School)","grades":"9-12","city":"Fort Lauderdale","address":"424 W. Sunrise Boulevard, Fort Lauderdale, FL 33311","phone":"(954) 446-9234","principal":"Charmayne Joseph","website":"https://www.smcurtishighschool.com"},{"name":"Somerset Academy","grades":"K-5","city":"Pembroke Pines","address":"19620 Pines Boulevard, Pembroke Pines, FL 33029","phone":"(954) 404-7616","principal":"Dr. Cristina Camus","website":"https://www.somersetacademy.com"},{"name":"Somerset Academy (Miramar Campus)","grades":"K-5","city":"Miramar","address":"12601 Somerset Boulevard, Miramar, FL 33027","phone":"(305) 829-2406","principal":"Alexandra Prieto","website":"https://www.somersetmiramar.com"},{"name":"Somerset Academy Charter High School","grades":"9-12","city":"Pembroke Pines","address":"20805 Johnson Street, Pembroke Pines, FL 33029","phone":"(954) 442-0233","principal":"Bernardo Montero","website":"https://www.somersetacademy.com"},{"name":"Somerset Academy Charter High School Miramar Campus","grades":"9-12","city":"Miramar","address":"9300 Pembroke Road, Miramar, FL 33025","phone":"(954) 435-1570","principal":"Athena Guillen","website":"https://www.somersetcentral.org"},{"name":"Somerset Academy Davie Charter School","grades":"K-5","city":"Davie","address":"3788 Davie Road, Davie, FL 33314","phone":"(954) 584-5528","principal":"Dina Miller","website":"https://www.somersetdavie.com"},{"name":"Somerset Academy East Preparatory","grades":"K-5","city":"Miramar","address":"2000 S. State Road 7, Miramar, FL 33023","phone":"(954) 987-7890","principal":"Dr. Mary Stuart","website":"https://www.somersetep.com"},{"name":"Somerset Academy Elementary South Campus","grades":"K-5","city":"Pembroke Pines","address":"19620 Pines Boulevard, Pembroke Pines, FL 33029","phone":"(954) 404-7616","principal":"Dr. Cristina Camus","website":"https://www.somersetacademy.com"},{"name":"Somerset Academy Key Charter High School","grades":"9-12","city":"Deerfield Beach","address":"959 SE 6th Avenue, Deerfield Beach, FL 33441","phone":"(954) 481-0602","principal":"Dennis Mulrooney","website":"https://www.somersetkey.com"},{"name":"Somerset Academy Key Middle School (f/k/a Somerset Academy Pompano Middle)","grades":"6-8","city":"Deerfield Beach","address":"959 SE 6th Avenue, Deerfield Beach, FL 33441","phone":"(954) 481-0602","principal":"Dennis Mulrooney","website":"https://www.somersetkey.com"},{"name":"Somerset Academy Middle School","grades":"6-8","city":"Pembroke Pines","address":"20803 Johnson Street, Pembroke Pines, FL 33029","phone":"(954) 442-0233","principal":"Bernardo Montero","website":"https://www.somersetacademy.com"},{"name":"Somerset Academy Miramar Middle","grades":"6-8","city":"Miramar","address":"12601 Somerset Boulevard, Miramar, FL 33027","phone":"(305) 829-2406","principal":"Alexandra Prieto","website":"https://www.somersetmiramar.com"},{"name":"Somerset Academy Miramar South","grades":"K-5","city":"Miramar","address":"12425 S.W. 53rd Street, Miramar, FL 33025","phone":"(305) 829-2406","principal":"Alexandra Prieto","website":"https://www.somersetmiramar.com"},{"name":"Somerset Academy Pompano Elementary","grades":"K-5","city":"Pompano Beach","address":"1101 NW 33rd Street, Pompano Beach, FL 33064","phone":"(954) 946-4144","principal":"Anthony Marucci","website":"https://www.somersetpompano.com"},{"name":"Somerset Academy Riverside Charter Middle School (f/k/a Somerset Academy Hollywood Middle School)","grades":"6-8","city":"Coral Springs","address":"2251 Riverside Drive, Coral Springs, FL 33065","phone":"(954) 255-9740","principal":"Sonia Andreu","website":"https://www.somersetcentral.org"},{"name":"Somerset Academy Riverside Charter School (f/k/a Somerset Academy Hollywood)","grades":"K-5","city":"Coral Springs","address":"2251 Riverside Drive, Coral Springs, FL 33065","phone":"(954) 255-9740","principal":"Sonia Andreu","website":"https://www.somersetep.com"},{"name":"Somerset Academy Village Charter Middle School","grades":"6-8","city":"Wilton Manors","address":"225 N.W. 29th Street, Wilton Manors, FL 33311","phone":"(954) 390-0971","principal":"Patricia Boiteux","website":"https://www.somersetwm.com"},{"name":"Somerset Arts Conservatory","grades":"9-12","city":"Pembroke Pines","address":"20803 Johnson Street, Pembroke Pines, FL 33029","phone":"(954) 442-0233","principal":"Bernardo Montero","website":"https://www.somersetacademy.com"},{"name":"Somerset Neighborhood School","grades":"K-5","city":"Miramar","address":"9300 Pembroke Road, Miramar, FL 33025","phone":"(954) 435-1570","principal":"Athena Guillen","website":"https://www.somersetcentral.org"},{"name":"Somerset Parkland Academy","grades":"K-8","city":"Parkland","address":"8401 University Drive, Parkland, FL 33076","phone":"(954) 718-3391","principal":"Geyler Castro","website":"https://www.somersetparklandacademy.com"},{"name":"Somerset Pines Academy","grades":"K-8","city":"Pompano Beach","address":"901 N.E. 33rd Street, Pompano Beach, FL 33064","phone":"(954) 786-5980","principal":"Anthony Marucci","website":"https://www.somersetpines.com"},{"name":"Somerset Preparatory Academy Charter High School at North Lauderdale","grades":"9-12","city":"North Lauderdale","address":"7101 Kimberly Boulevard, North Lauderdale, FL 33068","phone":"(954) 718-5065","principal":"Donyale McGhee","website":"https://www.somersetprep.com"},{"name":"Somerset Preparatory Academy Charter School at North Lauderdale","grades":"K-8","city":"North Lauderdale","address":"7101 Kimberly Boulevard, North Lauderdale, FL 33068","phone":"(954) 718-5065","principal":"Donyale McGhee","website":"https://www.somersetprep.com"},{"name":"Somerset Preparatory Charter Middle School","grades":"6-8","city":"Miramar","address":"9300 Pembroke Road, Miramar, FL 33025","phone":"(954) 435-1570","principal":"Athena Guillen","website":"https://www.somersetcentral.org"},{"name":"Somerset Village Academy","grades":"K-5","city":"Wilton Manors","address":"225 N.W. 29th Street, Wilton Manors, FL 33311","phone":"(954) 390-0971","principal":"Patricia Boiteux","website":"https://www.somersetwm.com"},{"name":"South Broward Montessori Charter School","grades":"K-5","city":"Hallandale Beach","address":"520 N.W. 5th Street, Hallandale Beach, FL 33009","phone":"(954) 251-1443","principal":"Livia Moreno","website":"https://www.sbmontessoricharter.com"},{"name":"Summit Academy Charter School","grades":"K-8","city":"Coral Springs","address":"11421 NW 56th Drive, Coral Springs, FL 33076","phone":"(954) 603-3303","principal":"Mari Canetti","website":"https://www.summitacademy.org"},{"name":"SunEd High of North Broward","grades":"9-12","city":"Margate","address":"1117 Banks Road, Margate, FL 33063","phone":"(954) 246-4004","principal":"Shirlene Weaver","website":"https://www.sunedhigh.com"},{"name":"SunEd High of South Broward","grades":"9-12","city":"Fort Lauderdale","address":"2744 Davie Boulevard, Fort Lauderdale, FL 33312","phone":"(954) 284-7000","principal":"Brian Bianco","website":"https://www.sunedhigh.com"},{"name":"SunFire High School","grades":"9-12","city":"Oakland Park","address":"2360 W. Oakland Park Boulevard, Oakland Park, FL 33311","phone":"(954) 678-3939","principal":"DeeEtte Naukana","website":"https://www.sunfirehigh.com"},{"name":"Sunshine Elementary Charter School","grades":"K-5","city":"Hollywood","address":"502 N. 28th Avenue, Hollywood, FL 33020","phone":"(954) 925-0155","principal":"Alejandro Camurri","website":"https://sunpatcharter.com"},{"name":"West Broward Academy (f/k/a West Broward Academy at Excelsior)","grades":"K-8","city":"Margate","address":"5281 Coconut Creek Parkway, Margate, FL 33063","phone":"(754) 702-2320","principal":"Derrick Hugue","website":"https://www.westbrowardacademy.com"}];
+
+// Populate city dropdown
+const cities = [...new Set(SCHOOLS.map(s => s.city))].sort();
+const cityFilter = document.getElementById('cityFilter');
+cities.forEach(c => {
+  const opt = document.createElement('option');
+  opt.value = c; opt.textContent = c;
+  cityFilter.appendChild(opt);
+});
+
+// State
+let activeGrade = 'all';
+let activeCity = '';
+let activeSearch = '';
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function highlight(text, query) {
+  if (!query) return escapeHtml(text);
+  const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  return escapeHtml(text).replace(re, '<mark style="background:#FFF3CD;color:inherit;border-radius:2px;padding:0 1px">$1</mark>');
+}
+
+function render() {
+  const q = activeSearch.toLowerCase().trim();
+  const filtered = SCHOOLS.filter(s => {
+    const matchGrade = activeGrade === 'all' || s.grades === activeGrade;
+    const matchCity = !activeCity || s.city === activeCity;
+    const matchSearch = !q || s.name.toLowerCase().includes(q) || s.principal.toLowerCase().includes(q) || s.address.toLowerCase().includes(q) || s.city.toLowerCase().includes(q);
+    return matchGrade && matchCity && matchSearch;
+  });
+
+  document.getElementById('resultCount').textContent = filtered.length;
+
+  const grid = document.getElementById('schoolGrid');
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      No schools match your filters. Try adjusting your search.
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(s => {
+    const domain = s.website ? s.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '') : '';
+    return `<article class="card">
+      <div class="card-name">${highlight(s.name, q)}</div>
+      <div class="card-badges">
+        <span class="badge badge-grade">Grades ${escapeHtml(s.grades)}</span>
+        <span class="badge badge-city">${highlight(s.city, q)}</span>
+      </div>
+      <div class="card-meta">
+        <div class="meta-row">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>${highlight(s.address, q)}</span>
+        </div>
+        <div class="meta-row">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.64 19.79 19.79 0 01.22 1.05 2 2 0 012.22 3h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 10.91a16 16 0 006.18 6.18l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+          <span>${escapeHtml(s.phone)}</span>
+        </div>
+        <div class="meta-row">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>${highlight(s.principal, q)}</span>
+        </div>
+      </div>
+      ${s.website ? `<div class="card-footer">
+        <a href="${escapeHtml(s.website)}" class="card-link" target="_blank" rel="noopener noreferrer" aria-label="Visit ${escapeHtml(s.name)} website">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+          ${escapeHtml(domain)}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>` : ''}
+    </article>`;
+  }).join('');
+}
+
+// Event listeners
+document.getElementById('searchInput').addEventListener('input', e => {
+  activeSearch = e.target.value;
+  render();
+});
+
+cityFilter.addEventListener('change', e => {
+  activeCity = e.target.value;
+  render();
+});
+
+document.querySelectorAll('.grade-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.grade-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeGrade = btn.dataset.grade;
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>
