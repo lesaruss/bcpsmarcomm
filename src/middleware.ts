@@ -41,7 +41,7 @@ export async function middleware(request: NextRequest) {
 
   // ── Standalone BCPS property (bcpsmarcomm.com) ───────────────────────────
   if (
-    !pathname.startsWith('/bcps') &&
+    !(pathname === '/bcps' || pathname.startsWith('/bcps/')) &&
     !pathname.startsWith('/briefs/') &&
     !pathname.startsWith('/embeds/') &&
     !pathname.startsWith('/auth/') &&
@@ -54,6 +54,13 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith('/set-password') ||
       pathname.startsWith('/certification/login')
     const isStaticFile = /\.(html|pptx|pdf|png|jpg|svg|css|js|webp)(\?|$)/.test(pathname)
+
+    // Root-level static documents (e.g. /bcps-implementation-plan-2026-2027.pdf)
+    // are public assets served straight from /public - do not rewrite them into
+    // the /bcps app namespace (no matching file lives there) or gate them behind auth.
+    if (isStaticFile) {
+      return NextResponse.next()
+    }
 
     const rewriteUrl = request.nextUrl.clone()
     rewriteUrl.pathname = '/bcps' + (pathname === '/' ? '' : pathname)
