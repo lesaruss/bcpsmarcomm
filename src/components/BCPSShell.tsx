@@ -105,7 +105,12 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!allowedPages || viewAs) return
     const pathRouted = pathname.startsWith('/bcps/certification') || pathname.startsWith('/bcps/department')
-    if (!pathRouted && activePage !== 'dashboard' && !allowedPages.includes(activePage)) {
+    // Hardcoded admin-tier pages (SUPERADMIN_PAGES) are gated by role alone and
+    // don't depend on the acl_objects registry, since that registry has shown
+    // eventual-consistency lag right after a new page is registered (also true
+    // for the pre-existing Minibase page, which isn't in acl_objects either).
+    const roleGated = role === 'superadmin' && SUPERADMIN_PAGES.has(activePage)
+    if (!pathRouted && activePage !== 'dashboard' && !allowedPages.includes(activePage) && !roleGated) {
       router.replace('/bcps?page=dashboard', { scroll: false })
     }
   }, [allowedPages, activePage, pathname, viewAs, router])
