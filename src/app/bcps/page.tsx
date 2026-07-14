@@ -25,9 +25,10 @@ import ReportsPage from '@/components/pages/ReportsPage'
 import MembersPage from '@/components/pages/MembersPage'
 import CommunityRelationsPage from '@/components/pages/CommunityRelationsPage'
 import MinibsePage from '@/components/pages/MinibsePage'
+import NoteApprovalsPage from '@/components/pages/NoteApprovalsPage'
 import type { UserRole } from '@/components/Sidebar'
 
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm', 'reports'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm', 'reports', 'pulse-approvals'])
 
 function HomeInner() {
   const router = useRouter()
@@ -92,6 +93,7 @@ function HomeInner() {
       {nav.page === 'members'                  && <MembersPage />}
       {nav.page === 'community-relations'      && <CommunityRelationsPage />}
       {nav.page === 'minibase'                   && <MinibsePage />}
+      {nav.page === 'pulse-approvals'          && effectiveRole === 'superadmin' && <NoteApprovalsPage />}
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>
