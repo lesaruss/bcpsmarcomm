@@ -129,16 +129,32 @@
   #pulse-trigger {
     position: fixed; bottom: 24px; left: 24px; z-index: 500;
     width: 46px; height: 46px;
+    border-radius: 50%;
     background: var(--pulse-orange);
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-    display: flex; align-items: center; justify-content: center;
+    display: none;
+    align-items: center; justify-content: center;
     cursor: pointer;
     box-shadow: 0 2px 12px rgba(232,101,10,0.45);
     transition: transform 0.18s, box-shadow 0.18s;
   }
+  #pulse-trigger.pulse-visible { display: flex; }
+  #pulse-trigger::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: var(--pulse-orange);
+    opacity: 0.55;
+    animation: pulse-ring 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    z-index: -1;
+  }
+  @keyframes pulse-ring {
+    0%   { transform: scale(1);    opacity: 0.55; }
+    70%  { transform: scale(1.9);  opacity: 0; }
+    100% { transform: scale(1.9);  opacity: 0; }
+  }
   #pulse-trigger:hover { transform: scale(1.10); box-shadow: 0 4px 20px rgba(232,101,10,0.55); }
   #pulse-trigger.active { transform: scale(0.95); }
-  #pulse-trigger-icon { color: #fff; font-size: 18px; font-weight: 900; line-height: 1; pointer-events: none; }
+  #pulse-trigger-icon { color: #fff; font-size: 16px; font-weight: 900; line-height: 1; pointer-events: none; position: relative; }
 
   #pulse-panel {
     position: fixed; bottom: 82px; left: 24px; z-index: 499;
@@ -162,7 +178,12 @@
   .pulse-panel-close:hover { color: #fff; }
   .pulse-panel-body { padding: 16px 18px; }
   .pulse-panel-body p { font-size: 12px; color: var(--text-50); margin-bottom: 12px; line-height: 1.5; }
-  .pulse-name-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .pulse-signed-in-as {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-50); margin-bottom: 12px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pulse-signed-in-as strong { color: var(--text); text-transform: none; letter-spacing: 0; }
   .pulse-input {
     width: 100%; padding: 9px 12px;
     border: 1px solid var(--border); border-radius: 6px;
@@ -300,9 +321,8 @@
 
 </main>
 
-<!-- PULSE WIDGET -->
 <div id="pulse-trigger" role="button" aria-label="Send a message or update request" tabindex="0">
-  <span id="pulse-trigger-icon">&#9670;</span>
+  <span id="pulse-trigger-icon">&#9679;</span>
 </div>
 
 <div id="pulse-panel" role="dialog" aria-label="Pulse - Send a message">
@@ -311,27 +331,23 @@
     <button class="pulse-panel-close" id="pulse-close" aria-label="Close">&times;</button>
   </div>
   <div class="pulse-panel-body" id="pulse-form-body">
-    <p>Leave a note, correction, or update request. This goes directly to the admin team.</p>
-    <div class="pulse-name-row">
-      <input class="pulse-input" id="pulse-name" type="text" placeholder="Your name" style="flex:1">
-      <input class="pulse-input" id="pulse-email" type="email" placeholder="Email" style="flex:1">
-    </div>
+    <p>Leave a note, correction, or update request. Admin notes go live immediately; everyone else's goes to an admin for approval.</p>
+    <div class="pulse-signed-in-as" id="pulse-signed-in-as">Signed in as <strong>...</strong></div>
     <textarea class="pulse-input pulse-textarea" id="pulse-message" placeholder="What needs to be updated or corrected?"></textarea>
     <button class="pulse-submit" id="pulse-send">Send Message</button>
   </div>
   <div class="pulse-success" id="pulse-success-body">
-    <div class="pulse-success-icon">&#9670;</div>
-    <p>Message sent. The admin team will follow up.</p>
+    <div class="pulse-success-icon">&#9679;</div>
+    <p id="pulse-success-text">Message sent. The admin team will follow up.</p>
   </div>
 </div>
 
 <script>
 (function() {
-  var SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
-  var SUPABASE_ANON_KEY = '{{SUPABASE_ANON_KEY}}';
   var PAGE_SLUG = '{{SLUG}}';
   var PAGE_URL = window.location.href;
   var BRAND_SLUG = 'bcps';
+  var PULSE_API = '/api/bcps/pulse';
 
   var trigger = document.getElementById('pulse-trigger');
   var panel = document.getElementById('pulse-panel');
@@ -339,6 +355,20 @@
   var sendBtn = document.getElementById('pulse-send');
   var formBody = document.getElementById('pulse-form-body');
   var successBody = document.getElementById('pulse-success-body');
+  var successText = document.getElementById('pulse-success-text');
+  var signedInAs = document.getElementById('pulse-signed-in-as');
+
+  // Only show the widget at all if the visitor has an active session.
+  // Identity always comes from the session server-side, never typed in.
+  fetch(PULSE_API)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.loggedIn) {
+        trigger.classList.add('pulse-visible');
+        signedInAs.innerHTML = 'Signed in as <strong>' + (data.name || data.email) + '</strong>' + (data.isAdmin ? ' (admin)' : '');
+      }
+    })
+    .catch(function() { /* stay hidden on any error */ });
 
   function togglePanel() {
     var isOpen = panel.classList.contains('open');
@@ -359,40 +389,34 @@
   });
 
   sendBtn.addEventListener('click', function() {
-    var name = document.getElementById('pulse-name').value.trim();
-    var email = document.getElementById('pulse-email').value.trim();
     var message = document.getElementById('pulse-message').value.trim();
     if (!message) { document.getElementById('pulse-message').focus(); return; }
 
     sendBtn.disabled = true;
     sendBtn.textContent = 'Sending...';
 
-    fetch(SUPABASE_URL + '/rest/v1/pulse_messages', {
+    fetch(PULSE_API, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'Prefer': 'return=minimal'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         page_slug: PAGE_SLUG,
         page_url: PAGE_URL,
         brand_slug: BRAND_SLUG,
-        message: message,
-        sender_name: name || null,
-        sender_email: email || null,
-        status: 'open'
+        message: message
       })
     })
-    .then(function(r) {
-      if (r.ok || r.status === 201) {
+    .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, body: j }; }); })
+    .then(function(res) {
+      if (res.ok) {
+        successText.textContent = res.body.status === 'approved'
+          ? 'Change logged and approved automatically.'
+          : 'Sent for admin approval.';
         formBody.style.display = 'none';
         successBody.style.display = 'block';
       } else {
         sendBtn.disabled = false;
         sendBtn.textContent = 'Send Message';
-        alert('Could not send message. Please try again.');
+        alert(res.body.error || 'Could not send message. Please try again.');
       }
     })
     .catch(function() {
@@ -403,6 +427,7 @@
   });
 })();
 </script>
+
 
 </body>
 </html>
