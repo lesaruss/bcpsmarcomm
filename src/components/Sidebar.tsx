@@ -154,10 +154,16 @@ const Icons: Record<string, React.ReactNode> = {
       <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
     </svg>
   ),
+  'pulse-approvals': (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+      <path d="M9 12l2 2 4-4" opacity="0.6"/>
+    </svg>
+  ),
 }
 
 // ── Nav config ─────────────────────────────────────────────────────────────
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'wcm', 'reports'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'wcm', 'reports', 'pulse-approvals'])
 
 interface NavItem { id: PageId; label: string }
 
@@ -191,6 +197,7 @@ const SECTIONS: NavSection[] = [
   { label: 'SuperAdmin', items: [
     { id: 'superadmin', label: 'Platform Management' },
     { id: 'permissions', label: 'Permissions' },
+    { id: 'pulse-approvals', label: 'Note Approvals' },
   ] },
   { label: 'Other', items: [
     { id: 'minutes', label: 'Minutes' },
