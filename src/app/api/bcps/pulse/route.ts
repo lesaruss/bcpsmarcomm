@@ -2,7 +2,8 @@
 // Pulse widget backend. Identity comes ONLY from the signed-in session
 // (cookies), never from client-supplied name/email fields. Admin
 // submissions (wcm_cert_users.is_admin = true) auto-approve; everyone
-// else's note lands as pending_approval for an admin to review.
+// else's note lands as pending_approval for an admin to review via the
+// Note Approvals queue (GET ?scope=queue, PATCH to approve/reject).
 
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
@@ -43,13 +44,41 @@ async function lookupIdentity(email: string) {
   }
 }
 
-// GET: tells the widget whether to render at all, and shows a
+// GET: default -> tells the widget whether to render at all, and shows a
 // read-only "signed in as" line instead of asking for name/email.
-export async function GET() {
+// GET ?scope=queue -> admin-only. Returns the review queue: every
+// pending_approval message first, then recently resolved ones, so an
+// admin can see what still needs action and what was just decided.
+export async function GET(req: NextRequest) {
   const email = await getSessionEmail()
   if (!email) return NextResponse.json({ loggedIn: false })
 
   const { name, isAdmin } = await lookupIdentity(email)
+
+  const scope = req.nextUrl.searchParams.get('scope')
+  if (scope === 'queue') {
+    if (!isAdmin) return NextResponse.json({ error: 'Admin only.' }, { status: 403 })
+    const db = serviceClient()
+    if (!db) return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
+
+    const { data, error } = await db
+      .from('pulse_messages')
+      .select('id, page_slug, page_url, brand_slug, message, sender_name, sender_email, status, is_admin_submission, created_at, resolved_at, resolved_by')
+      .order('created_at', { ascending: false })
+      .limit(100)
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    const items = (data ?? []).sort((a, b) => {
+      const aPending = a.status === 'pending_approval' ? 0 : 1
+      const bPending = b.status === 'pending_approval' ? 0 : 1
+      if (aPending !== bPending) return aPending - bPending
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+
+    return NextResponse.json({ items })
+  }
+
   return NextResponse.json({ loggedIn: true, email, name, isAdmin })
 }
 
