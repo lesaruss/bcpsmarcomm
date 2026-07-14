@@ -39,6 +39,7 @@ const PAGE_TITLES: Record<PageId, { title: string; sub: string }> = {
   'community-relations': { title: 'Community Relations Tracker', sub: 'District Community Relations' },
   minibase:                { title: 'Minibase',                    sub: 'Document Library' },
   department:               { title: 'Department Profile',      sub: 'Audit & Analytics' },
+  'pulse-approvals':        { title: 'Note Approvals',          sub: 'Pulse Feedback Queue' },
 }
 
 export default function Home() {
