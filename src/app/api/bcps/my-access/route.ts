@@ -27,9 +27,20 @@ export async function GET(req: NextRequest) {
     .select('role').eq('user_id', user.id).eq('brand', BRAND).maybeSingle()
   const role = roleRow?.role || 'user'
 
-  const { data: pages } = await svc.from('acl_objects')
-    .select('id, slug, visibility').eq('brand', BRAND).eq('kind', 'page')
+  const { data: pages, error: pagesError, count: pagesCount } = await svc.from('acl_objects')
+    .select('id, slug, visibility', { count: 'exact' }).eq('brand', BRAND).eq('kind', 'page')
   const all = pages ?? []
+
+  if (req.nextUrl.searchParams.get('debug') === '1') {
+    return NextResponse.json({
+      debug: true,
+      pagesError: pagesError ? pagesError.message : null,
+      pagesCount,
+      allLen: all.length,
+      slugs: all.map(p => p.slug),
+      supabaseUrl: URL,
+    })
+  }
 
   let allowed: string[]
   if (role === 'superadmin') {
