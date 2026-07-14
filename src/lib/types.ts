@@ -21,6 +21,7 @@ export type PageId =
   | 'members'
   | 'community-relations'
   | 'minibase'
+  | 'pulse-approvals'
 
 export interface BreadcrumbItem {
   label: string
