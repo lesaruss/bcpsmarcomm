@@ -292,7 +292,7 @@ export default function Sidebar({
         <nav className="sidebar-nav">
           {SECTIONS.map((section, si) => {
             const items = (allowedPages && !viewAs)
-              ? section.items.filter(item => allowedPages.includes(item.id))
+              ? section.items.filter(item => allowedPages.includes(item.id) || (effectiveRole === 'superadmin' && SUPERADMIN_PAGES.has(item.id)))
               : section.items.filter(item => canSee(effectiveRole, item.id))
             if (items.length === 0) return null
             return (
