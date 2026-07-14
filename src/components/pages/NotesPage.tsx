@@ -7,11 +7,12 @@ interface Brief {
   id: string
   slug: string
   title: string
+  summary: string | null
   created_at: string
 }
 
 const BriefIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1672A7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1672A7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10"/>
     <polyline points="12 6 12 12 16 14"/>
   </svg>
@@ -29,7 +30,7 @@ export default function NotesPage() {
     ;(async () => {
       const { data } = await supabase
         .from('mock_pages')
-        .select('id, slug, title, created_at')
+        .select('id, slug, title, summary, created_at')
         .eq('brand', 'bcps')
         .eq('surface', 'brief')
         .order('created_at', { ascending: false })
@@ -151,23 +152,39 @@ export default function NotesPage() {
           border-color: #1672A7;
           box-shadow: 0 4px 16px rgba(22,114,167,0.15);
         }
+        .brief-card-top {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
         .brief-icon {
-          width: 48px;
-          height: 48px;
+          width: 36px;
+          height: 36px;
+          flex-shrink: 0;
           background: rgba(22,114,167,0.08);
           border-radius: 6px;
           display: flex;
           align-items: center;
           justify-content: center;
-          margin-bottom: 16px;
         }
         .brief-title {
           font-size: 15px;
           font-weight: 700;
           color: #1a1a1a;
-          margin: 0 0 8px 0;
+          margin: 0;
           line-height: 1.35;
           text-align: left;
+        }
+        .brief-summary {
+          font-size: 13px;
+          color: rgba(26,26,26,0.55);
+          margin: 0 0 16px 0;
+          line-height: 1.5;
+        }
+        .brief-summary.brief-summary-empty {
+          font-style: italic;
+          color: rgba(26,26,26,0.35);
         }
         .brief-meta {
           display: flex;
@@ -353,10 +370,15 @@ export default function NotesPage() {
                 className="brief-card"
                 onClick={() => setPreview(brief)}
               >
-                <div className="brief-icon">
-                  <BriefIcon />
+                <div className="brief-card-top">
+                  <div className="brief-icon">
+                    <BriefIcon />
+                  </div>
+                  <h2 className="brief-title">{brief.title}</h2>
                 </div>
-                <h2 className="brief-title">{brief.title}</h2>
+                <p className={`brief-summary${brief.summary ? '' : ' brief-summary-empty'}`}>
+                  {brief.summary || 'No summary added yet.'}
+                </p>
                 <div className="brief-meta">
                   <span className="brief-type">Brief</span>
                   <span>{formatDate(brief.created_at)}</span>
