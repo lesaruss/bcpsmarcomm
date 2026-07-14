@@ -20,7 +20,7 @@ export function useBCPSShell() { return useContext(BCPSShellContext) }
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const SUPERADMIN_EMAILS = new Set(['contact@lesaruss.com'])
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm', 'pulse-approvals'])
 
 const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   dashboard:                { title: 'Passport',                sub: 'Broward County Public Schools' },
@@ -42,6 +42,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   minibase:                 { title: 'Minibase',                    sub: 'Document Library' },
   'bcps-certification':     { title: 'Department Certification',sub: 'WCM Certification Program' },
   department:               { title: 'Department Profile',      sub: 'Audit & Analytics' },
+  'pulse-approvals':        { title: 'Note Approvals',          sub: 'Pulse Feedback Queue' },
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────
