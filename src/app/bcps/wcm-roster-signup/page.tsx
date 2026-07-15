@@ -104,35 +104,40 @@ export default function WCMRosterSignupPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f9fafb', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-      <header style={{ background: '#fff', borderBottom: '1px solid rgba(0,0,0,0.08)', padding: '20px 24px' }}>
-        <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#E8650A', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-page)' }}>
+      <header className="topbar">
+        <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 8, background: 'var(--blue)', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, flexShrink: 0,
+          }}>
             BC
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: '#1a1a1a' }}>Broward County Public Schools</div>
-            <div style={{ fontSize: 12, color: 'rgba(26,26,26,0.5)' }}>District Web Team</div>
+            <h1>Broward County Public Schools</h1>
+            <p>District Web Team</p>
           </div>
         </div>
       </header>
 
-      <main style={{ maxWidth: 640, margin: '0 auto', padding: '40px 24px 80px' }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#1a1a1a', margin: '0 0 8px' }}>
-          Department Web Content Managers Roster 2026/27
-        </h1>
-        <p style={{ fontSize: 14.5, color: 'rgba(26,26,26,0.65)', lineHeight: 1.6, margin: '0 0 32px' }}>
-          Directors: please submit a separate response for each Web Content Manager (WCM) assigned to help maintain
-          your department&apos;s webpages. We recommend assigning more than one WCM to ensure consistent support with
-          website updates. Submissions are reviewed by the District Web Team before a department&apos;s record is updated.
-        </p>
+      <main style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px 80px' }}>
+        <div className="wcm-portal-hero dept-hero">
+          <div>
+            <h2>Department Web Content Managers Roster 2026/27</h2>
+            <p>
+              Directors: submit a separate response for each Web Content Manager (WCM) assigned to your department.
+              Submissions are reviewed by the District Web Team before a record is updated.
+            </p>
+          </div>
+          <div className="wcm-portal-hero-badge">Department Web Managers</div>
+        </div>
 
         {result && (
           <div
             style={{
               padding: '14px 16px',
               borderRadius: 8,
-              marginBottom: 24,
+              marginBottom: 20,
               fontSize: 14,
               fontWeight: 600,
               background: result.type === 'success' ? '#ECFDF5' : '#FEF2F2',
@@ -144,66 +149,56 @@ export default function WCMRosterSignupPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 12, padding: 28 }}>
-          <div style={{ marginBottom: 22, position: 'relative' }} ref={boxRef}>
-            <label style={labelStyle}>
-              Department <span style={{ color: '#DC2626' }}>*</span>
-            </label>
-            <input
-              style={inputStyle}
-              placeholder="Start typing to search departments..."
-              value={deptQuery}
-              onChange={e => { setDeptQuery(e.target.value); setSelectedDept(null); setShowDropdown(true) }}
-              onFocus={() => setShowDropdown(true)}
-              autoComplete="off"
-              required
-            />
-            {showDropdown && (
-              <div style={{
-                position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 260, overflowY: 'auto',
-                background: '#fff', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 20,
-              }}>
-                {filteredDepts.length === 0 ? (
-                  <div style={{ padding: '12px 14px', fontSize: 13, color: 'rgba(26,26,26,0.4)' }}>No departments match.</div>
-                ) : filteredDepts.map(d => (
-                  <div
-                    key={d.id}
-                    onClick={() => pickDept(d)}
-                    style={{ padding: '10px 14px', fontSize: 13.5, cursor: 'pointer', borderBottom: '1px solid rgba(0,0,0,0.05)' }}
-                    onMouseDown={ev => ev.preventDefault()}
-                  >
-                    {titleCase(d.department_name)} <span style={{ color: 'rgba(26,26,26,0.4)', fontSize: 12 }}>({d.location_number})</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <div className="wcm-portal-content">
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: 20, position: 'relative' }} ref={boxRef}>
+              <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
+                Department <span style={{ color: '#DC2626' }}>*</span>
+              </label>
+              <input
+                className="form-input"
+                style={{ width: '100%', boxSizing: 'border-box' }}
+                placeholder="Start typing to search departments..."
+                value={deptQuery}
+                onChange={e => { setDeptQuery(e.target.value); setSelectedDept(null); setShowDropdown(true) }}
+                onFocus={() => setShowDropdown(true)}
+                autoComplete="off"
+                required
+              />
+              {showDropdown && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 260, overflowY: 'auto',
+                  background: '#fff', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 20,
+                }}>
+                  {filteredDepts.length === 0 ? (
+                    <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-muted)' }}>No departments match.</div>
+                  ) : filteredDepts.map(d => (
+                    <div
+                      key={d.id}
+                      onClick={() => pickDept(d)}
+                      style={{ padding: '10px 14px', fontSize: 13.5, cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+                      onMouseDown={ev => ev.preventDefault()}
+                    >
+                      {titleCase(d.department_name)} <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>({d.location_number})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          <Field label="Directors Name" required value={directorName} onChange={setDirectorName} placeholder="Enter your answer" />
-          <Field label="Name of Web Content Manager (WCM)" required value={wcmName} onChange={setWcmName} placeholder="Enter your answer" />
-          <Field label="WCM Personnel Number" value={wcmPersonnelNumber} onChange={setWcmPersonnelNumber} placeholder="Enter your answer" />
-          <Field label="WCM Email Address" value={wcmEmail} onChange={setWcmEmail} placeholder="Enter your answer" type="email" />
+            <Field label="Directors Name" required value={directorName} onChange={setDirectorName} placeholder="Enter your answer" />
+            <Field label="Name of Web Content Manager (WCM)" required value={wcmName} onChange={setWcmName} placeholder="Enter your answer" />
+            <Field label="WCM Personnel Number" value={wcmPersonnelNumber} onChange={setWcmPersonnelNumber} placeholder="Enter your answer" />
+            <Field label="WCM Email Address" value={wcmEmail} onChange={setWcmEmail} placeholder="Enter your answer" type="email" />
 
-          <button
-            type="submit"
-            disabled={submitting}
-            style={{
-              marginTop: 8, padding: '12px 28px', background: submitting ? '#f0a875' : '#E8650A', color: '#fff',
-              border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: submitting ? 'default' : 'pointer',
-            }}
-          >
-            {submitting ? 'Submitting...' : 'Submit'}
-          </button>
-        </form>
+            <button type="submit" className="btn-primary" disabled={submitting} style={{ marginTop: 8, padding: '11px 28px', fontSize: 14 }}>
+              {submitting ? 'Submitting...' : 'Submit'}
+            </button>
+          </form>
+        </div>
       </main>
     </div>
   )
-}
-
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 12px', fontSize: 14, border: '1.5px solid #e5e7eb', borderRadius: 8,
-  fontFamily: 'inherit', boxSizing: 'border-box',
 }
 
 function Field({
@@ -217,12 +212,13 @@ function Field({
   type?: string
 }) {
   return (
-    <div style={{ marginBottom: 22 }}>
-      <label style={labelStyle}>
+    <div style={{ marginBottom: 20 }}>
+      <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
         {label} {required && <span style={{ color: '#DC2626' }}>*</span>}
       </label>
       <input
-        style={inputStyle}
+        className="form-input"
+        style={{ width: '100%', boxSizing: 'border-box' }}
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
