@@ -1443,7 +1443,10 @@
       if (!rowsInBlock.length) return; // leave Completed table alone
       var visible = 0;
       rowsInBlock.forEach(function(r){ if (r.style.display !== 'none') visible++; });
-      block.style.display = visible === 0 ? 'none' : '';
+      var show = visible !== 0;
+      block.style.display = show ? '' : 'none';
+      var heading = block.previousElementSibling;
+      if (heading && heading.tagName === 'H2') heading.style.display = show ? '' : 'none';
     });
   }
   window.v4Filter = function(btn, val){
