@@ -6,11 +6,12 @@ import BCPSShell from '@/components/BCPSShell'
 export default async function BCPSLayout({ children }: { children: React.ReactNode }) {
   const headersList = headers()
   const pathname = headersList.get('x-pathname') || ''
-  const isCert      = pathname.startsWith('/bcps/certification')
-  const isWcmPortal = pathname.startsWith('/bcps/wcm-portal')
-  const isLoginPage = pathname.startsWith('/bcps/login') || pathname.startsWith('/bcps/set-password')
+  const isCert         = pathname.startsWith('/bcps/certification')
+  const isWcmPortal     = pathname.startsWith('/bcps/wcm-portal')
+  const isWcmRosterForm = pathname.startsWith('/bcps/wcm-roster-signup')
+  const isLoginPage    = pathname.startsWith('/bcps/login') || pathname.startsWith('/bcps/set-password')
 
-  if (!isCert && !isWcmPortal && !isLoginPage) {
+  if (!isCert && !isWcmPortal && !isWcmRosterForm && !isLoginPage) {
     // BCPS portal auth: redirect to BCPS login if no session
     const cookieStore = cookies()
     const supabase = createServerClient(
@@ -38,6 +39,12 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
 
   // WCM portal: its own standalone layout (no admin shell)
   if (isWcmPortal) {
+    return <>{children}</>
+  }
+
+  // Public WCM Roster signup form: standalone, no auth, no admin shell -
+  // Directors filling this out have no portal account.
+  if (isWcmRosterForm) {
     return <>{children}</>
   }
 
