@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 type WCMView = 'hub' | 'school' | 'department'
 
 const ROSTER_ACCESS_KEY = 'lr-wcm-roster-9f21ab6c'
+const ROSTER_SIGNUP_URL = 'https://bcpsmarcomm.com/bcps/wcm-roster-signup'
 
 interface RosterMember {
   id: string
@@ -47,6 +48,7 @@ function DepartmentRosterSection() {
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [linkCopied, setLinkCopied] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -128,14 +130,38 @@ function DepartmentRosterSection() {
         .roster-empty-val { color: rgba(26,26,26,0.35); font-style: italic; }
         .roster-wcm-row { font-size: 12.5px; }
         .roster-wcm-email { color: rgba(26,26,26,0.45); font-size: 11px; }
+        .roster-link-box {
+          display: flex; align-items: center; justify-content: space-between; gap: 16px;
+          background: #FFF7ED; border: 1px solid rgba(232,101,10,0.25); border-radius: 8px;
+          padding: 14px 18px; margin: 16px 0 4px;
+        }
+        .roster-link-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #C55326; margin-bottom: 4px; }
+        .roster-link-url { font-size: 13px; color: #1a1a1a; font-family: ui-monospace, monospace; word-break: break-all; }
       `}</style>
 
       <h3>WCM Roster</h3>
       <p className="wcm-section-intro">
         Live directory of every district department, its Director, and assigned Web Content Manager(s) - kept current by
-        the annual <strong>Department Web Content Managers Roster</strong> Microsoft Form. Director submissions land below
-        for review before they update a department&apos;s record.
+        the <strong>Department Web Content Managers Roster</strong> signup form below. Director submissions land in the
+        review queue for approval before they update a department&apos;s record.
       </p>
+
+      <div className="roster-link-box">
+        <div>
+          <div className="roster-link-label">Share this with Department Directors</div>
+          <div className="roster-link-url">{ROSTER_SIGNUP_URL}</div>
+        </div>
+        <button
+          className="roster-btn approve"
+          onClick={() => {
+            navigator.clipboard.writeText(ROSTER_SIGNUP_URL)
+            setLinkCopied(true)
+            setTimeout(() => setLinkCopied(false), 2000)
+          }}
+        >
+          {linkCopied ? 'Copied!' : 'Copy Link'}
+        </button>
+      </div>
 
       {pending.length > 0 && (
         <>
