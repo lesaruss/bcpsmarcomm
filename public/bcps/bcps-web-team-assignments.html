@@ -110,6 +110,17 @@
   .snapshot { display: none; }
   .snapshot.active { display: block; }
 
+  .filter-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; padding: 14px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .filter-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-30); white-space: nowrap; }
+  .filter-chip { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-50); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .filter-chip:hover { border-color: var(--bcps-blue); color: var(--bcps-blue); }
+  .filter-chip.active { background: var(--bcps-blue); border-color: var(--bcps-blue); color: #fff; }
+  .team-badge { display: inline-block; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; padding: 2px 7px; border-radius: 8px; margin-left: 6px; vertical-align: middle; }
+  .team-badge.General { background: rgba(26,26,26,0.06); color: var(--text-50); }
+  .team-badge.OOC { background: rgba(197,83,38,0.10); color: var(--bcps-orange); }
+  .team-badge.AppServices { background: rgba(22,114,167,0.10); color: var(--bcps-blue-dark); }
+  #v4-person-select { font-family: inherit; font-size: 10px; font-weight: 700; padding: 6px 10px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-75); cursor: pointer; }
+
   /* MODAL OVERLAY */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
   .modal-overlay.open { display: flex; }
@@ -172,17 +183,17 @@
   <div class="bcps-header-divider" aria-hidden="true"></div>
   <span class="bcps-header-title">BCPS - Living Team Tracker</span>
   <div class="bcps-header-spacer"></div>
-  <span class="version-pill" id="current-version-pill">Version 3 - July 1, 2026</span>
+  <span class="version-pill" id="current-version-pill">Version 4 - July 15, 2026</span>
 </header>
 
 <main>
   <h1>District Web Team Assignments</h1>
-  <p class="doc-subtitle">Living tracker - click any row to view or add notes</p>
+  <p class="doc-subtitle">Living tracker - filter by team or person, sort your own queue, click any row to view or add notes</p>
 
   <div class="meta-row">
     <div class="meta-item">
       <span class="meta-label">Last Updated</span>
-      <span class="meta-value" id="meta-last-updated">July 1, 2026</span>
+      <span class="meta-value" id="meta-last-updated">July 15, 2026</span>
     </div>
     <div class="meta-item">
       <span class="meta-label">Source</span>
@@ -198,12 +209,12 @@
     </div>
     <div class="meta-item">
       <span class="meta-label">Version</span>
-      <span class="meta-value" id="meta-version">v3 - July 1, 2026</span>
+      <span class="meta-value" id="meta-version">v4 - July 15, 2026</span>
     </div>
   </div>
 
   <div class="audience-banner">
-    <p><strong>Audience:</strong> Sean A. Russell (District Webmaster), Tricia (Web Team Lead), Vanessa, Felicia, Nakesha, Rudy, Andrea, Melanie, Charlene - District Web Content Management core team</p>
+    <p><strong>Audience:</strong> Sean A. Russell (District Webmaster), Tricia (Web Team Lead), Vanessa, Felicia, Nakesha, Rudy, Andrea, Melanie, Charlene - District Web Content Management core team. Starting with Version 4, this same tracker also serves as the shared queue for General web team work, OOC (Out-of-Classroom pages) work, and Application Services (portal/dashboard build) work - filter by team below to see just one slice.</p>
   </div>
 
   <h2>Meeting Versions</h2>
@@ -211,7 +222,8 @@
     <span class="version-bar-label">View As Of:</span>
     <button class="version-btn" onclick="switchVersion('v1')" data-v="v1">June 10, 2026</button>
     <button class="version-btn" onclick="switchVersion('v2')" data-v="v2">June 25, 2026</button>
-    <button class="version-btn active" onclick="switchVersion('v3')" data-v="v3">July 1, 2026</button>
+    <button class="version-btn" onclick="switchVersion('v3')" data-v="v3">July 1, 2026</button>
+    <button class="version-btn active" onclick="switchVersion('v4')" data-v="v4">July 15, 2026</button>
     <span class="version-note">New versions added after each meeting. Click any row to view or add notes.</span>
   </div>
 
@@ -835,7 +847,7 @@
 
   </div>
 
-  <div class="snapshot active" id="snap-v3">
+  <div class="snapshot" id="snap-v3">
 
     <div style="background:rgba(22,114,167,0.07);border:1px solid rgba(22,114,167,0.22);border-radius:8px;padding:16px 20px;margin-bottom:28px;">
       <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;color:var(--bcps-blue);margin-bottom:6px;">District Web Team Huddle - July 1, 2026</div>
@@ -1129,6 +1141,337 @@
 
   </div>
 
+  <div class="snapshot active" id="snap-v4">
+
+    <div style="background:rgba(22,114,167,0.07);border:1px solid rgba(22,114,167,0.22);border-radius:8px;padding:16px 20px;margin-bottom:28px;">
+      <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;color:var(--bcps-blue);margin-bottom:6px;">Clean Slate - July 15, 2026</div>
+      <p style="font-size:13px;color:var(--text-75);margin:0;line-height:1.6;">Same living tracker, reorganized by team so it works for the full District Web Team huddle and for the smaller General / OOC / Application Services check-ins. Every item carried forward from July 1 - use the filters below to see just your slice, or sort by person. Click any row to view or add notes.</p>
+    </div>
+
+    <div class="filter-bar" id="v4-filter-bar">
+      <span class="filter-label">Team:</span>
+      <button class="filter-chip active" data-team="all" onclick="v4Filter(this,'all')">All</button>
+      <button class="filter-chip" data-team="General" onclick="v4Filter(this,'General')">General</button>
+      <button class="filter-chip" data-team="OOC" onclick="v4Filter(this,'OOC')">OOC</button>
+      <button class="filter-chip" data-team="Application Services" onclick="v4Filter(this,'Application Services')">Application Services</button>
+      <span class="filter-label" style="margin-left:10px;">Person:</span>
+      <select id="v4-person-select" onchange="v4FilterPerson(this.value)">
+        <option value="all">All People</option>
+      </select>
+    </div>
+
+    <!-- GENERAL -->
+    <h2>General</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>General Initiatives</h3><span class="section-count">22 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+      <div class="assignment-row" data-slug="wcm-guidelines" data-team="General" data-lead="Vanessa" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Guidelines</div><div class="assignment-desc">Standards for all WCM contributors. Covers Athletics, Centers, and district-wide sections. Final item before publishing to the WCM Community Hub.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Andrea, Nakesha</div></div>
+        <div><span class="assignment-deadline">June 24, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-wcm-guidelines"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="back-to-school" data-team="General" data-lead="Felicia / Vanessa / Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Back to School</div><div class="assignment-desc">Annual back-to-school campaign web update. Includes banners, shared app content, and landing pages. June 22 internal kickoff; July 13 go-live target.</div></div>
+        <div><div class="assignment-lead">Felicia</div><div class="assignment-support">Vanessa, Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 12, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-back-to-school"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="wcm-audits-schools" data-team="General" data-lead="Nakesha / Vanessa" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Audits - Schools</div><div class="assignment-desc">School-level WCM compliance audits. Currently tracking a 9% failure rate. JT and Rudy reviewing findings; Nakesha manages dashboards and status emails.</div></div>
+        <div><div class="assignment-lead">Nakesha</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-wcm-audits-schools"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="wcm-audits-departments" data-team="General" data-lead="Sean A. Russell / Felicia" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Audits - Departments</div><div class="assignment-desc">Wave tool confirmed as gold standard for ADA. Separating WCM-fixable vs. FinalSite-fixable items. Logic fix still in progress.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline">June 14, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-wcm-audits-departments"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="google-governance" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Google Governance</div><div class="assignment-desc">Governance framework for all Google tools used across the district. Draft to be authored by Sean and shared with the team before the Analytics Dashboard can advance.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 17, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-google-governance"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="school-department-changes" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">School and Department Changes</div><div class="assignment-desc">Landing page created. Next step: connect with FinalSite about redirecting subdomains. Working session with Sean and Felicia at 1pm July 1; Vanessa joining to assist. FinalSite support call being arranged.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-school-department-changes"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="kick-off" data-team="General" data-lead="Sean A. Russell / Vanessa / Farrah" onclick="openNotes(this)">
+        <div><div class="assignment-name">Kick Off</div><div class="assignment-desc">Annual team kickoff event at Pompano Beach HS auditorium. September 11 target date. ~$1,000 venue cost. Sean and Vanessa working session scheduled for tomorrow.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Vanessa, Farrah</div></div>
+        <div><span class="assignment-deadline">Sept 1, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-kick-off"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="qa-process" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">QA Process</div><div class="assignment-desc">Defining and rolling out a formal quality assurance process for all district web content. Target for wrap-up: July 22, 2026.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">July 22, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-qa-process"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="audioeye" data-team="General" data-lead="Tricia / Sean A. Russell / Vanessa / Rudy" onclick="openNotes(this)">
+        <div><div class="assignment-name">AudioEye</div><div class="assignment-desc">Awaiting Tricia's update on AudioEye RFP status. Potential cancellation at contract renewal still under evaluation. Wave tool in use as ADA audit standard.</div></div>
+        <div><div class="assignment-lead">Tricia / Sean A. Russell</div><div class="assignment-support">Vanessa, Rudy</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-audioeye"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="bcps-central" data-team="General" data-lead="Tricia / Sean A. Russell / Vanessa / Rudy" onclick="openNotes(this)">
+        <div><div class="assignment-name">BCPS Central</div><div class="assignment-desc">Vanessa working on documentation. June 30 deadline approximately halfway met per Nakesha and Vanessa. Work in progress.</div></div>
+        <div><div class="assignment-lead">Tricia / Sean A. Russell</div><div class="assignment-support">Vanessa, Rudy</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-bcps-central"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="wcm-communication-plan" data-team="General" data-lead="Sean A. Russell / Tricia / Vanessa" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Communication Plan</div><div class="assignment-desc">Structured plan for WCM-wide announcements, updates, and team messaging. Sean and Tricia co-leading the framework design and rollout cadence.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell / Tricia</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-wcm-communication-plan"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="k12-department-pages" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">K-12 Department Pages</div><div class="assignment-desc">Creating redirect pages for legacy K-12 department websites, routing users to current district web properties and active content.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-k12-department-pages"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="left-navigation-structure" data-team="General" data-lead="Vanessa" onclick="openNotes(this)">
+        <div><div class="assignment-name">Left Navigation Structure</div><div class="assignment-desc">Defining and standardizing the left navigation structure used across all school websites. Vanessa leading the design and implementation work.</div></div>
+        <div><div class="assignment-lead">Vanessa</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge completed">Completed</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-left-navigation-structure"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="automate-rejected-banners" data-team="General" data-lead="Tricia / Melanie" onclick="openNotes(this)">
+        <div><div class="assignment-name">Automate Message For Rejected Banner Images</div><div class="assignment-desc">Automated rejection notification when school banner images fail to meet standards. Tricia leading; interns to assist. Banner form stays open via Teams.</div></div>
+        <div><div class="assignment-lead">Tricia</div><div class="assignment-support">Melanie, Interns</div></div>
+        <div><span class="assignment-deadline">July 1, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-automate-rejected-banners"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="school-choice-minibase" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">School Choice (Minibase)</div><div class="assignment-desc">Minibase supporting the district School Choice program. Pending initial outreach to minibase owners from Sean, with Tricia to follow up as needed.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-school-choice-minibase"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="minibase-training" data-team="General" data-lead="Tricia / Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Minibase Training</div><div class="assignment-desc">Training minibase owners on content and file management. Decision pending on whether files will be hosted on Finalsite or through the District server.</div></div>
+        <div><div class="assignment-lead">Tricia</div><div class="assignment-support">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-minibase-training"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="school-board-records" data-team="General" data-lead="Tricia / Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">School Board Records</div><div class="assignment-desc">Managing School Board records access and publishing on Finalsite. Tricia has access; meeting with Noemi and Christine to be scheduled to move forward.</div></div>
+        <div><div class="assignment-lead">Tricia / Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-school-board-records"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="charter-schools" data-team="General" data-lead="-" onclick="openNotes(this)">
+        <div><div class="assignment-name">Charter Schools (Matthew Cordova)</div><div class="assignment-desc">Web coordination and outreach for charter schools via Matthew Cordova. Initial contact and scoping conversation still pending from the district side.</div></div>
+        <div><div class="assignment-lead">-</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-charter-schools"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="wcm-communique-may12" data-team="General" data-lead="Vanessa / Sean A. Russell / Andrea / Felicia" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Communique - May 12</div><div class="assignment-desc">WCM newsletter edition for May 12. Collaborative effort across the web team with Vanessa, Sean, Andrea, and Felicia contributing content.</div></div>
+        <div><div class="assignment-lead">Vanessa / Sean A. Russell</div><div class="assignment-support">Andrea, Felicia</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-wcm-communique-may12"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="department-hot-labs" data-team="General" data-lead="Sean A. Russell / Felicia" onclick="openNotes(this)">
+        <div><div class="assignment-name">Department Hot Labs</div><div class="assignment-desc">Twice-weekly open lab sessions providing live support and troubleshooting for department Web Content Managers. Standing recurring cadence.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline none">Ongoing</span></div>
+        <div><span class="status-badge ongoing">Ongoing</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-department-hot-labs"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="school-hot-labs" data-team="General" data-lead="Rudy / Vanessa" onclick="openNotes(this)">
+        <div><div class="assignment-name">School Hot Labs</div><div class="assignment-desc">Twice-weekly open lab sessions providing live support and troubleshooting for school Web Content Managers. Led by Rudy with Vanessa in support.</div></div>
+        <div><div class="assignment-lead">Rudy</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline none">Ongoing</span></div>
+        <div><span class="status-badge ongoing">Ongoing</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-school-hot-labs"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="school-maps-district-server" data-team="General" data-lead="Charlene" onclick="openNotes(this)">
+        <div><div class="assignment-name">Program School Maps on District Server</div><div class="assignment-desc">Programming and hosting interactive school maps on the District server. Assigned to Charlene; scope and timeline to be confirmed.</div></div>
+        <div><div class="assignment-lead">Charlene</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-school-maps-district-server"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="sharepoint-all-school-list" data-team="General" data-lead="Vanessa / Andrea" onclick="openNotes(this)">
+        <div><div class="assignment-name">SharePoint All School Master List</div><div class="assignment-desc">Master school directory in SharePoint with principals, assistant principals, and updated logos. Summer refresh in progress with Andrea in support.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Andrea</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-sharepoint-all-school-list"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="old-dillard-museum" data-team="General" data-lead="Vanessa / Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Old Dillard Museum</div><div class="assignment-desc">Web content project for the Old Dillard Museum. Pending content delivery from Edison, who did not meet the original deadline.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge pending">Pending</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-old-dillard-museum"></span></button></div>
+      </div>
+    </div>
+
+    <!-- OOC -->
+    <h2>OOC</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Out-of-Classroom Pages</h3><span class="section-count">1 item</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+      <div class="assignment-row" data-slug="audit-ooc-pages" data-team="OOC" data-lead="Sean A. Russell / Felicia" onclick="openNotes(this)">
+        <div><div class="assignment-name">Audit OOC Pages</div><div class="assignment-desc">Auditing pages managed by Out-of-Classroom staff. Starting with the Academic section at Crystal Lake Middle School to assess compliance and content accuracy.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-audit-ooc-pages"></span></button></div>
+      </div>
+    </div>
+
+    <!-- APPLICATION SERVICES -->
+    <h2>Application Services</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Portal &amp; Dashboard Build</h3><span class="section-count">5 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Notes</span></div>
+      <div class="assignment-row" data-slug="analytics-dashboard" data-team="Application Services" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Analytics Dashboard (Google Governance)</div><div class="assignment-desc">In production. Meeting notes pipeline demoed to team July 1 - automated transcript-to-brief flow confirmed. Vanessa confirmed team can upload transcripts to Minutes section. Pending embed feature and search term data.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">June 19, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-analytics-dashboard"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="department-audit-dashboards" data-team="Application Services" data-lead="Sean A. Russell / Vanessa / Brannon" onclick="openNotes(this)">
+        <div><div class="assignment-name">Department Audit Dashboards</div><div class="assignment-desc">Shifting gears with portal integration. Work paused this week - Sean to revisit after return. Wave tool embedded; terminology fix (page builder to composer) still needed.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Vanessa, Brannon</div></div>
+        <div><span class="assignment-deadline">June 15, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-department-audit-dashboards"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="security-concerns" data-team="Application Services" data-lead="Tricia / Vanessa / Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Security Concerns</div><div class="assignment-desc">Vanessa and Sean called FinalSite - walked through how to block the WCM Community. Steps to be documented in meeting notes. Decision pending: single sign-on vs. username/codename access path.</div></div>
+        <div><div class="assignment-lead">Tricia</div><div class="assignment-support">Vanessa, Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">Aug 10, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-security-concerns"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="canvas-course-pilot" data-team="Application Services" data-lead="Sean A. Russell / Rudy / Vanessa" onclick="openNotes(this)">
+        <div><div class="assignment-name">Canvas Course Pilot Launch</div><div class="assignment-desc">Vanessa side: WCM pilot complete - feedback received, adjustments made, errors fixed. Sean side: official launch still pending. Need to confirm Canvas lab course backend config for departments. Pilot debrief process to be built. Either way Sean proceeding with Canvas course as primary.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell / Rudy</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline">July 1, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-canvas-course-pilot"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="embed-page-powerapps" data-team="Application Services" data-lead="Tricia" onclick="openNotes(this)">
+        <div><div class="assignment-name">Way to Embed a Page into PowerApps</div><div class="assignment-desc">Yaco follow-up still pending. Tricia not on this call - waiting for her update. FinalSite has allowlisted domain; functional testing with Yaco to be rescheduled.</div></div>
+        <div><div class="assignment-lead">Tricia</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><span class="status-badge in-progress">In Progress</span></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc4-embed-page-powerapps"></span></button></div>
+      </div>
+    </div>
+
+    <h2>Completed Tasks</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Completed</h3><span class="section-count">24 items</span></div>
+      <div class="completed-grid">
+        <div class="completed-header"><div>Assignment</div><div>Lead</div><div>Completed</div></div>
+        <div class="completed-row" data-slug="assign-tasks-leads-support" onclick="openNotes(this)"><div class="completed-name">Assign Tasks for Leads and Support</div><div>Tricia / Sean A. Russell</div><div><span class="status-badge completed">Done</span></div></div>
+        <div class="completed-row" data-slug="wcm-communique-jan15" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Jan 15</div><div>Vanessa / Sean A. Russell</div><div>Jan 14, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-communique-feb11" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Feb 11</div><div>Vanessa / Sean A. Russell</div><div>Feb 10, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-dept-feb12" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Departments (Feb 12)</div><div>Sean A. Russell / Tricia</div><div>Feb 10, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-schools-feb20" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Schools (Feb 20)</div><div>Tricia / Sean A. Russell</div><div>Feb 20, 2026</div></div>
+        <div class="completed-row" data-slug="magnet-innovative-feb18" onclick="openNotes(this)"><div class="completed-name">Magnet/Innovative Online Info Session (Feb 18)</div><div>Vanessa / Rudy</div><div>Feb 20, 2026</div></div>
+        <div class="completed-row" data-slug="dual-languages" onclick="openNotes(this)"><div class="completed-name">Dual Languages</div><div>Vanessa</div><div>Feb 27, 2026</div></div>
+        <div class="completed-row" data-slug="hot-lab-calendar" onclick="openNotes(this)"><div class="completed-name">Create New Hot Lab Calendar</div><div>Sean A. Russell / Vanessa</div><div>Feb 27, 2026</div></div>
+        <div class="completed-row" data-slug="popups-dept-pages" onclick="openNotes(this)"><div class="completed-name">Pop-ups on Individual Department Pages</div><div>Sean A. Russell</div><div>Mar 6, 2026</div></div>
+        <div class="completed-row" data-slug="issues-with-caption" onclick="openNotes(this)"><div class="completed-name">Issues with Caption</div><div>Andrea</div><div>Mar 9, 2026</div></div>
+        <div class="completed-row" data-slug="email-errors-teams" onclick="openNotes(this)"><div class="completed-name">Email Errors from Canceling Teams Meeting</div><div>Sean A. Russell</div><div>Mar 9, 2026</div></div>
+        <div class="completed-row" data-slug="bsc-minibase" onclick="openNotes(this)"><div class="completed-name">Business Support Center (Minibase)</div><div>Tricia / Charlene</div><div>Mar 27, 2026</div></div>
+        <div class="completed-row" data-slug="launch-wcm-hub" onclick="openNotes(this)"><div class="completed-name">Launch WCM Hub (Website)</div><div>Vanessa / Sean A. Russell</div><div>Apr 1, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-communique-mar26" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Mar 26</div><div>Sean A. Russell / Vanessa</div><div>Mar 25, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-dept-apr9" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Departments (Apr 9)</div><div>Sean A. Russell / Tricia</div><div>Apr 13, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-schools-apr10" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Schools (Apr 10)</div><div>Tricia / Sean A. Russell</div><div>Mar 31, 2026</div></div>
+        <div class="completed-row" data-slug="missing-profile-image" onclick="openNotes(this)"><div class="completed-name">Missing Profile Image in Contact Info</div><div>Sean A. Russell</div><div>Mar 25, 2026</div></div>
+        <div class="completed-row" data-slug="popup-formatting-issues" onclick="openNotes(this)"><div class="completed-name">Multiple Pop-up Formatting Issues</div><div>Sean A. Russell</div><div>Mar 25, 2026</div></div>
+        <div class="completed-row" data-slug="ppo-minibase" onclick="openNotes(this)"><div class="completed-name">PPO Minibase</div><div>Tricia</div><div>Mar 27, 2026</div></div>
+        <div class="completed-row" data-slug="wcm-communique-apr15" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Apr 15</div><div>Vanessa / Sean A. Russell</div><div>Apr 3, 2026</div></div>
+        <div class="completed-row" data-slug="maintenance-update-process" onclick="openNotes(this)"><div class="completed-name">Find Process for Maintenance Update</div><div>Tricia</div><div>-</div></div>
+        <div class="completed-row" data-slug="streamvu" onclick="openNotes(this)"><div class="completed-name">StreamVu</div><div>Sean A. Russell, Nakesha</div><div>May 19, 2026</div></div>
+        <div class="completed-row" data-slug="combination-schools-menu" onclick="openNotes(this)"><div class="completed-name">Combination Schools in Menu</div><div>Felicia</div><div>May 20, 2026</div></div>
+        <div class="completed-row" data-slug="confirm-lab-courses" onclick="openNotes(this)"><div class="completed-name">Confirm Lab Courses</div><div>Rudy</div><div><span class="status-badge completed">Done</span></div></div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+(function(){
+  var currentTeam = 'all';
+  var currentPerson = 'all';
+  function applyV4Filters(){
+    var rows = document.querySelectorAll('#snap-v4 .assignment-row');
+    rows.forEach(function(r){
+      var team = r.getAttribute('data-team');
+      var lead = (r.getAttribute('data-lead')||'');
+      var teamMatch = currentTeam === 'all' || team === currentTeam;
+      var personMatch = currentPerson === 'all' || lead.indexOf(currentPerson) !== -1;
+      r.style.display = (teamMatch && personMatch) ? '' : 'none';
+    });
+    document.querySelectorAll('#snap-v4 .section-block').forEach(function(block){
+      var rowsInBlock = block.querySelectorAll('.assignment-row');
+      if (!rowsInBlock.length) return; // leave Completed table alone
+      var visible = 0;
+      rowsInBlock.forEach(function(r){ if (r.style.display !== 'none') visible++; });
+      block.style.display = visible === 0 ? 'none' : '';
+    });
+  }
+  window.v4Filter = function(btn, val){
+    currentTeam = val;
+    document.querySelectorAll('#v4-filter-bar .filter-chip').forEach(function(c){ c.classList.remove('active'); });
+    btn.classList.add('active');
+    applyV4Filters();
+  };
+  window.v4FilterPerson = function(val){
+    currentPerson = val;
+    applyV4Filters();
+  };
+  document.addEventListener('DOMContentLoaded', function(){
+    var leads = new Set();
+    document.querySelectorAll('#snap-v4 .assignment-row').forEach(function(r){
+      var lead = r.getAttribute('data-lead');
+      if (lead) lead.split('/').forEach(function(n){ n = n.trim(); if (n && n !== '-') leads.add(n); });
+    });
+    var sel = document.getElementById('v4-person-select');
+    Array.from(leads).sort().forEach(function(n){
+      var opt = document.createElement('option');
+      opt.value = n; opt.textContent = n;
+      sel.appendChild(opt);
+    });
+  });
+})();
+</script>
+
 </main>
 
 <!-- NOTES MODAL -->
@@ -1168,8 +1511,8 @@
   let currentSlug = null;
   let noteCounts = {};
 
-  const VERSION_LABELS = { v1: 'Version 1 - June 10, 2026', v2: 'Version 2 - June 25, 2026', v3: 'Version 3 - July 1, 2026' };
-  const NC_PREFIXES = ['nc', 'nc2', 'nc3'];
+  const VERSION_LABELS = { v1: 'Version 1 - June 10, 2026', v2: 'Version 2 - June 25, 2026', v3: 'Version 3 - July 1, 2026', v4: 'Version 4 - July 15, 2026' };
+  const NC_PREFIXES = ['nc', 'nc2', 'nc3', 'nc4'];
 
   // Load all note counts on page load
   async function loadAllCounts() {
