@@ -120,7 +120,7 @@ export default function WCMRosterSignupPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px 80px' }}>
+      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '28px' }}>
         <div className="wcm-portal-hero dept-hero">
           <div>
             <h2>Department Web Content Managers Roster 2026/27</h2>
@@ -132,25 +132,26 @@ export default function WCMRosterSignupPage() {
           <div className="wcm-portal-hero-badge">Department Web Managers</div>
         </div>
 
-        {result && (
-          <div
-            style={{
-              padding: '14px 16px',
-              borderRadius: 8,
-              marginBottom: 20,
-              fontSize: 14,
-              fontWeight: 600,
-              background: result.type === 'success' ? '#ECFDF5' : '#FEF2F2',
-              color: result.type === 'success' ? '#059669' : '#DC2626',
-              border: `1px solid ${result.type === 'success' ? 'rgba(5,150,105,0.25)' : 'rgba(220,38,38,0.25)'}`,
-            }}
-          >
-            {result.text}
-          </div>
-        )}
+        <div style={{ maxWidth: 640, margin: '0 auto' }}>
+          {result && (
+            <div
+              style={{
+                padding: '14px 16px',
+                borderRadius: 8,
+                marginBottom: 20,
+                fontSize: 14,
+                fontWeight: 600,
+                background: result.type === 'success' ? '#ECFDF5' : '#FEF2F2',
+                color: result.type === 'success' ? '#059669' : '#DC2626',
+                border: `1px solid ${result.type === 'success' ? 'rgba(5,150,105,0.25)' : 'rgba(220,38,38,0.25)'}`,
+              }}
+            >
+              {result.text}
+            </div>
+          )}
 
-        <div className="wcm-portal-content">
-          <form onSubmit={handleSubmit}>
+          <div className="wcm-portal-content">
+            <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 20, position: 'relative' }} ref={boxRef}>
               <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
                 Department <span style={{ color: '#DC2626' }}>*</span>
@@ -194,7 +195,8 @@ export default function WCMRosterSignupPage() {
             <button type="submit" className="btn-primary" disabled={submitting} style={{ marginTop: 8, padding: '11px 28px', fontSize: 14 }}>
               {submitting ? 'Submitting...' : 'Submit'}
             </button>
-          </form>
+            </form>
+          </div>
         </div>
       </main>
     </div>
