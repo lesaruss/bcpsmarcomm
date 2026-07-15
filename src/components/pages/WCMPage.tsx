@@ -1,8 +1,221 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 type WCMView = 'hub' | 'school' | 'department'
+
+const ROSTER_ACCESS_KEY = 'lr-wcm-roster-9f21ab6c'
+
+interface RosterMember {
+  id: string
+  wcm_name: string
+  wcm_personnel_number: string | null
+  wcm_email: string | null
+}
+
+interface RosterRow {
+  id: string
+  department_name: string
+  location_number: string
+  director_name: string | null
+  updated_at: string
+  wcms: RosterMember[]
+}
+
+interface RosterSubmission {
+  id: string
+  department_name: string
+  location_number: string | null
+  director_name: string
+  wcm_name: string
+  wcm_personnel_number: string | null
+  wcm_email: string | null
+  submitted_at: string
+  status: 'pending' | 'approved' | 'rejected'
+  reviewed_at: string | null
+  reviewed_by: string | null
+}
+
+function titleCase(s: string): string {
+  return s.toLowerCase().replace(/(^|[\s/-])([a-z])/g, (_m, sep, ch) => sep + ch.toUpperCase())
+}
+
+/* ─── DEPARTMENT WCM ROSTER ───────────────────────────── */
+function DepartmentRosterSection() {
+  const [roster, setRoster] = useState<RosterRow[]>([])
+  const [submissions, setSubmissions] = useState<RosterSubmission[]>([])
+  const [loading, setLoading] = useState(true)
+  const [acting, setActing] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+
+  async function load() {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/bcps/wcm-roster-queue?access_key=${ROSTER_ACCESS_KEY}`)
+      const j = await r.json()
+      setRoster(j.roster || [])
+      setSubmissions(j.submissions || [])
+    } catch {
+      setRoster([]); setSubmissions([])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function decide(id: string, action: 'approve' | 'reject') {
+    setActing(id)
+    try {
+      const r = await fetch(`/api/bcps/wcm-roster-queue?access_key=${ROSTER_ACCESS_KEY}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action, reviewer: 'Sean A. Russell' }),
+      })
+      if (r.ok) {
+        await load()
+      } else {
+        const j = await r.json().catch(() => ({}))
+        alert(j.error || 'Could not update this submission.')
+      }
+    } catch {
+      alert('Could not update this submission.')
+    }
+    setActing(null)
+  }
+
+  const pending = useMemo(() => submissions.filter(s => s.status === 'pending'), [submissions])
+
+  const filteredRoster = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return roster
+    return roster.filter(r =>
+      r.department_name.toLowerCase().includes(q) ||
+      (r.director_name || '').toLowerCase().includes(q) ||
+      r.wcms.some(w => w.wcm_name.toLowerCase().includes(q))
+    )
+  }, [roster, search])
+
+  function formatDate(iso: string) {
+    return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  }
+
+  return (
+    <div className="wcm-content-section">
+      <style>{`
+        .roster-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        .roster-search { flex: 1; min-width: 220px; padding: 9px 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: inherit; }
+        .roster-count { font-size: 12px; color: #9ca3af; white-space: nowrap; }
+        .roster-pending-card {
+          background: #ffffff; border: 1px solid rgba(0,0,0,0.09); border-left: 3px solid #E8650A;
+          border-radius: 8px; padding: 16px 18px; margin-bottom: 10px;
+        }
+        .roster-pending-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+        .roster-pending-dept { font-size: 14px; font-weight: 800; color: #1a1a1a; }
+        .roster-pending-loc { font-size: 11px; color: rgba(26,26,26,0.45); font-weight: 600; }
+        .roster-pending-detail { font-size: 12.5px; color: #374151; line-height: 1.7; }
+        .roster-pending-actions { display: flex; gap: 8px; margin-top: 10px; }
+        .roster-btn { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-family: inherit; border: none; }
+        .roster-btn.approve { background: #16750C; color: #fff; }
+        .roster-btn.reject { background: #fff; color: #9ca3af; border: 1.5px solid #e5e7eb; }
+        .roster-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .roster-table-wrap { border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; overflow: hidden; }
+        .roster-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .roster-table th { text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(26,26,26,0.45); background: #f9fafb; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.08); }
+        .roster-table td { padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.06); vertical-align: top; }
+        .roster-table tr:last-child td { border-bottom: none; }
+        .roster-dept-name { font-weight: 700; color: #1a1a1a; }
+        .roster-loc { font-size: 11px; color: rgba(26,26,26,0.4); }
+        .roster-empty-val { color: rgba(26,26,26,0.35); font-style: italic; }
+        .roster-wcm-row { font-size: 12.5px; }
+        .roster-wcm-email { color: rgba(26,26,26,0.45); font-size: 11px; }
+      `}</style>
+
+      <h3>WCM Roster</h3>
+      <p className="wcm-section-intro">
+        Live directory of every district department, its Director, and assigned Web Content Manager(s) - kept current by
+        the annual <strong>Department Web Content Managers Roster</strong> Microsoft Form. Director submissions land below
+        for review before they update a department&apos;s record.
+      </p>
+
+      {pending.length > 0 && (
+        <>
+          <h4 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#C55326', margin: '20px 0 10px' }}>
+            Pending Review ({pending.length})
+          </h4>
+          {pending.map(s => (
+            <div key={s.id} className="roster-pending-card">
+              <div className="roster-pending-top">
+                <div>
+                  <div className="roster-pending-dept">{titleCase(s.department_name)}</div>
+                  <div className="roster-pending-loc">Loc #{s.location_number ?? 'unmatched'} &middot; submitted {formatDate(s.submitted_at)}</div>
+                </div>
+              </div>
+              <div className="roster-pending-detail">
+                Director: <strong>{s.director_name}</strong><br />
+                WCM: <strong>{s.wcm_name}</strong>
+                {s.wcm_personnel_number ? ` (#${s.wcm_personnel_number})` : ''}
+                {s.wcm_email ? ` - ${s.wcm_email}` : ''}
+              </div>
+              <div className="roster-pending-actions">
+                <button className="roster-btn reject" disabled={acting === s.id} onClick={() => decide(s.id, 'reject')}>Reject</button>
+                <button className="roster-btn approve" disabled={acting === s.id} onClick={() => decide(s.id, 'approve')}>Approve</button>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      <div className="roster-toolbar" style={{ marginTop: pending.length > 0 ? 24 : 4 }}>
+        <input
+          className="roster-search"
+          placeholder="Search departments, directors, or WCMs..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <span className="roster-count">{loading ? 'Loading...' : `${filteredRoster.length} of ${roster.length} departments`}</span>
+      </div>
+
+      <div className="roster-table-wrap">
+        <table className="roster-table">
+          <thead>
+            <tr>
+              <th>Department</th>
+              <th>Director</th>
+              <th>Web Content Manager(s)</th>
+              <th>Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af', padding: 24 }}>Loading roster...</td></tr>
+            ) : filteredRoster.length === 0 ? (
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af', padding: 24 }}>No departments match that search.</td></tr>
+            ) : filteredRoster.map(r => (
+              <tr key={r.id}>
+                <td>
+                  <div className="roster-dept-name">{titleCase(r.department_name)}</div>
+                  <div className="roster-loc">Loc #{r.location_number}</div>
+                </td>
+                <td>{r.director_name || <span className="roster-empty-val">Not on file</span>}</td>
+                <td>
+                  {r.wcms.length === 0 ? (
+                    <span className="roster-empty-val">Not assigned</span>
+                  ) : r.wcms.map(w => (
+                    <div key={w.id} className="roster-wcm-row">
+                      {w.wcm_name}
+                      {w.wcm_email && <div className="roster-wcm-email">{w.wcm_email}</div>}
+                    </div>
+                  ))}
+                </td>
+                <td className="roster-loc">{r.updated_at ? formatDate(r.updated_at) : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
 
 /* ─── HUB ─────────────────────────────────────────────── */
 function WCMHub({ onNavigate }: { onNavigate: (v: WCMView) => void }) {
@@ -285,6 +498,7 @@ function DepartmentPortal({ onBack }: { onBack: () => void }) {
 
   const sections = [
     { id: 'overview', label: 'Overview' },
+    { id: 'roster', label: 'WCM Roster' },
     { id: 'audit', label: 'Audit Resources' },
     { id: 'templates', label: 'Layout Templates' },
     { id: 'training', label: 'Training Materials' },
@@ -323,6 +537,7 @@ function DepartmentPortal({ onBack }: { onBack: () => void }) {
               <p className="wcm-section-intro">This portal supports BCPS department web managers in maintaining accurate, accessible, and consistent department websites across the district.</p>
               <div className="wcm-overview-cards">
                 {[
+                  { icon: '🗂', title: 'WCM Roster', desc: 'Every department, its Director, and assigned Web Content Manager(s) - updated via the annual roster intake form.', section: 'roster' },
                   { icon: '🔍', title: 'Audit Resources', desc: 'Checklists and tools to audit your department pages for accuracy, accessibility, and compliance.', section: 'audit' },
                   { icon: '📐', title: 'Layout Templates', desc: 'Approved page templates for common department content types — staff pages, program info, and more.', section: 'templates' },
                   { icon: '🎓', title: 'Training Materials', desc: 'On-demand training videos, slide decks, and reference guides for department content managers.', section: 'training' },
@@ -340,6 +555,8 @@ function DepartmentPortal({ onBack }: { onBack: () => void }) {
               </div>
             </div>
           )}
+
+          {activeSection === 'roster' && <DepartmentRosterSection />}
 
           {activeSection === 'audit' && (
             <div className="wcm-content-section">
