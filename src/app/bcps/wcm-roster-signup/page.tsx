@@ -19,6 +19,13 @@ export default function WCMRosterSignupPage() {
   const [deptQuery, setDeptQuery] = useState('')
   const [selectedDept, setSelectedDept] = useState<DeptOption | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
+  // Fallback for a department that isn't in the bcps_wcm_roster list: lets a
+  // Director type it in directly instead of being stuck. Nothing extra to
+  // flag here - /api/bcps/wcm-roster-intake already routes every submission
+  // (matched or not) into bcps_wcm_roster_submissions as 'pending' for the
+  // District Web Team to review, and an unmatched name just lands with a
+  // null location_number as the natural "needs a look" signal.
+  const [manualDept, setManualDept] = useState(false)
 
   const [directorName, setDirectorName] = useState('')
   const [wcmName, setWcmName] = useState('')
@@ -57,10 +64,28 @@ export default function WCMRosterSignupPage() {
     setShowDropdown(false)
   }
 
+  function useManualDept() {
+    setSelectedDept(null)
+    setManualDept(true)
+    setShowDropdown(false)
+  }
+
+  function backToDeptSearch() {
+    setManualDept(false)
+    setDeptQuery('')
+    setSelectedDept(null)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!selectedDept) {
-      setResult({ type: 'error', text: 'Please select your department from the list.' })
+    const departmentName = manualDept ? deptQuery.trim() : selectedDept?.department_name
+    if (!departmentName) {
+      setResult({
+        type: 'error',
+        text: manualDept
+          ? 'Please enter your department name.'
+          : 'Please select your department from the list.',
+      })
       return
     }
     if (!directorName.trim() || !wcmName.trim()) {
@@ -76,7 +101,7 @@ export default function WCMRosterSignupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           access_key: ACCESS_KEY,
-          department_name: selectedDept.department_name,
+          department_name: departmentName,
           director_name: directorName.trim(),
           wcm_name: wcmName.trim(),
           wcm_personnel_number: wcmPersonnelNumber.trim() || undefined,
@@ -91,6 +116,7 @@ export default function WCMRosterSignupPage() {
         text: 'Thank you! Your submission has been received and is awaiting review by the District Web Team.',
       })
       setSelectedDept(null)
+      setManualDept(false)
       setDeptQuery('')
       setDirectorName('')
       setWcmName('')
@@ -155,37 +181,67 @@ export default function WCMRosterSignupPage() {
 
           <div className="wcm-portal-content">
             <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: 20, position: 'relative' }} ref={boxRef}>
+            <div style={{ marginBottom: 20 }}>
               <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
                 Department <span style={{ color: '#DC2626' }}>*</span>
               </label>
-              <input
-                className="form-input"
-                style={{ width: '100%', boxSizing: 'border-box' }}
-                placeholder="Start typing to search departments..."
-                value={deptQuery}
-                onChange={e => { setDeptQuery(e.target.value); setSelectedDept(null); setShowDropdown(true) }}
-                onFocus={() => setShowDropdown(true)}
-                autoComplete="off"
-                required
-              />
-              {showDropdown && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 260, overflowY: 'auto',
-                  background: '#fff', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 20,
-                }}>
-                  {filteredDepts.length === 0 ? (
-                    <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-muted)' }}>No departments match.</div>
-                  ) : filteredDepts.map(d => (
-                    <div
-                      key={d.id}
-                      onClick={() => pickDept(d)}
-                      style={{ padding: '10px 14px', fontSize: 13.5, cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
-                      onMouseDown={ev => ev.preventDefault()}
-                    >
-                      {titleCase(d.department_name)} <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>({d.location_number})</span>
+              {manualDept ? (
+                <div>
+                  <input
+                    className="form-input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="Type your department name"
+                    value={deptQuery}
+                    onChange={e => setDeptQuery(e.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={backToDeptSearch}
+                    style={{ background: 'none', border: 'none', color: 'var(--blue)', cursor: 'pointer', fontWeight: 600, fontSize: 12.5, padding: '6px 0 0', display: 'block' }}
+                  >
+                    Search departments instead
+                  </button>
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }} ref={boxRef}>
+                  <input
+                    className="form-input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="Start typing to search departments..."
+                    value={deptQuery}
+                    onChange={e => { setDeptQuery(e.target.value); setSelectedDept(null); setShowDropdown(true) }}
+                    onFocus={() => setShowDropdown(true)}
+                    autoComplete="off"
+                    required
+                  />
+                  {showDropdown && (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 260, overflowY: 'auto',
+                      background: '#fff', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 20,
+                    }}>
+                      {filteredDepts.length === 0 && (
+                        <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-muted)' }}>No departments match.</div>
+                      )}
+                      {filteredDepts.map(d => (
+                        <div
+                          key={d.id}
+                          onClick={() => pickDept(d)}
+                          style={{ padding: '10px 14px', fontSize: 13.5, cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+                          onMouseDown={ev => ev.preventDefault()}
+                        >
+                          {titleCase(d.department_name)} <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>({d.location_number})</span>
+                        </div>
+                      ))}
+                      <div
+                        onClick={useManualDept}
+                        onMouseDown={ev => ev.preventDefault()}
+                        style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'var(--blue)', cursor: 'pointer' }}
+                      >
+                        Don&apos;t see your department? Enter it manually
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
