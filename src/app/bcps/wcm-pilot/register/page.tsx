@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import './wcm-pilot.css'
+import WcmPilotHeader from './WcmPilotHeader'
 
 export default function WCMPilotRegisterPage() {
   const [step, setStep] = useState<'intro' | 'form' | 'done'>('intro')
@@ -69,123 +71,113 @@ export default function WCMPilotRegisterPage() {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.wrap}>
-        {step === 'intro' && (
-          <div style={styles.card}>
-            <BcpsLogo />
-            <p style={styles.eyebrow}>WCM Pilot Program</p>
-            <h1 style={styles.title}>Before You Register</h1>
-            <p style={styles.body}>
-              Creating your account enrolls you as a Department Web Content Manager in the WCM Pilot
-              Program. Here is what happens next.
-            </p>
-            <ol style={styles.steps}>
-              <li style={styles.step}>
-                <span style={styles.stepNum}>1</span>
-                <span>You create your account with your BCPS email and a password.</span>
-              </li>
-              <li style={styles.step}>
-                <span style={styles.stepNum}>2</span>
-                <span>You are enrolled as a Web Content Manager, this is separate from and comes before the certification course.</span>
-              </li>
-              <li style={styles.step}>
-                <span style={styles.stepNum}>3</span>
-                <span>You will be directed to log in and complete the Department WCM Certification course at your own pace.</span>
-              </li>
-            </ol>
-            <button style={styles.btn} onClick={() => setStep('form')}>
-              Continue to Registration
-            </button>
-            <p style={styles.note}>Access restricted to @browardschools.com addresses.</p>
-          </div>
-        )}
+    <div className="wp-root" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="wp-page-topbar">
+        <WcmPilotHeader />
+      </div>
 
-        {step === 'form' && (
-          <div style={styles.card}>
-            <BcpsLogo />
-            <p style={styles.eyebrow}>WCM Pilot Program</p>
-            <h1 style={styles.title}>Create Your Account</h1>
-            <p style={styles.subtitle}>Department Web Content Manager - Broward County Public Schools</p>
-
-            <form onSubmit={handleSubmit} style={styles.form}>
-              <label style={styles.label}>Full Name *</label>
-              <input
-                style={styles.input}
-                type="text"
-                value={fullName}
-                onChange={e => setFullName(e.target.value)}
-                placeholder="First Last"
-                required
-              />
-              <label style={styles.label}>Department</label>
-              <input
-                style={styles.input}
-                type="text"
-                value={department}
-                onChange={e => setDepartment(e.target.value)}
-                placeholder="e.g., Communications, IT, Student Services"
-              />
-              <label style={styles.label}>Email *</label>
-              <input
-                style={styles.input}
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@browardschools.com"
-                required
-              />
-              <label style={styles.label}>Password *</label>
-              <input
-                style={styles.input}
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Create a password (min 8 characters)"
-                minLength={8}
-                required
-              />
-              {error && <p style={styles.error}>{error}</p>}
-              <button style={styles.btn} type="submit" disabled={loading}>
-                {loading ? 'Please wait...' : 'Create Account'}
+      <div className="wp-page-body" style={{ background: '#f0f4f8' }}>
+        <div style={styles.wrap}>
+          {step === 'intro' && (
+            <div style={styles.card}>
+              <p style={styles.eyebrow}>WCM Pilot Program</p>
+              <h1 style={styles.title}>Before You Register</h1>
+              <p style={styles.body}>
+                Creating your account enrolls you as a Department Web Content Manager in the WCM Pilot
+                Program. Here is what happens next.
+              </p>
+              <ol style={styles.steps}>
+                <li style={styles.step}>
+                  <span style={styles.stepNum}>1</span>
+                  <span>You create your account with your BCPS email and a password.</span>
+                </li>
+                <li style={styles.step}>
+                  <span style={styles.stepNum}>2</span>
+                  <span>You are enrolled as a Web Content Manager, this is separate from and comes before the certification course.</span>
+                </li>
+                <li style={styles.step}>
+                  <span style={styles.stepNum}>3</span>
+                  <span>You will be directed to log in and complete the Department WCM Certification course at your own pace.</span>
+                </li>
+              </ol>
+              <button style={styles.btn} onClick={() => setStep('form')}>
+                Continue to Registration
               </button>
-            </form>
-            <p style={styles.note}>Access restricted to @browardschools.com addresses.</p>
-          </div>
-        )}
+              <p style={styles.note}>Access restricted to @browardschools.com addresses.</p>
+            </div>
+          )}
 
-        {step === 'done' && (
-          <div style={styles.card}>
-            <BcpsLogo />
-            <h1 style={styles.title}>You&apos;re Enrolled</h1>
-            <p style={styles.body}>
-              Your WCM Pilot Program account has been created. Next, log in to complete the Department
-              WCM Certification course.
-            </p>
-            <a href="/certification/login" style={styles.btnLink}>
-              Continue to Certification Login
-            </a>
-          </div>
-        )}
+          {step === 'form' && (
+            <div style={styles.card}>
+              <p style={styles.eyebrow}>WCM Pilot Program</p>
+              <h1 style={styles.title}>Create Your Account</h1>
+              <p style={styles.subtitle}>Department Web Content Manager - Broward County Public Schools</p>
+
+              <form onSubmit={handleSubmit} style={styles.form}>
+                <label style={styles.label}>Full Name *</label>
+                <input
+                  style={styles.input}
+                  type="text"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  placeholder="First Last"
+                  required
+                />
+                <label style={styles.label}>Department</label>
+                <input
+                  style={styles.input}
+                  type="text"
+                  value={department}
+                  onChange={e => setDepartment(e.target.value)}
+                  placeholder="e.g., Communications, IT, Student Services"
+                />
+                <label style={styles.label}>Email *</label>
+                <input
+                  style={styles.input}
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="you@browardschools.com"
+                  required
+                />
+                <label style={styles.label}>Password *</label>
+                <input
+                  style={styles.input}
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Create a password (min 8 characters)"
+                  minLength={8}
+                  required
+                />
+                {error && <p style={styles.error}>{error}</p>}
+                <button style={styles.btn} type="submit" disabled={loading}>
+                  {loading ? 'Please wait...' : 'Create Account'}
+                </button>
+              </form>
+              <p style={styles.note}>Access restricted to @browardschools.com addresses.</p>
+            </div>
+          )}
+
+          {step === 'done' && (
+            <div style={styles.card}>
+              <h1 style={styles.title}>You&apos;re Enrolled</h1>
+              <p style={styles.body}>
+                Your WCM Pilot Program account has been created. Next, log in to complete the Department
+                WCM Certification course.
+              </p>
+              <a href="/certification/login" style={styles.btnLink}>
+                Continue to Certification Login
+              </a>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-function BcpsLogo() {
-  return (
-    <div style={{ textAlign: 'center', marginBottom: 20 }}>
-      <img
-        src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"
-        alt="Broward County Public Schools"
-        style={{ height: 56, objectFit: 'contain' }}
-      />
-    </div>
-  )
-}
-
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f0f4f8', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'Montserrat', sans-serif" },
   wrap: { width: '100%', maxWidth: 440 },
   card: { background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px rgba(0,0,0,0.10)', padding: '40px 36px' },
   eyebrow: { fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#1672A7', margin: '0 0 8px', textAlign: 'center' },
