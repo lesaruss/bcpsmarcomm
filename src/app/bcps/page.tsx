@@ -28,7 +28,7 @@ import MinibsePage from '@/components/pages/MinibsePage'
 import NoteApprovalsPage from '@/components/pages/NoteApprovalsPage'
 import type { UserRole } from '@/components/Sidebar'
 
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm', 'reports', 'pulse-approvals'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals'])
 
 function HomeInner() {
   const router = useRouter()
