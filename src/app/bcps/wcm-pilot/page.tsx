@@ -36,7 +36,7 @@ export default function WCMPilotWelcomePage() {
             </li>
           </ol>
 
-          <Link href="/certification/login" style={styles.cta}>
+          <Link href="/wcm-pilot/register" style={styles.cta}>
             Get Started
           </Link>
 
