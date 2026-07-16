@@ -519,7 +519,7 @@ function SchoolPortal({ onBack }: { onBack: () => void }) {
 }
 
 /* ─── DEPARTMENT PORTAL ───────────────────────────────── */
-function DepartmentPortal({ onBack }: { onBack: () => void }) {
+function DepartmentPortal() {
   const [activeSection, setActiveSection] = useState('overview')
 
   const sections = [
@@ -532,15 +532,14 @@ function DepartmentPortal({ onBack }: { onBack: () => void }) {
   ]
 
   return (
-    <div className="wcm-portal-page">
-      <button className="wcm-back-btn" onClick={onBack}>← WCM Community Hub</button>
-
-      <div className="wcm-portal-hero dept-hero">
-        <div>
-          <h2>Department WCMS Portal</h2>
-          <p>Resources for managing and maintaining BCPS department websites.</p>
+    <div className="wcm-portal-page" style={{ maxWidth: 'none' }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--blue)', marginBottom: 8 }}>
+          Department Web Managers
         </div>
-        <div className="wcm-portal-hero-badge dept">Department Web Managers</div>
+        <h1 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
+          Department WCM Portal Overview
+        </h1>
       </div>
 
       <div className="wcm-portal-layout">
@@ -559,7 +558,6 @@ function DepartmentPortal({ onBack }: { onBack: () => void }) {
         <div className="wcm-portal-content">
           {activeSection === 'overview' && (
             <div className="wcm-content-section">
-              <h3>Department Portal Overview</h3>
               <p className="wcm-section-intro">This portal supports BCPS department web managers in maintaining accurate, accessible, and consistent department websites across the district.</p>
               <div className="wcm-overview-cards">
                 {[
@@ -719,10 +717,10 @@ function DepartmentPortal({ onBack }: { onBack: () => void }) {
 }
 
 /* ─── ROOT ────────────────────────────────────────────── */
+// School WCMs are out of scope for now - WCM Hub opens straight to the
+// Department Portal instead of a hub landing screen with a school/department
+// choice. SchoolPortal/WCMHub are left in place (unused) rather than deleted,
+// in case school support comes back later.
 export default function WCMPage() {
-  const [view, setView] = useState<WCMView>('hub')
-
-  if (view === 'school')     return <SchoolPortal onBack={() => setView('hub')} />
-  if (view === 'department') return <DepartmentPortal onBack={() => setView('hub')} />
-  return <WCMHub onNavigate={setView} />
+  return <DepartmentPortal />
 }
