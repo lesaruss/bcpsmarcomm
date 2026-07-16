@@ -18,12 +18,16 @@
 .wp-topbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--wp-border);width:100%;}
 .wp-progress-track{height:4px;background:var(--wp-panel);width:100%;}
 .wp-progress-fill{height:100%;background:var(--wp-accent);width:0;transition:width .35s ease;}
-.wp-topbar-row{width:100%;display:flex;align-items:center;justify-content:space-between;padding:12px 22px;}
-.wp-brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:14px;letter-spacing:0.02em;color:var(--wp-accent-text);}
-.wp-brand-dot{width:11px;height:11px;border-radius:50%;background:var(--wp-accent);}
+/* Shared header row: logo, vertical divider, program label - used on every WCM Pilot page */
+.wp-header-row{width:100%;display:flex;align-items:center;justify-content:space-between;padding:13px 22px;}
+.wp-header-brand{display:flex;align-items:center;gap:14px;}
+.wp-header-logo{height:32px;width:auto;flex-shrink:0;display:block;}
+.wp-header-divider{width:1px;align-self:stretch;min-height:26px;background:var(--wp-border);flex-shrink:0;}
+.wp-header-title{font-weight:900;font-size:14px;letter-spacing:0.02em;color:var(--wp-accent-text);}
+.wp-header-right{display:flex;align-items:center;}
 .wp-count{font-size:12.5px;font-weight:800;color:var(--wp-ink-55);letter-spacing:0.08em;}
 
-.wp-stage{max-width:var(--wp-maxw);margin:0 auto;padding:40px 24px 130px;min-height:70vh;display:flex;align-items:center;}
+.wp-stage{max-width:var(--wp-maxw);margin:0 auto;padding:40px 24px 210px;min-height:70vh;display:flex;align-items:center;}
 .wp-step{display:none;width:100%;animation:wp-fade .45s ease;}
 .wp-step.wp-active{display:block;}
 @keyframes wp-fade{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
@@ -49,6 +53,9 @@
 .wp-cta-btn:hover{background:var(--wp-accent-text);}
 
 .wp-audio{display:flex;align-items:center;gap:14px;max-width:440px;margin:26px auto 0;background:var(--wp-panel);border:1px solid var(--wp-border);border-radius:999px;padding:9px 16px 9px 9px;text-align:left;}
+/* In the fixed bottom nav, the audio row's flex centering replaces the auto-margin centering above */
+.wp-nav-audio-row{display:flex;justify-content:center;padding:12px 24px 0;}
+.wp-nav-audio-row .wp-audio{margin:0;width:100%;}
 .wp-audio-btn{flex:0 0 auto;width:44px;height:44px;border-radius:50%;border:none;background:var(--wp-ink-deep);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 .wp-audio-btn:hover{background:#092e44;}
 .wp-audio-btn .wp-ic-pause{display:none;}
@@ -76,5 +83,9 @@
 @media(min-width:769px){
   .wp-root{overflow-x:hidden;}
   html:has(.wp-root), body:has(.wp-root){overflow:hidden;height:100dvh;}
-  .wp-stage{min-height:0;height:calc(100dvh - 57px - 73px);overflow-y:auto;}
+  .wp-stage{min-height:0;height:calc(100dvh - 64px - 150px);overflow-y:auto;}
 }
+
+/* Non-deck WCM Pilot pages (e.g. registration): just the sticky header, no progress/nav bars */
+.wp-page-topbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--wp-border);width:100%;}
+.wp-page-body{min-height:calc(100vh - 64px);display:flex;align-items:center;justify-content:center;padding:24px;}
