@@ -43,6 +43,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'bcps-certification':     { title: 'Department Certification',sub: 'WCM Certification Program' },
   department:               { title: 'Department Profile',      sub: 'Audit & Analytics' },
   'pulse-approvals':        { title: 'Note Approvals',          sub: 'Pulse Feedback Queue' },
+  'department-audit':       { title: 'Department Name Audit',  sub: 'Profiles vs. Roster Consistency' },
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────
@@ -249,3 +250,4 @@ export default function BCPSShell({ children }: { children: React.ReactNode }) {
     </Suspense>
   )
 }
+
