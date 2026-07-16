@@ -27,7 +27,7 @@
 .wp-header-right{display:flex;align-items:center;}
 .wp-count{font-size:12.5px;font-weight:800;color:var(--wp-ink-55);letter-spacing:0.08em;}
 
-.wp-stage{max-width:var(--wp-maxw);margin:0 auto;padding:40px 24px 210px;min-height:70vh;display:flex;align-items:center;}
+.wp-stage{max-width:var(--wp-maxw);margin:0 auto;padding:40px 24px 130px;min-height:70vh;display:flex;align-items:center;}
 .wp-step{display:none;width:100%;animation:wp-fade .45s ease;}
 .wp-step.wp-active{display:block;}
 @keyframes wp-fade{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
@@ -52,25 +52,16 @@
 .wp-cta-btn{display:inline-block;margin-top:24px;padding:15px 30px;background:var(--wp-accent);color:#fff;border-radius:999px;font-weight:800;font-size:15px;text-decoration:none;}
 .wp-cta-btn:hover{background:var(--wp-accent-text);}
 
-.wp-audio{display:flex;align-items:center;gap:14px;max-width:440px;margin:26px auto 0;background:var(--wp-panel);border:1px solid var(--wp-border);border-radius:999px;padding:9px 16px 9px 9px;text-align:left;}
-/* In the fixed bottom nav, the audio row's flex centering replaces the auto-margin centering above */
-.wp-nav-audio-row{display:flex;justify-content:center;padding:12px 24px 0;}
-.wp-nav-audio-row .wp-audio{margin:0;width:100%;}
-.wp-audio-btn{flex:0 0 auto;width:44px;height:44px;border-radius:50%;border:none;background:var(--wp-ink-deep);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
-.wp-audio-btn:hover{background:#092e44;}
-.wp-audio-btn .wp-ic-pause{display:none;}
-.wp-audio.wp-playing .wp-audio-btn .wp-ic-play{display:none;}
-.wp-audio.wp-playing .wp-audio-btn .wp-ic-pause{display:block;}
-.wp-wave{flex:1;position:relative;display:flex;align-items:center;gap:2px;height:32px;cursor:pointer;touch-action:none;}
-.wp-bar{flex:1;min-width:2px;background:#d8dde3;border-radius:2px;transition:background .12s;}
-.wp-bar.wp-on{background:var(--wp-accent);}
-.wp-handle{position:absolute;top:-3px;bottom:-3px;width:3px;border-radius:2px;background:var(--wp-ink-deep);left:0;transform:translateX(-1px);pointer-events:none;}
-.wp-audio-meta{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
-.wp-audio-label{font-size:11.5px;font-weight:800;color:var(--wp-ink);}
-.wp-audio-tag{font-size:9px;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;color:var(--wp-accent-text);background:rgba(22,114,167,0.12);padding:2px 7px;border-radius:999px;}
-
 .wp-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);border-top:1px solid var(--wp-border);}
 .wp-nav-row{max-width:var(--wp-maxw);margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 24px;}
+/* Streamlined narration control: just a small icon button, sitting next to Next */
+.wp-nav-right{display:flex;align-items:center;gap:10px;}
+.wp-mini-audio-btn{flex:0 0 auto;width:40px;height:40px;border-radius:50%;border:1px solid var(--wp-border);background:#fff;color:var(--wp-ink-deep);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.wp-mini-audio-btn:hover{border-color:var(--wp-ink);}
+.wp-mini-audio-btn .wp-ic-pause{display:none;}
+.wp-mini-audio-btn.wp-playing{background:var(--wp-ink-deep);color:#fff;border-color:transparent;}
+.wp-mini-audio-btn.wp-playing .wp-ic-play{display:none;}
+.wp-mini-audio-btn.wp-playing .wp-ic-pause{display:block;}
 .wp-btn{display:inline-flex;align-items:center;gap:9px;font-family:inherit;font-weight:800;font-size:14.5px;padding:12px 22px;border-radius:999px;border:1px solid var(--wp-border);background:#fff;color:var(--wp-ink);cursor:pointer;}
 .wp-btn:hover{border-color:var(--wp-ink);}
 .wp-btn:disabled{opacity:.4;cursor:not-allowed;}
@@ -83,7 +74,7 @@
 @media(min-width:769px){
   .wp-root{overflow-x:hidden;}
   html:has(.wp-root), body:has(.wp-root){overflow:hidden;height:100dvh;}
-  .wp-stage{min-height:0;height:calc(100dvh - 64px - 150px);overflow-y:auto;}
+  .wp-stage{min-height:0;height:calc(100dvh - 64px - 90px);overflow-y:auto;}
 }
 
 /* Non-deck WCM Pilot pages (e.g. registration): just the sticky header, no progress/nav bars */
