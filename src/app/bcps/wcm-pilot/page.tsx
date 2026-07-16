@@ -7,7 +7,7 @@ export default function WCMPilotWelcomePage() {
         <div style={styles.introCard}>
           <div style={{ textAlign: 'center', marginBottom: 20 }}>
             <img
-              src="/bcps/bcps-logo.png"
+              src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"
               alt="Broward County Public Schools"
               style={{ height: 56, objectFit: 'contain' }}
             />
