@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 export default function CertLoginPage() {
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [mode, setMode] = useState<'login' | 'register'>('register')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -77,67 +77,93 @@ export default function CertLoginPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.card}>
-        <BcpsLogo />
-        <h1 style={styles.title}>
-          {mode === 'login' ? 'WCM Certification' : 'Create Account'}
-        </h1>
-        <p style={styles.subtitle}>Department - Broward County Public Schools</p>
+      <div style={styles.outer}>
+        <div style={styles.introCard}>
+          <p style={styles.introEyebrow}>WCM Pilot Program</p>
+          <h1 style={styles.introTitle}>Welcome to the Web Content Manager Pilot</h1>
+          <p style={styles.introBody}>
+            This is your starting point as a Department Web Content Manager. Create your account below, then
+            complete the Department WCM Certification course. Once certified, you will have access to your
+            department&apos;s WCM Hub to manage your website audit checklist.
+          </p>
+          <ol style={styles.introSteps}>
+            <li style={styles.introStep}>
+              <span style={styles.introStepNum}>1</span>
+              <span>Create your account with your BCPS email address.</span>
+            </li>
+            <li style={styles.introStep}>
+              <span style={styles.introStepNum}>2</span>
+              <span>Complete the Department WCM Certification course at your own pace.</span>
+            </li>
+            <li style={styles.introStep}>
+              <span style={styles.introStepNum}>3</span>
+              <span>Get access to your department&apos;s WCM Hub and website audit checklist.</span>
+            </li>
+          </ol>
+        </div>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          {mode === 'register' && (
-            <>
-              <label style={styles.label}>Full Name *</label>
-              <input
-                style={styles.input}
-                type="text"
-                value={fullName}
-                onChange={e => setFullName(e.target.value)}
-                placeholder="First Last"
-                required
-              />
-              <label style={styles.label}>Department</label>
-              <input
-                style={styles.input}
-                type="text"
-                value={department}
-                onChange={e => setDepartment(e.target.value)}
-                placeholder="e.g., Communications, IT, Student Services"
-              />
-            </>
-          )}
-          <label style={styles.label}>Email *</label>
-          <input
-            style={styles.input}
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="you@browardschools.com"
-            required
-          />
-          <label style={styles.label}>Password *</label>
-          <input
-            style={styles.input}
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder={mode === 'register' ? 'Create a password (min 8 characters)' : 'Your password'}
-            minLength={mode === 'register' ? 8 : undefined}
-            required
-          />
-          {error && <p style={styles.error}>{error}</p>}
-          <button style={styles.btn} type="submit" disabled={loading}>
-            {loading ? 'Please wait...' : mode === 'login' ? 'Log In' : 'Create Account'}
-          </button>
-        </form>
+        <div style={styles.card}>
+          <BcpsLogo />
+          <h2 style={styles.title}>
+            {mode === 'login' ? 'WCM Certification' : 'Create Account'}
+          </h2>
+          <p style={styles.subtitle}>Department - Broward County Public Schools</p>
 
-        <p style={styles.toggleText}>
-          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-          <button style={styles.linkBtn} onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}>
-            {mode === 'login' ? 'Register' : 'Log In'}
-          </button>
-        </p>
-        <p style={styles.note}>Access restricted to @browardschools.com addresses.</p>
+          <form onSubmit={handleSubmit} style={styles.form}>
+            {mode === 'register' && (
+              <>
+                <label style={styles.label}>Full Name *</label>
+                <input
+                  style={styles.input}
+                  type="text"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  placeholder="First Last"
+                  required
+                />
+                <label style={styles.label}>Department</label>
+                <input
+                  style={styles.input}
+                  type="text"
+                  value={department}
+                  onChange={e => setDepartment(e.target.value)}
+                  placeholder="e.g., Communications, IT, Student Services"
+                />
+              </>
+            )}
+            <label style={styles.label}>Email *</label>
+            <input
+              style={styles.input}
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="you@browardschools.com"
+              required
+            />
+            <label style={styles.label}>Password *</label>
+            <input
+              style={styles.input}
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder={mode === 'register' ? 'Create a password (min 8 characters)' : 'Your password'}
+              minLength={mode === 'register' ? 8 : undefined}
+              required
+            />
+            {error && <p style={styles.error}>{error}</p>}
+            <button style={styles.btn} type="submit" disabled={loading}>
+              {loading ? 'Please wait...' : mode === 'login' ? 'Log In' : 'Create Account'}
+            </button>
+          </form>
+
+          <p style={styles.toggleText}>
+            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+            <button style={styles.linkBtn} onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}>
+              {mode === 'login' ? 'Register' : 'Log In'}
+            </button>
+          </p>
+          <p style={styles.note}>Access restricted to @browardschools.com addresses.</p>
+        </div>
       </div>
     </div>
   )
@@ -158,7 +184,15 @@ function BcpsLogo() {
 
 const styles: Record<string, React.CSSProperties> = {
   page: { minHeight: '100vh', background: '#f0f4f8', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'Montserrat', sans-serif" },
-  card: { background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px rgba(0,0,0,0.10)', padding: '40px 36px', width: '100%', maxWidth: 440 },
+  outer: { width: '100%', maxWidth: 440, display: 'flex', flexDirection: 'column', gap: 20 },
+  introCard: { background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px rgba(0,0,0,0.10)', padding: '28px 32px', borderLeft: '4px solid #1672A7' },
+  introEyebrow: { fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#1672A7', margin: '0 0 8px' },
+  introTitle: { fontSize: 20, fontWeight: 800, color: '#0e4e73', margin: '0 0 10px', lineHeight: 1.25 },
+  introBody: { fontSize: 13.5, color: '#444', lineHeight: 1.65, margin: '0 0 18px' },
+  introSteps: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 },
+  introStep: { display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13.5, color: '#333', lineHeight: 1.5 },
+  introStepNum: { flexShrink: 0, width: 22, height: 22, borderRadius: '50%', background: '#1672A7', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  card: { background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px rgba(0,0,0,0.10)', padding: '40px 36px', width: '100%' },
   title: { fontSize: 22, fontWeight: 700, color: '#0e4e73', margin: '0 0 4px', textAlign: 'center' },
   subtitle: { fontSize: 13, color: '#666', textAlign: 'center', marginBottom: 28, marginTop: 0 },
   form: { display: 'flex', flexDirection: 'column', gap: 0 },
