@@ -9,9 +9,10 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
   const isCert         = pathname.startsWith('/bcps/certification')
   const isWcmPortal     = pathname.startsWith('/bcps/wcm-portal')
   const isWcmRosterForm = pathname.startsWith('/bcps/wcm-roster-signup')
+  const isWcmPilot      = pathname.startsWith('/bcps/wcm-pilot')
   const isLoginPage    = pathname.startsWith('/bcps/login') || pathname.startsWith('/bcps/set-password')
 
-  if (!isCert && !isWcmPortal && !isWcmRosterForm && !isLoginPage) {
+  if (!isCert && !isWcmPortal && !isWcmRosterForm && !isWcmPilot && !isLoginPage) {
     // BCPS portal auth: redirect to BCPS login if no session
     const cookieStore = cookies()
     const supabase = createServerClient(
@@ -45,6 +46,12 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
   // Public WCM Roster signup form: standalone, no auth, no admin shell -
   // Directors filling this out have no portal account.
   if (isWcmRosterForm) {
+    return <>{children}</>
+  }
+
+  // WCM Pilot welcome page: standalone, no auth, no admin shell -
+  // brand new pilot WCMs land here before they have an account.
+  if (isWcmPilot) {
     return <>{children}</>
   }
 
