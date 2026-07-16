@@ -107,15 +107,14 @@ export default function WCMRosterSignupPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg-page)' }}>
       <header className="topbar">
         <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 8, background: 'var(--blue)', color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, flexShrink: 0,
-          }}>
-            BC
-          </div>
+          <img
+            src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"
+            alt="Broward County Public Schools"
+            style={{ height: 40, width: 'auto', flexShrink: 0 }}
+          />
           <div>
-            <h1>Broward County Public Schools</h1>
-            <p>District Web Team</p>
+            <h1>BCPS Web Team Portal</h1>
+            <p>Broward County Public Schools</p>
           </div>
         </div>
       </header>
