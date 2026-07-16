@@ -104,31 +104,35 @@ export default function WCMRosterSignupPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-page)' }}>
-      <header className="topbar">
-        <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <img
-            src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"
-            alt="Broward County Public Schools"
-            style={{ height: 40, width: 'auto', flexShrink: 0 }}
-          />
-          <div>
-            <h1>BCPS Web Team Portal</h1>
-            <p>Broward County Public Schools</p>
-          </div>
+    <div style={{ minHeight: '100vh', background: '#fff' }}>
+      <header style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        padding: '16px 28px', borderBottom: '3px solid var(--blue)',
+        background: '#fff',
+      }}>
+        <img
+          src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"
+          alt="Broward County Public Schools"
+          style={{ height: 40, width: 'auto', flexShrink: 0 }}
+        />
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>Broward County Public Schools</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>District Web Team</div>
         </div>
       </header>
 
-      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '28px' }}>
-        <div className="wcm-portal-hero dept-hero">
-          <div>
-            <h2>Department Web Content Managers Roster 2026/27</h2>
-            <p>
-              Directors: submit a separate response for each Web Content Manager (WCM) assigned to your department.
-              Submissions are reviewed by the District Web Team before a record is updated.
-            </p>
+      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--blue)', marginBottom: 8 }}>
+            Department Web Managers
           </div>
-          <div className="wcm-portal-hero-badge">Department Web Managers</div>
+          <h1 style={{ fontSize: 26, fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 10px' }}>
+            Department Web Content Managers Roster 2026/27
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 640, margin: 0 }}>
+            Directors: submit a separate response for each Web Content Manager (WCM) assigned to your department.
+            Submissions are reviewed by the District Web Team before a record is updated.
+          </p>
         </div>
 
         <div style={{ maxWidth: 640, margin: '0 auto' }}>
