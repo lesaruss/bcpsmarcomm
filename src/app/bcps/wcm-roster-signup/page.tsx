@@ -121,7 +121,7 @@ export default function WCMRosterSignupPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
+      <main style={{ maxWidth: 640, margin: '0 auto', padding: '32px 28px' }}>
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--blue)', marginBottom: 8 }}>
             Department Web Managers
@@ -129,13 +129,13 @@ export default function WCMRosterSignupPage() {
           <h1 style={{ fontSize: 26, fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 10px' }}>
             Department Web Content Managers Roster 2026/27
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 640, margin: 0 }}>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7, margin: 0 }}>
             Directors: submit a separate response for each Web Content Manager (WCM) assigned to your department.
             Submissions are reviewed by the District Web Team before a record is updated.
           </p>
         </div>
 
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
+        <div>
           {result && (
             <div
               style={{
