@@ -13,6 +13,7 @@ export type PageId =
   | 'bcps-google-governance'
   | 'bcps-assignments'
   | 'bcps-certification'
+  | 'department-audit'
   | 'employee-records'
   | 'department'
   | 'reports'
@@ -87,3 +88,4 @@ export interface DomainRule {
   domain: string
   enabled: boolean
 }
+
