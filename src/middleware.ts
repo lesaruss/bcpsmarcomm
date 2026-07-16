@@ -53,6 +53,11 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith('/login') ||
       pathname.startsWith('/set-password') ||
       pathname.startsWith('/certification/login')
+    // Department WCM Roster signup: reachable at the clean top-level URL
+    // bcpsmarcomm.com/wcm-roster-signup (rewritten to /bcps/wcm-roster-signup
+    // below) so Directors never see the internal "/bcps" segment. No account
+    // required - this is one of the only genuinely public pages on this site.
+    const isWcmRosterSignup = pathname.startsWith('/wcm-roster-signup')
     const isStaticFile = /\.(html|pptx|pdf|png|jpg|svg|css|js|webp)(\?|$)/.test(pathname)
 
     // Root-level static documents (e.g. /bcps-implementation-plan-2026-2027.pdf)
@@ -87,7 +92,7 @@ export async function middleware(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     response.headers.set('x-pathname', rewriteUrl.pathname)
 
-    if (!user && !isLoginPath && !isStaticFile) {
+    if (!user && !isLoginPath && !isWcmRosterSignup && !isStaticFile) {
       const loginUrl = request.nextUrl.clone()
       loginUrl.pathname = '/login'
       return NextResponse.redirect(loginUrl)
@@ -127,6 +132,11 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/bcps/login') ||
     pathname.startsWith('/bcps/set-password') ||
     pathname.startsWith('/bcps/certification/login') ||
+    // Department WCM Roster signup: the one page on this site Directors
+    // reach with no account. Real access control lives here, not just the
+    // BCPSShell wrapper - without this line an anonymous visitor gets
+    // redirected to /login before the page ever renders.
+    pathname.startsWith('/bcps/wcm-roster-signup') ||
     pathname.startsWith('/briefs/') ||
     pathname.startsWith('/embeds/') ||
     (pathname.startsWith('/bcps/') && /\.(html|pptx|pdf|png|jpg|svg|css|js|webp)(\?|$)/.test(pathname))
