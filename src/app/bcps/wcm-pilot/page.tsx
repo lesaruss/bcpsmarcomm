@@ -36,7 +36,7 @@ export default function WCMPilotWelcomePage() {
             </li>
           </ol>
 
-          <Link href="/bcps/certification/login" style={styles.cta}>
+          <Link href="/certification/login" style={styles.cta}>
             Get Started
           </Link>
 
