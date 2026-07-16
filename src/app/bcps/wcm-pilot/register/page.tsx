@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import './wcm-pilot.css'
-import WcmPilotHeader from './WcmPilotHeader'
+import '../wcm-pilot.css'
+import WcmPilotHeader from '../WcmPilotHeader'
 
 export default function WCMPilotRegisterPage() {
   const [step, setStep] = useState<'intro' | 'form' | 'done'>('intro')
