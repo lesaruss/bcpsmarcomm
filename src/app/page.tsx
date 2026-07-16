@@ -40,6 +40,7 @@ const PAGE_TITLES: Record<PageId, { title: string; sub: string }> = {
   minibase:                { title: 'Minibase',                    sub: 'Document Library' },
   department:               { title: 'Department Profile',      sub: 'Audit & Analytics' },
   'pulse-approvals':        { title: 'Note Approvals',          sub: 'Pulse Feedback Queue' },
+  'department-audit':       { title: 'Department Name Audit',  sub: 'Profiles vs. Roster Consistency' },
 }
 
 export default function Home() {
@@ -93,3 +94,4 @@ export default function Home() {
     </div>
   )
 }
+
