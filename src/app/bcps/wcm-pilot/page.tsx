@@ -32,75 +32,32 @@ export default function WCMPilotWelcomePage() {
       return n < 10 ? '0' + n : '' + n
     }
 
-    // Single shared narration player, lives in the fixed bottom nav. Its
-    // source swaps to match whichever slide is active, rather than one
-    // player instance per slide.
-    const audioWrap = document.getElementById('wp-audio') as HTMLElement
+    // Single shared narration player: just a small round play/pause icon
+    // button sitting in the nav next to Next, no waveform or label. Its
+    // source swaps to match whichever slide is active.
     const audioEl = document.getElementById('wp-audio-el') as HTMLAudioElement
     const audioBtn = document.getElementById('wp-audio-btn') as HTMLButtonElement
-    const wave = document.getElementById('wp-wave') as HTMLElement
-    const handle = document.getElementById('wp-handle') as HTMLElement
-    const bars: HTMLElement[] = []
-    for (let w = 0; w < 34; w++) {
-      const s = document.createElement('span')
-      s.className = 'wp-bar'
-      s.style.height = 35 + Math.round(55 * Math.abs(Math.sin(w * 0.9))) + '%'
-      wave.appendChild(s)
-      bars.push(s)
-    }
-
-    function paint(frac: number) {
-      if (frac < 0) frac = 0
-      if (frac > 1) frac = 1
-      bars.forEach((b, idx2) => b.classList.toggle('wp-on', (idx2 + 1) / bars.length <= frac))
-      handle.style.left = frac * 100 + '%'
-    }
 
     function stopAllAudio() {
       audioEl.pause()
-      audioWrap.classList.remove('wp-playing')
+      audioBtn.classList.remove('wp-playing')
     }
 
     function loadAudioForStep(idx: number) {
       audioEl.src = '/audio/' + DECK_SLUG + '/' + pad(idx + 1) + '.mp3'
-      paint(0)
     }
 
-    audioEl.addEventListener('timeupdate', () => {
-      if (audioEl.duration) paint(audioEl.currentTime / audioEl.duration)
-    })
     audioEl.addEventListener('ended', () => {
-      audioWrap.classList.remove('wp-playing')
-      paint(1)
+      audioBtn.classList.remove('wp-playing')
     })
     audioBtn.addEventListener('click', () => {
-      const willPlay = !audioWrap.classList.contains('wp-playing')
+      const willPlay = !audioBtn.classList.contains('wp-playing')
       stopAllAudio()
       if (willPlay) {
         if (audioEl.ended || audioEl.currentTime >= (audioEl.duration || 1)) audioEl.currentTime = 0
-        audioWrap.classList.add('wp-playing')
+        audioBtn.classList.add('wp-playing')
         audioEl.play()
       }
-    })
-    function seekAt(clientX: number) {
-      const r = wave.getBoundingClientRect()
-      let frac = (clientX - r.left) / r.width
-      if (frac < 0) frac = 0
-      if (frac > 1) frac = 1
-      if (audioEl.duration) audioEl.currentTime = frac * audioEl.duration
-      paint(frac)
-    }
-    let dragging = false
-    wave.addEventListener('pointerdown', e => {
-      dragging = true
-      seekAt(e.clientX)
-      e.preventDefault()
-    })
-    window.addEventListener('pointermove', e => {
-      if (dragging) seekAt(e.clientX)
-    })
-    window.addEventListener('pointerup', () => {
-      dragging = false
     })
 
     function render() {
@@ -212,21 +169,17 @@ export default function WCMPilotWelcomePage() {
       </div>
 
       <nav className="wp-nav">
-        <div className="wp-nav-audio-row">
-          <div className="wp-audio" id="wp-audio">
-            <button className="wp-audio-btn" id="wp-audio-btn" aria-label="Play narration">
-              <svg className="wp-ic-play" width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-              <svg className="wp-ic-pause" width="16" height="16" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
-            </button>
-            <div className="wp-wave" id="wp-wave"><span className="wp-handle" id="wp-handle" /></div>
-            <div className="wp-audio-meta"><span className="wp-audio-label">Prefer to listen?</span><span className="wp-audio-tag">Narration</span></div>
-            <audio id="wp-audio-el" preload="metadata" />
-          </div>
-        </div>
         <div className="wp-nav-row">
           <button className="wp-btn" id="wp-back" aria-label="Previous step">Back</button>
           <div className="wp-dots" id="wp-dots" />
-          <button className="wp-btn wp-btn-primary" id="wp-next" aria-label="Next step">Next</button>
+          <div className="wp-nav-right">
+            <button className="wp-mini-audio-btn" id="wp-audio-btn" aria-label="Play narration">
+              <svg className="wp-ic-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+              <svg className="wp-ic-pause" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+            </button>
+            <audio id="wp-audio-el" preload="metadata" />
+            <button className="wp-btn wp-btn-primary" id="wp-next" aria-label="Next step">Next</button>
+          </div>
         </div>
       </nav>
     </div>
