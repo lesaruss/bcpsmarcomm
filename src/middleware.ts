@@ -58,6 +58,10 @@ export async function middleware(request: NextRequest) {
     // below) so Directors never see the internal "/bcps" segment. No account
     // required - this is one of the only genuinely public pages on this site.
     const isWcmRosterSignup = pathname.startsWith('/wcm-roster-signup')
+    // WCM Pilot welcome page: same reasoning as isWcmRosterSignup above -
+    // reachable at bcpsmarcomm.com/wcm-pilot with no "/bcps" segment and no
+    // account required, shared with brand new pilot WCMs.
+    const isWcmPilot = pathname.startsWith('/wcm-pilot')
     const isStaticFile = /\.(html|pptx|pdf|png|jpg|svg|css|js|webp)(\?|$)/.test(pathname)
 
     // Root-level static documents (e.g. /bcps-implementation-plan-2026-2027.pdf)
@@ -92,7 +96,7 @@ export async function middleware(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     response.headers.set('x-pathname', rewriteUrl.pathname)
 
-    if (!user && !isLoginPath && !isWcmRosterSignup && !isStaticFile) {
+    if (!user && !isLoginPath && !isWcmRosterSignup && !isWcmPilot && !isStaticFile) {
       const loginUrl = request.nextUrl.clone()
       loginUrl.pathname = '/login'
       return NextResponse.redirect(loginUrl)
