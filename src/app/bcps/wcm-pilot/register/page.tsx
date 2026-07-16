@@ -32,6 +32,11 @@ export default function WCMPilotRegisterPage() {
   const [deptQuery, setDeptQuery] = useState('')
   const [selectedDept, setSelectedDept] = useState<DeptOption | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
+  // Fallback for a department that isn't in the bcps_wcm_roster list: lets
+  // them type it in directly. Flagged via department_needs_review so the
+  // District Web Team can reconcile it by hand rather than silently trusting
+  // an unmatched name.
+  const [manualDept, setManualDept] = useState(false)
   const deptBoxRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -61,6 +66,18 @@ export default function WCMPilotRegisterPage() {
     setShowDropdown(false)
   }
 
+  function useManualDept() {
+    setSelectedDept(null)
+    setManualDept(true)
+    setShowDropdown(false)
+  }
+
+  function backToDeptSearch() {
+    setManualDept(false)
+    setDeptQuery('')
+    setSelectedDept(null)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -85,12 +102,18 @@ export default function WCMPilotRegisterPage() {
       if (!data.user) throw new Error('Registration did not return an account. Please try again.')
 
       // Course profile, same table the certification course reads from.
+      // If they used the "not listed" fallback, department is whatever they
+      // typed, flagged for the District Web Team to reconcile by hand.
+      const departmentValue = manualDept
+        ? (deptQuery.trim() || null)
+        : (selectedDept ? titleCase(selectedDept.department_name) : null)
       await supabase.from('wcm_cert_users').upsert(
         {
           user_id: data.user.id,
           email: email.toLowerCase(),
           full_name: fullName,
-          department: selectedDept ? titleCase(selectedDept.department_name) : null,
+          department: departmentValue,
+          department_needs_review: manualDept && !!deptQuery.trim(),
           is_admin: false,
         },
         { onConflict: 'user_id' }
@@ -170,33 +193,57 @@ export default function WCMPilotRegisterPage() {
                   required
                 />
                 <label style={styles.label}>Department</label>
-                <div style={{ position: 'relative' }} ref={deptBoxRef}>
-                  <input
-                    style={styles.input}
-                    type="text"
-                    placeholder="Start typing to search departments..."
-                    value={deptQuery}
-                    onChange={e => { setDeptQuery(e.target.value); setSelectedDept(null); setShowDropdown(true) }}
-                    onFocus={() => setShowDropdown(true)}
-                    autoComplete="off"
-                  />
-                  {showDropdown && (
-                    <div style={styles.deptDropdown}>
-                      {filteredDepts.length === 0 ? (
-                        <div style={styles.deptEmpty}>No departments match.</div>
-                      ) : filteredDepts.map(d => (
+                {manualDept ? (
+                  <div style={{ marginBottom: 4 }}>
+                    <input
+                      style={styles.input}
+                      type="text"
+                      placeholder="Type your department name"
+                      value={deptQuery}
+                      onChange={e => setDeptQuery(e.target.value)}
+                      autoFocus
+                    />
+                    <button type="button" onClick={backToDeptSearch} style={styles.deptSwitchLink}>
+                      Search departments instead
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative' }} ref={deptBoxRef}>
+                    <input
+                      style={styles.input}
+                      type="text"
+                      placeholder="Start typing to search departments..."
+                      value={deptQuery}
+                      onChange={e => { setDeptQuery(e.target.value); setSelectedDept(null); setShowDropdown(true) }}
+                      onFocus={() => setShowDropdown(true)}
+                      autoComplete="off"
+                    />
+                    {showDropdown && (
+                      <div style={styles.deptDropdown}>
+                        {filteredDepts.length === 0 && (
+                          <div style={styles.deptEmpty}>No departments match.</div>
+                        )}
+                        {filteredDepts.map(d => (
+                          <div
+                            key={d.id}
+                            onMouseDown={ev => ev.preventDefault()}
+                            onClick={() => pickDept(d)}
+                            style={styles.deptOption}
+                          >
+                            {titleCase(d.department_name)} <span style={{ color: '#999', fontSize: 12 }}>({d.location_number})</span>
+                          </div>
+                        ))}
                         <div
-                          key={d.id}
                           onMouseDown={ev => ev.preventDefault()}
-                          onClick={() => pickDept(d)}
-                          style={styles.deptOption}
+                          onClick={useManualDept}
+                          style={styles.deptNotListed}
                         >
-                          {titleCase(d.department_name)} <span style={{ color: '#999', fontSize: 12 }}>({d.location_number})</span>
+                          Don&apos;t see your department? Enter it manually
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <label style={styles.label}>Email *</label>
                 <input
                   style={styles.input}
@@ -259,6 +306,8 @@ const styles: Record<string, React.CSSProperties> = {
   deptDropdown: { position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 220, overflowY: 'auto', background: '#fff', border: '1px solid #d0d9e3', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 20 },
   deptEmpty: { padding: '10px 14px', fontSize: 13, color: '#999' },
   deptOption: { padding: '10px 14px', fontSize: 13.5, cursor: 'pointer', borderBottom: '1px solid #eef1f5' },
+  deptNotListed: { padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#1672A7', cursor: 'pointer' },
+  deptSwitchLink: { background: 'none', border: 'none', color: '#1672A7', cursor: 'pointer', fontWeight: 600, fontSize: 12.5, padding: '6px 0 0', display: 'block' },
   btn: { marginTop: 20, padding: '12px 0', background: '#1672A7', color: '#fff', border: 'none', borderRadius: 6, fontSize: 15, fontWeight: 700, cursor: 'pointer', width: '100%' },
   btnLink: { display: 'block', marginTop: 8, padding: '12px 0', background: '#1672A7', color: '#fff', borderRadius: 6, fontSize: 15, fontWeight: 700, textAlign: 'center', textDecoration: 'none' },
   error: { color: '#c0392b', fontSize: 13, marginTop: 8, marginBottom: 0 },
