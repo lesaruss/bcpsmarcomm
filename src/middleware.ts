@@ -137,6 +137,10 @@ export async function middleware(request: NextRequest) {
     // BCPSShell wrapper - without this line an anonymous visitor gets
     // redirected to /login before the page ever renders.
     pathname.startsWith('/bcps/wcm-roster-signup') ||
+    // WCM Pilot welcome page: shared with brand new pilot WCMs who have no
+    // account yet. Same reasoning as wcm-roster-signup above - must stay
+    // public or anonymous visitors get bounced to /login before seeing it.
+    pathname.startsWith('/bcps/wcm-pilot') ||
     pathname.startsWith('/briefs/') ||
     pathname.startsWith('/embeds/') ||
     (pathname.startsWith('/bcps/') && /\.(html|pptx|pdf|png|jpg|svg|css|js|webp)(\?|$)/.test(pathname))
