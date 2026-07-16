@@ -62,7 +62,7 @@ export async function middleware(request: NextRequest) {
     // reachable at bcpsmarcomm.com/wcm-pilot with no "/bcps" segment and no
     // account required, shared with brand new pilot WCMs.
     const isWcmPilot = pathname.startsWith('/wcm-pilot')
-    const isStaticFile = /\.(html|pptx|pdf|png|jpg|svg|css|js|webp)(\?|$)/.test(pathname)
+    const isStaticFile = /\.(html|pptx|pdf|png|jpg|svg|css|js|webp|mp3|mp4)(\?|$)/.test(pathname)
 
     // Root-level static documents (e.g. /bcps-implementation-plan-2026-2027.pdf)
     // are public assets served straight from /public - do not rewrite them into
@@ -147,7 +147,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/bcps/wcm-pilot') ||
     pathname.startsWith('/briefs/') ||
     pathname.startsWith('/embeds/') ||
-    (pathname.startsWith('/bcps/') && /\.(html|pptx|pdf|png|jpg|svg|css|js|webp)(\?|$)/.test(pathname))
+    (pathname.startsWith('/bcps/') && /\.(html|pptx|pdf|png|jpg|svg|css|js|webp|mp3|mp4)(\?|$)/.test(pathname))
 
   if (isPublic) return supabaseResponse
 
