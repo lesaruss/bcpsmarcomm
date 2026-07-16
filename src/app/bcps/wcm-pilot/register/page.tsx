@@ -1,19 +1,65 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import '../wcm-pilot.css'
 import WcmPilotHeader from '../WcmPilotHeader'
 
+interface DeptOption {
+  id: string
+  department_name: string
+  location_number: string
+}
+
+function titleCase(s: string): string {
+  return s.toLowerCase().replace(/(^|[\s/-])([a-z])/g, (_m, sep, ch) => sep + ch.toUpperCase())
+}
+
 export default function WCMPilotRegisterPage() {
   const [step, setStep] = useState<'intro' | 'form' | 'done'>('intro')
   const [fullName, setFullName] = useState('')
-  const [department, setDepartment] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
+
+  // Department picker - same searchable dropdown, same source (bcps_wcm_roster
+  // via /api/bcps/wcm-roster-departments) as the WCM Roster Signup form, so
+  // Directors and pilot WCMs pick from the identical department list instead
+  // of each typing department names free-hand.
+  const [departments, setDepartments] = useState<DeptOption[]>([])
+  const [deptQuery, setDeptQuery] = useState('')
+  const [selectedDept, setSelectedDept] = useState<DeptOption | null>(null)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const deptBoxRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    fetch('/api/bcps/wcm-roster-departments')
+      .then(r => r.json())
+      .then(j => setDepartments(j.departments || []))
+      .catch(() => setDepartments([]))
+  }, [])
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (deptBoxRef.current && !deptBoxRef.current.contains(e.target as Node)) setShowDropdown(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
+  const filteredDepts = useMemo(() => {
+    const q = deptQuery.trim().toLowerCase()
+    if (!q) return departments
+    return departments.filter(d => d.department_name.toLowerCase().includes(q))
+  }, [departments, deptQuery])
+
+  function pickDept(d: DeptOption) {
+    setSelectedDept(d)
+    setDeptQuery(`${titleCase(d.department_name)} (${d.location_number})`)
+    setShowDropdown(false)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -44,7 +90,7 @@ export default function WCMPilotRegisterPage() {
           user_id: data.user.id,
           email: email.toLowerCase(),
           full_name: fullName,
-          department: department || null,
+          department: selectedDept ? titleCase(selectedDept.department_name) : null,
           is_admin: false,
         },
         { onConflict: 'user_id' }
@@ -124,13 +170,33 @@ export default function WCMPilotRegisterPage() {
                   required
                 />
                 <label style={styles.label}>Department</label>
-                <input
-                  style={styles.input}
-                  type="text"
-                  value={department}
-                  onChange={e => setDepartment(e.target.value)}
-                  placeholder="e.g., Communications, IT, Student Services"
-                />
+                <div style={{ position: 'relative' }} ref={deptBoxRef}>
+                  <input
+                    style={styles.input}
+                    type="text"
+                    placeholder="Start typing to search departments..."
+                    value={deptQuery}
+                    onChange={e => { setDeptQuery(e.target.value); setSelectedDept(null); setShowDropdown(true) }}
+                    onFocus={() => setShowDropdown(true)}
+                    autoComplete="off"
+                  />
+                  {showDropdown && (
+                    <div style={styles.deptDropdown}>
+                      {filteredDepts.length === 0 ? (
+                        <div style={styles.deptEmpty}>No departments match.</div>
+                      ) : filteredDepts.map(d => (
+                        <div
+                          key={d.id}
+                          onMouseDown={ev => ev.preventDefault()}
+                          onClick={() => pickDept(d)}
+                          style={styles.deptOption}
+                        >
+                          {titleCase(d.department_name)} <span style={{ color: '#999', fontSize: 12 }}>({d.location_number})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <label style={styles.label}>Email *</label>
                 <input
                   style={styles.input}
@@ -190,6 +256,9 @@ const styles: Record<string, React.CSSProperties> = {
   form: { display: 'flex', flexDirection: 'column', gap: 0 },
   label: { fontSize: 13, fontWeight: 600, color: '#333', marginBottom: 4, marginTop: 12 },
   input: { border: '1px solid #d0d9e3', borderRadius: 6, padding: '10px 12px', fontSize: 14, color: '#222', outline: 'none', width: '100%', boxSizing: 'border-box' },
+  deptDropdown: { position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 220, overflowY: 'auto', background: '#fff', border: '1px solid #d0d9e3', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 20 },
+  deptEmpty: { padding: '10px 14px', fontSize: 13, color: '#999' },
+  deptOption: { padding: '10px 14px', fontSize: 13.5, cursor: 'pointer', borderBottom: '1px solid #eef1f5' },
   btn: { marginTop: 20, padding: '12px 0', background: '#1672A7', color: '#fff', border: 'none', borderRadius: 6, fontSize: 15, fontWeight: 700, cursor: 'pointer', width: '100%' },
   btnLink: { display: 'block', marginTop: 8, padding: '12px 0', background: '#1672A7', color: '#fff', borderRadius: 6, fontSize: 15, fontWeight: 700, textAlign: 'center', textDecoration: 'none' },
   error: { color: '#c0392b', fontSize: 13, marginTop: 8, marginBottom: 0 },
