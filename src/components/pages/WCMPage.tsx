@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 type WCMView = 'hub' | 'school' | 'department'
 
 const ROSTER_ACCESS_KEY = 'lr-wcm-roster-9f21ab6c'
-const ROSTER_SIGNUP_URL = 'https://bcpsmarcomm.com/bcps/wcm-roster-signup'
+const ROSTER_SIGNUP_URL = 'https://bcpsmarcomm.com/wcm-roster-signup'
 
 interface RosterMember {
   id: string
