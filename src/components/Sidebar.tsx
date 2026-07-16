@@ -163,7 +163,7 @@ const Icons: Record<string, React.ReactNode> = {
 }
 
 // ── Nav config ─────────────────────────────────────────────────────────────
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'wcm', 'reports', 'pulse-approvals'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals'])
 
 interface NavItem { id: PageId; label: string }
 
