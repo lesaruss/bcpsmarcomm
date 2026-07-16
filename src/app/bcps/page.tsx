@@ -26,6 +26,7 @@ import MembersPage from '@/components/pages/MembersPage'
 import CommunityRelationsPage from '@/components/pages/CommunityRelationsPage'
 import MinibsePage from '@/components/pages/MinibsePage'
 import NoteApprovalsPage from '@/components/pages/NoteApprovalsPage'
+import DepartmentAuditPage from '@/components/pages/DepartmentAuditPage'
 import type { UserRole } from '@/components/Sidebar'
 
 const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals'])
@@ -94,6 +95,7 @@ function HomeInner() {
       {nav.page === 'community-relations'      && <CommunityRelationsPage />}
       {nav.page === 'minibase'                   && <MinibsePage />}
       {nav.page === 'pulse-approvals'          && effectiveRole === 'superadmin' && <NoteApprovalsPage />}
+      {nav.page === 'department-audit'        && <DepartmentAuditPage />}
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>
@@ -107,3 +109,4 @@ export default function Home() {
     </Suspense>
   )
 }
+
