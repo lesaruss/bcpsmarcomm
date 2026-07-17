@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APPAS 2024-2025 Performance Evidence Portfolio - Russell, Sean</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(22px, 3.5vw, 38px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 8px; }
+  .doc-subtitle { font-size: 14px; font-weight: 600; color: var(--text-50); margin-bottom: 28px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  .rating-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(22,117,12,0.09); border: 1px solid rgba(22,117,12,0.30);
+    border-radius: 6px; padding: 6px 14px; margin-bottom: 20px;
+  }
+  .rating-badge .rating-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-50); }
+  .rating-badge .rating-value { font-size: 13px; font-weight: 900; color: var(--bcps-green); letter-spacing: 0.04em; }
+
+  .appas-section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 28px; margin-bottom: 24px; }
+  .appas-section-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .appas-section-title { font-size: 15px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); }
+  .appas-section-subtitle { font-size: 11px; font-weight: 600; color: var(--text-50); margin-top: 4px; }
+
+  .h-badge { background: rgba(22,117,12,0.10); border: 1px solid rgba(22,117,12,0.30); border-radius: 5px; padding: 5px 12px; font-size: 11px; font-weight: 900; color: var(--bcps-green); text-transform: uppercase; letter-spacing: 0.12em; white-space: nowrap; }
+  .e-badge { background: rgba(22,114,167,0.10); border: 1px solid rgba(22,114,167,0.28); border-radius: 5px; padding: 5px 12px; font-size: 11px; font-weight: 900; color: var(--bcps-blue); text-transform: uppercase; letter-spacing: 0.12em; white-space: nowrap; }
+
+  .evidence-list { list-style: none; padding: 0; margin: 0 0 20px; }
+  .evidence-list li { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-75); line-height: 1.65; }
+  .evidence-list li:last-child { border-bottom: none; padding-bottom: 0; }
+  .evidence-list li::before { content: ""; display: block; width: 6px; height: 6px; min-width: 6px; border-radius: 50%; background: var(--bcps-blue); margin-top: 8px; }
+  .evidence-list li strong { color: var(--text); font-weight: 700; }
+
+  .smart-grid { display: grid; gap: 16px; margin-bottom: 20px; }
+  .smart-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+  .smart-num { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.18em; color: var(--bcps-blue); margin-bottom: 6px; }
+  .smart-objective { font-size: 12px; font-weight: 600; color: var(--text-50); margin-bottom: 10px; line-height: 1.55; }
+  .smart-result { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; line-height: 1.55; }
+  .smart-evidence { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-top: 16px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; line-height: 1.65; }
+  .outcome-banner p strong { color: var(--text); font-weight: 700; }
+
+  .supervisor-quote { background: rgba(22,114,167,0.05); border-left: 4px solid var(--bcps-blue); border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 16px 0 0; }
+  .supervisor-quote .sq-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin-bottom: 6px; }
+  .supervisor-quote p { font-size: 13px; color: var(--text-75); margin: 0; line-height: 1.7; font-style: italic; }
+
+  .growth-note { background: rgba(197,83,38,0.06); border: 1px solid rgba(197,83,38,0.22); border-radius: 8px; padding: 14px 18px; margin-top: 14px; font-size: 12px; color: var(--text-75); line-height: 1.65; }
+  .growth-note strong { color: var(--bcps-orange); font-weight: 700; }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+
+  .timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 110px; padding-top: 2px; }
+  .timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .timeline-text strong { color: var(--text); }
+  .timeline-row.highlight .timeline-date { color: var(--bcps-green); }
+  .timeline-row.highlight .timeline-text { color: var(--text); }
+
+  .footer-note { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-30); text-align: center; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">BCPS - Employee Records</span>
+</header>
+
+<main>
+  <h1>APPAS 2024-2025<br>Performance Evidence Portfolio</h1>
+  <p class="doc-subtitle">Russell, Sean A. - District Webmaster, Marketing &amp; Strategic Communications</p>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Employee</span>
+      <span class="meta-value">Russell, Sean A.</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Personnel #</span>
+      <span class="meta-value">P00056342</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Title</span>
+      <span class="meta-value">District Webmaster</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Department</span>
+      <span class="meta-value">Marketing &amp; Strategic Communications</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Supervisor</span>
+      <span class="meta-value">Wilson, Farrah</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">School Year</span>
+      <span class="meta-value">2024-2025</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Type</span>
+      <span class="meta-value">Final (End of Year)</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value">v1 - June 19, 2026</span>
+    </div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Purpose:</strong> This document compiles the supporting evidence behind Sean A. Russell's 2024-2025 APPAS performance categories. It is prepared to assist Supervisor Farrah Wilson in finalizing the annual evaluation with accurate, specific documentation of accomplishments against each domain standard.</p>
+  </div>
+
+  <!-- OPERATIONAL RESULTS -->
+  <h2>Operational Results</h2>
+
+  <div class="appas-section">
+    <div class="appas-section-header">
+      <div>
+        <div class="appas-section-title">Smart Objectives</div>
+        <div class="appas-section-subtitle">Three objectives assessed at end of year</div>
+      </div>
+      <span class="h-badge">H - Highly Effective</span>
+    </div>
+
+    <div class="smart-grid">
+      <div class="smart-card">
+        <div class="smart-num">Objective 1</div>
+        <div class="smart-objective">Develop a roadmap for a cross-departmental Web Community that includes training plans, resource guides, communication protocols, and a support system to improve collaboration and content quality by June 30, 2025.</div>
+        <div class="smart-result">Delivered: Finalsite training roadmap complete. Web Community framework live and in active use by the entire District Web Team.</div>
+        <div class="smart-evidence">The Web Community infrastructure was designed from the ground up to be scalable and sustainable. Training materials, resource guides, and tiered support protocols were documented and distributed across all participating departments. The Finalsite platform rollout was coordinated centrally and successfully adopted district-wide, establishing a consistent content management foundation that continues to operate post-launch.</div>
+      </div>
+
+      <div class="smart-card">
+        <div class="smart-num">Objective 2</div>
+        <div class="smart-objective">Collaborate with 100% of BCPS departments to document and implement website migration and maintenance best practices by June 30, 2025, ensuring consistency, accessibility, and brand alignment.</div>
+        <div class="smart-result">Exceeded: Full department reach achieved via a three-channel support model - Newsletters, 1-on-1 sessions, and Hot Labs held three times per week.</div>
+        <div class="smart-evidence">Rather than a single-format rollout, Sean designed a multi-format support structure that met department Web Content Managers (WCMs) at every skill level. Hot Labs provided open drop-in troubleshooting. One-on-one sessions offered tailored guidance for departments with complex migration needs. Newsletters kept all WCMs informed on standards updates and platform changes. This approach ensured no department was left behind and produced measurable progress across every site in scope.</div>
+      </div>
+
+      <div class="smart-card">
+        <div class="smart-num">Objective 3</div>
+        <div class="smart-objective">Audit, organize, and update all web pages for the Office of Communications and Legislative Affairs by June 30, 2025, ensuring accuracy, ADA compliance, and alignment with district messaging standards.</div>
+        <div class="smart-result">On track: Full completion confirmed for June 30, 2025 with ADA compliance and messaging alignment verified throughout.</div>
+        <div class="smart-evidence">The audit process applied a structured review methodology covering content accuracy, ADA compliance (WCAG 2.0 AA standards), broken link remediation, and brand alignment. Work was sequenced to ensure the most high-traffic and public-facing pages were prioritized. The Office of Communications and Legislative Affairs both reflect the updated district messaging standards as of the end of the school year.</div>
+      </div>
+    </div>
+
+    <div class="supervisor-quote">
+      <div class="sq-label">Supervisor Comment (Farrah Wilson)</div>
+      <p>"Sean successfully met each of his SMART objectives, including the development of a detailed roadmap for a cross-departmental web community. His strategic planning, coordination, and follow-through were instrumental in documenting and implementing web migrations that led to the successful launch of the new website."</p>
+    </div>
+  </div>
+
+  <!-- LEADERSHIP -->
+  <h2>Leadership</h2>
+
+  <div class="appas-section">
+    <div class="appas-section-header">
+      <div>
+        <div class="appas-section-title">Leadership</div>
+        <div class="appas-section-subtitle">Leads, facilitates decision-making, engages stakeholders, and communicates departmental goals</div>
+      </div>
+      <span class="h-badge">H - Highly Effective</span>
+    </div>
+
+    <ul class="evidence-list">
+      <li><strong>Built a distributed WCM leadership model.</strong> Transformed the District Webmaster role from a single point of dependency into a hub-and-spoke governance structure where department WCMs are empowered to manage and maintain their own content with clear standards and support structures in place.</li>
+      <li><strong>Defined district-wide web governance standards.</strong> Authored and distributed the protocols, communication guidelines, and maintenance best practices that all 100+ BCPS department websites now operate under - establishing a consistent, enforceable web standard for the first time.</li>
+      <li><strong>Proactively designed the Hot Labs program.</strong> Identified a gap in how department staff were receiving CMS support and created a standing, three-times-per-week open session format to fill it - without being directed to do so. This is a direct example of leading the department forward before a problem escalated.</li>
+      <li><strong>Communicated goals across every level of the district web community.</strong> Used newsletters, briefings, and direct stakeholder engagement to keep all WCMs, department heads, and leadership aligned on migration timelines, content standards, and platform changes throughout the year.</li>
+      <li><strong>Led the successful launch of the new district website.</strong> Coordinated across multiple departments and teams to ensure the new Broward County Public Schools website launched on time, with consistent brand alignment and ADA compliance across all migrated content.</li>
+    </ul>
+
+    <div class="outcome-banner">
+      <div class="outcome-label">Summary</div>
+      <p>Sean's leadership this year was demonstrated not through authority but through <strong>initiative, structure, and consistent delivery</strong>. He elevated the function of the District Webmaster role from technical execution to organizational leadership, creating systems that will sustain the district's web quality well beyond this evaluation cycle.</p>
+    </div>
+  </div>
+
+  <!-- INFORMATION & ANALYSIS -->
+  <h2>Information &amp; Analysis</h2>
+
+  <div class="appas-section">
+    <div class="appas-section-header">
+      <div>
+        <div class="appas-section-title">Information &amp; Analysis</div>
+        <div class="appas-section-subtitle">Gathers data, informs decision-making, ensures transparency across stakeholders</div>
+      </div>
+      <span class="h-badge">H - Highly Effective</span>
+    </div>
+
+    <ul class="evidence-list">
+      <li><strong>Built a real-time department status tracking system.</strong> Developed and maintained a color-coded status framework (Complete, Pending/WCM Court, In Review/Our Court, Audit Submitted, Incomplete) that gave leadership instant visibility into where each department stood in the migration and compliance process at any given time.</li>
+      <li><strong>Used data to sequence support resources.</strong> Rather than treating all departments equally, Sean analyzed which departments were furthest behind, which had the highest traffic, and which carried the greatest compliance risk - then prioritized 1-on-1 sessions and Hot Labs slots accordingly.</li>
+      <li><strong>Proactively surfaced ADA compliance risks.</strong> Identified accessibility deficiencies before they became legal exposure for the district and routed them through a structured audit and remediation workflow, with documented status at each stage.</li>
+      <li><strong>Made all tracking data transparent and accessible.</strong> Status data was not siloed in a personal system. It was shared with department stakeholders and the Marketing &amp; Strategic Communications team so everyone could act on the same picture of progress.</li>
+    </ul>
+
+    <div class="supervisor-quote">
+      <div class="sq-label">Supervisor Comment (Farrah Wilson)</div>
+      <p>"Sean consistently leveraged data-driven insights to inform decisions that aligned with departmental goals, ensuring the website and web community were built on a foundation of user needs and performance metrics. His proactive approach to collecting, analyzing, and sharing information enabled cross-departmental alignment and continuous improvement."</p>
+    </div>
+  </div>
+
+  <!-- STRATEGIC QUALITY PLANNING -->
+  <h2>Strategic Quality Planning</h2>
+
+  <div class="appas-section">
+    <div class="appas-section-header">
+      <div>
+        <div class="appas-section-title">Strategic Quality Planning</div>
+        <div class="appas-section-subtitle">Develops long-term plans, cascades goals, allocates resources, gathers stakeholder input</div>
+      </div>
+      <span class="h-badge">H - Highly Effective</span>
+    </div>
+
+    <ul class="evidence-list">
+      <li><strong>Developed a multi-phase web roadmap aligned to district strategic priorities.</strong> The 2024-2025 plan connected the immediate goal (migrate all departments to Finalsite) to the long-term outcome (a self-sustaining, quality-controlled web community) with clear milestones at each phase.</li>
+      <li><strong>Created scalable WCM onboarding materials.</strong> Designed resource guides, training documentation, and communication templates that reduce long-term dependency on the District Webmaster for routine content management tasks, building capacity at the department level instead.</li>
+      <li><strong>Aligned all web initiatives to district brand and messaging standards.</strong> Every migration decision, content update, and audit finding was evaluated against district-approved standards - ensuring that quality is embedded in the process, not bolted on at the end.</li>
+      <li><strong>Built systems designed to outlast the school year.</strong> The Web Community framework, Hot Labs cadence, and WCM support protocols are all designed to continue operating and improving beyond 2024-2025, representing true strategic quality planning rather than one-time project delivery.</li>
+    </ul>
+
+    <div class="supervisor-quote">
+      <div class="sq-label">Supervisor Comment (Farrah Wilson)</div>
+      <p>"Sean demonstrated strong strategic quality planning by aligning web initiatives with district priorities and long-term goals. He proactively developed scalable systems to support continuous improvement and ensure a cohesive, high-quality user experience across all district web platforms."</p>
+    </div>
+  </div>
+
+  <!-- CUSTOMER FOCUS -->
+  <h2>Customer Focus</h2>
+
+  <div class="appas-section">
+    <div class="appas-section-header">
+      <div>
+        <div class="appas-section-title">Customer Focus</div>
+        <div class="appas-section-subtitle">Builds relationships, gathers feedback, responds to internal and external customer needs</div>
+      </div>
+      <span class="h-badge">H - Highly Effective</span>
+    </div>
+
+    <ul class="evidence-list">
+      <li><strong>Designed the Web Community infrastructure around WCM pain points.</strong> The Hot Labs format (three times per week, open drop-in) was created specifically because department staff could not consistently attend scheduled training. Sean built the support model around how WCMs actually work, not how it was administratively convenient to deliver.</li>
+      <li><strong>One-on-one sessions tailored to individual department needs.</strong> Rather than a uniform rollout, Sean met with individual departments to understand their specific content structures, legacy page challenges, and staff capacity - and then customized the migration approach for each.</li>
+      <li><strong>Served internal and external customers simultaneously.</strong> The new district website serves students, families, and community members as external customers - and department WCMs and staff as internal customers. Sean's work this year improved the experience for all of them.</li>
+      <li><strong>Built and maintained relationships across 100% of BCPS departments.</strong> The sustained, multi-format engagement model (newsletters, 1-on-1s, Hot Labs) required active relationship management throughout the year, not just at project kickoff.</li>
+    </ul>
+
+    <div class="supervisor-quote">
+      <div class="sq-label">Supervisor Comment (Farrah Wilson)</div>
+      <p>"Sean prioritized customer focus by designing a user-friendly web experience that reflects stakeholder needs. He fostered collaboration across departments to build a vibrant web community that supports engagement, transparency, and access to district resources."</p>
+    </div>
+  </div>
+
+  <!-- HUMAN RESOURCES -->
+  <h2>Human Resources</h2>
+
+  <div class="appas-section">
+    <div class="appas-section-header">
+      <div>
+        <div class="appas-section-title">Human Resources</div>
+        <div class="appas-section-subtitle">Identifies training needs, fosters staff growth, promotes collaborative problem-solving</div>
+      </div>
+      <span class="e-badge">E - Effective</span>
+    </div>
+
+    <ul class="evidence-list">
+      <li><strong>Served as the primary professional development resource for all BCPS WCMs.</strong> Through Hot Labs and one-on-one sessions, Sean functioned as a coach and trainer for content staff across all departments - identifying individual skill gaps and providing targeted guidance to address them.</li>
+      <li><strong>Designed the Hot Labs program as a structured professional development format.</strong> The three-times-per-week cadence gave department staff a reliable, low-barrier entry point to improve their CMS skills throughout the year, not just during a one-time training event.</li>
+      <li><strong>Fostered a collaborative problem-solving culture within the WCM community.</strong> By establishing consistent touchpoints, Sean created an environment where WCMs could share challenges, learn from each other, and develop confidence with the new platform.</li>
+    </ul>
+
+    <div class="growth-note">
+      <strong>Context note:</strong> The Effective rating in Human Resources reflects Sean's position as a district-level individual contributor without direct reports. Traditional HR management metrics (personnel evaluations, compensation decisions, formal supervisory actions) are not within the scope of the District Webmaster role. The rating reflects strong collaborative development work within the boundaries of the position.
+    </div>
+  </div>
+
+  <!-- MANAGEMENT OF PROCESSES -->
+  <h2>Management of Processes</h2>
+
+  <div class="appas-section">
+    <div class="appas-section-header">
+      <div>
+        <div class="appas-section-title">Management of Processes</div>
+        <div class="appas-section-subtitle">Establishes quality standards, analyzes results, leverages tools, ensures compliance</div>
+      </div>
+      <span class="h-badge">H - Highly Effective</span>
+    </div>
+
+    <ul class="evidence-list">
+      <li><strong>Designed a complete end-to-end web migration workflow.</strong> The migration process included clear intake, review, staging, approval, and go-live phases - with defined responsibilities and quality checkpoints at each stage to prevent errors from moving forward uncaught.</li>
+      <li><strong>Maintained real-time department-level status tracking.</strong> No department fell through the cracks. Progress was tracked visually and updated continuously so the entire migration remained coordinated across all teams and timelines simultaneously.</li>
+      <li><strong>Created standardized templates and documentation to make the process repeatable.</strong> The guides, checklists, and resource materials produced this year mean that future migrations, content updates, and platform changes can follow the same quality-controlled path without rebuilding the process from scratch.</li>
+      <li><strong>Ensured ADA and brand compliance across all migrated content.</strong> Compliance was not a post-migration review - it was embedded in the workflow itself, with audit findings tracked and resolved as part of the standard migration process.</li>
+      <li><strong>Delivered the new district website on time.</strong> Through structured project management and consistent cross-team communication, the highest-stakes deliverable of the year - the public-facing BCPS website - launched successfully within the target window.</li>
+    </ul>
+
+    <div class="supervisor-quote">
+      <div class="sq-label">Supervisor Comment (Farrah Wilson)</div>
+      <p>"Sean effectively managed web processes by developing clear workflows, timelines, and quality controls that ensured efficient execution of key initiatives. His structured approach supported consistent delivery, cross-team coordination, and successful implementation of district web projects."</p>
+    </div>
+  </div>
+
+  <!-- OVERALL -->
+  <h2>Overall Rating</h2>
+
+  <div class="appas-section">
+    <div class="appas-section-header">
+      <div>
+        <div class="appas-section-title">Overall Performance Rating</div>
+        <div class="appas-section-subtitle">2024-2025 Final Appraisal - End of Year</div>
+      </div>
+      <span class="h-badge">H - Highly Effective</span>
+    </div>
+
+    <p>Sean A. Russell met or exceeded all three SMART objectives for the 2024-2025 school year and performed at the Highly Effective level across five of the six APPAS domains. His work this year established the web infrastructure, governance standards, and WCM support model that the entire Broward County Public Schools district now operates on.</p>
+
+    <p>The scope of this year's work went beyond technical execution. Sean designed systems, built community, and drove a district-wide change management effort that required sustained leadership, strategic thinking, and direct service to 100% of BCPS departments - all while maintaining the daily operations of the district's web presence.</p>
+
+    <div class="supervisor-quote">
+      <div class="sq-label">Supervisor Comment (Farrah Wilson) - Overall</div>
+      <p>"Sean consistently demonstrates excellence in every aspect of his role, earning a highly effective rating. He strategically aligns web initiatives with district goals, manages complex processes with precision, and fosters collaboration through a strong web community. His data-informed decisions, customer-focused mindset, and commitment to quality have resulted in a successful website launch and ongoing platform improvements. Sean's leadership, reliability, and forward-thinking approach make him an invaluable asset to the team."</p>
+    </div>
+  </div>
+
+  <h2>Suggested Focus for Professional Growth</h2>
+  <div class="section-block">
+    <div class="timeline-row">
+      <div class="timeline-date">2025-2026</div>
+      <div class="timeline-text"><strong>WCM Capacity Building.</strong> Transition from direct support delivery to train-the-trainer model, building a tier of department WCM leads who can onboard and coach peers independently.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">2025-2026</div>
+      <div class="timeline-text"><strong>Analytics Integration.</strong> Incorporate web performance data (traffic, engagement, accessibility compliance rates) into the district's strategic communications reporting to demonstrate measurable impact.</div>
+    </div>
+    <div class="timeline-row highlight">
+      <div class="timeline-date">Ongoing</div>
+      <div class="timeline-text"><strong>Continued ADA Leadership.</strong> Maintain the district's WCAG 2.0 AA compliance posture as the web platform evolves, and position BCPS as a model for accessible public school district web communications in Florida.</div>
+    </div>
+  </div>
+
+  <p class="footer-note">
+    Prepared by: Sean A. Russell, District Webmaster, Marketing &amp; Strategic Communications<br>
+    Supervisor: Farrah Wilson | Personnel #: P00056342 | Location #: 9904<br>
+    Document prepared June 19, 2026 to support the 2024-2025 APPAS Final Evaluation
+  </p>
+
+</main>
+</body>
+</html>

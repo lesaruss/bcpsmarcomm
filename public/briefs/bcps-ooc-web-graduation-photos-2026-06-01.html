@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OOC WEB Graduation Photos Workflow - June 1, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: inherit; text-decoration: none; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(26px, 4vw, 44px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 18px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .outcome-banner p strong { color: var(--text); }
+
+  .decision-item { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .decision-item:last-child { border-bottom: none; }
+  .decision-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .decision-detail { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+  .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
+
+  .action-item { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .action-item:last-child { border-bottom: none; }
+  .action-num { font-size: 20px; font-weight: 900; color: var(--bcps-blue); min-width: 32px; line-height: 1; }
+  .action-body .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .action-body .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .action-body .action-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); margin-top: 6px; }
+  .action-body .action-deadline { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bcps-orange); margin-top: 4px; }
+
+  .tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 4px; margin: 2px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .tag.open { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.28); color: var(--bcps-blue-dark); }
+  .tag.resolved { background: rgba(22,117,12,0.10); border-color: rgba(22,117,12,0.30); color: var(--bcps-green); }
+  .tag.pending { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.28); color: var(--bcps-orange); }
+
+  .timeline-row { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-date { font-size: 11px; font-weight: 700; color: var(--bcps-blue); min-width: 110px; padding-top: 2px; }
+  .timeline-text { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .timeline-text strong { color: var(--text); }
+  .timeline-row.highlight .timeline-date { color: var(--bcps-green); }
+  .timeline-row.highlight .timeline-text { color: var(--text); }
+
+  .attendee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 8px; }
+  .attendee-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+  .attendee-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .attendee-title { font-size: 11px; color: var(--text-50); font-weight: 600; }
+
+  .nested-list { list-style: none; padding-left: 20px; margin: 12px 0; }
+  .nested-list li { font-size: 13px; color: var(--text-75); line-height: 1.6; margin: 6px 0; }
+  .nested-list li:before { content: "• "; color: var(--bcps-blue); font-weight: 700; margin-right: 8px; }
+</style>
+</head>
+<body>
+
+<header class="bcps-header">
+  <div class="bcps-header-divider"></div>
+  <span class="bcps-header-title">BCPS - Huddle</span>
+</header>
+
+<main>
+  <h1>OOC WEB Graduation Photos Workflow</h1>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Date</span>
+      <span class="meta-value">June 1, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Platform</span>
+      <span class="meta-value">Virtual Huddle</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Attendees</span>
+      <span class="meta-value">2 People</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value">v1.1 - June 1, 2026</span>
+    </div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>Audience:</strong> Final Site web team, BCPS communications, photography and graduation planning stakeholders, web governance team. This brief documents workflow improvements for graduation photos and automated audit architecture using Claude Cowork.</p>
+  </div>
+
+  <h2>Attendees</h2>
+  <div class="attendee-grid">
+    <div class="attendee-card">
+      <div class="attendee-name">Sean A. Russell</div>
+      <div class="attendee-title">Project Lead</div>
+    </div>
+    <div class="attendee-card">
+      <div class="attendee-name">Felicia C. Hicks</div>
+      <div class="attendee-title">Gallery & Content Coordinator</div>
+    </div>
+  </div>
+
+  <h2>Key Decisions</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title">Graduate Profile Layout: 2 to 3 Columns</div>
+      <div class="decision-detail">Approved transition from 2-column to 3-column layout for graduation photo pages. This reduces scrolling friction for parents and improves visual hierarchy. Layout tested and confirmed working with left navigation sidebar intact.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Image Optimization Approach</div>
+      <div class="decision-detail">Approved use of Canva background removal and image upscaling tools for low-resolution photos. Method: remove background (to clean yearbook-style blue background), upscale if needed, maintain 262x323px dimensions as standard.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Graduation Schedule Visibility Post-Event</div>
+      <div class="decision-detail">Graduation schedule component to be removed after final event date (Wednesday). No historical archive requirement confirmed. Timeline confirms schedule no longer needed after graduation concludes.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Automated Audit Architecture via Claude Cowork</div>
+      <div class="decision-detail">Approved framework for automated BCPS department page audits using Claude Cowork. Sean A. Russell will build proof of concept this week: define audit requirements document, provide department page snapshot, have Claude evaluate each page and score compliance, run weekly.</div>
+    </div>
+  </div>
+
+  <h2>Automation Audits Initiative</h2>
+  <div class="section-block">
+    <p><strong>Objective:</strong> Replace manual audit process with automated Claude Cowork verification that runs weekly, scales across all department pages, and reduces WCM response latency.</p>
+    
+    <p style="margin-top: 18px; font-weight: 700; color: var(--text);">Phase 1: Proof of Concept (This Week)</p>
+    <ul class="nested-list">
+      <li>Document audit requirements (same context provided to WCMs)</li>
+      <li>Create snapshot of all department infrastructure pages</li>
+      <li>Run Claude through 1-2 sample department pages with requirements</li>
+      <li>Verify Claude correctly identifies required elements and compliance gaps</li>
+      <li>If solid, move to Phase 2</li>
+    </ul>
+
+    <p style="margin-top: 18px; font-weight: 700; color: var(--text);">Phase 2: Weekly Automation (Scaled)</p>
+    <ul class="nested-list">
+      <li>Run automated audit on all department pages every single week</li>
+      <li>Similar to Site Improve model but running on internal infrastructure</li>
+      <li>Auto-generate audit score report for each department</li>
+    </ul>
+
+    <p style="margin-top: 18px; font-weight: 700; color: var(--text);">Phase 3: Enhanced Features (Iterative)</p>
+    <ul class="nested-list">
+      <li>Add ADA accessibility checker to audit scope</li>
+      <li>Auto-email WCM queue when audit finds issues</li>
+      <li>Auto-send 5-day reminder if WCM has not responded</li>
+      <li>Identify enhanced elements used outside standard layout</li>
+      <li>Create video guides showing approved vs. enhanced element variations</li>
+    </ul>
+
+    <p style="margin-top: 18px; color: var(--text-75);"><strong>Expected Outcome:</strong> Weekly automated compliance reports replace manual audits. WCMs get immediate notification and 5-day response window with reminder. Dashboard shows real-time compliance status. Reduces audit labor from manual to monitoring.</p>
+  </div>
+
+  <h2>Action Items</h2>
+  <div class="section-block">
+    <div class="action-item">
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <div class="action-title">Retry Image Upscaler Tool</div>
+        <div class="action-detail">Canva upscaler hit plan limit and requires upgrade. Retry in 2-3 minutes to test if Free tier regenerates. If blocked, request upgrade or switch to Canva Pro plan access for BCPS account.</div>
+        <div class="action-owner">Owner: Felicia C. Hicks, Gallery Coordinator</div>
+        <div class="action-deadline">Due: By end of shift same day</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">2</div>
+      <div class="action-body">
+        <div class="action-title">Notify Stakeholders: Website Live Update</div>
+        <div class="action-detail">Send email to Final Site and web team confirming that updated layout (3-column) with enhanced photo processing is live. Highlight progress from single-image baseline to current multi-graduate display.</div>
+        <div class="action-owner">Owner: Felicia C. Hicks, Gallery Coordinator</div>
+        <div class="action-deadline">Due: Before end of business, June 1</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">3</div>
+      <div class="action-body">
+        <div class="action-title">Send Back-to-School Message</div>
+        <div class="action-detail">Deliver back-to-school messaging to Vanessa before taking vacation. Include Sean A. Russell on CC line to maintain visibility of all communications.</div>
+        <div class="action-owner">Owner: Felicia C. Hicks, Gallery Coordinator</div>
+        <div class="action-deadline">Due: Before departure, June 1</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">4</div>
+      <div class="action-body">
+        <div class="action-title">Build Automated Audit Proof of Concept</div>
+        <div class="action-detail">Define audit requirements document using existing WCM guidance. Create snapshot of all department pages. Run Claude through 1-2 sample departments to verify it correctly scores compliance. Check its work against actual page state. If successful, outline weekly automation strategy.</div>
+        <div class="action-owner">Owner: Sean A. Russell, Project Lead</div>
+        <div class="action-deadline">Due: End of this afternoon</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">5</div>
+      <div class="action-body">
+        <div class="action-title">Process Incoming Photo Batch</div>
+        <div class="action-detail">New batch of photos received. Process following established workflow: remove backgrounds, apply standard sizing, organize alphabetically by school, upload to public resources, place in correct folder (Salutatorian or Valedictorian 2026).</div>
+        <div class="action-owner">Owner: Felicia C. Hicks, Gallery Coordinator</div>
+        <div class="action-deadline">Due: Resuming after vacation (Thursday, June 6)</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">6</div>
+      <div class="action-body">
+        <div class="action-title">Send Updated Audit Requirements to Directors</div>
+        <div class="action-detail">Distribute updated audit requirements document incorporating Felicia and team feedback to all district web team members and directors. Include team in communication loop so they can begin preparations.</div>
+        <div class="action-owner">Owner: Sean A. Russell, Project Lead</div>
+        <div class="action-deadline">Due: Before end of business, June 1</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Open Issues</h2>
+  <div class="section-block">
+    <span class="tag pending">Canva Upscaler Plan Limit</span>
+    <p style="font-size: 13px; color: var(--text-75); line-height: 1.6; margin-top: 12px;">BCPS Canva account hitting upgrade wall on image upscaler tool. Needs either plan upgrade or confirmation that Free tier generates new tokens after wait period. Low-resolution photos are blocking optimal visual results but workaround via Canva Pro exists.</p>
+  </div>
+
+  <h2>Next Steps</h2>
+  <div class="section-block">
+    <div class="timeline-row">
+      <div class="timeline-date">June 3, 2026</div>
+      <div class="timeline-text"><strong>Graduation event final day.</strong> Remove schedule component from live site after Wednesday concludes.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">June 6, 2026</div>
+      <div class="timeline-text"><strong>Felicia returns.</strong> Resume processing of photo backlogs and any incoming batches. Gallery maintenance continues.</div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-date">Week of June 8</div>
+      <div class="timeline-text"><strong>Audit automation ready.</strong> If PoC successful, move to weekly automated audits. WCMs notified of dashboard, given 5-day response window for any findings.</div>
+    </div>
+    <div class="timeline-row highlight">
+      <div class="timeline-date">Ongoing</div>
+      <div class="timeline-text"><strong>Photo workflow established.</strong> Template and process documented. New batches processed with consistent background removal, sizing, and folder organization.</div>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>
