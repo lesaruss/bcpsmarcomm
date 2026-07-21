@@ -23,6 +23,7 @@ export type PageId =
   | 'community-relations'
   | 'minibase'
   | 'pulse-approvals'
+  | 'find-it-fast'
 
 export interface BreadcrumbItem {
   label: string
