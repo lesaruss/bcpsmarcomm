@@ -282,49 +282,38 @@
     transport: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="11" rx="2"/><path d="M3 12h18M7 17v2M17 17v2"/><circle cx="7.5" cy="17" r="0.5"/><circle cx="16.5" cy="17" r="0.5"/></svg>'
   };
 
-  var CATEGORIES = [
-    { id: "all", label: "All", icon: "" },
-    { id: "enroll", label: "Enrollment & Registration", icon: ICONS.enroll },
-    { id: "calendar", label: "Calendars & Key Dates", icon: ICONS.calendar },
-    { id: "forms", label: "Forms & Paperwork", icon: ICONS.forms },
-    { id: "support", label: "Family & Student Support", icon: ICONS.support },
-    { id: "portal", label: "Family Portal & Technology", icon: ICONS.portal },
-    { id: "transport", label: "Transportation & Nutrition", icon: ICONS.transport }
-  ];
+  // Content is editable live by BCPS marcomm staff (Find It Fast admin page
+  // at bcpsmarcomm.com/bcps?page=find-it-fast) and stored in Supabase, so it
+  // is fetched at runtime rather than hardcoded here.
+  var SUPABASE_URL = "https://fwbhwfxpncrsfhttimna.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA";
 
-  var LINKS = [
-    { cat: "enroll", title: "New Student Registration", url: "https://www.browardschools.com/directory/our-schools", blurb: "Find your zoned school and start the registration process for the 2026/27 school year." },
-    { cat: "enroll", title: "Welcome To Kindergarten", url: "https://www.browardschools.com/academics/welcome-to-kindergarten", blurb: "What incoming kindergarten families need to know before the first day, from readiness to required documents." },
-    { cat: "enroll", title: "Exceptional Student Education", url: "https://www.browardschools.com/bcps-departments/exceptional-student-education/overview", blurb: "Enrollment and services information for students who receive ESE support." },
-    { cat: "enroll", title: "Immunization Information", url: "https://www.browardschools.com/fs/pages/81786", blurb: "Required immunization records and health forms needed before the first day of school." },
-    { cat: "enroll", title: "Innovative and Magnet Programs", url: "https://www.browardschools.com/fs/pages/80656", blurb: "Explore specialized magnet and innovative academic programs available across the district." },
+  var CATEGORIES = [{ id: "all", label: "All", icon: "" }];
+  var LINKS = [];
 
-    { cat: "calendar", title: "District Calendar", url: "https://www.browardschools.com/calendar-e3", blurb: "First day of school, holidays, early release days, and school board meeting dates in one place." },
-    { cat: "calendar", title: "Employee & Student Planning Days", url: "https://www.browardschools.com/calendar-e3", blurb: "Confirm which days students are not in session so you can plan ahead." },
-    { cat: "calendar", title: "School Board Meeting Schedule", url: "https://www.browardschools.com/school-board/upcoming-school-board-meetings", blurb: "Dates and times for upcoming public board meetings and workshops." },
+  function supabaseGet(table, query) {
+    return fetch(SUPABASE_URL + "/rest/v1/" + table + "?" + query, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
+    }).then(function (r) {
+      if (!r.ok) throw new Error(table + " fetch failed: " + r.status);
+      return r.json();
+    });
+  }
 
-    { cat: "forms", title: "Back To School Online Forms", url: "https://www.browardschools.com/back-to-school-online-forms", blurb: "Complete required start of year paperwork online instead of on paper at open house." },
-    { cat: "forms", title: "Public Records Request", url: "https://www.browardschools.com/public-records-request", blurb: "How to file a request for district records." },
-    { cat: "forms", title: "The Code Book for Student Conduct", url: "https://www.browardschools.com/the-code-book-for-student-conduct", blurb: "District expectations and policies for student behavior for the current school year." },
-
-    { cat: "support", title: "Parents & Families Hub", url: "https://www.browardschools.com/parentsstudentsstaff/parents-families", blurb: "A starting point for parent resources, guides, and ways to get involved this year." },
-    { cat: "support", title: "Mental Health Support", url: "https://www.browardschools.com/bcps-departments/mental-health-services", blurb: "Resources and contacts for students and families who need mental health support." },
-    { cat: "support", title: "Customer Service", url: "https://www.browardschools.com/parentsstudentsstaff/customer-service", blurb: "Have a question that is not answered here. Reach the district customer service team directly." },
-    { cat: "support", title: "Anonymous Tips - Report a Safety or Security Tip", url: "https://www.browardschools.com/fs/pages/83746", blurb: "Submit an anonymous tip if you see or hear about a safety or security concern at a school." },
-    { cat: "support", title: "Before and After School Care", url: "https://www.browardschools.com/bcps-departments/strategy-innovation/before-and-after-school-child-care-bascc/applications", blurb: "Apply for before and after school child care (BASCC) at participating school sites." },
-    { cat: "support", title: "ESOL", url: "https://www.browardschools.com/fs/pages/86281", blurb: "Information and support services for English for Speakers of Other Languages (ESOL) students and families." },
-
-    { cat: "portal", title: "Single Sign-On (Focus & Family Access)", url: "https://sso.browardschools.com", blurb: "Log in to check grades, attendance, and school announcements throughout the year." },
-    { cat: "portal", title: "Students Hub", url: "https://www.browardschools.com/parentsstudentsstaff/students", blurb: "Student focused resources including technology access and academic tools." },
-    { cat: "portal", title: "Important Phone Numbers", url: "https://www.browardschools.com/directory/important-phone-numbers", blurb: "District and department phone numbers if you would rather call than search online." },
-    { cat: "portal", title: "Access Student Grades and Report Cards", url: "https://www.browardschools.com/fs/pages/83131", blurb: "Log in to Focus to view current grades, report cards, and academic progress throughout the year." },
-    { cat: "portal", title: "Online School Payments - E-Store", url: "https://www.browardschools.com/fs/pages/81558", blurb: "Pay school fees, fundraisers, and other items online through the district E-Store." },
-    { cat: "portal", title: "Microsoft Student Advantage", url: "https://www.browardschools.com/fs/pages/83121", blurb: "Free access to Microsoft Office software for enrolled students through the district technology program." },
-
-    { cat: "transport", title: "Food and Nutrition Services", url: "https://www.browardschools.com/bcps-departments/food-and-nutrition-services", blurb: "Meal program details, free and reduced price eligibility, and cafeteria information." },
-    { cat: "transport", title: "Power Up Menus", url: "https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus", blurb: "This month's breakfast and lunch menus by school level." },
-    { cat: "transport", title: "Bus Route Information", url: "https://www.browardschools.com/directory/important-phone-numbers", blurb: "Confirm pickup and drop off times through your school or the transportation department." }
-  ];
+  function loadContent() {
+    return Promise.all([
+      supabaseGet("bcps_fif_categories", "select=slug,label,icon_key,sort_order&order=sort_order.asc"),
+      supabaseGet("bcps_fif_links", "select=category_slug,title,url,blurb,sort_order&order=sort_order.asc")
+    ]).then(function (results) {
+      var cats = results[0], fetchedLinks = results[1];
+      CATEGORIES = [{ id: "all", label: "All", icon: "" }].concat(cats.map(function (c) {
+        return { id: c.slug, label: c.label, icon: ICONS[c.icon_key] || "" };
+      }));
+      LINKS = fetchedLinks.map(function (l) {
+        return { cat: l.category_slug, title: l.title, url: l.url, blurb: l.blurb || "" };
+      });
+    });
+  }
 
   var state = { cat: "all", q: "", page: 1 };
 
@@ -467,8 +456,16 @@
     render(true);
   });
 
-  renderCats();
-  render();
+  countEl.textContent = "Loading...";
+  loadContent().then(function () {
+    renderCats();
+    render();
+  }).catch(function (err) {
+    countEl.textContent = "";
+    emptyEl.hidden = false;
+    emptyEl.textContent = "Find It Fast could not load right now. Please try again shortly.";
+    if (window.console) console.error("Find It Fast load error:", err);
+  });
 
   window.addEventListener("load", postHeight);
   window.addEventListener("resize", postHeight);
