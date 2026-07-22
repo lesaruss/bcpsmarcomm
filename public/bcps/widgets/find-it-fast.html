@@ -191,6 +191,9 @@
     gap: 14px;
     margin-top: 20px;
   }
+  #fif-module .fif-pagination[hidden] {
+    display: none;
+  }
   #fif-module .fif-page-btn {
     display: inline-flex;
     align-items: center;
@@ -374,6 +377,9 @@
   function renderPagination(total, totalPages) {
     if (totalPages <= 1) {
       paginationEl.hidden = true;
+      pageInfoEl.textContent = "";
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
       return;
     }
     paginationEl.hidden = false;
