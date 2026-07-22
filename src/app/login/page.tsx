@@ -3,6 +3,13 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
+function getSafeNext(): string {
+  if (typeof window === 'undefined') return '/'
+  const next = new URLSearchParams(window.location.search).get('next')
+  if (next && next.startsWith('/') && !next.startsWith('//')) return next
+  return '/'
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -15,10 +22,12 @@ export default function LoginPage() {
 
   const handleGoogle = async () => {
     setLoading(true)
+    const next = getSafeNext()
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo,
       },
     })
     if (error) setError(error.message)
@@ -36,13 +45,14 @@ export default function LoginPage() {
         setError(error.message)
         setLoading(false)
       } else {
-        window.location.href = '/'
+        window.location.href = getSafeNext()
       }
     } else {
+      const next = getSafeNext()
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
       })
       if (error) setError(error.message)
       else setEmailSent(true)
