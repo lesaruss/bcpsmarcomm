@@ -75,13 +75,13 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <div style={{
             width: '56px', height: '56px', borderRadius: '14px',
-            background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+            background: 'linear-gradient(135deg, #1672A7, #0e4e73)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px', fontSize: '24px', fontWeight: '700', color: '#fff',
-            boxShadow: '0 8px 24px rgba(37,99,235,0.35)',
-          }}>K</div>
+            margin: '0 auto 16px', fontSize: '20px', fontWeight: '700', color: '#fff',
+            boxShadow: '0 8px 24px rgba(22,114,167,0.35)',
+          }}>BCPS</div>
           <h1 style={{ color: '#fff', fontSize: '22px', fontWeight: '700', margin: '0 0 4px' }}>
-            K-12 Unlocked
+            BCPS Marcomm
           </h1>
           <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
             Broward County Public Schools
