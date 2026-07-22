@@ -123,6 +123,16 @@ const DOCUMENTS: Document[] = [
     restricted: ['contact@lesaruss.com', 'farrah.wilson@browardschools.com'],
     section: 'records',
   },
+  {
+    id: 'find-it-fast-guide',
+    title: 'Find It Fast: Editing Guide',
+    description: 'Step-by-step walkthrough for editing the Find It Fast widget categories and links on the Back to School page, no code required.',
+    type: 'Guide',
+    date: 'July 21, 2026',
+    url: '/briefs/bcps-find-it-fast-editing-guide.html',
+    icon: '🔎',
+    section: 'documents',
+  },
 ]
 
 export default function DocumentsPage() {
