@@ -24,6 +24,7 @@ export type PageId =
   | 'minibase'
   | 'pulse-approvals'
   | 'find-it-fast'
+  | 'widgets'
 
 export interface BreadcrumbItem {
   label: string
