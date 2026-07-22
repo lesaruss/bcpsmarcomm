@@ -3,6 +3,13 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
+function getSafeNext(): string {
+  if (typeof window === 'undefined') return '/bcps'
+  const next = new URLSearchParams(window.location.search).get('next')
+  if (next && next.startsWith('/') && !next.startsWith('//')) return next
+  return '/bcps'
+}
+
 export default function BCPSLoginPage() {
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -16,10 +23,11 @@ export default function BCPSLoginPage() {
   const handleGoogle = async () => {
     setLoading(true)
     setError('')
+    const next = getSafeNext()
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     })
     if (error) { setError(error.message); setLoading(false) }
@@ -41,7 +49,7 @@ export default function BCPSLoginPage() {
     }
 
     const mustChange = data.user?.user_metadata?.must_change_password
-    window.location.href = mustChange ? '/bcps/set-password' : '/bcps'
+    window.location.href = mustChange ? '/bcps/set-password' : getSafeNext()
   }
 
   const handleForgotPassword = async (e: React.FormEvent) => {
