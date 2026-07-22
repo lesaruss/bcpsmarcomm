@@ -8,7 +8,8 @@ const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const BRAND = 'bcps'
 
-const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
+const noStoreFetch: typeof fetch = (input, init) => fetch(input, { ...(init ?? {}), cache: 'no-store' })
+const svc = createClient(URL, SERVICE, { auth: { persistSession: false }, global: { fetch: noStoreFetch } })
 
 async function authedUser(req: NextRequest) {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
@@ -70,7 +71,9 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  return NextResponse.json({ ok: true, role, widgets: result })
+  const res = NextResponse.json({ ok: true, role, widgets: result })
+  res.headers.set('Cache-Control', 'no-store')
+  return res
 }
 
 // POST /api/bcps/widgets - { action, ...fields }. Admin/superadmin only.
