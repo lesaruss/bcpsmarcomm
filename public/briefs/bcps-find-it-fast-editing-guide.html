@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BCPS Find It Fast: Editing Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: var(--bcps-blue-dark); text-decoration: underline; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; image-rendering: -webkit-optimize-contrast; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  h1 { font-size: clamp(26px, 4vw, 44px); font-weight: 900; line-height: 1.0; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 18px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  p { font-size: 15px; font-weight: 400; color: var(--text-75); line-height: 1.75; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 700; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .context-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .context-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .context-banner p strong { color: var(--bcps-blue-dark); }
+
+  .outcome-banner { background: rgba(22,117,12,0.07); border: 1px solid rgba(22,117,12,0.30); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .outcome-banner .outcome-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-green); margin-bottom: 6px; }
+  .outcome-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .outcome-banner p strong { color: var(--text); }
+
+  .section-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+  .section-block h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text); margin-bottom: 14px; }
+
+  .action-item { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .action-item:last-child { border-bottom: none; }
+  .action-num { font-size: 20px; font-weight: 900; color: var(--bcps-blue); min-width: 32px; line-height: 1; }
+  .action-body .action-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .action-body .action-detail { font-size: 13px; color: var(--text-75); line-height: 1.6; }
+  .action-body .action-owner { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-50); margin-top: 6px; }
+
+  .decision-item { padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .decision-item:last-child { border-bottom: none; }
+  .decision-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .decision-detail { font-size: 13px; color: var(--text-75); line-height: 1.65; }
+
+  .tag { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; padding: 4px 10px; border-radius: 4px; margin: 3px 4px 3px 0; background: var(--surface2); border: 1px solid var(--border); color: var(--text-50); }
+  .tag.blue { background: rgba(22,114,167,0.10); border-color: rgba(22,114,167,0.24); color: var(--bcps-blue-dark); }
+  .tag.caution { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.24); color: var(--bcps-orange); }
+
+  .caution-callout {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: rgba(197,83,38,0.06); border: 1px solid rgba(197,83,38,0.22);
+    border-radius: 8px; padding: 14px 18px; margin: 6px 0 20px;
+  }
+  .caution-badge { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.14em; color: var(--bcps-orange); white-space: nowrap; padding-top: 2px; }
+  .caution-text { font-size: 13px; color: var(--text-75); line-height: 1.55; }
+  .caution-text strong { color: var(--text); }
+
+  footer.doc-footer { max-width: 1100px; margin: 0 auto; padding: 0 28px 60px; }
+  footer.doc-footer p { font-size: 11px; color: var(--text-30); text-align: center; }
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">BCPS - Find It Fast Editing Guide</span>
+</header>
+
+<main>
+
+  <h1>Find It Fast: Editing Guide</h1>
+
+  <div class="meta-row">
+    <div class="meta-item">
+      <span class="meta-label">Tool</span>
+      <span class="meta-value">Find It Fast Widget</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Lives On</span>
+      <span class="meta-value">browardschools.com/backtoschool-clone</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Edit Access</span>
+      <span class="meta-value">Felicia Hicks</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Prepared By</span>
+      <span class="meta-value">Sean A. Russell</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Date</span>
+      <span class="meta-value">July 21, 2026</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Version</span>
+      <span class="meta-value">v1</span>
+    </div>
+  </div>
+
+  <div class="context-banner">
+    <p><strong>What this is:</strong> Find It Fast is the search and category widget on the Back to School page that links out to enrollment forms, calendars, and family resources. It used to be hardcoded, so any update needed a code push from Sean or Claude. It now has its own editor inside the BCPS Web Team Portal, so Felicia can add, edit, reorder, or remove items herself, with no code and no waiting.</p>
+  </div>
+
+  <div class="outcome-banner">
+    <div class="outcome-label">Goal</div>
+    <p>Felicia can update Find It Fast content on her own, and changes appear on the live Back to School page immediately.</p>
+  </div>
+
+  <h2>Getting In</h2>
+  <div class="section-block">
+    <div class="action-item">
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <div class="action-title">Go to bcpsmarcomm.com/bcps/login</div>
+        <div class="action-detail">Sign in with your existing BCPS Web Team Portal account, the same one you already use for the Web Team Assignments tracker and other district tools. No new account or password needed.</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">2</div>
+      <div class="action-body">
+        <div class="action-title">Find "Find It Fast" in the left sidebar</div>
+        <div class="action-detail">It is listed under the MarComm section, alongside Newsroom and Graphics & Printing. You have been granted access to this page specifically, so it will appear for you even though it will not appear for every Web Team member.</div>
+      </div>
+    </div>
+    <div class="action-item">
+      <div class="action-num">3</div>
+      <div class="action-body">
+        <div class="action-title">You are in the editor</div>
+        <div class="action-detail">You will see every category and every resource link currently live on the Back to School page, grouped by category.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>What You Can Do Here</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title">Edit an existing link or category</div>
+      <div class="decision-detail">Type directly into the Title, URL, or Blurb fields for a link, or the Label for a category. Click <strong>Save</strong> next to that row when you are done. Save only lights up once you have changed something, so you cannot accidentally save nothing.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Add a new link</div>
+      <div class="decision-detail">Scroll to the bottom of the category the link belongs in and click <strong>+ Add link</strong>. Fill in Title, URL, and a short Blurb, then click <strong>Add</strong>.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Add a new category</div>
+      <div class="decision-detail">Use the <strong>New category</strong> box at the bottom of the page. Give it a short slug (a web-safe short name, lowercase with dashes), a Label people will see, and pick an icon from the dropdown.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Reorder items</div>
+      <div class="decision-detail">Use the up and down arrows next to any category or link to change the order it appears in on the public page.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Delete a link or category</div>
+      <div class="decision-detail">Click <strong>Delete</strong> and confirm. Deleting a category also removes every link inside it, so move links to a different category first if you only meant to retire the category name.</div>
+    </div>
+  </div>
+
+  <div class="caution-callout">
+    <div class="caution-badge">Heads Up</div>
+    <div class="caution-text"><strong>Changes are live immediately.</strong> There is no draft or preview step and no undo button. Whatever you save shows up on browardschools.com right away. If you are unsure about a change, ask Sean before deleting something rather than after.</div>
+  </div>
+
+  <h2>Icon Key Options</h2>
+  <div class="section-block">
+    <p style="margin-bottom:10px;">Each category has an icon shown next to it on the public page. Pick the one that best matches the category's topic:</p>
+    <span class="tag blue">enroll</span>
+    <span class="tag blue">calendar</span>
+    <span class="tag blue">forms</span>
+    <span class="tag blue">support</span>
+    <span class="tag blue">portal</span>
+    <span class="tag blue">transport</span>
+    <span class="tag">none</span>
+  </div>
+
+  <h2>Questions or Issues</h2>
+  <div class="section-block">
+    <div class="decision-item">
+      <div class="decision-title">Something looks wrong on the live page</div>
+      <div class="decision-detail">Double check the row you last edited was saved (the Save button should be greyed out again once it goes through). If it still looks off after a refresh, contact Sean Russell.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">You don't see Find It Fast in your sidebar</div>
+      <div class="decision-detail">Your access may not have come through yet, or you may be logged into a different account than the one Sean granted access to. Contact Sean Russell to confirm.</div>
+    </div>
+    <div class="decision-item">
+      <div class="decision-title">Someone else on the Web Team needs access too</div>
+      <div class="decision-detail">Access to this page is granted per person, the same way document sharing works elsewhere in the portal. Ask Sean Russell to add anyone else who needs it.</div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="doc-footer">
+  <p>Prepared by Sean A. Russell for the BCPS Web Team. bcpsmarcomm.com/bcps?page=find-it-fast</p>
+</footer>
+
+</body>
+</html>
