@@ -109,7 +109,7 @@ export default function WidgetsPage() {
   if (loading) return <div style={{ padding: 32 }}>Loading widgets...</div>
 
   return (
-    <div style={{ padding: 32, maxWidth: 1000, fontFamily: 'inherit' }}>
+    <div style={{ padding: 32, maxWidth: 1400, fontFamily: 'inherit' }}>
       <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Widgets</h1>
       <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 16px' }}>
         Every embeddable module in one place: preview it, grab the embed code, or edit it if you have access.
@@ -121,12 +121,13 @@ export default function WidgetsPage() {
 
       {widgets.length === 0 && <div style={{ ...C.card, color: '#6b7280' }}>No widgets registered yet.</div>}
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, alignItems: 'start' }}>
       {widgets.map(w => {
         const Editor = w.editor_component ? EDITORS[w.editor_component] : null
         const panel = expanded[w.slug]
         const wgrants = grantsFor(w.object_id)
         return (
-          <div key={w.slug} style={C.card}>
+          <div key={w.slug} style={{ ...C.card, marginBottom: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 800 }}>{w.title}</div>
@@ -153,7 +154,7 @@ export default function WidgetsPage() {
             )}
 
             <div style={{ border: '1px solid #f1f1f1', borderRadius: 8, overflow: 'hidden', background: '#fafafa' }}>
-              <iframe src={w.preview_path} title={`${w.title} preview`} style={{ width: '100%', height: 420, border: 0, display: 'block' }} />
+              <iframe src={w.preview_path} title={`${w.title} preview`} style={{ width: '100%', height: 360, border: 0, display: 'block' }} />
             </div>
 
             {panel === 'edit' && Editor && (
@@ -188,6 +189,7 @@ export default function WidgetsPage() {
           </div>
         )
       })}
+      </div>
     </div>
   )
 }
