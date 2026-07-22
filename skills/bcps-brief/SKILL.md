@@ -1,17 +1,19 @@
 ---
 name: bcps-brief
-description: Generate a BCPS-styled meeting brief from a transcript or notes, push it live to hq.lesaruss.ai, and log it as a Studio task under the BCPS client. USE THIS SKILL automatically whenever Sean drops meeting notes, a transcript, a Fieldy recording, or raw notes and asks to produce a brief, make a link, add to Studio, document a meeting, or mentions BCPS minutes, governance notes, or any BCPS meeting documentation. Also fires when the K12 Unlocked minutes module or BCPS pipeline is mentioned alongside any meeting content. The output is always a sharable hq.lesaruss.ai URL.
+description: Generate a BCPS-styled meeting brief from a transcript or notes, push it live to bcpsmarcomm.com, and log it as a Studio task under the BCPS client. USE THIS SKILL automatically whenever Sean drops meeting notes, a transcript, a Fieldy recording, or raw notes and asks to produce a brief, make a link, add to Studio, document a meeting, or mentions BCPS minutes, governance notes, or any BCPS meeting documentation. Also fires when the K12 Unlocked minutes module or BCPS pipeline is mentioned alongside any meeting content. The output is always a bcpsmarcomm.com/briefs/[slug] URL, access-gated to real recipients.
 ---
 
 # BCPS Brief Generator
 
-Converts raw meeting transcripts or notes into a polished BCPS-branded HTML brief, pushes it live to both hq.lesaruss.ai and k12unlocked.com via their GitHub repos, and logs a Studio project entry under the BCPS client.
+Converts raw meeting transcripts or notes into a polished BCPS-branded HTML brief, writes it to the shared `mock_pages` table (which bcpsmarcomm.com reads directly), gates access to named recipients, and logs a Studio project entry under the BCPS client.
+
+**IMPORTANT, read before doing anything else:** BCPS is a client, not an internal LESARUSS brand. Client deliverables live on bcpsmarcomm.com, never on hq.lesaruss.ai as a surface. This skill writes to a shared Supabase table (`mock_pages`) that bcpsmarcomm.com's own `/briefs/[slug]` route reads directly and renders at bcpsmarcomm.com. That write happens through an API hosted at hq.lesaruss.ai, but the write itself is correct and is not "publishing to HQ": no content, mirror, or static file should ever be pushed into the lesaruss-hq or k12unlocked.com repos for BCPS briefs. Older versions of this skill described a second push to those two repos. That step is retired. Do not resurrect it.
 
 ---
 
 ## What you produce
 
-A self-contained HTML file using the BCPS visual system. These values are locked - do not substitute or invent alternatives:
+A self-contained HTML file using the BCPS visual system. These values are locked, do not substitute or invent alternatives:
 
 | Token | Value |
 |-------|-------|
@@ -23,21 +25,30 @@ A self-contained HTML file using the BCPS visual system. These values are locked
 | Pulse orange | #E8650A |
 | Canvas | #f5f5f5 |
 | Surface cards | #ffffff |
-| Background | white only - never dark mode |
+| Background | white only, never dark mode |
 
-The document always has a fixed BCPS header bar (white, 3px bottom border in #1672A7) and uses the CSS variable system from the template.
+The document always has a fixed BCPS header bar (white, 3px bottom border in #1672A7) and uses the CSS variable system from `assets/template.html`.
 
-**LOGO RULE - NON-NEGOTIABLE:** Every brief must display the BCPS district logo in the header. Use the template in assets/template.html - the logo img tag is already wired in. Never omit it.
+**LOGO RULE, non-negotiable:** every brief must display the BCPS district logo in the header. Use `assets/template.html`, the logo img tag is already wired in. Never omit it.
 
 ---
 
 ## HARD RULES (non-negotiable)
 
-### Attendee names and titles
+### 1. Access control is not optional
 
-**RULE: Attendee names and titles MUST come from the wcm_cert_users table. Never infer, guess, or derive them from transcript context.**
+**A brief with no rows in `bcps_brief_recipients` is PUBLIC on bcpsmarcomm.com.** The route checks for recipient rows and only gates access if rows exist. This is the single most important rule in this skill: if the brief is meant for specific people, their emails must be inserted into `bcps_brief_recipients` before the brief is considered done. Skipping this step does not fail loudly, it just silently ships a restricted-sounding document to the open internet. Confirm the insert succeeded (query it back) before sharing any link.
 
-Before building any brief, run this query:
+```sql
+INSERT INTO bcps_brief_recipients (brief_slug, attendee_name, attendee_email, added_by)
+VALUES ('[slug]', '[Full Name]', '[email]', 'auto');
+```
+
+If the brief is genuinely meant to be public (rare, confirm with Sean first), state that explicitly instead of leaving the table empty by accident.
+
+### 2. Attendee names and titles
+
+Names and titles MUST come from `wcm_cert_users`. Never infer, guess, or derive them from transcript context.
 
 ```sql
 SELECT full_name, department, email, is_admin
@@ -45,191 +56,98 @@ FROM public.wcm_cert_users
 ORDER BY full_name;
 ```
 
-Match each name that appears in the transcript against this table:
-- Match found: use `full_name` as the attendee name and `department` as the title. Never override with transcript wording.
-- No match found: use the name as it appears in the transcript, set `attendee-title` to "Unverified - confirm title and department", and flag this in a comment before delivering the brief.
+Match each name in the transcript against this table. Match found: use `full_name` and `department`, never override with transcript wording. No match: use the transcript's wording, set the attendee title to "Unverified, confirm title and department," and flag the gap in the chat response before delivering.
 
-Sean A. Russell is always: "Sean A. Russell, District Webmaster, Office of Communications" - this is locked regardless of what the transcript says.
+Sean A. Russell is always: "Sean A. Russell, District Webmaster, Office of Communications," locked regardless of transcript wording.
 
-### Pulse widget
+### 3. Pulse widget
 
-Every brief MUST include the Pulse widget. Copy it verbatim from assets/template.html. Replace:
-- `{{SUPABASE_ANON_KEY}}` with the anon key from lesaruss_secrets
-- `{{SLUG}}` with the brief slug
+Every brief MUST include the Pulse widget, copied verbatim from `assets/template.html`. Replace `{{SUPABASE_ANON_KEY}}` with the anon key from `lesaruss_secrets` and `{{SLUG}}` with the brief slug. It is an orange diamond fixed bottom-left; clicking it opens a panel that posts to `pulse_messages`.
 
-The Pulse widget is: an orange diamond fixed in the bottom-left corner of the page. Clicking it opens a message panel. Messages post to the `pulse_messages` table in Supabase.
+### 4. No em-dashes
 
-### No em-dashes
+Zero tolerance. Comma, colon, or plain hyphen only. Check the whole HTML before pushing.
 
-Zero tolerance. Use comma, colon, or plain hyphen. Check the entire HTML before pushing.
+### 5. Series field
 
-### Series field
+Every brief includes a Series meta field derived from the meeting title and recurrence pattern: "Recurring, Mondays and Thursdays," "One-time," "Monthly." Never blank.
 
-Every brief must include the Series meta field. Derive it from the meeting title and recurrence pattern in the transcript. Common values: "Recurring - Mondays and Thursdays", "One-time", "Monthly". Never leave blank.
+### 6. Recording link
 
-### Recording link
-
-If a Teams or Zoom recording URL is present in the transcript or source, include the recording bar. If no recording URL is available, omit the recording bar entirely - do not include a placeholder.
+Include the recording bar only if a Teams or Zoom URL is present in the source. No URL, no placeholder, omit the section entirely.
 
 ---
 
 ## Step-by-step workflow
 
-### Step 1 - Load attendee roster
-
-Before reading the transcript, query wcm_cert_users:
+### Step 1: Load attendee roster and credentials
 
 ```sql
-SELECT full_name, department, email, is_admin
-FROM public.wcm_cert_users
-ORDER BY full_name;
+SELECT full_name, department, email, is_admin FROM public.wcm_cert_users ORDER BY full_name;
+SELECT key, value FROM public.lesaruss_secrets WHERE key IN ('LESARUSS_ADMIN_TOKEN', 'SUPABASE_ANON_KEY');
+```
+Supabase project ID: `fwbhwfxpncrsfhttimna`
+
+### Step 2: Extract from the source
+
+Pull meeting title, date, series, platform, attendees (cross-referenced against `wcm_cert_users` immediately), recording URL, session overview, decisions with rationale, action items with owner and deadline, open questions, and follow-up dates. Do not fabricate anything missing, note the gap inline instead.
+
+Slug pattern: `bcps-[short-topic]-[YYYY-MM-DD]`, e.g. `bcps-analytics-governance-2026-05-22`.
+
+### Step 3: Build the HTML brief
+
+Use `assets/template.html`. Required sections in order: fixed BCPS header with logo, H1 title, meta row (Date, Series, Platform, Attendees count, Version), recording bar (if applicable), audience banner, session overview, attendees grid, key decisions, action items, open issues (omit if none), next steps/timeline, Pulse widget.
+
+### Step 4: Push to mock_pages (this is the live push to bcpsmarcomm.com)
+
+```
+POST https://hq.lesaruss.ai/api/admin/mock-pages
+Authorization: Bearer [LESARUSS_ADMIN_TOKEN]
+Content-Type: application/json
+
+{
+  "brand": "bcps",
+  "slug": "[slug]",
+  "surface": "brief",
+  "title": "[Meeting Title]",
+  "content": "[full HTML string]"
+}
 ```
 
-Hold this list in context. This is the only valid source for attendee names and titles.
+A 200/201 response means the row is written to `mock_pages` and bcpsmarcomm.com's `/briefs/[slug]` route will render it immediately on next request (`force-dynamic`, no cache). This is the correct and only push step for brief content. There is no separate bcpsmarcomm-specific admin endpoint for this and no static file to commit.
 
-### Step 2 - Extract from the source
+### Step 5: Gate access (do this before sharing anything, see Hard Rule 1)
 
-Read the transcript or notes and pull out:
+Insert every real recipient into `bcps_brief_recipients`, matched against the attendee list from Step 2. Admins (`is_admin = true` in `wcm_cert_users`) always receive all briefs regardless of attendance; anyone else not on the attendee list needs a manual override logged in `override_added_by`. Query the table back after inserting to confirm the rows landed.
 
-- Meeting title, date, series/recurrence pattern, platform (Teams, Zoom, in-person, phone, etc.)
-- Attendee names - cross-reference against wcm_cert_users immediately
-- Recording URL if present
-- Session overview bullet points (high-level narrative of what was covered)
-- Key decisions made, including rationale if present
-- Action items with owner and deadline
-- Open questions flagged but not yet resolved
-- Follow-up meeting dates or next steps confirmed
-
-If something is ambiguous or missing, use what is in the source and note the gap inline. Do not fabricate details.
-
-Build the slug using this pattern: `bcps-[short-topic]-[YYYY-MM-DD]`
-Example: `bcps-analytics-governance-2026-05-22`
-
-### Step 3 - Build the HTML brief
-
-Use the BCPS HTML template in `assets/template.html`. Read it now. Key structural rules:
-
-**Required sections in order:**
-1. Fixed BCPS header bar with district logo
-2. H1 meeting title
-3. Meta row: Date, Series, Platform, Attendees count, Version
-4. Recording bar (only if recording URL exists)
-5. Audience banner
-6. Session Overview (bullet list using .overview-list)
-7. Attendees grid (from wcm_cert_users lookup - see hard rules above)
-8. Key Decisions (.decision-item blocks)
-9. Action Items (numbered .action-item blocks)
-10. Open Issues (omit entirely if none)
-11. Next Steps / Timeline (.timeline-row blocks)
-12. Pulse widget (orange diamond, fixed bottom-left)
-
-Style rules:
-- Decisions use the green decision-item / outcome-banner pattern
-- Action items use numbered .action-item blocks with .action-owner (gray) and .action-deadline (orange)
-- Open issues use .tag.open, .tag.resolved, .tag.pending badges
-- Version line in meta row: `v1 - [date produced]`
-
-### Step 4 - Log distribution to bcps_brief_recipients
-
-After building the brief, insert one row per confirmed attendee into bcps_brief_recipients:
+### Step 6: Log to Studio under BCPS
 
 ```sql
-INSERT INTO bcps_brief_recipients (brief_slug, attendee_name, attendee_email, wcm_user_id, added_by)
-SELECT
-  '[slug]',
-  full_name,
-  email,
-  id,
-  'auto'
-FROM public.wcm_cert_users
-WHERE full_name IN ([comma-separated names from attendee list]);
-```
-
-Distribution rule: Only confirmed attendees receive the brief unless an admin overrides.
-- `is_admin = true` in wcm_cert_users = admin. Admins always receive all briefs regardless of attendance.
-- If a member's name is not in the attendee list and is not an admin, they must not be added without a manual override logged in `override_added_by`.
-
-### Step 5 - Push to both repos
-
-All BCPS briefs go to TWO repos:
-
-**Primary (public-facing):**
-```
-PUT https://api.github.com/repos/lesaruss/k12-unlocked/contents/public/bcps/[slug].html
-```
-Live at: `k12unlocked.com/bcps/[slug].html`
-
-**Mirror (HQ reference):**
-```
-PUT https://api.github.com/repos/lesaruss/lesaruss-hq/contents/public/briefs/[slug].html
-```
-Live at: `hq.lesaruss.ai/briefs/[slug].html`
-
-Steps for each:
-1. Get credentials:
-   ```sql
-   SELECT key, value FROM public.lesaruss_secrets WHERE key IN ('GITHUB_TOKEN', 'SUPABASE_ANON_KEY');
-   ```
-   Supabase project ID: `fwbhwfxpncrsfhttimna`
-
-2. Replace all `{{PLACEHOLDER}}` tokens in the template before encoding.
-
-3. Check whether the slug already exists (GET first to retrieve SHA if updating).
-
-4. Base64-encode the HTML file (use `base64 -w 0` in bash).
-
-5. PUT to the GitHub API with commit message, base64 content, sha (if update), branch main.
-
-6. Confirm both pushes returned the file name before sharing anything.
-
-### Step 6 - Log to Studio under BCPS
-
-```sql
-INSERT INTO studio_projects (
-  id, slug, name, brand_slug, scope, status,
-  owner_role, owner_label, unread, source, position, created_at, updated_at
-)
-SELECT
-  gen_random_uuid(),
-  '[slug]',
-  '[Meeting Title]',
-  'bcps',
-  '[one sentence: what this brief covers and why it matters]',
-  'shipped',
-  'sar',
-  'SAR',
-  0,
-  'auto',
-  10,
-  NOW(), NOW()
+INSERT INTO studio_projects (id, slug, name, brand_slug, scope, status, owner_role, owner_label, unread, source, position, created_at, updated_at)
+SELECT gen_random_uuid(), '[slug]', '[Meeting Title]', 'bcps',
+'[one sentence: what this brief covers and why it matters]',
+'shipped', 'sar', 'SAR', 0, 'auto', 10, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM studio_projects WHERE slug = '[slug]');
 ```
 
-### Step 7 - Run brand preflight and share
+### Step 7: Preflight and share
 
-Before sharing the link, check:
-- No em-dashes in the chat message or the HTML
-- LESARUSS all-caps where it appears
-- Sean A. Russell spelled correctly
-- District logo present in header
-- Pulse widget present with correct slug and anon key injected
-- All {{PLACEHOLDER}} tokens replaced
+Check: no em-dashes anywhere, LESARUSS all-caps where it appears, Sean A. Russell spelled correctly, district logo present, Pulse widget present with correct slug and anon key, all `{{PLACEHOLDER}}` tokens replaced, `bcps_brief_recipients` populated and confirmed.
 
-Then share:
-- The canonical link: `k12unlocked.com/bcps/[slug].html` (prefaced "This link has been verified.")
-- One-line confirmation that it was logged in Studio under BCPS
+Share the canonical link: `bcpsmarcomm.com/briefs/[slug]` (prefaced "This link has been verified.") and confirm it was logged in Studio under BCPS.
 
 ---
 
 ## Quality rules
 
-- White background only. No dark backgrounds, no dark mode.
-- WCAG 2 AA contrast on all text. The CSS in the template is pre-validated.
-- No em-dashes anywhere in the HTML or in the chat response.
-- District logo always present in the header.
-- Pulse widget always present - orange diamond, bottom-left, Supabase-backed.
-- Decisions in green, deadlines in orange - consistently.
-- Do not add sections that have no content. If there are no open issues, omit that section.
-- Attendee names and titles come ONLY from wcm_cert_users. Flag any unmatched names.
-- The audience banner should name specific people or roles, not generic language.
-- Series field is always populated. Never blank.
+- White background only, no dark mode.
+- WCAG 2 AA contrast (template is pre-validated).
+- No em-dashes anywhere.
+- District logo always present.
+- Pulse widget always present.
+- Decisions in green, deadlines in orange, consistently.
+- Omit empty sections rather than leaving them blank.
+- Attendee names and titles come ONLY from `wcm_cert_users`, flag unmatched names.
+- Audience banner names specific people or roles, not generic language.
+- Series field always populated.
+- `bcps_brief_recipients` populated for every brief unless it is deliberately public and Sean has confirmed that.
