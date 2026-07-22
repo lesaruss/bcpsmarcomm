@@ -67,6 +67,16 @@ export default function FindItFastPage() {
     })
     const j = await r.json(); setBusy(false)
     if (!r.ok) { setErr(j.error || 'Action failed'); return null }
+    // Clear the saved row's pending edits so its Save button goes back to
+    // disabled once the write succeeds, instead of staying active forever
+    // and making a successful save look like it did nothing.
+    if (payload.id && (payload.action === 'category_update' || payload.action === 'link_update')) {
+      setEdits(prev => {
+        const next = { ...prev }
+        delete next[payload.id]
+        return next
+      })
+    }
     await load(); return j
   }, [token, load])
 
