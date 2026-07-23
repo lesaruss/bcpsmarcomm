@@ -175,6 +175,13 @@ const Icons: Record<string, React.ReactNode> = {
       <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
     </svg>
   ),
+  requests: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+      <rect x="9" y="3" width="6" height="4" rx="1"/>
+      <path d="M9 12l2 2 4-4"/>
+    </svg>
+  ),
   'pulse-approvals': (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
@@ -201,6 +208,7 @@ const SECTIONS: NavSection[] = [
     { id: 'profile', label: 'My Profile' },
     { id: 'members', label: 'Members' },
     { id: 'minibase', label: 'Minibase' },
+    { id: 'requests', label: 'Requests' },
   ] },
   { label: 'District Community Relations', items: [
     { id: 'community-relations', label: 'Task Tracker' },
