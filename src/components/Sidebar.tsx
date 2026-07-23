@@ -219,7 +219,6 @@ const SECTIONS: NavSection[] = [
     { id: 'widgets', label: 'Widgets' },
   ] },
   { label: 'Web Content Managers', items: [
-    { id: 'bcps-assignments', label: 'Web Team Assignments' },
     { id: 'bcps-certification', label: 'Department Certification' },
     { id: 'bcps-google-governance', label: 'Google Governance' },
     { id: 'wcm', label: 'WCM Hub' },
