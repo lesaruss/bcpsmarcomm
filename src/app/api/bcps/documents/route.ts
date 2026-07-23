@@ -78,13 +78,42 @@ export async function GET(req: NextRequest) {
   }
 
   const { data: docs, error } = await svc.from('acl_objects')
-    .select('id, slug, title, description, doc_type, doc_date, icon, section, visibility, sensitive, owner_id, doc_url')
+    .select('id, slug, title, description, doc_type, doc_date, icon, section, visibility, sensitive, owner_id, doc_url, series_id')
     .eq('brand', BRAND).eq('kind', 'document')
     .order('section').order('title')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const all = docs ?? []
-  const objIds = all.map(d => d.id)
+
+  // Some documents are one-off (WCM Kickoff Event); others are recurring
+  // instances of a series (e.g. "Hot Lab for Department WCMs" - a new dated
+  // acl_objects row gets created for each occurrence). For series
+  // documents, effective visibility/sensitive/owner/grants all resolve from
+  // the series' own acl_objects row (kind='document_series') instead of the
+  // instance's own row, so access granted once at the series level
+  // automatically covers every past and future instance - no re-granting
+  // per occurrence.
+  type DocRow = (typeof all)[number]
+  const seriesIds = Array.from(new Set(all.map(d => d.series_id).filter(Boolean))) as string[]
+  const seriesById = new Map<string, { id: string; slug: string; title: string; visibility: string; sensitive: boolean; owner_id: string }>()
+  if (seriesIds.length) {
+    const { data: seriesRows } = await svc.from('acl_objects')
+      .select('id, slug, title, visibility, sensitive, owner_id')
+      .in('id', seriesIds).eq('kind', 'document_series')
+    for (const s of seriesRows ?? []) seriesById.set(s.id, s)
+  }
+  const effectiveOf = (d: DocRow) => {
+    const series = d.series_id ? seriesById.get(d.series_id) : undefined
+    return {
+      objectId: series ? series.id : d.id,
+      visibility: series ? series.visibility : d.visibility,
+      sensitive: series ? series.sensitive : d.sensitive,
+      ownerId: series ? series.owner_id : d.owner_id,
+      seriesTitle: series?.title ?? null,
+    }
+  }
+
+  const objIds = Array.from(new Set(all.map(d => effectiveOf(d).objectId)))
 
   const { data: gm } = await svc.from('acl_group_members').select('group_id').eq('user_id', user.id)
   const gids = (gm ?? []).map(g => g.group_id)
@@ -98,19 +127,22 @@ export async function GET(req: NextRequest) {
     (g.subject_type === 'group' && gids.includes(g.subject_id)))
 
   const visible = all.filter(d => {
-    if (d.owner_id === user.id) return true
-    if (d.visibility === 'private') return false
-    return isAdmin || !!myGrant(d.id)
+    const eff = effectiveOf(d)
+    if (eff.ownerId === user.id) return true
+    if (eff.visibility === 'private') return false
+    return isAdmin || !!myGrant(eff.objectId)
   })
 
   const result = visible.map(d => {
-    const grant = myGrant(d.id)
-    const can_edit = isAdmin || d.owner_id === user.id || (!!grant && ['edit', 'manage'].includes(grant.role))
+    const eff = effectiveOf(d)
+    const grant = myGrant(eff.objectId)
+    const can_edit = isAdmin || eff.ownerId === user.id || (!!grant && ['edit', 'manage'].includes(grant.role))
     return {
       id: d.id, slug: d.slug, title: d.title, description: d.description,
       type: d.doc_type, date: d.doc_date, icon: d.icon, section: d.section || 'documents',
-      visibility: d.visibility, sensitive: d.sensitive, doc_url: d.doc_url,
+      visibility: eff.visibility, sensitive: eff.sensitive, doc_url: d.doc_url,
       is_dynamic: isDynamic(d.doc_url), can_edit,
+      series_id: d.series_id || null, series_title: eff.seriesTitle, effective_object_id: eff.objectId,
     }
   })
 
@@ -237,25 +269,31 @@ export async function POST(req: NextRequest) {
       // kind='document' objects only and deliberately gated at admin (not
       // superadmin, unlike /api/bcps/permissions' grant_set) so Sean's team
       // can manage Documents access themselves.
+      //
+      // If the document belongs to a series (series_id set), the grant is
+      // written against the series' own object id instead of the
+      // document's - that's the whole point of a series: set access once
+      // and every instance (past and future) shares it transparently.
       case 'grant_set': {
         const { slug, subject_type, subject_id, role: grantRole, grant } = body
         if (!slug || !subject_type || !subject_id) {
           return NextResponse.json({ error: 'slug, subject_type, subject_id required.' }, { status: 400 })
         }
         const { data: obj, error: objErr } = await svc.from('acl_objects')
-          .select('id').eq('brand', BRAND).eq('kind', 'document').eq('slug', slug).single()
+          .select('id, series_id').eq('brand', BRAND).eq('kind', 'document').eq('slug', slug).single()
         if (objErr || !obj) return NextResponse.json({ error: 'Document not found.' }, { status: 404 })
+        const targetId = obj.series_id || obj.id
         if (grant) {
           const { error } = await svc.from('acl_grants').upsert(
-            { object_id: obj.id, subject_type, subject_id, role: grantRole || 'view' },
+            { object_id: targetId, subject_type, subject_id, role: grantRole || 'view' },
             { onConflict: 'object_id,subject_type,subject_id' })
           if (error) throw error
         } else {
           const { error } = await svc.from('acl_grants').delete()
-            .eq('object_id', obj.id).eq('subject_type', subject_type).eq('subject_id', subject_id)
+            .eq('object_id', targetId).eq('subject_type', subject_type).eq('subject_id', subject_id)
           if (error) throw error
         }
-        await audit(user.id, 'document_grant_set', obj.id, { slug, subject_type, subject_id, role: grantRole, grant })
+        await audit(user.id, 'document_grant_set', targetId, { slug, subject_type, subject_id, role: grantRole, grant, series_id: obj.series_id || null })
         return NextResponse.json({ ok: true })
       }
 
