@@ -36,7 +36,7 @@ async function roleFor(userId: string) {
 // for allowing approve/reject/publish - owner, admin, or a manage grant.
 async function loadDoc(slug: string, userId: string, isAdmin: boolean) {
   const { data: doc } = await svc.from('acl_objects')
-    .select('id, slug, title, owner_id').eq('brand', BRAND).eq('kind', 'document').eq('slug', slug).single()
+    .select('id, slug, title, owner_id, sensitive').eq('brand', BRAND).eq('kind', 'document').eq('slug', slug).single()
   if (!doc) return null
   const { data: grants } = await svc.from('acl_grants')
     .select('subject_type, subject_id, role').eq('object_id', doc.id).eq('subject_type', 'user').eq('subject_id', userId)
@@ -110,7 +110,13 @@ export async function POST(req: NextRequest) {
         if (!resolved) return NextResponse.json({ error: 'Document not found.' }, { status: 404 })
         const { doc, canEdit } = resolved
         const ownerEmail = await emailFor(doc.owner_id)
-        const requestState = canEdit ? 'ready_for_agent' : 'pending_approval'
+        // Sensitive documents (APPAS/records) always require owner approval,
+        // even for a requester who already has edit rights - matches the
+        // existing convention that `sensitive` means extra caution (see
+        // /api/bcps/permissions' link_create, which blocks public links on
+        // sensitive objects the same way).
+        const requestState = (canEdit && !doc.sensitive) ? 'ready_for_agent' : 'pending_approval'
+        const requiresApproval = requestState === 'pending_approval'
         const { data, error } = await svc.from('agent_tasks').insert({
           tenant_id: LESARUSS_TENANT,
           module: 'bcps',
@@ -120,7 +126,7 @@ export async function POST(req: NextRequest) {
           source_type: 'document_edit_request',
           source_id: doc.id,
           from_agent: user.email,
-          to_agent: canEdit ? 'claude' : (ownerEmail || 'claude'),
+          to_agent: requiresApproval ? (ownerEmail || 'claude') : 'claude',
           title: doc.title,
           description: prompt,
           priority: 'medium',
@@ -128,11 +134,11 @@ export async function POST(req: NextRequest) {
           metadata: {
             slug: doc.slug, doc_id: doc.id, requested_by_email: user.email,
             requested_by_user_id: user.id, request_state: requestState,
-            requires_approval: !canEdit,
+            requires_approval: requiresApproval,
           },
         }).select().single()
         if (error) throw error
-        return NextResponse.json({ ok: true, ticket: data, requires_approval: !canEdit })
+        return NextResponse.json({ ok: true, ticket: data, requires_approval: requiresApproval })
       }
 
       // Doc owner/manager (or admin) approves a pending request, moving it
