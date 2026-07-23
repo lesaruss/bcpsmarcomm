@@ -80,3 +80,14 @@
 /* Non-deck WCM Pilot pages (e.g. registration): just the sticky header, no progress/nav bars */
 .wp-page-topbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--wp-border);width:100%;}
 .wp-page-body{min-height:calc(100vh - 64px);display:flex;align-items:center;justify-content:center;padding:24px;}
+
+/* Top-right hamburger menu: Log In / Create Account, present on every WCM
+   Pilot entry page (welcome deck + register), reachable from any step. */
+.wp-header-right{gap:12px;}
+.wp-menu{position:relative;}
+.wp-menu-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--wp-border);background:#fff;color:var(--wp-ink-deep);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;}
+.wp-menu-btn:hover{border-color:var(--wp-ink);}
+.wp-menu-dropdown{position:absolute;top:calc(100% + 8px);right:0;min-width:180px;background:#fff;border:1px solid var(--wp-border);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,0.16);overflow:hidden;z-index:50;}
+.wp-menu-item{display:block;padding:12px 16px;font-size:13.5px;font-weight:700;color:var(--wp-ink-deep);text-decoration:none;}
+.wp-menu-item:hover{background:var(--wp-panel);}
+.wp-menu-item + .wp-menu-item{border-top:1px solid var(--wp-border);}
