@@ -17,6 +17,9 @@ interface Doc {
   doc_url: string
   is_dynamic: boolean
   can_edit: boolean
+  series_id: string | null
+  series_title: string | null
+  effective_object_id: string
 }
 
 type Group = { id: string; slug: string; name: string }
@@ -54,6 +57,7 @@ export default function DocumentsPage() {
   const [contentDraft, setContentDraft] = useState<Record<string, string>>({})
   const [contentLoading, setContentLoading] = useState<Record<string, boolean>>({})
   const [requestDraft, setRequestDraft] = useState<Record<string, string>>({})
+  const [activeTab, setActiveTab] = useState<string>('documents')
 
   const isAdmin = role === 'admin' || role === 'superadmin'
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
@@ -77,6 +81,18 @@ export default function DocumentsPage() {
     window.addEventListener('keydown', handleEscape)
     return () => window.removeEventListener('keydown', handleEscape)
   }, [])
+
+  // If the currently active tab has no visible documents for this viewer
+  // (e.g. Records is empty for a non-admin), jump to the first tab that
+  // does, so nobody lands on a blank tab by default.
+  useEffect(() => {
+    if (docs.length === 0) return
+    const hasCurrent = docs.some(d => (d.section || 'documents') === activeTab)
+    if (!hasCurrent) {
+      const firstWithDocs = SECTIONS.find(s => docs.some(d => (d.section || 'documents') === s.key))
+      if (firstWithDocs) setActiveTab(firstWithDocs.key)
+    }
+  }, [docs, activeTab])
 
   const act = useCallback(async (payload: Record<string, unknown>) => {
     setBusy(true); setErr('')
@@ -158,7 +174,7 @@ export default function DocumentsPage() {
 
   const accessBadge = (d: Doc) => {
     if (d.visibility === 'public') return { label: 'Public', icon: '🌐' }
-    const n = grantsFor(d.id).length
+    const n = grantsFor(d.effective_object_id).length
     return n > 0 ? { label: `${n} granted`, icon: '🔒' } : { label: 'Admins only', icon: '🔒' }
   }
 
@@ -170,10 +186,15 @@ export default function DocumentsPage() {
         .docs-section { padding: 32px; background: #ffffff; }
         .docs-header h1 { font-size: 32px; font-weight: 900; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: -0.02em; }
         .docs-header p { font-size: 14px; color: rgba(26,26,26,0.55); margin: 0 0 32px 0; line-height: 1.6; }
+        .docs-tabbar { display: flex; gap: 4px; border-bottom: 2px solid rgba(0,0,0,0.08); margin-bottom: 24px; }
+        .docs-tab { padding: 10px 18px; border: none; background: none; cursor: pointer; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(26,26,26,0.4); font-family: inherit; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color 0.15s, border-color 0.15s; }
+        .docs-tab:hover { color: #1a1a1a; }
+        .docs-tab-active { color: #1672A7; border-bottom-color: #1672A7; }
         .docs-section-group { margin-bottom: 48px; }
         .docs-section-label { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #1672A7; margin: 0 0 6px 0; }
         .docs-section-desc { font-size: 12px; color: rgba(26,26,26,0.45); margin: 0 0 20px 0; font-weight: 600; }
         .docs-section-divider { height: 1px; background: rgba(0,0,0,0.07); margin-bottom: 20px; }
+        .doc-series-note { font-size: 11px; color: #1672A7; background: rgba(22,114,167,0.08); border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; font-weight: 700; }
         .docs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
         .doc-card { display: block; background: #ffffff; border: 1px solid rgba(0,0,0,0.09); border-radius: 8px; padding: 24px; text-decoration: none; color: inherit; transition: all 0.2s ease; position: relative; }
         .doc-card:hover { border-color: #1672A7; box-shadow: 0 4px 16px rgba(22,114,167,0.15); }
@@ -214,19 +235,35 @@ export default function DocumentsPage() {
         {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '0 0 20px' }}>{err}</div>}
         {toast && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '0 0 20px' }}>{toast}</div>}
 
-        {SECTIONS.map(section => {
+        <div className="docs-tabbar">
+          {SECTIONS.map(section => {
+            const count = docs.filter(d => (d.section || 'documents') === section.key).length
+            return (
+              <button
+                key={section.key}
+                className={activeTab === section.key ? 'docs-tab docs-tab-active' : 'docs-tab'}
+                onClick={() => setActiveTab(section.key)}
+              >
+                {section.label}{count > 0 ? ` (${count})` : ''}
+              </button>
+            )
+          })}
+        </div>
+
+        {SECTIONS.filter(section => section.key === activeTab).map(section => {
           const sectionDocs = docs.filter(d => (d.section || 'documents') === section.key)
-          if (sectionDocs.length === 0) return null
           return (
             <div key={section.key} className="docs-section-group">
-              <h2 className="docs-section-label">{section.label}</h2>
               <p className="docs-section-desc">{section.description}</p>
               <div className="docs-section-divider" />
+              {sectionDocs.length === 0 ? (
+                <div style={{ fontSize: 13, color: '#9ca3af' }}>Nothing here yet.</div>
+              ) : (
               <div className="docs-grid">
                 {sectionDocs.map(doc => {
                   const badge = accessBadge(doc)
                   const openPanel = panel[doc.slug]
-                  const dgrants = grantsFor(doc.id)
+                  const dgrants = grantsFor(doc.effective_object_id)
                   return (
                     <div key={doc.id} className="doc-card">
                       {isAdmin && (
@@ -274,6 +311,11 @@ export default function DocumentsPage() {
                       {openPanel === 'access' && isAdmin && (
                         <div className="doc-panel">
                           <div style={A.sublabel}>Who can access {doc.title}</div>
+                          {doc.series_id && (
+                            <div className="doc-series-note">
+                              Part of the {doc.series_title || 'series'} series - access applies to every document in this series, including new ones created later.
+                            </div>
+                          )}
                           {dgrants.length === 0 && (
                             <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>
                               {doc.visibility === 'public' ? 'Visible to everyone with a BCPS Marcomm login.' : 'No one granted yet - admins can always access it.'}
@@ -351,6 +393,7 @@ export default function DocumentsPage() {
                   )
                 })}
               </div>
+              )}
             </div>
           )
         })}
