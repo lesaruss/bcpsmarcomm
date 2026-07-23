@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>District Web Team - 2026-2027 Strategy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bcps-blue: #1672A7;
+    --bcps-blue-dark: #0e4e73;
+    --bcps-green: #16750C;
+    --bcps-orange: #C55326;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: rgba(0,0,0,0.09);
+    --text: #1a1a1a;
+    --text-75: rgba(26,26,26,0.78);
+    --text-50: rgba(26,26,26,0.55);
+    --text-30: rgba(26,26,26,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
+  a { color: var(--bcps-blue-dark); text-decoration: underline; }
+
+  header.bcps-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 64px; background: #ffffff;
+    border-bottom: 3px solid var(--bcps-blue);
+    display: flex; align-items: center; padding: 0 28px;
+    gap: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bcps-logo { height: 44px; width: auto; display: block; }
+  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
+  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
+  .bcps-header-spacer { flex: 1; }
+  .version-pill { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; background: rgba(22,114,167,0.10); color: var(--bcps-blue); border: 1px solid rgba(22,114,167,0.25); border-radius: 20px; padding: 4px 12px; white-space: nowrap; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 90px; }
+  h1 { font-size: clamp(22px, 3.5vw, 38px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 6px; }
+  .doc-subtitle { font-size: 13px; font-weight: 600; color: var(--text-50); margin-bottom: 24px; }
+  h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
+  h3 { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+  .meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .meta-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--text-30); }
+  .meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  .audience-banner { background: rgba(22,114,167,0.07); border: 1px solid rgba(22,114,167,0.22); border-radius: 8px; padding: 14px 18px; margin-bottom: 28px; }
+  .audience-banner p { font-size: 13px; color: var(--text-75); margin: 0; }
+  .audience-banner p strong { color: var(--bcps-blue-dark); }
+
+  .pillar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 8px; }
+  .pillar-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; }
+  .pillar-num { font-size: 11px; font-weight: 800; color: var(--bcps-blue); letter-spacing: 0.14em; margin-bottom: 8px; }
+  .pillar-card p { font-size: 13.5px; color: var(--text-75); }
+
+  .tablist{display:flex;gap:8px;margin:8px 0 24px;border-bottom:2px solid var(--border);position:sticky;top:64px;background:var(--bg);padding-top:4px;z-index:5}
+  .tab-btn{appearance:none;border:none;background:none;cursor:pointer;font:inherit;font-weight:700;font-size:14px;color:var(--text-50);padding:12px 16px 14px;border-bottom:3px solid transparent;margin-bottom:-2px;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:8px}
+  .tab-btn:hover{color:var(--bcps-blue-dark);background:rgba(22,114,167,.05)}
+  .tab-btn[aria-selected="true"]{color:var(--bcps-blue-dark);border-bottom-color:var(--bcps-blue)}
+  .tab-btn .count{font-size:11px;font-weight:700;background:var(--border);color:var(--text-75);border-radius:99px;padding:1px 8px}
+  .tab-btn[aria-selected="true"] .count{background:var(--bcps-blue);color:#fff}
+  .tab-btn:focus-visible{outline:2px solid var(--bcps-blue);outline-offset:2px}
+
+  details{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
+  details > summary{list-style:none;cursor:pointer;font-weight:700;font-size:14.5px;padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--text)}
+  details > summary::-webkit-details-marker{display:none}
+  details > summary::after{content:'+';font-size:20px;font-weight:400;flex:0 0 auto;color:var(--text-50);line-height:1}
+  details[open] > summary::after{content:'\2212'}
+  details .body{padding:0 18px 18px}
+  details .body p{font-size:13.5px;color:var(--text-75);margin-bottom:8px}
+  details .body p:last-child{margin-bottom:0}
+  details .body p strong{color:var(--text)}
+
+  .status-pill{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;border-radius:20px;padding:3px 10px;white-space:nowrap}
+  .status-live{background:rgba(22,117,12,0.10);color:var(--bcps-green);border:1px solid rgba(22,117,12,0.28)}
+  .status-pilot{background:rgba(22,114,167,0.10);color:var(--bcps-blue-dark);border:1px solid rgba(22,114,167,0.28)}
+  .status-queued{background:rgba(197,83,38,0.10);color:var(--bcps-orange);border:1px solid rgba(197,83,38,0.30)}
+
+  .team-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:20px}
+  .team-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+  .team-card .n{font-size:28px;font-weight:900;color:var(--bcps-blue)}
+  .team-card .lbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--text-30);margin-top:2px}
+  .team-card p{font-size:13px;color:var(--text-75);margin-top:10px}
+
+  .reflink{font-size:12px;margin-top:8px}
+  footer.doc-footer{max-width:1100px;margin:0 auto;padding:0 28px 60px;font-size:12px;color:var(--text-30)}
+</style>
+</head>
+<body>
+
+<header class="bcps-header" role="banner">
+  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+  <div class="bcps-header-divider" aria-hidden="true"></div>
+  <span class="bcps-header-title">District Web Team - Strategy</span>
+  <div class="bcps-header-spacer"></div>
+  <span class="version-pill">v1 Draft - July 23, 2026</span>
+</header>
+
+<main>
+  <h1>District Web Team: 2026-2027 Strategy</h1>
+  <p class="doc-subtitle">Broward County Public Schools, School Year 2026-2027</p>
+
+  <div class="meta-row">
+    <div class="meta-item"><span class="meta-label">Prepared By</span><span class="meta-value">Sean Russell</span></div>
+    <div class="meta-item"><span class="meta-label">School Year</span><span class="meta-value">2026-2027</span></div>
+    <div class="meta-item"><span class="meta-label">Status</span><span class="meta-value">v1 draft, for review</span></div>
+    <div class="meta-item"><span class="meta-label">Companion Doc</span><span class="meta-value">District Web Team Assignments (v4)</span></div>
+  </div>
+
+  <div class="audience-banner">
+    <p><strong>This is a first pass.</strong> Built from the current state of the District Web Team's live systems and the past few weeks of work. Open it up live and we will fill in anything missing together.</p>
+  </div>
+
+  <h2>Where we're headed</h2>
+  <div class="pillar-grid">
+    <div class="pillar-card">
+      <div class="pillar-num">01 / Self-Service Governance</div>
+      <p>Move every admin surface off "only Sean can do it" and onto one shared permissions engine, so BCPS staff manage their own content and access without waiting on us.</p>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num">02 / WCM Certification &amp; Enablement</div>
+      <p>Grow a certified bench of department and school Web Content Managers through the Pilot Program, recurring Hot Lab working sessions, and a direct feedback loop.</p>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num">03 / browardschools.ai</div>
+      <p>Keep the public Powered by AI site current with real district-sourced content, on its own domain, updated in a living tracker before every review meeting.</p>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num">04 / Web Team Operations Queue</div>
+      <p>Run one shared queue across General, Out-of-Classroom, and Application Services work so nothing falls through between school-level and district-level pages.</p>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-num">05 / Access &amp; Compliance</div>
+      <p>Extend the shared permissions model to recurring content (meeting series, documents) and start building toward an in-house ADA/accessibility scan capability.</p>
+    </div>
+  </div>
+
+  <div class="tablist" role="tablist" aria-label="Strategy document sections">
+    <button class="tab-btn" role="tab" id="tab-btn-projects" aria-controls="tab-projects" aria-selected="true" tabindex="0">Projects in Flight <span class="count">12</span></button>
+    <button class="tab-btn" role="tab" id="tab-btn-queue" aria-controls="tab-queue" aria-selected="false" tabindex="-1">Web Team Queue</button>
+    <button class="tab-btn" role="tab" id="tab-btn-questions" aria-controls="tab-questions" aria-selected="false" tabindex="-1">Open For Discussion <span class="count">4</span></button>
+  </div>
+
+  <div class="tabpanel" id="tab-projects" role="tabpanel" aria-labelledby="tab-btn-projects">
+
+    <h3 style="margin-top:4px;color:var(--bcps-blue-dark)">Pillar 01: Self-Service Governance</h3>
+    <details open>
+      <summary>Documents self-service &amp; request queue <span class="status-pill status-live">Live</span></summary>
+      <div class="body">
+        <p>All 13 Documents page tiles now run on the shared permissions engine: admins see who has access at a glance and can edit content or grants inline, without a code push. Every viewer can request an edit in plain language; it routes to the document owner for approval, or straight to build if the requester already has edit rights.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Widgets gallery <span class="status-pill status-live">Live</span></summary>
+      <div class="body">
+        <p>One home for every embeddable module (Find It Fast, Charter School Directory, more to come): live preview, embed code, and per-widget editor access management in one place.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Find It Fast self-service editing <span class="status-pill status-live">Live</span></summary>
+      <div class="body">
+        <p>Moved off a hardcoded array into a database the assigned editor can update directly. Two live display bugs (pagination, save-button feedback) found and fixed this cycle.</p>
+      </div>
+    </details>
+
+    <h3 style="margin-top:28px;color:var(--bcps-blue-dark)">Pillar 02: WCM Certification &amp; Enablement</h3>
+    <details>
+      <summary>WCM Pilot Program relaunch <span class="status-pill status-pilot">In Pilot</span></summary>
+      <div class="body">
+        <p>Register and certification-course flow rebuilt with its own welcome and account-creation steps. Relaunching Monday, July 27, 2026, with director-facing and participant-facing launch briefs already sent.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Hot Lab for Department WCMs <span class="status-pill status-live">Live</span></summary>
+      <div class="body">
+        <p>Recurring working session, Tuesdays and Thursdays 11:30am-12:30pm. Twelve real sessions from June-July 2026 are published as gated meeting-note briefs, visible automatically to Web Content Management, District Web Team, and Office of Communications.</p>
+      </div>
+    </details>
+    <details>
+      <summary>In-platform WCM feedback widget <span class="status-pill status-live">Live</span></summary>
+      <div class="body">
+        <p>WCMs can flag issues or ask questions directly from the pilot pages and course; feedback is stored and queryable today, with routing straight to Sean planned as a fast-follow.</p>
+      </div>
+    </details>
+
+    <h3 style="margin-top:28px;color:var(--bcps-blue-dark)">Pillar 03: browardschools.ai</h3>
+    <details>
+      <summary>Domain cutover to browardschools.ai <span class="status-pill status-live">Live</span></summary>
+      <div class="body">
+        <p>Completed with BCPS IT Infrastructure: DNS, SSL, and both browardschools.ai and www live and verified.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Real district content replacing preview content <span class="status-pill status-live">Live</span></summary>
+      <div class="body">
+        <p>MagicSchool AI adoption metrics, AI Liaison Network, FAQ language, program timeline, Leadership Days and Symposium materials, and Prisms VR classroom videos are all sourced directly from BCPS-provided documents, not placeholders.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Living progress tracker <span class="status-pill status-live">Live</span></summary>
+      <div class="body">
+        <p>The Completed / Pending / Open Questions format this strategy document borrows from. Updated in place before every "Broward AI Webpage Review" meeting rather than rewritten from scratch.</p>
+        <p class="reflink"><a href="https://browardschools.ai/briefs/bcps-ai-preview-checklist-2026-07-16.html">View the live browardschools.ai tracker</a></p>
+      </div>
+    </details>
+
+    <h3 style="margin-top:28px;color:var(--bcps-blue-dark)">Pillar 05: Access &amp; Compliance</h3>
+    <details>
+      <summary>Recurring-document permission model <span class="status-pill status-live">Live</span></summary>
+      <div class="body">
+        <p>Meeting series (like Hot Lab) now carry shared permissions at the series level, so every past and future session inherits access automatically instead of needing to be re-granted each time.</p>
+      </div>
+    </details>
+    <details>
+      <summary>In-house ADA / accessibility scanning <span class="status-pill status-queued">Queued</span></summary>
+      <div class="body">
+        <p>Early groundwork flagged at WCM Kickoff planning: an internal WAVE-based scanner as a faster alternative to a 45-60 day vendor turnaround. Not yet built, worth a strategy-level decision this year.</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="tabpanel" id="tab-queue" role="tabpanel" aria-labelledby="tab-btn-queue" hidden>
+    <p style="font-size:13.5px;color:var(--text-75);margin-bottom:18px">The District Web Team Assignments tracker is the operational, item-by-item version of this queue. As of Version 4 (July 15, 2026):</p>
+    <div class="team-summary">
+      <div class="team-card">
+        <div class="n">22</div>
+        <div class="lbl">General</div>
+        <p>School and district-wide page work: WCM guidelines, audits, back-to-school, analytics, security, communication plans.</p>
+      </div>
+      <div class="team-card">
+        <div class="n">1</div>
+        <div class="lbl">Out-of-Classroom Pages</div>
+        <p>Department and program pages managed outside the standard school site structure. Currently one tracked audit item; a candidate area to grow this year if we want more OOC pages brought under formal review.</p>
+      </div>
+      <div class="team-card">
+        <div class="n">5</div>
+        <div class="lbl">Application Services</div>
+        <p>The portal/dashboard/app-build track: analytics dashboard, department audit dashboards, security and portal access, Canvas course pilot, PowerApps embeds.</p>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--text-50)">28 active, 24 completed items total, filterable by team and by person.</p>
+    <p class="reflink"><a href="https://bcpsmarcomm.com/bcps/bcps-web-team-assignments.html">Open the full District Web Team Assignments tracker</a></p>
+  </div>
+
+  <div class="tabpanel" id="tab-questions" role="tabpanel" aria-labelledby="tab-btn-questions" hidden>
+    <details class="q" open><summary>How much do we want to grow the Out-of-Classroom (OOC) audit track this year?</summary><div class="body"><p>Right now it is one tracked item inside the General queue. If department/program pages outside the standard school structure are a 2026-27 priority, this is the moment to scope it as its own formal track.</p></div></details>
+    <details class="q"><summary>Who owns the ADA/accessibility scanner decision?</summary><div class="body"><p>Build in-house (WAVE-based) versus continue with a 45-60 day vendor turnaround. Flagged at WCM Kickoff planning, not yet decided.</p></div></details>
+    <details class="q"><summary>Does the Documents/Records access model need to unify further?</summary><div class="body"><p>The Documents catalog and the public-facing briefs pages currently use two separate access lists under the hood. Both are populated correctly today, but a single source of truth would be safer long-term.</p></div></details>
+    <details class="q"><summary>What does "done" look like for the WCM Pilot by end of year?</summary><div class="body"><p>Worth naming a target: number of certified WCMs, departments covered, or a specific milestone tied to the July 27 relaunch.</p></div></details>
+  </div>
+
+</main>
+<footer class="doc-footer">Prepared by Sean Russell. Draft v1, built ahead of today's review, to be refined live.</footer>
+
+<script>
+(function(){
+  var tabs = document.querySelectorAll('.tab-btn');
+  var panels = { 'tab-btn-projects':'tab-projects', 'tab-btn-queue':'tab-queue', 'tab-btn-questions':'tab-questions' };
+  function activate(id){
+    tabs.forEach(function(t){
+      var sel = t.id === id;
+      t.setAttribute('aria-selected', sel ? 'true' : 'false');
+      t.tabIndex = sel ? 0 : -1;
+    });
+    Object.keys(panels).forEach(function(k){
+      document.getElementById(panels[k]).hidden = (k !== id);
+    });
+  }
+  tabs.forEach(function(t, i){
+    t.addEventListener('click', function(){ activate(t.id); });
+    t.addEventListener('keydown', function(e){
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        var dir = e.key === 'ArrowRight' ? 1 : -1;
+        var next = (i + dir + tabs.length) % tabs.length;
+        tabs[next].focus();
+        activate(tabs[next].id);
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
