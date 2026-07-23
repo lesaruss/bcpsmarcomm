@@ -78,9 +78,9 @@ export async function GET(req: NextRequest) {
   }
 
   const { data: docs, error } = await svc.from('acl_objects')
-    .select('id, slug, title, description, doc_type, doc_date, icon, section, visibility, sensitive, owner_id, doc_url, series_id')
+    .select('id, slug, title, description, doc_type, doc_date, icon, section, visibility, sensitive, owner_id, doc_url, series_id, featured')
     .eq('brand', BRAND).eq('kind', 'document')
-    .order('section').order('title')
+    .order('featured', { ascending: false }).order('section').order('title')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const all = docs ?? []
@@ -141,7 +141,7 @@ export async function GET(req: NextRequest) {
       id: d.id, slug: d.slug, title: d.title, description: d.description,
       type: d.doc_type, date: d.doc_date, icon: d.icon, section: d.section || 'documents',
       visibility: eff.visibility, sensitive: eff.sensitive, doc_url: d.doc_url,
-      is_dynamic: isDynamic(d.doc_url), can_edit,
+      is_dynamic: isDynamic(d.doc_url), can_edit, featured: !!d.featured,
       series_id: d.series_id || null, series_title: eff.seriesTitle, effective_object_id: eff.objectId,
     }
   })
@@ -195,7 +195,7 @@ export async function POST(req: NextRequest) {
         for (const [bodyKey, col] of [
           ['title', 'title'], ['description', 'description'], ['doc_type', 'doc_type'],
           ['doc_date', 'doc_date'], ['icon', 'icon'], ['section', 'section'],
-          ['visibility', 'visibility'], ['sensitive', 'sensitive'],
+          ['visibility', 'visibility'], ['sensitive', 'sensitive'], ['featured', 'featured'],
         ] as const) {
           if (body[bodyKey] !== undefined) row[col] = body[bodyKey]
         }
