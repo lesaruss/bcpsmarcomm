@@ -25,6 +25,7 @@ export type PageId =
   | 'pulse-approvals'
   | 'find-it-fast'
   | 'widgets'
+  | 'requests'
 
 export interface BreadcrumbItem {
   label: string
