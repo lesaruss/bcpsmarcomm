@@ -91,6 +91,10 @@
   .team-card p{font-size:13px;color:var(--text-75);margin-top:10px}
 
   .reflink{font-size:12px;margin-top:8px}
+  .queue-list{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .queue-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 18px;font-size:13.5px;color:var(--text);border-bottom:1px solid var(--border)}
+  .queue-row:last-child{border-bottom:none}
+  .due-pill{font-size:10px;font-weight:800;background:var(--surface2);color:var(--text-50);border:1px solid var(--border);border-radius:20px;padding:2px 10px;white-space:nowrap}
   footer.doc-footer{max-width:1100px;margin:0 auto;padding:0 28px 60px;font-size:12px;color:var(--text-30)}
 </style>
 </head>
@@ -135,7 +139,7 @@
     </div>
     <div class="pillar-card">
       <div class="pillar-num">04 / Web Team Operations Queue</div>
-      <p>Run one shared queue across General, Out-of-Classroom, and Application Services work so nothing falls through between school-level and district-level pages.</p>
+      <p>Run one shared queue across the Project Lead track and Felicia's track so nothing falls through, with clear due dates and ongoing responsibilities for each.</p>
     </div>
     <div class="pillar-card">
       <div class="pillar-num">05 / Access &amp; Compliance</div>
@@ -146,7 +150,7 @@
   <div class="tablist" role="tablist" aria-label="Strategy document sections">
     <button class="tab-btn" role="tab" id="tab-btn-projects" aria-controls="tab-projects" aria-selected="true" tabindex="0">Projects in Flight <span class="count">12</span></button>
     <button class="tab-btn" role="tab" id="tab-btn-queue" aria-controls="tab-queue" aria-selected="false" tabindex="-1">Web Team Queue</button>
-    <button class="tab-btn" role="tab" id="tab-btn-questions" aria-controls="tab-questions" aria-selected="false" tabindex="-1">Open For Discussion <span class="count">4</span></button>
+    <button class="tab-btn" role="tab" id="tab-btn-questions" aria-controls="tab-questions" aria-selected="false" tabindex="-1">Open For Discussion <span class="count">3</span></button>
   </div>
 
   <div class="tabpanel" id="tab-projects" role="tabpanel" aria-labelledby="tab-btn-projects">
@@ -220,38 +224,87 @@
       </div>
     </details>
     <details>
-      <summary>In-house ADA / accessibility scanning <span class="status-pill status-queued">Queued</span></summary>
+      <summary>In-house ADA / accessibility scanning <span class="status-pill status-queued">Queued, due 7/31</span></summary>
       <div class="body">
-        <p>Early groundwork flagged at WCM Kickoff planning: an internal WAVE-based scanner as a faster alternative to a 45-60 day vendor turnaround. Not yet built, worth a strategy-level decision this year.</p>
+        <p>Flagged at WCM Kickoff planning: an internal WAVE-based scanner as a faster alternative to a 45-60 day vendor turnaround. Now a dated item on the Project Lead queue (ADA Scanner Development, due July 31).</p>
       </div>
     </details>
   </div>
 
   <div class="tabpanel" id="tab-queue" role="tabpanel" aria-labelledby="tab-btn-queue" hidden>
-    <p style="font-size:13.5px;color:var(--text-75);margin-bottom:18px">The District Web Team Assignments tracker is the operational, item-by-item version of this queue. As of Version 4 (July 15, 2026):</p>
-    <div class="team-summary">
+    <div class="team-summary" style="margin-bottom:28px">
       <div class="team-card">
-        <div class="n">22</div>
-        <div class="lbl">General</div>
-        <p>School and district-wide page work: WCM guidelines, audits, back-to-school, analytics, security, communication plans.</p>
-      </div>
-      <div class="team-card">
-        <div class="n">1</div>
-        <div class="lbl">Out-of-Classroom Pages</div>
-        <p>Department and program pages managed outside the standard school site structure. Currently one tracked audit item; a candidate area to grow this year if we want more OOC pages brought under formal review.</p>
+        <div class="n">26</div>
+        <div class="lbl">Project Lead Queue</div>
+        <p>Active items, due dates ranging July 22 through August 28, 2026.</p>
       </div>
       <div class="team-card">
         <div class="n">5</div>
-        <div class="lbl">Application Services</div>
-        <p>The portal/dashboard/app-build track: analytics dashboard, department audit dashboards, security and portal access, Canvas course pilot, PowerApps embeds.</p>
+        <div class="lbl">Felicia's Queue</div>
+        <p>Active items, due dates through July 31, 2026.</p>
       </div>
     </div>
-    <p style="font-size:13px;color:var(--text-50)">28 active, 24 completed items total, filterable by team and by person.</p>
-    <p class="reflink"><a href="https://bcpsmarcomm.com/bcps/bcps-web-team-assignments.html">Open the full District Web Team Assignments tracker</a></p>
+
+    <h3 style="color:var(--bcps-blue-dark);margin-bottom:14px">Project Lead</h3>
+    <div class="queue-list">
+      <div class="queue-row"><span>Regional Offices</span><span class="due-pill">7/22</span></div>
+      <div class="queue-row"><span>K-12 Department Pages 404 Error Page</span><span class="due-pill">7/22</span></div>
+      <div class="queue-row"><span>Social Media Feed Issue</span><span class="due-pill">7/23</span></div>
+      <div class="queue-row"><span>BCPS AI Project</span><span class="due-pill">7/24</span></div>
+      <div class="queue-row"><span>Office of Student Services</span><span class="due-pill">7/24</span></div>
+      <div class="queue-row"><span>Compensation WCM Access</span><span class="due-pill">7/24</span></div>
+      <div class="queue-row"><span>WCM Active Directory</span><span class="due-pill">7/28</span></div>
+      <div class="queue-row"><span>One-to-One Laptop Program</span><span class="due-pill">7/28</span></div>
+      <div class="queue-row"><span>Office of General Counsel Design</span><span class="due-pill">7/28</span></div>
+      <div class="queue-row"><span>Instructional Innovation &amp; Digital Learning</span><span class="due-pill">7/28</span></div>
+      <div class="queue-row"><span>Department WCM Pilot Program</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>WCM Certification and Registration</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>Minibase Training and New Process</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>Org Chart Restructuring</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>Academics Rebuild</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>WCM Kickoff Event</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>Department Audits</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>ADA Scanner Development</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>District Analytics Dashboard</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>EAP Website</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>WCM Communication Plan</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>Charter Schools Minibase</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>WCM Hub Rebuild</span><span class="due-pill">8/14</span></div>
+      <div class="queue-row"><span>MARCOMM Rebuild</span><span class="due-pill">8/28</span></div>
+      <div class="queue-row"><span>WCM Audits - Departments WCM Hub Rebuild</span><span class="due-pill">8/28</span></div>
+      <div class="queue-row"><span>QA Process</span><span class="due-pill">8/28</span></div>
+    </div>
+    <p style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;color:var(--text-30);margin:20px 0 8px">Ongoing Responsibilities</p>
+    <div class="queue-list">
+      <div class="queue-row"><span>Manage District Web Team</span></div>
+      <div class="queue-row"><span>WCM Department Onboarding</span></div>
+      <div class="queue-row"><span>Department Hot Labs, Tuesdays and Thursdays</span></div>
+      <div class="queue-row"><span>Develop and prototype new modules for websites</span></div>
+      <div class="queue-row"><span>Monthly WCM Communique</span></div>
+      <div class="queue-row"><span>Quarterly WCM Meetings</span></div>
+    </div>
+
+    <h3 style="color:var(--bcps-blue-dark);margin:32px 0 14px">Felicia</h3>
+    <div class="queue-list">
+      <div class="queue-row"><span>Referendum Update</span><span class="due-pill">7/22</span></div>
+      <div class="queue-row"><span>Learn the LAB process</span><span class="due-pill">7/31</span></div>
+      <div class="queue-row"><span>Back to School</span></div>
+      <div class="queue-row"><span>Bus Patrol</span></div>
+      <div class="queue-row"><span>EAP Webpage</span></div>
+    </div>
+    <p style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;color:var(--text-30);margin:20px 0 8px">Ongoing Responsibilities</p>
+    <div class="queue-list">
+      <div class="queue-row"><span>Newsroom Posts</span></div>
+      <div class="queue-row"><span>Resolutions</span></div>
+      <div class="queue-row"><span>Board Member Newsletters</span></div>
+      <div class="queue-row"><span>Rotate Newsroom Videos</span></div>
+    </div>
+
+    <p class="reflink" style="margin-top:22px"><a href="https://bcpsmarcomm.com/bcps/bcps-web-team-assignments.html">Open the full District Web Team Assignments tracker</a></p>
   </div>
 
   <div class="tabpanel" id="tab-questions" role="tabpanel" aria-labelledby="tab-btn-questions" hidden>
-    <details class="q" open><summary>How much do we want to grow the Out-of-Classroom (OOC) audit track this year?</summary><div class="body"><p>Right now it is one tracked item inside the General queue. If department/program pages outside the standard school structure are a 2026-27 priority, this is the moment to scope it as its own formal track.</p></div></details>
+    <details class="q" open><summary>With 21 of the Project Lead queue's 26 items due by July 31, what's the priority order if not everything lands on time?</summary><div class="body"><p>Worth naming which of the July 31 items (WCM Kickoff Event, Department Audits, ADA Scanner Development, District Analytics Dashboard, and others) are must-hit versus can-slip.</p></div></details>
     <details class="q"><summary>Who owns the ADA/accessibility scanner decision?</summary><div class="body"><p>Build in-house (WAVE-based) versus continue with a 45-60 day vendor turnaround. Flagged at WCM Kickoff planning, not yet decided.</p></div></details>
     <details class="q"><summary>Does the Documents/Records access model need to unify further?</summary><div class="body"><p>The Documents catalog and the public-facing briefs pages currently use two separate access lists under the hood. Both are populated correctly today, but a single source of truth would be safer long-term.</p></div></details>
     <details class="q"><summary>What does "done" look like for the WCM Pilot by end of year?</summary><div class="body"><p>Worth naming a target: number of certified WCMs, departments covered, or a specific milestone tied to the July 27 relaunch.</p></div></details>
