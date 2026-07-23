@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import WcmPilotNavMenu from './WcmPilotNavMenu'
 
 // Shared persistent header for every WCM Pilot page (welcome deck, registration).
 // Logo, a vertical divider, then the program label - matches the same
@@ -15,7 +16,10 @@ export default function WcmPilotHeader({ right }: { right?: ReactNode }) {
         <span className="wp-header-divider" aria-hidden="true" />
         <span className="wp-header-title">WCM Pilot Program</span>
       </div>
-      {right ? <div className="wp-header-right">{right}</div> : null}
+      <div className="wp-header-right">
+        {right}
+        <WcmPilotNavMenu />
+      </div>
     </div>
   )
 }
