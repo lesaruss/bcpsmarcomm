@@ -17,6 +17,7 @@ interface Doc {
   doc_url: string
   is_dynamic: boolean
   can_edit: boolean
+  featured: boolean
   series_id: string | null
   series_title: string | null
   effective_object_id: string
@@ -172,6 +173,11 @@ export default function DocumentsPage() {
     if (j) await load()
   }
 
+  const toggleFeatured = async (d: Doc) => {
+    const j = await act({ action: 'meta_update', slug: d.slug, featured: !d.featured })
+    if (j) await load()
+  }
+
   const accessBadge = (d: Doc) => {
     if (d.visibility === 'public') return { label: 'Public', icon: '🌐' }
     const n = grantsFor(d.effective_object_id).length
@@ -206,7 +212,11 @@ export default function DocumentsPage() {
         .doc-type { background: rgba(22,114,167,0.10); color: #1672A7; padding: 3px 8px; border-radius: 3px; }
         .doc-type-notes { background: rgba(22,117,12,0.08); color: #16750C; padding: 3px 8px; border-radius: 3px; }
         .doc-type-record { background: rgba(197,83,38,0.07); color: #7d3018; padding: 3px 8px; border-radius: 3px; }
-        .doc-badge-row { display: flex; margin-bottom: 12px; }
+        .doc-badge-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .doc-star-btn { border: none; background: none; cursor: pointer; font-size: 17px; line-height: 1; color: #9ca3af; padding: 0; }
+        .doc-star-btn:hover { color: #B45309; }
+        .doc-star-btn-active { color: #B45309; }
+        .doc-featured-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #B45309; background: rgba(180,83,9,0.12); padding: 3px 8px; border-radius: 99px; }
         .doc-actions-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
         .doc-access-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; background: #f3f4f6; padding: 3px 8px; border-radius: 99px; }
         .doc-panel { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(0,0,0,0.09); }
@@ -266,9 +276,20 @@ export default function DocumentsPage() {
                   const dgrants = grantsFor(doc.effective_object_id)
                   return (
                     <div key={doc.id} className="doc-card">
-                      {isAdmin && (
+                      {(isAdmin || doc.featured) && (
                         <div className="doc-badge-row">
-                          <span className="doc-access-badge">{badge.icon} {badge.label}</span>
+                          {isAdmin && <span className="doc-access-badge">{badge.icon} {badge.label}</span>}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              className={doc.featured ? 'doc-star-btn doc-star-btn-active' : 'doc-star-btn'}
+                              onClick={() => toggleFeatured(doc)}
+                              title={doc.featured ? 'Remove from featured' : 'Feature this document'}
+                            >
+                              {doc.featured ? '\u2605' : '\u2606'}
+                            </button>
+                          )}
+                          {!isAdmin && doc.featured && <span className="doc-featured-badge">\u2605 Featured</span>}
                         </div>
                       )}
 
