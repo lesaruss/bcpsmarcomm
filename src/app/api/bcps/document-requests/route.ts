@@ -34,16 +34,31 @@ async function roleFor(userId: string) {
 // it (same rule as /api/bcps/documents: admin, owner, or an edit/manage
 // grant). Also resolves who "is in charge" of it for approval routing and
 // for allowing approve/reject/publish - owner, admin, or a manage grant.
+//
+// When the document belongs to a series (series_id set), owner/sensitive/
+// grants all resolve from the series' own acl_objects row instead of the
+// document's own - matches /api/bcps/documents' series resolution, so
+// approval routing and edit rights stay consistent with the Access panel
+// no matter which surface you're looking at.
 async function loadDoc(slug: string, userId: string, isAdmin: boolean) {
   const { data: doc } = await svc.from('acl_objects')
-    .select('id, slug, title, owner_id, sensitive').eq('brand', BRAND).eq('kind', 'document').eq('slug', slug).single()
+    .select('id, slug, title, owner_id, sensitive, series_id').eq('brand', BRAND).eq('kind', 'document').eq('slug', slug).single()
   if (!doc) return null
+  let ownerId = doc.owner_id
+  let sensitive = doc.sensitive
+  let grantObjectId = doc.id
+  if (doc.series_id) {
+    const { data: series } = await svc.from('acl_objects')
+      .select('owner_id, sensitive').eq('id', doc.series_id).single()
+    if (series) { ownerId = series.owner_id; sensitive = series.sensitive }
+    grantObjectId = doc.series_id
+  }
   const { data: grants } = await svc.from('acl_grants')
-    .select('subject_type, subject_id, role').eq('object_id', doc.id).eq('subject_type', 'user').eq('subject_id', userId)
+    .select('subject_type, subject_id, role').eq('object_id', grantObjectId).eq('subject_type', 'user').eq('subject_id', userId)
   const myGrant = (grants ?? [])[0]
-  const canEdit = isAdmin || doc.owner_id === userId || (!!myGrant && ['edit', 'manage'].includes(myGrant.role))
-  const canManage = isAdmin || doc.owner_id === userId || (!!myGrant && myGrant.role === 'manage')
-  return { doc, canEdit, canManage }
+  const canEdit = isAdmin || ownerId === userId || (!!myGrant && ['edit', 'manage'].includes(myGrant.role))
+  const canManage = isAdmin || ownerId === userId || (!!myGrant && myGrant.role === 'manage')
+  return { doc: { ...doc, owner_id: ownerId, sensitive }, canEdit, canManage }
 }
 
 async function emailFor(userId: string | null) {
