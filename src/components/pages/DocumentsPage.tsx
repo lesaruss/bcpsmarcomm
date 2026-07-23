@@ -177,14 +177,16 @@ export default function DocumentsPage() {
         .docs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
         .doc-card { display: block; background: #ffffff; border: 1px solid rgba(0,0,0,0.09); border-radius: 8px; padding: 24px; text-decoration: none; color: inherit; transition: all 0.2s ease; position: relative; }
         .doc-card:hover { border-color: #1672A7; box-shadow: 0 4px 16px rgba(22,114,167,0.15); }
-        .doc-icon { width: 48px; height: 48px; background: rgba(22,114,167,0.08); border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 24px; }
-        .doc-title { font-size: 16px; font-weight: 700; color: #1a1a1a; margin: 0 0 8px 0; line-height: 1.3; }
-        .doc-description { font-size: 13px; color: rgba(26,26,26,0.55); margin: 0 0 16px 0; line-height: 1.5; }
+        .doc-icon { width: 48px; height: 48px; background: rgba(22,114,167,0.08); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+        .doc-icon-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .doc-title { font-size: 16px; font-weight: 700; color: #1a1a1a; margin: 0; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+        .doc-description { font-size: 13px; color: rgba(26,26,26,0.55); margin: 0 0 14px 0; line-height: 1.5; }
         .doc-meta { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.09); font-size: 11px; color: rgba(26,26,26,0.35); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
         .doc-type { background: rgba(22,114,167,0.10); color: #1672A7; padding: 3px 8px; border-radius: 3px; }
         .doc-type-notes { background: rgba(22,117,12,0.08); color: #16750C; padding: 3px 8px; border-radius: 3px; }
         .doc-type-record { background: rgba(197,83,38,0.07); color: #7d3018; padding: 3px 8px; border-radius: 3px; }
-        .doc-admin-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+        .doc-badge-row { display: flex; margin-bottom: 12px; }
+        .doc-actions-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
         .doc-access-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; background: #f3f4f6; padding: 3px 8px; border-radius: 99px; }
         .doc-panel { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(0,0,0,0.09); }
         .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 1000; }
@@ -227,41 +229,47 @@ export default function DocumentsPage() {
                   const dgrants = grantsFor(doc.id)
                   return (
                     <div key={doc.id} className="doc-card">
-                      <div className="doc-admin-bar" style={{ justifyContent: isAdmin ? 'space-between' : 'flex-end' }}>
-                        {isAdmin && <span className="doc-access-badge">{badge.icon} {badge.label}</span>}
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {isAdmin && (
-                            <button style={openPanel === 'access' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'access')}>
-                              Access
-                            </button>
-                          )}
-                          {isAdmin && (
-                            <button style={openPanel === 'content' ? A.btnPrimary : A.btn} onClick={() => openContent(doc)}>
-                              Edit
-                            </button>
-                          )}
-                          <button style={openPanel === 'request' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'request')}>
-                            Request an edit
-                          </button>
+                      {isAdmin && (
+                        <div className="doc-badge-row">
+                          <span className="doc-access-badge">{badge.icon} {badge.label}</span>
                         </div>
-                      </div>
+                      )}
 
                       <button
                         onClick={() => setPreview(doc)}
                         style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', width: '100%', font: 'inherit', color: 'inherit' }}
                       >
-                        <div className="doc-icon">{doc.icon}</div>
-                        <h2 className="doc-title">{doc.title}</h2>
-                        <p className="doc-description">{doc.description}</p>
-                        <div className="doc-meta">
-                          <span className={
-                            section.key === 'meeting-notes' ? 'doc-type-notes' :
-                            section.key === 'records' ? 'doc-type-record' :
-                            'doc-type'
-                          }>{doc.type}</span>
-                          <span>{doc.date}</span>
+                        <div className="doc-icon-row">
+                          <div className="doc-icon">{doc.icon}</div>
+                          <h2 className="doc-title">{doc.title}</h2>
                         </div>
+                        <p className="doc-description">{doc.description}</p>
                       </button>
+
+                      <div className="doc-actions-row">
+                        {isAdmin && (
+                          <button style={openPanel === 'access' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'access')}>
+                            Access
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button style={openPanel === 'content' ? A.btnPrimary : A.btn} onClick={() => openContent(doc)}>
+                            Edit
+                          </button>
+                        )}
+                        <button style={openPanel === 'request' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'request')}>
+                          Request an edit
+                        </button>
+                      </div>
+
+                      <div className="doc-meta">
+                        <span className={
+                          section.key === 'meeting-notes' ? 'doc-type-notes' :
+                          section.key === 'records' ? 'doc-type-record' :
+                          'doc-type'
+                        }>{doc.type}</span>
+                        <span>{doc.date}</span>
+                      </div>
 
                       {openPanel === 'access' && isAdmin && (
                         <div className="doc-panel">
