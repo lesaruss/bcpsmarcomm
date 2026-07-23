@@ -43,6 +43,7 @@ const PAGE_TITLES: Record<PageId, { title: string; sub: string }> = {
   'department-audit':       { title: 'Department Name Audit',  sub: 'Profiles vs. Roster Consistency' },
   'find-it-fast':            { title: 'Find It Fast',            sub: 'Back to School Widget Content' },
   'widgets':                 { title: 'Widgets',                 sub: 'Embeddable Modules' },
+  'requests':                { title: 'Requests',                sub: 'Document Change Requests' },
 }
 
 export default function Home() {
