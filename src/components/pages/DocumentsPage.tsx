@@ -50,9 +50,10 @@ export default function DocumentsPage() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [toast, setToast] = useState('')
-  const [panel, setPanel] = useState<Record<string, 'access' | 'content' | null>>({})
+  const [panel, setPanel] = useState<Record<string, 'access' | 'content' | 'request' | null>>({})
   const [contentDraft, setContentDraft] = useState<Record<string, string>>({})
   const [contentLoading, setContentLoading] = useState<Record<string, boolean>>({})
+  const [requestDraft, setRequestDraft] = useState<Record<string, string>>({})
 
   const isAdmin = role === 'admin' || role === 'superadmin'
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
@@ -93,8 +94,26 @@ export default function DocumentsPage() {
   const groupName = (gid: string) => groups.find(g => g.id === gid)?.name || 'Group'
   const memberName = (uid: string) => members.find(m => m.user_id === uid)?.name || 'Unknown'
 
-  const toggle = (slug: string, which: 'access' | 'content') =>
+  const toggle = (slug: string, which: 'access' | 'content' | 'request') =>
     setPanel(prev => ({ ...prev, [slug]: prev[slug] === which ? null : which }))
+
+  const submitRequest = async (d: Doc) => {
+    const prompt = (requestDraft[d.slug] || '').trim()
+    if (!prompt) return
+    setBusy(true); setErr('')
+    const r = await fetch('/api/bcps/document-requests', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create', doc_slug: d.slug, prompt }),
+    })
+    const j = await r.json(); setBusy(false)
+    if (!r.ok) { setErr(j.error || 'Could not submit request'); return }
+    setRequestDraft(prev => ({ ...prev, [d.slug]: '' }))
+    setPanel(prev => ({ ...prev, [d.slug]: null }))
+    showToast(j.requires_approval
+      ? `Request submitted - waiting for ${d.title}'s owner to approve.`
+      : `Request submitted and queued for an agent to draft.`)
+  }
 
   const openContent = async (d: Doc) => {
     toggle(d.slug, 'content')
@@ -185,8 +204,8 @@ export default function DocumentsPage() {
       <div className="docs-section">
         <div className="docs-header">
           <h1>Documents</h1>
-          <p>BCPS marketing communications plans, governance documents, meeting notes, and records. Click any document to preview.
-            {isAdmin && ' As an admin, each document shows who has access and an Edit button to manage access or content directly here.'}
+          <p>BCPS marketing communications plans, governance documents, meeting notes, and records. Click any document to preview, or use Request an edit to ask for a change.
+            {isAdmin && ' As an admin, each document also shows who has access and an Edit button to manage access or content directly here.'}
           </p>
         </div>
 
@@ -208,19 +227,24 @@ export default function DocumentsPage() {
                   const dgrants = grantsFor(doc.id)
                   return (
                     <div key={doc.id} className="doc-card">
-                      {isAdmin && (
-                        <div className="doc-admin-bar">
-                          <span className="doc-access-badge">{badge.icon} {badge.label}</span>
-                          <div style={{ display: 'flex', gap: 6 }}>
+                      <div className="doc-admin-bar" style={{ justifyContent: isAdmin ? 'space-between' : 'flex-end' }}>
+                        {isAdmin && <span className="doc-access-badge">{badge.icon} {badge.label}</span>}
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {isAdmin && (
                             <button style={openPanel === 'access' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'access')}>
                               Access
                             </button>
+                          )}
+                          {isAdmin && (
                             <button style={openPanel === 'content' ? A.btnPrimary : A.btn} onClick={() => openContent(doc)}>
                               Edit
                             </button>
-                          </div>
+                          )}
+                          <button style={openPanel === 'request' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'request')}>
+                            Request an edit
+                          </button>
                         </div>
-                      )}
+                      </div>
 
                       <button
                         onClick={() => setPreview(doc)}
@@ -291,6 +315,26 @@ export default function DocumentsPage() {
                           ) : (
                             <div style={{ fontSize: 12, color: '#9ca3af' }}>This document isn&apos;t database-backed yet and can&apos;t be edited here.</div>
                           )}
+                        </div>
+                      )}
+
+                      {openPanel === 'request' && (
+                        <div className="doc-panel">
+                          <div style={A.sublabel}>Request a change to {doc.title}</div>
+                          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
+                            Describe what you&apos;d like changed, in plain language. {doc.can_edit
+                              ? 'Since you have edit access, this goes straight into the agent queue.'
+                              : "This goes to the document's owner for approval, then into the agent queue."}
+                          </div>
+                          <textarea
+                            value={requestDraft[doc.slug] ?? ''}
+                            onChange={e => setRequestDraft(prev => ({ ...prev, [doc.slug]: e.target.value }))}
+                            placeholder="e.g. Update the June 24 date to July 30 and add a note about the new roster deadline."
+                            style={{ width: '100%', height: 90, fontFamily: 'inherit', fontSize: 12, padding: 10, border: '1px solid #d1d5db', borderRadius: 6, resize: 'vertical' }}
+                          />
+                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            <button style={A.btnPrimary} disabled={busy || !(requestDraft[doc.slug] || '').trim()} onClick={() => submitRequest(doc)}>Submit request</button>
+                          </div>
                         </div>
                       )}
                     </div>
