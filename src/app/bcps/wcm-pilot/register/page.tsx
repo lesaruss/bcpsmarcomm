@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import '../wcm-pilot.css'
 import WcmPilotHeader from '../WcmPilotHeader'
+import WcmPilotFeedback from '../WcmPilotFeedback'
 
 interface DeptOption {
   id: string
@@ -172,6 +173,9 @@ export default function WCMPilotRegisterPage() {
               <button style={styles.btn} onClick={() => setStep('form')}>
                 Continue to Registration
               </button>
+              <p style={styles.note}>
+                Already registered? <a href="/certification/login" style={styles.textLink}>Log in</a>
+              </p>
               <p style={styles.note}>Access restricted to @browardschools.com addresses.</p>
             </div>
           )}
@@ -286,6 +290,8 @@ export default function WCMPilotRegisterPage() {
           )}
         </div>
       </div>
+
+      <WcmPilotFeedback />
     </div>
   )
 }
@@ -308,6 +314,7 @@ const styles: Record<string, React.CSSProperties> = {
   deptOption: { padding: '10px 14px', fontSize: 13.5, cursor: 'pointer', borderBottom: '1px solid #eef1f5' },
   deptNotListed: { padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#1672A7', cursor: 'pointer' },
   deptSwitchLink: { background: 'none', border: 'none', color: '#1672A7', cursor: 'pointer', fontWeight: 600, fontSize: 12.5, padding: '6px 0 0', display: 'block' },
+  textLink: { color: '#1672A7', fontWeight: 700, textDecoration: 'underline' },
   btn: { marginTop: 20, padding: '12px 0', background: '#1672A7', color: '#fff', border: 'none', borderRadius: 6, fontSize: 15, fontWeight: 700, cursor: 'pointer', width: '100%' },
   btnLink: { display: 'block', marginTop: 8, padding: '12px 0', background: '#1672A7', color: '#fff', borderRadius: 6, fontSize: 15, fontWeight: 700, textAlign: 'center', textDecoration: 'none' },
   error: { color: '#c0392b', fontSize: 13, marginTop: 8, marginBottom: 0 },
