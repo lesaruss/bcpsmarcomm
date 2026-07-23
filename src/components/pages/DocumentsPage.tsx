@@ -322,9 +322,11 @@ export default function DocumentsPage() {
                         <div className="doc-panel">
                           <div style={A.sublabel}>Request a change to {doc.title}</div>
                           <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
-                            Describe what you&apos;d like changed, in plain language. {doc.can_edit
+                            Describe what you&apos;d like changed, in plain language. {doc.can_edit && !doc.sensitive
                               ? 'Since you have edit access, this goes straight into the agent queue.'
-                              : "This goes to the document's owner for approval, then into the agent queue."}
+                              : doc.sensitive
+                                ? "This is a sensitive document, so it always goes to the owner for approval first, then into the agent queue."
+                                : "This goes to the document's owner for approval, then into the agent queue."}
                           </div>
                           <textarea
                             value={requestDraft[doc.slug] ?? ''}
