@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import './wcm-pilot.css'
 import WcmPilotHeader from './WcmPilotHeader'
+import WcmPilotFeedback from './WcmPilotFeedback'
 
 const DECK_SLUG = 'wcm-pilot'
 
@@ -165,6 +166,9 @@ export default function WCMPilotWelcomePage() {
             addresses.
           </p>
           <a href="/wcm-pilot/register" className="wp-cta-btn">Create Your Account</a>
+          <p className="wp-hint" style={{ marginTop: 16 }}>
+            Already registered? <a href="/certification/login" style={{ color: 'inherit', fontWeight: 700, textDecoration: 'underline' }}>Log in</a>
+          </p>
         </section>
       </div>
 
@@ -182,6 +186,8 @@ export default function WCMPilotWelcomePage() {
           </div>
         </div>
       </nav>
+
+      <WcmPilotFeedback />
     </div>
   )
 }
