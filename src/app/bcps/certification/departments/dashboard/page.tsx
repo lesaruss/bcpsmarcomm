@@ -8,11 +8,19 @@ import type { CoursePage } from '@/lib/cert-data'
 
 const LOGO_URL = "https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"
 
+interface ProgressRow {
+  module_id: string
+  page_id: string
+  completed: boolean
+  last_visited_at: string | null
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const supabase = createClient()
   const [certUser, setCertUser] = useState<{ full_name: string | null; department: string | null; email: string | null; is_admin: boolean } | null>(null)
   const [completedSet, setCompletedSet] = useState<Set<string>>(new Set())
+  const [progressRows, setProgressRows] = useState<ProgressRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -21,11 +29,12 @@ export default function DashboardPage() {
       if (!user) { router.push('/bcps/certification/login'); return }
       const [userRes, progressRes] = await Promise.all([
         supabase.from('wcm_cert_users').select('full_name,department,is_admin').eq('user_id', user.id).maybeSingle(),
-        supabase.from('wcm_cert_progress').select('module_id,page_id,completed').eq('user_id', user.id).eq('course_id', COURSE_ID),
+        supabase.from('wcm_cert_progress').select('module_id,page_id,completed,last_visited_at').eq('user_id', user.id).eq('course_id', COURSE_ID),
       ])
       setCertUser({ full_name: userRes.data?.full_name ?? null, department: userRes.data?.department ?? null, is_admin: userRes.data?.is_admin ?? false, email: user.email ?? null })
-      const progress = progressRes.data || []
-      setCompletedSet(new Set(progress.filter((p: { completed: boolean }) => p.completed).map((p: { module_id: string; page_id: string }) => `${p.module_id}::${p.page_id}`)))
+      const progress: ProgressRow[] = progressRes.data || []
+      setProgressRows(progress)
+      setCompletedSet(new Set(progress.filter((p) => p.completed).map((p) => `${p.module_id}::${p.page_id}`)))
       setLoading(false)
     }
     init()
@@ -42,6 +51,17 @@ export default function DashboardPage() {
   const pct = Math.round((completedCount / totalPages) * 100)
 
   function getResumeHref(): string {
+    // Resume at the most recently visited page rather than the first
+    // incomplete page in course order. A user who used Save & Exit without
+    // clicking Mark Complete on every page still comes back to exactly
+    // where they left off, instead of being sent to Module 1.
+    const allKeys = new Set(MODULES.flatMap((m) => m.pages.map((p) => `${m.id}::${p.id}`)))
+    const lastVisited = progressRows
+      .filter((p) => allKeys.has(`${p.module_id}::${p.page_id}`) && p.last_visited_at)
+      .sort((a, b) => new Date(b.last_visited_at as string).getTime() - new Date(a.last_visited_at as string).getTime())[0]
+    if (lastVisited) {
+      return `/bcps/certification/departments/course/${lastVisited.module_id}/${lastVisited.page_id}`
+    }
     for (const mod of MODULES) {
       for (const page of mod.pages) {
         if (!completedSet.has(`${mod.id}::${page.id}`)) {
