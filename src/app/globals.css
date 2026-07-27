@@ -1814,6 +1814,30 @@ body {
 .min-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 @media (max-width: 900px) { .min-card-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .min-card-grid { grid-template-columns: 1fr; } }
+
+/* WCM roster signup: "Add a Web Content Manager" row.
+   Inputs need an explicit width/min-width or their UA-default intrinsic
+   size (~150px each) refuses to shrink inside the grid, which is what was
+   forcing the row (and the remove "x") wider than the form frame,
+   especially on mobile viewports. */
+.wcm-new-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: flex-start; }
+.wcm-new-row-fields {
+  flex: 1 1 auto; min-width: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+}
+.wcm-new-row-fields .form-input { width: 100%; min-width: 0; box-sizing: border-box; }
+.wcm-new-row-remove {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  width: 30px; height: 30px; flex-shrink: 0; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); cursor: pointer; font-size: 15px; line-height: 1;
+  transition: border-color .15s, color .15s;
+}
+.wcm-new-row-remove:hover { border-color: #DC2626; color: #DC2626; }
+@media (max-width: 560px) {
+  .wcm-new-row-fields { grid-template-columns: 1fr; }
+}
+
 .min-card {
   display: flex; flex-direction: column; gap: 8px;
   padding: 16px; background: #fff;

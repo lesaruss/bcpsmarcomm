@@ -410,8 +410,8 @@ export default function WCMRosterSignupPage() {
                 Add a Web Content Manager
               </label>
               {newRows.map((row, i) => (
-                <div key={row.key} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
-                  <div style={{ flex: '1 1 auto', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                <div key={row.key} className="wcm-new-row">
+                  <div className="wcm-new-row-fields">
                     <input
                       className="form-input"
                       placeholder="Name"
@@ -437,9 +437,9 @@ export default function WCMRosterSignupPage() {
                     type="button"
                     onClick={() => removeRow(row.key)}
                     aria-label="Remove this row"
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18, padding: '6px 4px', flexShrink: 0 }}
+                    className="wcm-new-row-remove"
                   >
-                    x
+                    &#215;
                   </button>
                 </div>
               ))}
