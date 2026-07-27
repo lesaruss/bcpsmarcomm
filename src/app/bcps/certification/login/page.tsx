@@ -37,7 +37,12 @@ export default function CertLoginPage() {
         if (!fullName.trim()) { setError('Full name is required.'); setLoading(false); return }
         const { data, error: signUpError } = await supabase.auth.signUp({
           email, password,
-          options: { data: { full_name: fullName } }
+          options: {
+            data: { full_name: fullName },
+            // New WCMs land in the certification course itself after
+            // confirming their email, not the generic BCPS dashboard.
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/bcps/certification/departments')}`,
+          }
         })
         if (signUpError) throw signUpError
         if (data.user) {
