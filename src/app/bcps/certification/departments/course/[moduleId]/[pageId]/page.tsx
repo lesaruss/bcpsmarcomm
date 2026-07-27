@@ -14,6 +14,7 @@ export default function CoursePlayerPage({ params }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [userId, setUserId] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [completedPages, setCompletedPages] = useState<Set<string>>(new Set())
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({})
   const [quizSubmitted, setQuizSubmitted] = useState(false)
@@ -41,6 +42,8 @@ export default function CoursePlayerPage({ params }: Props) {
         { user_id: user.id, email: user.email!, full_name: user.user_metadata?.full_name || null, is_admin: false },
         { onConflict: 'user_id', ignoreDuplicates: true }
       )
+      const { data: profile } = await supabase.from('wcm_cert_users').select('is_admin').eq('user_id', user.id).maybeSingle()
+      setIsAdmin(!!profile?.is_admin)
       const { data } = await supabase.from('wcm_cert_progress')
         .select('module_id,page_id,completed')
         .eq('user_id', user.id)
@@ -196,6 +199,9 @@ export default function CoursePlayerPage({ params }: Props) {
   }
 
   function canNavigateTo(targetModuleId: string, targetPageId: string) {
+    // Admins can preview the full course - edit suggestions, video/audio
+    // slots, etc. - without completing assessments or prior pages.
+    if (isAdmin) return true
     const key = `${targetModuleId}::${targetPageId}`
     if (completedPages.has(key)) return true
     const targetPrev = getPrevPage(targetModuleId, targetPageId)
@@ -204,6 +210,7 @@ export default function CoursePlayerPage({ params }: Props) {
   }
 
   function isModuleUnlocked(modIndex: number): boolean {
+    if (isAdmin) return true
     if (modIndex === 0) return true
     const prevMod = MODULES[modIndex - 1]
     return prevMod.pages.every((p: CoursePage) => completedPages.has(`${prevMod.id}::${p.id}`))
@@ -299,6 +306,11 @@ export default function CoursePlayerPage({ params }: Props) {
           <div style={S.breadcrumb}>{mod.id === 'final' ? 'Final Assignments' : `Module ${mod.number}: ${mod.title}`}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {saving && <span style={S.saving}>Saving...</span>}
+            {isAdmin && (
+              <div style={{ fontSize: 10, fontWeight: 800, color: '#854F0B', background: '#fef3e2', borderRadius: 20, padding: '3px 10px', letterSpacing: 0.4, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                Admin Preview
+              </div>
+            )}
             <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#1672A7', borderRadius: 20, padding: '3px 10px', letterSpacing: 0.3, whiteSpace: 'nowrap' }}>
               Page {pageIndex + 1} of {totalPages}
             </div>
