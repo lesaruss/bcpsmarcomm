@@ -1,28 +1,15 @@
-import { redirect } from 'next/navigation'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import WcmPilotFeedback from '@/app/bcps/wcm-pilot/WcmPilotFeedback'
 
-export default async function CertLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/bcps/certification/login')
-
+// No auth gate here on purpose. This layout wraps every route under
+// /bcps/certification/*, including the login page itself - a blanket
+// "redirect to /bcps/certification/login if no session" here redirects the
+// login page to itself, an infinite loop for any anonymous visitor (found
+// 2026-07-27 via a real incognito test: the login page just kept
+// relooping). Every actual protected page under this tree (departments,
+// dashboard, admin, course, complete) already does its own auth check and
+// redirects to login independently, so this layout only needs to provide
+// the shared chrome, not gate access.
+export default function CertLayout({ children }: { children: React.ReactNode }) {
   // BCPSShell is provided by the parent bcps/layout.tsx. WcmPilotFeedback is
   // mounted here so every certification-course page (login, departments,
   // dashboard, course modules) carries the same feedback channel, per the
