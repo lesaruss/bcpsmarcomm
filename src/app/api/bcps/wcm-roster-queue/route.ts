@@ -138,12 +138,18 @@ export async function PATCH(req: NextRequest) {
     // action === 'na': roster director already updated above, no member row change.
 
     // Mirror onto the website-audit tool's department record, if this
-    // department is one of the ones already tracked there.
+    // department is one of the ones already tracked there. Approving is
+    // the District Web Team's manual confirmation that this submission is
+    // legitimate, so a submitter_email on the submission becomes the
+    // director_email of record too - this is how that field gets populated
+    // over time without needing an upfront authoritative source.
     if (rosterRow.matched_department_id && submissionAction !== 'remove') {
-      await supabase.from('bcps_departments').update({
+      const deptUpdate: Record<string, string> = {
         wcm_name: submission.wcm_name,
         director_name: submission.director_name,
-      }).eq('id', rosterRow.matched_department_id)
+      }
+      if (submission.submitter_email) deptUpdate.director_email = submission.submitter_email
+      await supabase.from('bcps_departments').update(deptUpdate).eq('id', rosterRow.matched_department_id)
     }
 
     await supabase.from('bcps_wcm_roster_submissions').update({

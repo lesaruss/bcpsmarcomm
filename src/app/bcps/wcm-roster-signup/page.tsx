@@ -39,6 +39,14 @@ export default function WCMRosterSignupPage() {
 
   const [directorName, setDirectorName] = useState('')
   const [directorTouched, setDirectorTouched] = useState(false)
+  // What was actually on file when the department was picked (not what the
+  // director may have retyped) - used to detect a possible identity mismatch.
+  const [originalDirectorName, setOriginalDirectorName] = useState('')
+
+  const [submitterEmail, setSubmitterEmail] = useState('')
+  const [notDirector, setNotDirector] = useState(false)
+  const [submitterName, setSubmitterName] = useState('')
+  const [submitterRole, setSubmitterRole] = useState('')
 
   // "On file" WCMs for the selected department, and which of them the
   // director has flagged for removal (pending review, not deleted yet).
@@ -74,9 +82,13 @@ export default function WCMRosterSignupPage() {
   // WCM(s) pop up so the director can confirm, remove, or add rather than
   // re-typing everything from a blank form.
   useEffect(() => {
+    setNotDirector(false)
+    setSubmitterName('')
+    setSubmitterRole('')
     if (!selectedDept) {
       setCurrentWcms(null)
       setRemoveIds(new Set())
+      setOriginalDirectorName('')
       return
     }
     setCurrentLoading(true)
@@ -85,6 +97,7 @@ export default function WCMRosterSignupPage() {
       .then(r => r.json())
       .then(j => {
         setCurrentWcms(j.wcms || [])
+        setOriginalDirectorName(j.director_name || '')
         if (!directorTouched && j.director_name) setDirectorName(j.director_name)
       })
       .catch(() => setCurrentWcms([]))
@@ -163,6 +176,14 @@ export default function WCMRosterSignupPage() {
       setResult({ type: 'error', text: 'Director name is required.' })
       return
     }
+    if (!submitterEmail.trim()) {
+      setResult({ type: 'error', text: 'Your email address is required.' })
+      return
+    }
+    if (notDirector && (!submitterName.trim() || !submitterRole.trim())) {
+      setResult({ type: 'error', text: 'Please enter your name and role so the District Web Team knows who completed this.' })
+      return
+    }
 
     const removals = currentWcms?.filter(w => removeIds.has(w.id)) ?? []
     const additions = newRows.filter(r => r.name.trim())
@@ -180,7 +201,15 @@ export default function WCMRosterSignupPage() {
     setSubmitting(true)
     setResult(null)
     try {
-      const common = { department_name: departmentName, director_name: directorName.trim(), roster_id: selectedDept?.id }
+      const common = {
+        department_name: departmentName,
+        director_name: directorName.trim(),
+        roster_id: selectedDept?.id,
+        submitter_email: submitterEmail.trim(),
+        identity_flag: notDirector,
+        submitter_name: notDirector ? submitterName.trim() : undefined,
+        submitter_role: notDirector ? submitterRole.trim() : undefined,
+      }
 
       for (const w of removals) {
         await postChange({ ...common, action: 'remove', target_member_id: w.id, wcm_name: w.wcm_name })
@@ -344,6 +373,64 @@ export default function WCMRosterSignupPage() {
                 placeholder="Enter your answer"
                 required
               />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
+                Your Email <span style={{ color: '#DC2626' }}>*</span>
+              </label>
+              <input
+                className="form-input"
+                style={{ width: '100%', boxSizing: 'border-box' }}
+                type="email"
+                value={submitterEmail}
+                onChange={e => setSubmitterEmail(e.target.value)}
+                placeholder="you@browardschools.com"
+                required
+              />
+              <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: '6px 0 0' }}>
+                So the District Web Team can reach you about this submission if needed.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={notDirector}
+                  onChange={e => setNotDirector(e.target.checked)}
+                  style={{ marginTop: 2 }}
+                />
+                {originalDirectorName && originalDirectorName.trim().toUpperCase() !== 'TBD'
+                  ? `I'm not ${originalDirectorName} \u2014 someone else is completing this form.`
+                  : `I'm completing this on behalf of the director, not the director myself.`}
+              </label>
+              {notDirector && (
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10,
+                  padding: '12px 14px', borderRadius: 8, background: '#FFFBEB', border: '1px solid rgba(217,119,6,0.25)',
+                }}>
+                  <div style={{ gridColumn: '1 / -1', fontSize: 11.5, color: '#92400E', marginBottom: 2 }}>
+                    This flags the submission for the District Web Team to confirm before it&apos;s approved.
+                  </div>
+                  <input
+                    className="form-input"
+                    style={{ boxSizing: 'border-box' }}
+                    value={submitterName}
+                    onChange={e => setSubmitterName(e.target.value)}
+                    placeholder="Your name"
+                    required
+                  />
+                  <input
+                    className="form-input"
+                    style={{ boxSizing: 'border-box' }}
+                    value={submitterRole}
+                    onChange={e => setSubmitterRole(e.target.value)}
+                    placeholder="Your role (e.g. Chief, Office Manager)"
+                    required
+                  />
+                </div>
+              )}
             </div>
 
             {selectedDept && (

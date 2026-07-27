@@ -35,6 +35,10 @@ interface RosterSubmission {
   status: 'pending' | 'approved' | 'rejected'
   reviewed_at: string | null
   reviewed_by: string | null
+  submitter_email: string | null
+  identity_flag: boolean
+  submitter_name: string | null
+  submitter_role: string | null
 }
 
 function titleCase(s: string): string {
@@ -120,6 +124,13 @@ function DepartmentRosterSection() {
         .roster-btn.approve { background: #16750C; color: #fff; }
         .roster-btn.reject { background: #fff; color: #9ca3af; border: 1.5px solid #e5e7eb; }
         .roster-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .roster-pending-card.is-flagged { border-left-color: #DC2626; background: #FEF2F2; }
+        .roster-flag-badge {
+          display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: 0.05em; color: #DC2626; background: rgba(220,38,38,0.08);
+          border: 1px solid rgba(220,38,38,0.25); border-radius: 5px; padding: 3px 8px; margin-bottom: 8px;
+        }
+        .roster-flag-detail { font-size: 12.5px; color: #7F1D1D; line-height: 1.6; margin-bottom: 8px; }
         .roster-table-wrap { border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; overflow: hidden; }
         .roster-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .roster-table th { text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(26,26,26,0.45); background: #f9fafb; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.08); }
@@ -169,18 +180,30 @@ function DepartmentRosterSection() {
             Pending Review ({pending.length})
           </h4>
           {pending.map(s => (
-            <div key={s.id} className="roster-pending-card">
+            <div key={s.id} className={`roster-pending-card${s.identity_flag ? ' is-flagged' : ''}`}>
               <div className="roster-pending-top">
                 <div>
                   <div className="roster-pending-dept">{titleCase(s.department_name)}</div>
                   <div className="roster-pending-loc">Loc #{s.location_number ?? 'unmatched'} &middot; submitted {formatDate(s.submitted_at)}</div>
                 </div>
               </div>
+              {s.identity_flag && (
+                <>
+                  <div className="roster-flag-badge">&#9888; Not the director on file</div>
+                  <div className="roster-flag-detail">
+                    Submitted by <strong>{s.submitter_name}</strong> ({s.submitter_role}) - {s.submitter_email}<br />
+                    Form listed director as &quot;{s.director_name}&quot;. Confirm before approving.
+                  </div>
+                </>
+              )}
               <div className="roster-pending-detail">
                 Director: <strong>{s.director_name}</strong><br />
                 WCM: <strong>{s.wcm_name}</strong>
                 {s.wcm_personnel_number ? ` (#${s.wcm_personnel_number})` : ''}
                 {s.wcm_email ? ` - ${s.wcm_email}` : ''}
+                {!s.identity_flag && s.submitter_email && (
+                  <><br />Submitted by: {s.submitter_email}</>
+                )}
               </div>
               <div className="roster-pending-actions">
                 <button className="roster-btn reject" disabled={acting === s.id} onClick={() => decide(s.id, 'reject')}>Reject</button>
