@@ -13,7 +13,7 @@ function checkKey(req: NextRequest): boolean {
   return key === ACCESS_KEY
 }
 
-// GET: full roster (143 departments, alphabetical) with each department's
+// GET: full roster (departments, alphabetical) with each department's
 // current director + assigned WCM(s), plus any submissions still awaiting
 // review. Backs the "WCM Roster" tab in the Department WCMS Portal.
 export async function GET(req: NextRequest) {
@@ -55,22 +55,26 @@ export async function GET(req: NextRequest) {
 }
 
 // PATCH: admin decision on a pending submission.
-// approve -> upserts the roster row's director_name, appends a WCM member row,
-//            and (if this department is also tracked in the website-audit tool)
-//            mirrors the name onto bcps_departments so that tool's WCM Contact
-//            panel stays in sync.
-// reject  -> marks the submission rejected with reviewer notes, no roster change.
+// approve + action=add    -> upserts the roster row's director_name, appends a WCM
+//                             member row, mirrors the name onto bcps_departments
+//                             if this department is also tracked in the audit tool.
+// approve + action=remove -> deletes the target_member_id row from
+//                             bcps_wcm_roster_members. No new row added.
+// approve + action=na     -> updates director_name only, no member change (the
+//                             department is confirming it has no dedicated WCM).
+// reject                  -> marks the submission rejected with reviewer notes,
+//                             no roster/member change either way.
 export async function PATCH(req: NextRequest) {
   if (!checkKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const { id, action, reviewer, notes } = await req.json() as {
+    const { id, action: decision, reviewer, notes } = await req.json() as {
       id: string
       action: 'approve' | 'reject'
       reviewer?: string
       notes?: string
     }
-    if (!id || !action) {
+    if (!id || !decision) {
       return NextResponse.json({ error: 'id and action required' }, { status: 400 })
     }
 
@@ -87,12 +91,14 @@ export async function PATCH(req: NextRequest) {
 
     const now = new Date().toISOString()
 
-    if (action === 'reject') {
+    if (decision === 'reject') {
       await supabase.from('bcps_wcm_roster_submissions').update({
         status: 'rejected', reviewed_at: now, reviewed_by: reviewer ?? 'admin', review_notes: notes ?? null,
       }).eq('id', id)
       return NextResponse.json({ success: true, action: 'rejected' })
     }
+
+    const submissionAction: 'add' | 'remove' | 'na' = submission.action ?? 'add'
 
     // Approve: find (or create) the roster row for this department.
     let { data: rosterRow } = await supabase
@@ -119,16 +125,21 @@ export async function PATCH(req: NextRequest) {
       }).eq('id', rosterRow.id)
     }
 
-    await supabase.from('bcps_wcm_roster_members').insert({
-      roster_id: rosterRow.id,
-      wcm_name: submission.wcm_name,
-      wcm_personnel_number: submission.wcm_personnel_number,
-      wcm_email: submission.wcm_email,
-    })
+    if (submissionAction === 'remove' && submission.target_member_id) {
+      await supabase.from('bcps_wcm_roster_members').delete().eq('id', submission.target_member_id)
+    } else if (submissionAction === 'add') {
+      await supabase.from('bcps_wcm_roster_members').insert({
+        roster_id: rosterRow.id,
+        wcm_name: submission.wcm_name,
+        wcm_personnel_number: submission.wcm_personnel_number,
+        wcm_email: submission.wcm_email,
+      })
+    }
+    // action === 'na': roster director already updated above, no member row change.
 
     // Mirror onto the website-audit tool's department record, if this
-    // department is one of the 64 already tracked there.
-    if (rosterRow.matched_department_id) {
+    // department is one of the ones already tracked there.
+    if (rosterRow.matched_department_id && submissionAction !== 'remove') {
       await supabase.from('bcps_departments').update({
         wcm_name: submission.wcm_name,
         director_name: submission.director_name,

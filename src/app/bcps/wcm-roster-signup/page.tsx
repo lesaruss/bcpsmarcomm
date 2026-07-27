@@ -10,27 +10,44 @@ interface DeptOption {
   location_number: string
 }
 
+interface CurrentWcm {
+  id: string
+  wcm_name: string
+  wcm_email: string | null
+  wcm_personnel_number: string | null
+}
+
+interface NewWcmRow {
+  key: number
+  name: string
+  email: string
+  personnelNumber: string
+}
+
 function titleCase(s: string): string {
   return s.toLowerCase().replace(/(^|[\s/-])([a-z])/g, (_m, sep, ch) => sep + ch.toUpperCase())
 }
+
+let rowKeySeq = 0
 
 export default function WCMRosterSignupPage() {
   const [departments, setDepartments] = useState<DeptOption[]>([])
   const [deptQuery, setDeptQuery] = useState('')
   const [selectedDept, setSelectedDept] = useState<DeptOption | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
-  // Fallback for a department that isn't in the bcps_wcm_roster list: lets a
-  // Director type it in directly instead of being stuck. Nothing extra to
-  // flag here - /api/bcps/wcm-roster-intake already routes every submission
-  // (matched or not) into bcps_wcm_roster_submissions as 'pending' for the
-  // District Web Team to review, and an unmatched name just lands with a
-  // null location_number as the natural "needs a look" signal.
   const [manualDept, setManualDept] = useState(false)
 
   const [directorName, setDirectorName] = useState('')
-  const [wcmName, setWcmName] = useState('')
-  const [wcmPersonnelNumber, setWcmPersonnelNumber] = useState('')
-  const [wcmEmail, setWcmEmail] = useState('')
+  const [directorTouched, setDirectorTouched] = useState(false)
+
+  // "On file" WCMs for the selected department, and which of them the
+  // director has flagged for removal (pending review, not deleted yet).
+  const [currentWcms, setCurrentWcms] = useState<CurrentWcm[] | null>(null)
+  const [currentLoading, setCurrentLoading] = useState(false)
+  const [removeIds, setRemoveIds] = useState<Set<string>>(new Set())
+
+  const [newRows, setNewRows] = useState<NewWcmRow[]>([])
+  const [naChecked, setNaChecked] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -52,6 +69,28 @@ export default function WCMRosterSignupPage() {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
 
+  // Pull "who's on file" the moment a real (matched) department is picked.
+  // This is the prefill Sean asked for: pick a department, see the current
+  // WCM(s) pop up so the director can confirm, remove, or add rather than
+  // re-typing everything from a blank form.
+  useEffect(() => {
+    if (!selectedDept) {
+      setCurrentWcms(null)
+      setRemoveIds(new Set())
+      return
+    }
+    setCurrentLoading(true)
+    setRemoveIds(new Set())
+    fetch(`/api/bcps/wcm-roster-current?roster_id=${selectedDept.id}`)
+      .then(r => r.json())
+      .then(j => {
+        setCurrentWcms(j.wcms || [])
+        if (!directorTouched && j.director_name) setDirectorName(j.director_name)
+      })
+      .catch(() => setCurrentWcms([]))
+      .finally(() => setCurrentLoading(false))
+  }, [selectedDept]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const filteredDepts = useMemo(() => {
     const q = deptQuery.trim().toLowerCase()
     if (!q) return departments
@@ -62,10 +101,12 @@ export default function WCMRosterSignupPage() {
     setSelectedDept(d)
     setDeptQuery(`${titleCase(d.department_name)} (${d.location_number})`)
     setShowDropdown(false)
+    setResult(null)
   }
 
   function useManualDept() {
     setSelectedDept(null)
+    setCurrentWcms(null)
     setManualDept(true)
     setShowDropdown(false)
   }
@@ -74,6 +115,38 @@ export default function WCMRosterSignupPage() {
     setManualDept(false)
     setDeptQuery('')
     setSelectedDept(null)
+    setCurrentWcms(null)
+  }
+
+  function toggleRemove(id: string) {
+    setRemoveIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function addRow() {
+    setNewRows(prev => [...prev, { key: ++rowKeySeq, name: '', email: '', personnelNumber: '' }])
+  }
+
+  function updateRow(key: number, field: keyof Omit<NewWcmRow, 'key'>, value: string) {
+    setNewRows(prev => prev.map(r => (r.key === key ? { ...r, [field]: value } : r)))
+  }
+
+  function removeRow(key: number) {
+    setNewRows(prev => prev.filter(r => r.key !== key))
+  }
+
+  async function postChange(payload: Record<string, unknown>) {
+    const r = await fetch('/api/bcps/wcm-roster-intake', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_key: ACCESS_KEY, ...payload }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(j.error || 'Submission failed.')
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -82,46 +155,63 @@ export default function WCMRosterSignupPage() {
     if (!departmentName) {
       setResult({
         type: 'error',
-        text: manualDept
-          ? 'Please enter your department name.'
-          : 'Please select your department from the list.',
+        text: manualDept ? 'Please enter your department name.' : 'Please select your department from the list.',
       })
       return
     }
-    if (!directorName.trim() || !wcmName.trim()) {
-      setResult({ type: 'error', text: 'Director name and WCM name are required.' })
+    if (!directorName.trim()) {
+      setResult({ type: 'error', text: 'Director name is required.' })
+      return
+    }
+
+    const removals = currentWcms?.filter(w => removeIds.has(w.id)) ?? []
+    const additions = newRows.filter(r => r.name.trim())
+    const incompleteRow = newRows.find(r => !r.name.trim() && (r.email.trim() || r.personnelNumber.trim()))
+
+    if (incompleteRow) {
+      setResult({ type: 'error', text: 'Each new WCM you add needs at least a name.' })
+      return
+    }
+    if (!naChecked && removals.length === 0 && additions.length === 0) {
+      setResult({ type: 'error', text: 'Remove someone, add someone, or check "No dedicated WCM this year" before submitting.' })
       return
     }
 
     setSubmitting(true)
     setResult(null)
     try {
-      const r = await fetch('/api/bcps/wcm-roster-intake', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          access_key: ACCESS_KEY,
-          department_name: departmentName,
-          director_name: directorName.trim(),
-          wcm_name: wcmName.trim(),
-          wcm_personnel_number: wcmPersonnelNumber.trim() || undefined,
-          wcm_email: wcmEmail.trim() || undefined,
-        }),
-      })
-      const j = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(j.error || 'Submission failed.')
+      const common = { department_name: departmentName, director_name: directorName.trim(), roster_id: selectedDept?.id }
 
+      for (const w of removals) {
+        await postChange({ ...common, action: 'remove', target_member_id: w.id, wcm_name: w.wcm_name })
+      }
+      for (const row of additions) {
+        await postChange({
+          ...common,
+          action: 'add',
+          wcm_name: row.name.trim(),
+          wcm_email: row.email.trim() || undefined,
+          wcm_personnel_number: row.personnelNumber.trim() || undefined,
+        })
+      }
+      if (naChecked) {
+        await postChange({ ...common, action: 'na' })
+      }
+
+      const count = removals.length + additions.length + (naChecked ? 1 : 0)
       setResult({
         type: 'success',
-        text: 'Thank you! Your submission has been received and is awaiting review by the District Web Team.',
+        text: `Thank you! ${count} update${count === 1 ? '' : 's'} submitted and awaiting review by the District Web Team. Nothing changes on the live roster until then.`,
       })
-      setSelectedDept(null)
-      setManualDept(false)
-      setDeptQuery('')
-      setDirectorName('')
-      setWcmName('')
-      setWcmPersonnelNumber('')
-      setWcmEmail('')
+      setNewRows([])
+      setNaChecked(false)
+      setRemoveIds(new Set())
+      // Re-pull current WCMs so the pending-removal strike-through clears
+      // now that the removal has actually been recorded.
+      if (selectedDept) {
+        fetch(`/api/bcps/wcm-roster-current?roster_id=${selectedDept.id}`)
+          .then(r => r.json()).then(j => setCurrentWcms(j.wcms || [])).catch(() => {})
+      }
     } catch (err) {
       setResult({ type: 'error', text: err instanceof Error ? err.message : 'Something went wrong. Please try again.' })
     } finally {
@@ -156,31 +246,27 @@ export default function WCMRosterSignupPage() {
             Department Web Content Managers Roster 2026/27
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7, margin: 0 }}>
-            Directors: submit a separate response for each Web Content Manager (WCM) assigned to your department.
-            Submissions are reviewed by the District Web Team before a record is updated.
+            Directors: pick your department below to see who&apos;s currently on file. Confirm, remove, or add
+            Web Content Managers (WCMs) as needed. Every change is reviewed by the District Web Team before
+            it&apos;s locked in, so if something here is wrong or out of date, just fix it.
           </p>
         </div>
 
-        <div>
-          {result && (
-            <div
-              style={{
-                padding: '14px 16px',
-                borderRadius: 8,
-                marginBottom: 20,
-                fontSize: 14,
-                fontWeight: 600,
-                background: result.type === 'success' ? '#ECFDF5' : '#FEF2F2',
-                color: result.type === 'success' ? '#059669' : '#DC2626',
-                border: `1px solid ${result.type === 'success' ? 'rgba(5,150,105,0.25)' : 'rgba(220,38,38,0.25)'}`,
-              }}
-            >
-              {result.text}
-            </div>
-          )}
+        {result && (
+          <div
+            style={{
+              padding: '14px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14, fontWeight: 600,
+              background: result.type === 'success' ? '#ECFDF5' : '#FEF2F2',
+              color: result.type === 'success' ? '#059669' : '#DC2626',
+              border: `1px solid ${result.type === 'success' ? 'rgba(5,150,105,0.25)' : 'rgba(220,38,38,0.25)'}`,
+            }}
+          >
+            {result.text}
+          </div>
+        )}
 
-          <div className="wcm-portal-content">
-            <form onSubmit={handleSubmit}>
+        <div className="wcm-portal-content">
+          <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 20 }}>
               <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
                 Department <span style={{ color: '#DC2626' }}>*</span>
@@ -246,46 +332,145 @@ export default function WCMRosterSignupPage() {
               )}
             </div>
 
-            <Field label="Directors Name" required value={directorName} onChange={setDirectorName} placeholder="Enter your answer" />
-            <Field label="Name of Web Content Manager (WCM)" required value={wcmName} onChange={setWcmName} placeholder="Enter your answer" />
-            <Field label="WCM Personnel Number" value={wcmPersonnelNumber} onChange={setWcmPersonnelNumber} placeholder="Enter your answer" />
-            <Field label="WCM Email Address" value={wcmEmail} onChange={setWcmEmail} placeholder="Enter your answer" type="email" />
+            <div style={{ marginBottom: 20 }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
+                Director&apos;s Name <span style={{ color: '#DC2626' }}>*</span>
+              </label>
+              <input
+                className="form-input"
+                style={{ width: '100%', boxSizing: 'border-box' }}
+                value={directorName}
+                onChange={e => { setDirectorName(e.target.value); setDirectorTouched(true) }}
+                placeholder="Enter your answer"
+                required
+              />
+            </div>
 
-            <button type="submit" className="btn-primary" disabled={submitting} style={{ marginTop: 8, padding: '11px 28px', fontSize: 14 }}>
+            {selectedDept && (
+              <div style={{ marginBottom: 20 }}>
+                <label className="form-label" style={{ display: 'block', marginBottom: 8 }}>
+                  Currently On File
+                </label>
+                {currentLoading && (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Checking...</div>
+                )}
+                {!currentLoading && currentWcms && currentWcms.length === 0 && (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '10px 0' }}>
+                    No WCM on file yet for this department. Add one below.
+                  </div>
+                )}
+                {!currentLoading && currentWcms && currentWcms.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {currentWcms.map(w => {
+                      const flagged = removeIds.has(w.id)
+                      const isTbd = w.wcm_name.trim().toUpperCase() === 'TBD'
+                      return (
+                        <div
+                          key={w.id}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                            padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)',
+                            background: flagged ? '#FEF2F2' : (isTbd ? '#FFFBEB' : '#fafbfc'),
+                          }}
+                        >
+                          <div style={{ textDecoration: flagged ? 'line-through' : 'none', opacity: flagged ? 0.6 : 1 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {isTbd ? 'TBD (needs a replacement)' : w.wcm_name}
+                            </div>
+                            {(w.wcm_email || w.wcm_personnel_number) && !isTbd && (
+                              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                {[w.wcm_email, w.wcm_personnel_number].filter(Boolean).join(' | ')}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => toggleRemove(w.id)}
+                            style={{
+                              background: 'none', border: '1px solid var(--border)', borderRadius: 6,
+                              padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                              color: flagged ? 'var(--text-muted)' : '#DC2626', flexShrink: 0,
+                            }}
+                          >
+                            {flagged ? 'Undo' : (isTbd ? 'Clear' : 'Remove')}
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 6 }}>
+                  Still correct? Leave as-is, nothing to do. Wrong or someone&apos;s gone? Mark it for removal and add their replacement below.
+                </p>
+              </div>
+            )}
+
+            <div style={{ marginBottom: 20 }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: 8 }}>
+                Add a Web Content Manager
+              </label>
+              {newRows.map((row, i) => (
+                <div key={row.key} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+                  <div style={{ flex: '1 1 auto', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    <input
+                      className="form-input"
+                      placeholder="Name"
+                      value={row.name}
+                      onChange={e => updateRow(row.key, 'name', e.target.value)}
+                      autoFocus={i === newRows.length - 1}
+                    />
+                    <input
+                      className="form-input"
+                      placeholder="Email"
+                      type="email"
+                      value={row.email}
+                      onChange={e => updateRow(row.key, 'email', e.target.value)}
+                    />
+                    <input
+                      className="form-input"
+                      placeholder="Personnel #"
+                      value={row.personnelNumber}
+                      onChange={e => updateRow(row.key, 'personnelNumber', e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(row.key)}
+                    aria-label="Remove this row"
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18, padding: '6px 4px', flexShrink: 0 }}
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addRow}
+                className="btn-secondary"
+                style={{ marginTop: 4, fontSize: 12.5, padding: '7px 14px' }}
+              >
+                + Add a WCM
+              </button>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={naChecked}
+                  onChange={e => setNaChecked(e.target.checked)}
+                  style={{ marginTop: 2 }}
+                />
+                My department does not need a dedicated Web Content Manager this year (N/A).
+              </label>
+            </div>
+
+            <button type="submit" className="btn-primary" disabled={submitting} style={{ padding: '11px 28px', fontSize: 14 }}>
               {submitting ? 'Submitting...' : 'Submit'}
             </button>
-            </form>
-          </div>
+          </form>
         </div>
       </main>
-    </div>
-  )
-}
-
-function Field({
-  label, value, onChange, required, placeholder, type = 'text',
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  required?: boolean
-  placeholder?: string
-  type?: string
-}) {
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
-        {label} {required && <span style={{ color: '#DC2626' }}>*</span>}
-      </label>
-      <input
-        className="form-input"
-        style={{ width: '100%', boxSizing: 'border-box' }}
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        required={required}
-      />
     </div>
   )
 }
