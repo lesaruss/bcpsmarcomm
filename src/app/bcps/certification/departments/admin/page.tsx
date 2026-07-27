@@ -55,6 +55,7 @@ export default async function AdminDashboard() {
           <span style={S.headerTitle}>Admin - WCM Certification Dashboard</span>
           <span style={S.headerSub}>Department - Broward County Public Schools</span>
         </div>
+        <Link href="/bcps/certification/departments/course/mod1/welcome" style={{ ...S.backBtn, marginLeft: 'auto' }}>Preview Course Content</Link>
         <Link href="/bcps/certification/departments" style={S.backBtn}>My Progress</Link>
       </header>
 
@@ -146,7 +147,7 @@ const S: Record<string, React.CSSProperties> = {
   header: { background: '#fff', borderBottom: '3px solid #1672A7', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', gap: 16 },
   headerTitle: { display: 'block', fontSize: 16, fontWeight: 700, color: '#0e4e73' },
   headerSub: { display: 'block', fontSize: 11, color: '#888' },
-  backBtn: { marginLeft: 'auto', fontSize: 13, color: '#1672A7', fontWeight: 600, textDecoration: 'none' },
+  backBtn: { fontSize: 13, color: '#1672A7', fontWeight: 600, textDecoration: 'none' },
   main: { maxWidth: 1200, margin: '0 auto', padding: 32 },
   statsRow: { display: 'flex', gap: 16, marginBottom: 28 },
   stat: { background: '#fff', borderRadius: 10, padding: '18px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 120 },
