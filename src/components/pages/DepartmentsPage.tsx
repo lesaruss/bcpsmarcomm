@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
+import { useBCPSShell } from '@/components/BCPSShell'
 import type { PageId, BreadcrumbItem } from '@/lib/types'
 
 interface Dept {
@@ -94,6 +95,8 @@ interface DepartmentsPageProps {
 }
 
 export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavigate }: DepartmentsPageProps = {}) {
+  const { role } = useBCPSShell()
+  const isAdmin = role === 'superadmin'
   const [search, setSearch]         = useState('')
   const [divFilter, setDivFilter]   = useState('')
   const [auditFilter, setAuditFilter] = useState('')
@@ -159,9 +162,11 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
   const runAudit = async (dept: Dept, triggeredBy: 'initial' | 'admin_reaudit' = 'initial') => {
     setAuditingId(dept.id)
     try {
+      const supabase = createClient()
+      const token = (await supabase.auth.getSession()).data.session?.access_token
       const res = await fetch('/api/bcps/run-audit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ department_id: dept.id, triggered_by: triggeredBy }),
       })
       if (!res.ok) throw new Error('Audit failed')
@@ -181,9 +186,11 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
       : ''
     setDecidingId(dept.id)
     try {
+      const supabase = createClient()
+      const token = (await supabase.auth.getSession()).data.session?.access_token
       const res = await fetch('/api/bcps/admin-decision', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ department_id: dept.id, decision, admin_notes: notes }),
       })
       if (!res.ok) throw new Error('Decision failed')
@@ -373,7 +380,13 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
 
                   {/* Audit workflow action row */}
                   <div className="dv-workflow">
-                    {(status === 'not_started' || status === 'in_progress' || status === 'wcm_notified') && (
+                    {/* Run Audit / Re-run Audit / Pass / Send Back are admin-only
+                        (per Sean, Hot Lab 2026-07-28: a WCM, Celia Jimenez, had
+                        access to Run Audit on her own department profile - this
+                        whole grid view had no role check at all). Status text
+                        below (needs_rework/complete/Round badge) stays visible
+                        to everyone - that's read-only info, not an action. */}
+                    {isAdmin && (status === 'not_started' || status === 'in_progress' || status === 'wcm_notified') && (
                       <button
                         className="dv-action-btn run"
                         disabled={busy}
@@ -399,7 +412,7 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
                       </button>
                     )}
 
-                    {status === 'admin_review' && (
+                    {isAdmin && status === 'admin_review' && (
                       <>
                         <button
                           className="dv-action-btn pass"
@@ -461,3 +474,4 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
     </>
   )
 }
+
