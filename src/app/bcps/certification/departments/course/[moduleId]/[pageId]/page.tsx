@@ -292,7 +292,7 @@ export default function CoursePlayerPage({ params }: Props) {
                   {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
                   {modAllDone && <span style={{ marginLeft: 4, color: '#16750C' }}>+</span>}
                 </div>
-                {(modActive || modAllDone) && unlocked && m.pages.map((p: CoursePage) => {
+                {(modActive || modAllDone || isAdmin) && unlocked && m.pages.map((p: CoursePage) => {
                   const pk = `${m.id}::${p.id}`
                   const isActive = m.id === moduleId && p.id === pageId
                   const isDone = completedPages.has(pk)
@@ -343,7 +343,7 @@ export default function CoursePlayerPage({ params }: Props) {
                     {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
                     {modAllDone && <span style={{ marginLeft: 4, color: '#16750C' }}>+</span>}
                   </div>
-                  {(modActive || modAllDone) && unlocked && m.pages.map((p: CoursePage) => {
+                  {(modActive || modAllDone || isAdmin) && unlocked && m.pages.map((p: CoursePage) => {
                     const pk = `${m.id}::${p.id}`
                     const isActive = m.id === moduleId && p.id === pageId
                     const isDone = completedPages.has(pk)
