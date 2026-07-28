@@ -1,7 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+
+function safeNext(raw: string | null): string {
+  if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw
+  return '/bcps'
+}
 
 export default function SetPasswordPage() {
   const [password, setPassword]   = useState('')
@@ -13,6 +19,13 @@ export default function SetPasswordPage() {
   const [ready, setReady]         = useState(false)
 
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  // Where to send the user after they set their password. Defaults to the
+  // general BCPS dashboard (the original must_change_password flow), but a
+  // caller (e.g. the certification login's Forgot Password link) can pass
+  // ?next=/bcps/certification/departments so a WCM lands back in the course
+  // instead of a portal shell they may not have access to.
+  const nextUrl = safeNext(searchParams.get('next'))
 
   useEffect(() => {
     // Listen for PASSWORD_RECOVERY event (from reset email link)
@@ -70,7 +83,7 @@ export default function SetPasswordPage() {
     }
 
     setDone(true)
-    setTimeout(() => { window.location.href = '/bcps' }, 2000)
+    setTimeout(() => { window.location.href = nextUrl }, 2000)
   }
 
   const inputStyle: React.CSSProperties = {
@@ -105,7 +118,7 @@ export default function SetPasswordPage() {
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
               <div style={{ fontSize: '40px', marginBottom: '16px' }}>✅</div>
               <h2 style={{ color: '#fff', fontSize: '16px', fontWeight: '700', marginBottom: '10px' }}>Password set!</h2>
-              <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px' }}>Taking you to your dashboard...</p>
+              <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px' }}>Taking you back...</p>
             </div>
           ) : !ready ? (
             <div style={{ textAlign: 'center', padding: '24px 0', color: 'rgba(255,255,255,0.45)', fontSize: '13px' }}>
@@ -155,4 +168,3 @@ export default function SetPasswordPage() {
     </div>
   )
 }
-
