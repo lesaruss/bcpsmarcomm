@@ -41,7 +41,8 @@ export default function CertificationShell({ children }: { children: React.React
   const handleSignOut = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
-    window.location.href = '/bcps/certification/login'
+    // One BCPS Marcomm login for every module (per V, 2026-07-28).
+    window.location.href = '/bcps/login'
   }
 
   return (
