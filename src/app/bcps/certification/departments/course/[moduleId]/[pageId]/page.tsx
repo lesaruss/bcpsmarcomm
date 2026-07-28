@@ -36,7 +36,7 @@ export default function CoursePlayerPage({ params }: Props) {
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/bcps/certification/login'); return }
+      if (!user) { router.push('/bcps/login'); return }
       setUserId(user.id)
       await supabase.from('wcm_cert_users').upsert(
         { user_id: user.id, email: user.email!, full_name: user.user_metadata?.full_name || null, is_admin: false },
