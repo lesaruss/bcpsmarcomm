@@ -6,6 +6,29 @@ const supabase = createClient(
   process.env.LESARUSS_SUPABASE_SERVICE_KEY!
 )
 
+// Admin-only endpoint (per Sean, Hot Lab 2026-07-28: a WCM, Celia Jimenez,
+// had access to Run Audit on her own department profile - never
+// server-enforced, only ever hidden/disabled in some UI. Real gate belongs
+// here, not just in the client.)
+async function requireBcpsAdmin(req: NextRequest): Promise<{ ok: true; email: string } | { ok: false; status: number }> {
+  const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
+  if (!token) return { ok: false, status: 401 }
+  const { createClient: createAnonClient } = await import('@supabase/supabase-js')
+  const asUser = createAnonClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } }
+  )
+  const { data: { user } } = await asUser.auth.getUser()
+  if (!user) return { ok: false, status: 401 }
+  const { data: roleRow } = await supabase.from('acl_member_roles')
+    .select('role').eq('user_id', user.id).eq('brand', 'bcps').maybeSingle()
+  const role = roleRow?.role || 'user'
+  if (role !== 'admin' && role !== 'superadmin') return { ok: false, status: 403 }
+  return { ok: true, email: user.email || '' }
+}
+
+
 type IssueItem = { category: string; passed: boolean; severity?: string; label: string; detail?: string; fix_instructions?: string[] }
 type AdaItem = { impact?: string; id: string; nodes?: number; description: string; fix_instructions?: string; helpUrl?: string }
 
@@ -76,6 +99,9 @@ function runAdaAudit(): { violations: AdaItem[]; ada_score: number; critical: nu
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireBcpsAdmin(req)
+    if (!auth.ok) return NextResponse.json({ error: 'Forbidden - admin access required' }, { status: auth.status })
+
     const body = await req.json()
     const { department_id, triggered_by = 'initial' } = body as { department_id: string; triggered_by?: 'initial' | 'admin_reaudit' }
 
@@ -193,3 +219,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
+
