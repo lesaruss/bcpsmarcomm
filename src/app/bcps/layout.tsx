@@ -6,13 +6,14 @@ import BCPSShell from '@/components/BCPSShell'
 export default async function BCPSLayout({ children }: { children: React.ReactNode }) {
   const headersList = headers()
   const pathname = headersList.get('x-pathname') || ''
-  const isCert         = pathname.startsWith('/bcps/certification')
   const isWcmPortal     = pathname.startsWith('/bcps/wcm-portal')
   const isWcmRosterForm = pathname.startsWith('/bcps/wcm-roster-signup')
   const isWcmRegistration = pathname.startsWith('/bcps/wcm-registration')
   const isLoginPage    = pathname.startsWith('/bcps/login') || pathname.startsWith('/bcps/set-password')
 
-  if (!isCert && !isWcmPortal && !isWcmRosterForm && !isWcmRegistration && !isLoginPage) {
+  // WCM Certification is gated the same as every other /bcps/* module now
+  // (per V, 2026-07-28) - no more bespoke cert-only auth bypass here.
+  if (!isWcmPortal && !isWcmRosterForm && !isWcmRegistration && !isLoginPage) {
     // BCPS portal auth: redirect to BCPS login if no session
     const cookieStore = cookies()
     const supabase = createServerClient(
@@ -56,7 +57,7 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
     return <>{children}</>
   }
 
-  // Cert routes: let bcps/certification/layout handle its own auth
-  // BCPSShell wraps all other /bcps/* routes
+  // BCPSShell wraps all /bcps/* routes, including certification now that
+  // it shares the standard auth gate above.
   return <BCPSShell>{children}</BCPSShell>
 }
