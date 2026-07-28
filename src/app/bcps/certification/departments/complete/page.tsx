@@ -13,7 +13,7 @@ export default async function CompletePage() {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/bcps/certification/login')
+  if (!user) redirect('/bcps/login')
 
   const [certRes, userRes] = await Promise.all([
     supabase.from('wcm_certifications').select('issued_at,expires_at').eq('user_id', user.id).eq('course_id', COURSE_ID).maybeSingle(),
