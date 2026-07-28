@@ -12,7 +12,7 @@ export default async function DepartmentsRoot() {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/bcps/certification/login')
+  if (!user) redirect('/bcps/login')
 
   const { data: progress } = await supabase
     .from('wcm_cert_progress')
