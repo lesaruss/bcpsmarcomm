@@ -63,8 +63,7 @@ export async function middleware(request: NextRequest) {
     const isLoginPath =
       pathname === '/login' ||
       pathname.startsWith('/login') ||
-      pathname.startsWith('/set-password') ||
-      pathname.startsWith('/certification/login')
+      pathname.startsWith('/set-password')
     // Department WCM Roster signup: reachable at the clean top-level URL
     // bcpsmarcomm.com/wcm-roster-signup (rewritten to /bcps/wcm-roster-signup
     // below) so Directors never see the internal "/bcps" segment. No account
@@ -148,7 +147,6 @@ export async function middleware(request: NextRequest) {
     pathname === '/bcps/login' ||
     pathname.startsWith('/bcps/login') ||
     pathname.startsWith('/bcps/set-password') ||
-    pathname.startsWith('/bcps/certification/login') ||
     // Department WCM Roster signup: the one page on this site Directors
     // reach with no account. Real access control lives here, not just the
     // BCPSShell wrapper - without this line an anonymous visitor gets
@@ -166,12 +164,11 @@ export async function middleware(request: NextRequest) {
   if (isPublic) return supabaseResponse
 
   if (!user) {
+    // WCM Certification is not a separate account system - per V,
+    // 2026-07-28: one BCPS Marcomm login gates every /bcps/* module,
+    // certification included. No bespoke cert login/register exists.
     const loginUrl = request.nextUrl.clone()
-    if (pathname.startsWith('/bcps/certification')) {
-      loginUrl.pathname = '/bcps/certification/login'
-    } else {
-      loginUrl.pathname = '/login'
-    }
+    loginUrl.pathname = '/login'
     return NextResponse.redirect(loginUrl)
   }
 
