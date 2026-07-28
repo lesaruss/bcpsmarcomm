@@ -516,6 +516,18 @@ function DepartmentContent() {
                       <div style={{fontSize:10,color:'var(--lr-text-50)',marginBottom:12,fontWeight:600}}>
                         {failedCount} issue{failedCount!==1?'s':''} of {visibleIssues.length} checks
                       </div>
+                      {/* Per Sean, Hot Lab 2026-07-28: the audit issue detail
+                          view never said which page an issue was on. Phase 1
+                          only ever audits the department's one website_url
+                          (no multi-page crawl exists yet), so every finding
+                          below applies to this exact page - state that
+                          plainly instead of leaving it implicit. */}
+                      {dept.website_url && (
+                        <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'var(--lr-text-50)',marginBottom:14,padding:'8px 12px',background:'#f8fafb',border:'1px solid var(--lr-border)',borderRadius:8}}>
+                          <span style={{fontWeight:700,color:'var(--lr-text)'}}>Page audited:</span>
+                          <a href={dept.website_url} target="_blank" rel="noopener" style={{color:'#1672A7',fontWeight:600,wordBreak:'break-all'}}>{dept.website_url}</a>
+                        </div>
+                      )}
                       <div className="issue-list">
                         {visibleIssues.map((issue, idx) => {
                           const hasSteps = !issue.passed && (issue.fix_instructions?.length ?? 0) > 0
@@ -561,6 +573,12 @@ function DepartmentContent() {
               {/* ADA ACCESSIBILITY TAB */}
               {activeTab === 'ada' && (
                 <div className="panel-body">
+                  {dept.website_url && (
+                    <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'var(--lr-text-50)',marginBottom:14,padding:'8px 12px',background:'#f8fafb',border:'1px solid var(--lr-border)',borderRadius:8}}>
+                      <span style={{fontWeight:700,color:'var(--lr-text)'}}>Page audited:</span>
+                      <a href={dept.website_url} target="_blank" rel="noopener" style={{color:'#1672A7',fontWeight:600,wordBreak:'break-all'}}>{dept.website_url}</a>
+                    </div>
+                  )}
                   {adaSorted.length > 0 ? (
                     <>
                       <div className="ada-scope-row">
@@ -795,3 +813,4 @@ export default function DepartmentPage() {
     </Suspense>
   )
 }
+
