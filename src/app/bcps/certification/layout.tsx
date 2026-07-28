@@ -1,4 +1,4 @@
-import WcmPilotFeedback from '@/app/bcps/wcm-pilot/WcmPilotFeedback'
+import WcmPilotFeedback from '@/app/bcps/wcm-registration/WcmPilotFeedback'
 
 // No auth gate here on purpose. This layout wraps every route under
 // /bcps/certification/*, including the login page itself - a blanket
