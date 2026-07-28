@@ -25,6 +25,18 @@ function readOnlyClient(request: NextRequest) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // ── Legacy WCM Pilot Program URLs (renamed to WCM Department Registration
+  // 2026-07-28). Permanent redirect so old links/bookmarks still land, both
+  // the bare public path and the internal /bcps-prefixed one. ─────────────
+  if (
+    pathname === '/wcm-pilot' || pathname.startsWith('/wcm-pilot/') ||
+    pathname === '/bcps/wcm-pilot' || pathname.startsWith('/bcps/wcm-pilot/')
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = pathname.replace('/wcm-pilot', '/wcm-registration')
+    return NextResponse.redirect(url, 308)
+  }
+
   // ── Sensitive document gate (runs before everything else) ────────────────
   if (SENSITIVE_DOC.test(pathname)) {
     const supabase = readOnlyClient(request)
@@ -58,10 +70,11 @@ export async function middleware(request: NextRequest) {
     // below) so Directors never see the internal "/bcps" segment. No account
     // required - this is one of the only genuinely public pages on this site.
     const isWcmRosterSignup = pathname.startsWith('/wcm-roster-signup')
-    // WCM Pilot welcome page: same reasoning as isWcmRosterSignup above -
-    // reachable at bcpsmarcomm.com/wcm-pilot with no "/bcps" segment and no
-    // account required, shared with brand new pilot WCMs.
-    const isWcmPilot = pathname.startsWith('/wcm-pilot')
+    // WCM Department Registration welcome page (renamed from WCM Pilot
+    // Program 2026-07-28): same reasoning as isWcmRosterSignup above -
+    // reachable at bcpsmarcomm.com/wcm-registration with no "/bcps" segment
+    // and no account required, shared with brand new WCMs.
+    const isWcmRegistration = pathname.startsWith('/wcm-registration')
     const isStaticFile = /\.(html|pptx|pdf|png|jpg|svg|css|js|webp|mp3|mp4)(\?|$)/.test(pathname)
 
     // Root-level static documents (e.g. /bcps-implementation-plan-2026-2027.pdf)
@@ -96,7 +109,7 @@ export async function middleware(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     response.headers.set('x-pathname', rewriteUrl.pathname)
 
-    if (!user && !isLoginPath && !isWcmRosterSignup && !isWcmPilot && !isStaticFile) {
+    if (!user && !isLoginPath && !isWcmRosterSignup && !isWcmRegistration && !isStaticFile) {
       const loginUrl = request.nextUrl.clone()
       loginUrl.pathname = '/login'
       return NextResponse.redirect(loginUrl)
@@ -141,10 +154,11 @@ export async function middleware(request: NextRequest) {
     // BCPSShell wrapper - without this line an anonymous visitor gets
     // redirected to /login before the page ever renders.
     pathname.startsWith('/bcps/wcm-roster-signup') ||
-    // WCM Pilot welcome page: shared with brand new pilot WCMs who have no
-    // account yet. Same reasoning as wcm-roster-signup above - must stay
-    // public or anonymous visitors get bounced to /login before seeing it.
-    pathname.startsWith('/bcps/wcm-pilot') ||
+    // WCM Department Registration welcome page (renamed from WCM Pilot
+    // Program 2026-07-28): shared with brand new WCMs who have no account
+    // yet. Same reasoning as wcm-roster-signup above - must stay public or
+    // anonymous visitors get bounced to /login before seeing it.
+    pathname.startsWith('/bcps/wcm-registration') ||
     pathname.startsWith('/briefs/') ||
     pathname.startsWith('/embeds/') ||
     (pathname.startsWith('/bcps/') && /\.(html|pptx|pdf|png|jpg|svg|css|js|webp|mp3|mp4)(\?|$)/.test(pathname))
