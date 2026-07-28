@@ -37,7 +37,7 @@ export default function WelcomePage() {
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/bcps/certification/login'); return }
+      if (!user) { router.push('/bcps/login'); return }
       const [userRes, progressRes] = await Promise.all([
         supabase.from('wcm_cert_users').select('full_name,department,is_admin').eq('user_id', user.id).maybeSingle(),
         supabase.from('wcm_cert_progress').select('module_id,page_id,completed').eq('user_id', user.id).eq('course_id', COURSE_ID),
