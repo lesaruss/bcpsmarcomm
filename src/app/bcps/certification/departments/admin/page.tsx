@@ -13,7 +13,7 @@ export default async function AdminDashboard() {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/bcps/certification/login')
+  if (!user) redirect('/bcps/login')
 
   const { data: adminCheck } = await supabase.from('wcm_cert_users').select('is_admin').eq('user_id', user.id).single()
   if (!adminCheck?.is_admin) redirect('/bcps/certification/departments')
