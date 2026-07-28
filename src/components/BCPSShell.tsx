@@ -141,8 +141,9 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
-    const isCert = pathname.startsWith('/bcps/certification')
-    window.location.href = isCert ? '/bcps/certification/login' : '/bcps/login'
+    // One BCPS Marcomm login for every module, certification included
+    // (per V, 2026-07-28) - no more bespoke cert-only sign-out target.
+    window.location.href = '/bcps/login'
   }
 
   return (
