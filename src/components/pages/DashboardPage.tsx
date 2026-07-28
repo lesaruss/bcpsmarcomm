@@ -188,6 +188,48 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
         ))}
       </div>
 
+      {/* WCM Certification status banner, per Sean (Hot Lab 2026-07-28 item 7):
+          in-progress cert status needs to be visible on the main dashboard,
+          not buried in the grid. Full-width, directly below the stat tiles
+          and above Recent Notes. Covers all three states (not started,
+          in progress, complete) since it replaces the old grid tile. */}
+      {certProgress !== null && (
+        <div className="dash-panel" style={{ marginBottom: 24 }}>
+          <div className="dash-panel-header">
+            <h3>WCM Certification</h3>
+            <a href="/bcps/certification/departments" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>
+              {certProgress.allDone ? 'View certificate →' : 'Continue →'}
+            </a>
+          </div>
+          <div style={{ padding: '4px 0 8px', display: 'flex', alignItems: 'center', gap: 24 }}>
+            <div style={{ flexShrink: 0, minWidth: 90 }}>
+              <div style={{ fontSize: '28px', fontWeight: 900, color: certProgress.allDone ? '#16750C' : 'var(--primary)', lineHeight: 1 }}>{certProgress.pct}%</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 3, whiteSpace: 'nowrap' }}>
+                {certProgress.allDone ? 'Complete' : `${certProgress.completed} of ${certProgress.total} pages`}
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ height: 8, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: certProgress.pct + '%', background: certProgress.allDone ? '#16750C' : 'var(--primary)', borderRadius: 8, transition: 'width 0.4s ease' }} />
+              </div>
+            </div>
+            {certProgress.allDone && (
+              <div style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>+</div>
+            )}
+            {!certProgress.allDone && certProgress.completed === 0 && !certProgress.hasAnyProgress && (
+              <a href="/bcps/certification/departments/welcome" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                Begin Certification
+              </a>
+            )}
+            {!certProgress.allDone && certProgress.hasAnyProgress && (
+              <a href="/bcps/certification/departments" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                Continue Certification
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="dashboard-grid">
         {/* Recent Assignment Notes - live from Supabase */}
         <div className="dash-panel">
@@ -217,44 +259,6 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
             ))}
           </div>
         </div>
-
-        {/* WCM Certification */}
-        {certProgress !== null && (
-          <div className="dash-panel">
-            <div className="dash-panel-header">
-              <h3>WCM Certification</h3>
-              <a href="/bcps/certification/departments" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>
-                {certProgress.allDone ? 'View certificate →' : 'Continue →'}
-              </a>
-            </div>
-            <div style={{ padding: '4px 0 8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
-                <div>
-                  <div style={{ fontSize: '28px', fontWeight: 900, color: certProgress.allDone ? '#16750C' : 'var(--primary)', lineHeight: 1 }}>{certProgress.pct}%</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 3 }}>
-                    {certProgress.allDone ? 'Certification complete' : `${certProgress.completed} of ${certProgress.total} pages completed`}
-                  </div>
-                </div>
-                {certProgress.allDone && (
-                  <div style={{ fontSize: '20px', lineHeight: 1 }}>+</div>
-                )}
-              </div>
-              <div style={{ height: 8, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: certProgress.pct + '%', background: certProgress.allDone ? '#16750C' : 'var(--primary)', borderRadius: 8, transition: 'width 0.4s ease' }} />
-              </div>
-              {!certProgress.allDone && certProgress.completed === 0 && !certProgress.hasAnyProgress && (
-                <a href="/bcps/certification/departments/welcome" style={{ display: 'inline-block', marginTop: 12, padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>
-                  Begin Certification
-                </a>
-              )}
-              {!certProgress.allDone && certProgress.completed === 0 && certProgress.hasAnyProgress && (
-                <a href="/bcps/certification/departments" style={{ display: 'inline-block', marginTop: 12, padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>
-                  Continue Certification
-                </a>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Team Members - live from the directory */}
         <div className="dash-panel">
