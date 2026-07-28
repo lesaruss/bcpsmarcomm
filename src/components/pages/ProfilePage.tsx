@@ -125,6 +125,23 @@ function MissionControlTab({ profile, onProfileUpdate }: { profile: UserProfile 
               <span>Role</span>
               <span className="badge badge-blue">{profile?.is_admin ? 'Admin' : 'User'}</span>
             </div>
+            {/* Per Sean, Hot Lab 2026-07-28: a logged-in WCM had no visible way
+                to change their own password - only forgot-password (email
+                reset link) existed. This reuses the existing set-password
+                page, which already works for any authenticated session, not
+                just password-recovery links - it just never had a real entry
+                point. Distinct on purpose from Forgot Password: no email
+                round-trip, works immediately from inside the app. */}
+            <div className="settings-row">
+              <span>Password</span>
+              <a
+                className="btn btn-secondary"
+                href={`/bcps/set-password?next=${encodeURIComponent('/bcps?page=profile')}`}
+                style={{ textDecoration: 'none', fontSize: '13px', padding: '6px 14px' }}
+              >
+                Change Password
+              </a>
+            </div>
             <div className="settings-row">
               <span>Notifications</span>
               <label className="toggle-switch">
@@ -284,3 +301,4 @@ export default function ProfilePage({ subPage }: ProfilePageProps) {
     </div>
   )
 }
+
