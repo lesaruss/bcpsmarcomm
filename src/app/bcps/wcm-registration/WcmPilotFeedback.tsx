@@ -9,6 +9,15 @@ import { createClient } from '@/lib/supabase'
 // Self-contained (inline styles) so it renders consistently whether mounted
 // on the public pre-login registration pages or inside the certification
 // course shell.
+//
+// 2026-07-28 Hot Lab: the original bottom-right pill overlapped the course
+// player's Continue/Next button (also bottom-right, in normal document
+// flow) on shorter pages. Per Sean: smaller icon-in-a-circle, moved clear
+// of navigation controls. Continue/Next is always right-aligned in the
+// course nav footer, so docking this at bottom-LEFT instead guarantees no
+// overlap on any page, without needing per-page layout changes. Kept a
+// 48px circle (WCAG 2.1 min touch target is 44x44) with a visible focus
+// ring for keyboard users.
 export default function WcmPilotFeedback() {
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState('')
@@ -60,9 +69,12 @@ export default function WcmPilotFeedback() {
       <button
         onClick={() => { setOpen(true); setSent(false); setError('') }}
         aria-label="Send feedback"
+        title="Send feedback"
         style={styles.launcher}
       >
-        Feedback
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.35 0-2.62-.32-3.73-.9L3 21l1.9-5.77A8.5 8.5 0 1 1 21 11.5Z" />
+        </svg>
       </button>
 
       {open && (
@@ -121,10 +133,11 @@ export default function WcmPilotFeedback() {
 
 const styles: Record<string, React.CSSProperties> = {
   launcher: {
-    position: 'fixed', right: 20, bottom: 20, zIndex: 60,
-    background: '#0e4e73', color: '#fff', border: 'none', borderRadius: 999,
-    padding: '12px 20px', fontWeight: 800, fontSize: 13.5, cursor: 'pointer',
-    boxShadow: '0 6px 20px rgba(14,78,115,0.35)', fontFamily: "'Montserrat', sans-serif",
+    position: 'fixed', left: 20, bottom: 20, zIndex: 60,
+    width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: '#0e4e73', color: '#fff', border: 'none', borderRadius: '50%',
+    cursor: 'pointer', boxShadow: '0 6px 20px rgba(14,78,115,0.35)',
+    outlineOffset: 3,
   },
   overlay: {
     position: 'fixed', inset: 0, background: 'rgba(15,25,35,0.5)', zIndex: 70,
