@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 export default function CertLoginPage() {
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -13,6 +13,7 @@ export default function CertLoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [registered, setRegistered] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -33,6 +34,18 @@ export default function CertLoginPage() {
         if (signInError) throw signInError
         router.push('/bcps/certification/departments')
         router.refresh()
+      } else if (mode === 'forgot') {
+        // Same auth/callback -> set-password path used for the district's
+        // admin must-change-password flow, just with a next param so a WCM
+        // lands back in the certification course instead of the general
+        // BCPS dashboard after setting a new password.
+        const nextAfterSetPassword = encodeURIComponent('/bcps/certification/departments')
+        const callbackNext = encodeURIComponent(`/bcps/set-password?next=${nextAfterSetPassword}`)
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/callback?next=${callbackNext}`,
+        })
+        if (resetError) throw resetError
+        setResetSent(true)
       } else {
         if (!fullName.trim()) { setError('Full name is required.'); setLoading(false); return }
         const { data, error: signUpError } = await supabase.auth.signUp({
@@ -80,14 +93,38 @@ export default function CertLoginPage() {
     )
   }
 
+  if (resetSent) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+          <BcpsLogo />
+          <h1 style={styles.title}>Check Your Email</h1>
+          <p style={styles.body}>
+            If an account exists for <strong>{email}</strong>, a password reset link has been sent. Click the
+            link to set a new password, then you will be brought back here automatically.
+          </p>
+          <button style={styles.linkBtn} onClick={() => { setResetSent(false); setMode('login'); setError('') }}>
+            Back to Login
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={styles.page}>
       <div style={styles.card}>
         <BcpsLogo />
         <h1 style={styles.title}>
-          {mode === 'login' ? 'WCM Certification' : 'Create Account'}
+          {mode === 'login' ? 'WCM Certification' : mode === 'forgot' ? 'Reset Password' : 'Create Account'}
         </h1>
         <p style={styles.subtitle}>Department - Broward County Public Schools</p>
+
+        {mode === 'forgot' && (
+          <p style={styles.body}>
+            Enter the email address on your account and we will send you a link to set a new password.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           {mode === 'register' && (
@@ -120,28 +157,51 @@ export default function CertLoginPage() {
             placeholder="you@browardschools.com"
             required
           />
-          <label style={styles.label}>Password *</label>
-          <input
-            style={styles.input}
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder={mode === 'register' ? 'Create a password (min 8 characters)' : 'Your password'}
-            minLength={mode === 'register' ? 8 : undefined}
-            required
-          />
+          {mode !== 'forgot' && (
+            <>
+              <label style={styles.label}>Password *</label>
+              <input
+                style={styles.input}
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder={mode === 'register' ? 'Create a password (min 8 characters)' : 'Your password'}
+                minLength={mode === 'register' ? 8 : undefined}
+                required
+              />
+            </>
+          )}
+          {mode === 'login' && (
+            <p style={{ textAlign: 'right', margin: '8px 0 0' }}>
+              <button
+                type="button"
+                style={styles.linkBtn}
+                onClick={() => { setMode('forgot'); setError('') }}
+              >
+                Forgot password?
+              </button>
+            </p>
+          )}
           {error && <p style={styles.error}>{error}</p>}
           <button style={styles.btn} type="submit" disabled={loading}>
-            {loading ? 'Please wait...' : mode === 'login' ? 'Log In' : 'Create Account'}
+            {loading ? 'Please wait...' : mode === 'login' ? 'Log In' : mode === 'forgot' ? 'Send Reset Link' : 'Create Account'}
           </button>
         </form>
 
-        <p style={styles.toggleText}>
-          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-          <button style={styles.linkBtn} onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}>
-            {mode === 'login' ? 'Register' : 'Log In'}
-          </button>
-        </p>
+        {mode === 'forgot' ? (
+          <p style={styles.toggleText}>
+            <button style={styles.linkBtn} onClick={() => { setMode('login'); setError('') }}>
+              Back to Login
+            </button>
+          </p>
+        ) : (
+          <p style={styles.toggleText}>
+            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+            <button style={styles.linkBtn} onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}>
+              {mode === 'login' ? 'Register' : 'Log In'}
+            </button>
+          </p>
+        )}
         <p style={styles.note}>Access restricted to @browardschools.com addresses.</p>
       </div>
     </div>
