@@ -98,7 +98,7 @@ interface AssignmentNote {
 export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPageProps) {
   const [notes, setNotes] = useState<AssignmentNote[]>([])
   const [notesLoading, setNotesLoading] = useState(true)
-  const [certProgress, setCertProgress] = useState<{ pct: number; completed: number; total: number; allDone: boolean } | null>(null)
+  const [certProgress, setCertProgress] = useState<{ pct: number; completed: number; total: number; allDone: boolean; hasAnyProgress: boolean } | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
   const [openNote, setOpenNote] = useState<AssignmentNote | null>(null)
   const [teamMembers, setTeamMembers] = useState<Array<{ user_id: string; name: string; initials: string; color: string; role: string; department: { slug: string; name: string; division: string | null } | null }>>([])
@@ -130,7 +130,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
         })
       supabase
         .from('wcm_cert_progress')
-        .select('completed')
+        .select('completed,last_visited_at')
         .eq('user_id', user.id)
         .eq('course_id', 'dept-wcm-v1')
         .then(({ data }) => {
@@ -138,7 +138,15 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
           const completed = data.filter((r: { completed: boolean }) => r.completed).length
           const total = 89 // total pages in dept-wcm-v1
           const pct = Math.round((completed / total) * 100)
-          setCertProgress({ pct, completed, total, allDone: completed >= total })
+          // hasAnyProgress: any row at all (even just last_visited_at, no
+          // Mark Complete yet) means Save & Exit has already tracked a real
+          // position for this user. completed===0 alone is not "never
+          // started" - a WCM who saved & exited mid-module without hitting
+          // Mark Complete on a single page still has completed===0 but a
+          // real last_visited_at position, and must never be sent back to
+          // /welcome -> Module 1 Page 1. Found live 2026-07-28 (Hot Lab,
+          // Celia Jimenez): this exact case restarted her from scratch.
+          setCertProgress({ pct, completed, total, allDone: completed >= total, hasAnyProgress: data.length > 0 })
         })
     })
   }, [viewAsUserId])
@@ -234,9 +242,14 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
               <div style={{ height: 8, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: certProgress.pct + '%', background: certProgress.allDone ? '#16750C' : 'var(--primary)', borderRadius: 8, transition: 'width 0.4s ease' }} />
               </div>
-              {!certProgress.allDone && certProgress.completed === 0 && (
+              {!certProgress.allDone && certProgress.completed === 0 && !certProgress.hasAnyProgress && (
                 <a href="/bcps/certification/departments/welcome" style={{ display: 'inline-block', marginTop: 12, padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>
                   Begin Certification
+                </a>
+              )}
+              {!certProgress.allDone && certProgress.completed === 0 && certProgress.hasAnyProgress && (
+                <a href="/bcps/certification/departments" style={{ display: 'inline-block', marginTop: 12, padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>
+                  Continue Certification
                 </a>
               )}
             </div>
@@ -356,3 +369,4 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     </div>
   )
 }
+
