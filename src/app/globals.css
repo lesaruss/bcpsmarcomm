@@ -515,6 +515,22 @@ body {
 }
 
 /* ── SIDEBAR DRAWER ── */
+/* ── DESKTOP MODE (2026-07-29, per V comparison request) ──
+   Everything above this point is the single compact/mobile layout the app
+   has used at every screen width up to now - there was no real desktop
+   mode to compare it against, which is why resizing the window never
+   visibly changed anything. This block is the actual comparison: at
+   1024px+ the sidebar becomes persistent instead of a hamburger drawer,
+   and the content area gets the matching left margin. Below 1024px,
+   nothing changes - same drawer behavior as before. This is scoped to
+   this one preview branch only, not merged to main. */
+@media (min-width: 1024px) {
+  .sidebar { transform: none; box-shadow: none; }
+  .sidebar-backdrop { display: none; }
+  .main-area { margin-left: 248px; }
+  .hamburger-btn { display: none; }
+}
+
 .sidebar {
   transform: translateX(-100%);
   transition: transform 0.25s ease;
