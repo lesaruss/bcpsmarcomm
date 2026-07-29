@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServiceClient, createAnonClientWithToken } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,7 +7,7 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
+const svc = createServiceClient(URL, SERVICE)
 
 // Admin-facing read-only diagnostic view (per Sean, 2026-07-29). Only
 // reachable once the target member has approved the grant - the grant id
@@ -19,10 +19,7 @@ const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 async function requireRequestingAdmin(req: NextRequest, grantId: string) {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
   if (!token) return { ok: false as const, status: 401 }
-  const asUser = createClient(URL, ANON, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false },
-  })
+  const asUser = createAnonClientWithToken(URL, ANON, token)
   const { data: { user } } = await asUser.auth.getUser()
   if (!user) return { ok: false as const, status: 401 }
 
