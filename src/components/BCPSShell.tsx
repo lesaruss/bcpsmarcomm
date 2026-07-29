@@ -11,10 +11,12 @@ import type { PageId } from '@/lib/types'
 interface BCPSShellContextValue {
   role: UserRole
   viewAs: TeamMember | null
+  canManageMessages: boolean
 }
 export const BCPSShellContext = createContext<BCPSShellContextValue>({
   role: 'user',
   viewAs: null,
+  canManageMessages: false,
 })
 export function useBCPSShell() { return useContext(BCPSShellContext) }
 
@@ -75,6 +77,18 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const [viewAs, setViewAs] = useState<TeamMember | null>(null)
   const [allowedPages, setAllowedPages] = useState<string[] | null>(null)
   const [unreadMessages, setUnreadMessages] = useState(0)
+  // canManageMessages tracks the raw backend role (admin OR superadmin) for
+  // the notification bell / dashboard inbox specifically. Deliberately kept
+  // separate from `role` (UserRole = 'superadmin' | 'user'), which drives
+  // Sidebar/page-visibility and is a pre-existing two-tier model - widening
+  // that to a real three-tier system is a bigger design change than this
+  // fix calls for. Found 2026-07-29: my-access already returns a real
+  // 'admin' tier (used server-side by requireBcpsAdmin on run-audit,
+  // admin-decision, and the new messages route), but this component was
+  // silently collapsing 'admin' down to 'user', so making someone (Felicia
+  // Hicks) an admin had no visible effect on the bell/inbox. This fixes
+  // that specific gap without touching the Sidebar role model.
+  const [canManageMessages, setCanManageMessages] = useState(false)
   const tokenRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -90,19 +104,21 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
         if (r.ok) {
           const j = await r.json()
           setRole(j.role === 'superadmin' || SUPERADMIN_EMAILS.has(email) ? 'superadmin' : 'user')
+          setCanManageMessages(j.role === 'admin' || j.role === 'superadmin' || SUPERADMIN_EMAILS.has(email))
           setAllowedPages(j.pages as string[])
           return
         }
       } catch { /* fall through to safe default */ }
       setRole(SUPERADMIN_EMAILS.has(email) ? 'superadmin' : 'user')
+      setCanManageMessages(SUPERADMIN_EMAILS.has(email))
     })()
   }, [])
 
   // Notification bell: unread count of site reports (wcm_pilot_feedback),
-  // admin-only inbox per Sean 2026-07-29. Poll every 45s so the bell
+  // admin/superadmin inbox per Sean 2026-07-29. Poll every 45s so the bell
   // reflects new reports without a full page reload.
   useEffect(() => {
-    if (role !== 'superadmin') { setUnreadMessages(0); return }
+    if (!canManageMessages) { setUnreadMessages(0); return }
     let cancelled = false
     async function poll() {
       const token = tokenRef.current
@@ -117,7 +133,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
     poll()
     const interval = setInterval(poll, 45000)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [role])
+  }, [canManageMessages])
 
   const handleBellClick = useCallback(() => {
     router.push('/bcps?page=dashboard', { scroll: false })
@@ -178,7 +194,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <BCPSShellContext.Provider value={{ role, viewAs }}>
+    <BCPSShellContext.Provider value={{ role, viewAs, canManageMessages }}>
       <div className="app-shell">
         <Sidebar
           activePage={activePage}
@@ -212,7 +228,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
               <div className="topbar-search">
                 <input type="text" placeholder="Search..." className="search-input" />
               </div>
-              {role === 'superadmin' && (
+              {canManageMessages && (
                 <button
                   className="topbar-notif"
                   title={unreadMessages > 0 ? `${unreadMessages} unread message${unreadMessages === 1 ? '' : 's'}` : 'Notifications'}
