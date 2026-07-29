@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import SiteFeedback from '@/components/SiteFeedback'
 
 export const metadata: Metadata = {
   title: 'Broward County Public Schools',
@@ -23,6 +24,7 @@ export default function RootLayout({
       </head>
       <body>
         {children}
+        <SiteFeedback />
         <script dangerouslySetInnerHTML={{__html: `
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
