@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServiceClient, createAnonClientWithToken } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/resend'
 
 export const dynamic = 'force-dynamic'
@@ -8,7 +8,7 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
+const svc = createServiceClient(URL, SERVICE)
 
 // Member-facing side of the access-request flow (per Sean, 2026-07-29).
 // The token in the URL is only half the proof - whoever holds the link
@@ -20,10 +20,7 @@ const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 async function requireMatchingMember(req: NextRequest, token: string) {
   const auth = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
   if (!auth) return { ok: false as const, status: 401 }
-  const asUser = createClient(URL, ANON, {
-    global: { headers: { Authorization: `Bearer ${auth}` } },
-    auth: { persistSession: false },
-  })
+  const asUser = createAnonClientWithToken(URL, ANON, auth)
   const { data: { user } } = await asUser.auth.getUser()
   if (!user) return { ok: false as const, status: 401 }
 
