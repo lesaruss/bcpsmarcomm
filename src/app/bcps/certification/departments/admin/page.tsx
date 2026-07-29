@@ -66,6 +66,7 @@ export default async function AdminDashboard() {
           <div style={S.stat}><span style={S.statNum}>{users.filter(u => { const up = allProgress.filter(p => p.user_id === u.user_id); return up.some(p => p.completed) && !certMap.has(u.user_id) }).length}</span><span style={S.statLabel}>In Progress</span></div>
         </div>
 
+        <div style={S.tableScroll}>
         <table style={S.table}>
           <thead>
             <tr style={S.thead}>
@@ -113,9 +114,11 @@ export default async function AdminDashboard() {
             ))}
           </tbody>
         </table>
+        </div>
 
         <details style={S.details}>
           <summary style={S.summary}>Module-by-Module Completion</summary>
+          <div style={S.tableScroll}>
           <table style={{ ...S.table, marginTop: 12 }}>
             <thead>
               <tr style={S.thead}>
@@ -136,6 +139,7 @@ export default async function AdminDashboard() {
               ))}
             </tbody>
           </table>
+          </div>
         </details>
       </main>
     </div>
@@ -144,12 +148,17 @@ export default async function AdminDashboard() {
 
 const S: Record<string, React.CSSProperties> = {
   page: { minHeight: '100vh', background: '#f0f4f8', fontFamily: "'Montserrat', sans-serif" },
-  header: { background: '#fff', borderBottom: '3px solid #1672A7', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', gap: 16 },
+  header: { background: '#fff', borderBottom: '3px solid #1672A7', padding: '0 20px', height: 64, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', rowGap: 4 },
   headerTitle: { display: 'block', fontSize: 16, fontWeight: 700, color: '#0e4e73' },
   headerSub: { display: 'block', fontSize: 11, color: '#888' },
   backBtn: { fontSize: 13, color: '#1672A7', fontWeight: 600, textDecoration: 'none' },
   main: { maxWidth: 1200, margin: '0 auto', padding: 32 },
-  statsRow: { display: 'flex', gap: 16, marginBottom: 28 },
+  statsRow: { display: 'flex', gap: 16, marginBottom: 28, flexWrap: 'wrap' },
+  // 2026-07-29 (Logan, per V mobile audit): the learner table and the
+  // module-completion matrix are both wider than any phone screen. Wrapping
+  // each in a horizontally-scrollable container instead of letting the page
+  // itself overflow keeps the rest of the admin dashboard usable on mobile.
+  tableScroll: { overflowX: 'auto', WebkitOverflowScrolling: 'touch' },
   stat: { background: '#fff', borderRadius: 10, padding: '18px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 120 },
   statNum: { fontSize: 32, fontWeight: 900, color: '#0e4e73' },
   statLabel: { fontSize: 12, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -166,3 +175,4 @@ const S: Record<string, React.CSSProperties> = {
   details: { marginTop: 28 },
   summary: { fontSize: 14, fontWeight: 700, color: '#0e4e73', cursor: 'pointer', marginBottom: 4 },
 }
+
