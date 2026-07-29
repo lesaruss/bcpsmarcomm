@@ -252,9 +252,17 @@ export default function WCMRegistrationRegisterPage() {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="you@browardschools.com"
+                  placeholder="john.doe@browardschools.com"
                   required
                 />
+                {/* Per V, 2026-07-29: a lot of other BCPS systems ask for a
+                    P-number here, so people get confused and try to enter
+                    that instead of their real email. Spell out that it's
+                    their name-based @browardschools.com address, not an ID
+                    number. */}
+                <p style={{ fontSize: 12, color: '#666', marginTop: -6, marginBottom: 4 }}>
+                  This is your name-based BCPS email, not your P-number - for example, john.doe@browardschools.com.
+                </p>
                 <label style={styles.label}>Password *</label>
                 <input
                   style={styles.input}
