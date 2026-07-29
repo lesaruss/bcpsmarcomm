@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await svc
     .from('wcm_pilot_feedback')
-    .select('id, created_at, email, page, message, status, read_at, admin_reply, replied_at, notify_error, user_id')
+    .select('id, created_at, email, page, message, status, read_at, admin_reply, admin_reply_audio_url, replied_at, notify_error, user_id')
     .order('created_at', { ascending: false })
     .limit(50)
 
@@ -87,18 +87,47 @@ export async function POST(req: NextRequest) {
 
   if (action === 'reply') {
     const replyText = (body?.reply_text || '').trim()
-    if (!replyText) return NextResponse.json({ error: 'reply_text is required' }, { status: 400 })
+    const audioBase64 = (body?.audio_base64 || '').trim() as string
+    if (!replyText && !audioBase64) return NextResponse.json({ error: 'reply_text or a voice note is required' }, { status: 400 })
 
     const now = new Date().toISOString()
     let replyError: string | null = null
+    let audioUrl: string | null = null
+
+    // Voice-note reply (dictation already lands as plain text via the
+    // browser's own speech-to-text, so this path is only for an actual
+    // recorded clip). Reuses the existing public voice-messages bucket
+    // rather than standing up a new one - per Sean 2026-07-29, admins are
+    // trusted professionals so there's no dictate/record gate here at all.
+    if (audioBase64) {
+      try {
+        const match = audioBase64.match(/^data:(audio\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
+        if (match) {
+          const mime = match[1]
+          const buffer = Buffer.from(match[2], 'base64')
+          const ext = mime.includes('webm') ? 'webm' : mime.includes('mp4') ? 'm4a' : 'audio'
+          const path = `bcps-reply-${id}-${Date.now()}.${ext}`
+          const { error: uploadErr } = await svc.storage.from('voice-messages').upload(path, buffer, {
+            contentType: mime, upsert: true,
+          })
+          if (!uploadErr) {
+            const { data: pub } = svc.storage.from('voice-messages').getPublicUrl(path)
+            audioUrl = pub?.publicUrl ?? null
+          }
+        }
+      } catch {
+        // Non-fatal - reply still saves/sends with whatever text was typed.
+      }
+    }
 
     if (msg.email) {
-      const safeReply = replyText.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      const safeReply = replyText ? replyText.replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''
+      const audioLine = audioUrl ? `<p><a href="${audioUrl}">Listen to voice reply</a></p>` : ''
       const result = await sendEmail({
         to: msg.email,
         subject: 'Re: your bcpsmarcomm.com report',
         replyTo: 'sean.russell@browardschools.com',
-        html: `<p style="white-space:pre-wrap">${safeReply}</p><p style="color:#888;font-size:12px">In reply to: ${msg.message.slice(0, 200)}</p>`,
+        html: `${safeReply ? `<p style="white-space:pre-wrap">${safeReply}</p>` : ''}${audioLine}<p style="color:#888;font-size:12px">In reply to: ${msg.message.slice(0, 200)}</p>`,
       })
       if (!result.ok) replyError = result.error || 'Unknown send error'
     } else {
@@ -106,7 +135,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { error } = await svc.from('wcm_pilot_feedback').update({
-      admin_reply: replyText,
+      admin_reply: replyText || null,
+      admin_reply_audio_url: audioUrl,
       replied_at: now,
       replied_by: auth.email,
       read_at: msg.read_at ?? now,
