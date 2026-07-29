@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback, Suspense, createContext, useContext } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, Suspense, createContext, useContext, useRef } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar, { type UserRole, type TeamMember } from '@/components/Sidebar'
@@ -74,6 +74,8 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole>('user')
   const [viewAs, setViewAs] = useState<TeamMember | null>(null)
   const [allowedPages, setAllowedPages] = useState<string[] | null>(null)
+  const [unreadMessages, setUnreadMessages] = useState(0)
+  const tokenRef = useRef<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -82,6 +84,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
       const token = sess.session?.access_token
       const email = sess.session?.user?.email ?? ''
       if (!token) return
+      tokenRef.current = token
       try {
         const r = await fetch('/api/bcps/my-access', { headers: { Authorization: `Bearer ${token}` } })
         if (r.ok) {
@@ -94,6 +97,34 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
       setRole(SUPERADMIN_EMAILS.has(email) ? 'superadmin' : 'user')
     })()
   }, [])
+
+  // Notification bell: unread count of site reports (wcm_pilot_feedback),
+  // admin-only inbox per Sean 2026-07-29. Poll every 45s so the bell
+  // reflects new reports without a full page reload.
+  useEffect(() => {
+    if (role !== 'superadmin') { setUnreadMessages(0); return }
+    let cancelled = false
+    async function poll() {
+      const token = tokenRef.current
+      if (!token) return
+      try {
+        const r = await fetch('/api/bcps/messages', { headers: { Authorization: `Bearer ${token}` } })
+        if (!r.ok) return
+        const j = await r.json()
+        if (!cancelled) setUnreadMessages(j.unread_count ?? 0)
+      } catch { /* leave last known count */ }
+    }
+    poll()
+    const interval = setInterval(poll, 45000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [role])
+
+  const handleBellClick = useCallback(() => {
+    router.push('/bcps?page=dashboard', { scroll: false })
+    setTimeout(() => {
+      document.getElementById('dashboard-messages-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 250)
+  }, [router])
 
   // Active page: cert routes and department route use pathname; others read ?page=
   const activePage = useMemo<PageId>(() => {
@@ -181,19 +212,26 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
               <div className="topbar-search">
                 <input type="text" placeholder="Search..." className="search-input" />
               </div>
-              <button
-                className="topbar-notif"
-                title="Notifications"
-                style={{
-                  position: 'relative', background: 'none', border: '1.5px solid var(--border)',
-                  borderRadius: '8px', width: 36, height: 36, display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <BellIcon />
-                <span style={{ position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: '50%', background: '#ef4444', border: '2px solid #fff' }} />
-              </button>
+              {role === 'superadmin' && (
+                <button
+                  className="topbar-notif"
+                  title={unreadMessages > 0 ? `${unreadMessages} unread message${unreadMessages === 1 ? '' : 's'}` : 'Notifications'}
+                  onClick={handleBellClick}
+                  style={{
+                    position: 'relative', background: 'none',
+                    border: `1.5px solid ${unreadMessages > 0 ? '#eab308' : 'var(--border)'}`,
+                    borderRadius: '8px', width: 36, height: 36, display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                    color: unreadMessages > 0 ? '#eab308' : 'var(--text-secondary)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <BellIcon />
+                  {unreadMessages > 0 && (
+                    <span style={{ position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: '50%', background: '#ef4444', border: '2px solid #fff' }} />
+                  )}
+                </button>
+              )}
               <button
                 onClick={handleSignOut}
                 style={{
@@ -253,4 +291,3 @@ export default function BCPSShell({ children }: { children: React.ReactNode }) {
     </Suspense>
   )
 }
-
