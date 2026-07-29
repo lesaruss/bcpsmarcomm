@@ -3,7 +3,6 @@
 import { useEffect } from 'react'
 import './wcm-registration.css'
 import WcmPilotHeader from './WcmPilotHeader'
-import WcmPilotFeedback from './WcmPilotFeedback'
 
 const DECK_SLUG = 'wcm-pilot'
 
@@ -187,7 +186,6 @@ export default function WCMRegistrationWelcomePage() {
         </div>
       </nav>
 
-      <WcmPilotFeedback />
     </div>
   )
 }
