@@ -40,6 +40,12 @@ body {
   line-height: 1.5;
 }
 
+
+/* 2026-07-29 (Logan, per V mobile audit): every text input/textarea class
+   below was set under 16px, which triggers iOS Safari's auto-zoom-on-focus
+   (same bug class already fixed once for GeekFon's comment composer).
+   Bumped every input/select/textarea font-size to 16px so focusing any
+   field on a phone no longer zooms the whole page in. */
 /* ── SIDEBAR ── */
 .sidebar {
   width: 248px; background: var(--sidebar-bg);
@@ -136,7 +142,7 @@ body {
 /* ── NOTES PAGE ── */
 .notes-layout { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
 .note-composer { position: relative; }
-.note-input-wrap { border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 14px 48px; min-height: 130px; font-size: 14px; line-height: 1.6; color: var(--text-primary); background: #fafbfc; transition: border-color .2s; }
+.note-input-wrap { border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 14px 48px; min-height: 130px; font-size: 16px; line-height: 1.6; color: var(--text-primary); background: #fafbfc; transition: border-color .2s; }
 .note-input-wrap:focus-within { border-color: var(--blue); background: #fff; }
 .note-toolbar { position: absolute; bottom: 0; left: 0; right: 0; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); background: #f7f9fb; border-radius: 0 0 10px 10px; }
 .toolbar-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px 6px; border-radius: 6px; font-size: 12px; font-weight: 700; transition: background .15s, color .15s; }
@@ -145,7 +151,7 @@ body {
 .mention-dropdown { position: absolute; top: calc(100% + 6px); left: 14px; background: #fff; border: 1.5px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); width: 280px; z-index: 100; display: none; overflow: hidden; }
 .mention-dropdown.open { display: block; }
 .mention-search { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
-.mention-search input { flex: 1; border: none; outline: none; font-size: 13px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); }
+.mention-search input { flex: 1; border: none; outline: none; font-size: 16px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); }
 .mention-search-label { font-size: 11px; font-weight: 700; color: var(--blue); }
 .mention-list { max-height: 200px; overflow-y: auto; }
 .mention-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; transition: background .12s; font-size: 13px; }
@@ -237,14 +243,14 @@ body {
 .bubble-time { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
 .bubble.mine .bubble-time { text-align: right; }
 .msg-input-row { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
-.msg-input { flex: 1; border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 14px; font-size: 13px; font-family: 'Open Sans', sans-serif; outline: none; transition: border-color .2s; }
+.msg-input { flex: 1; border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 14px; font-size: 16px; font-family: 'Open Sans', sans-serif; outline: none; transition: border-color .2s; }
 .msg-input:focus { border-color: var(--blue); }
 .msg-send-btn { background: var(--blue); color: #fff; border: none; border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .15s; }
 .msg-send-btn:hover { background: var(--blue-dark); }
 
 /* ── DEPARTMENTS ── */
 .dept-search-bar { display: flex; align-items: center; gap: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 22px; }
-.dept-search-bar input { flex: 1; border: none; outline: none; font-size: 14px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); background: transparent; }
+.dept-search-bar input { flex: 1; border: none; outline: none; font-size: 16px; font-family: 'Open Sans', sans-serif; color: var(--text-primary); background: transparent; }
 .dept-filter-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
 .dept-chip { padding: 5px 14px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--bg-card); font-size: 12px; font-weight: 700; cursor: pointer; color: var(--text-muted); transition: all .15s; }
 .dept-chip.active, .dept-chip:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-xlight); }
@@ -392,9 +398,9 @@ body {
 .invite-form-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: flex-end; margin-bottom: 14px; }
 .form-group { display: flex; flex-direction: column; gap: 5px; }
 .form-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); }
-.form-input { border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: 'Open Sans', sans-serif; outline: none; transition: border-color .2s; color: var(--text-primary); }
+.form-input { border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 16px; font-family: 'Open Sans', sans-serif; outline: none; transition: border-color .2s; color: var(--text-primary); }
 .form-input:focus { border-color: var(--blue); }
-.form-select { border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 13px; font-family: 'Open Sans', sans-serif; outline: none; background: #fff; cursor: pointer; color: var(--text-primary); }
+.form-select { border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 16px; font-family: 'Open Sans', sans-serif; outline: none; background: #fff; cursor: pointer; color: var(--text-primary); }
 .invite-options { display: flex; align-items: center; gap: 16px; padding: 12px 14px; background: var(--blue-xlight); border-radius: 8px; margin-bottom: 14px; }
 .invite-option { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .beta-free-tag { margin-left: auto; background: linear-gradient(135deg,#7c3aed,#1672A7); color: #fff; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
@@ -2013,3 +2019,4 @@ body {
   gap: 10px; margin-bottom: 10px;
 }
 .min-form-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
