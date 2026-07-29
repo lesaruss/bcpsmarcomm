@@ -119,7 +119,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   const [meId, setMeId] = useState<string | null>(null)
   const router = useRouter()
 
-  const { role } = useBCPSShell()
+  const { canManageMessages } = useBCPSShell()
   const [messages, setMessages] = useState<SiteMessage[]>([])
   const [messagesLoading, setMessagesLoading] = useState(true)
   const [openMessage, setOpenMessage] = useState<SiteMessage | null>(null)
@@ -187,7 +187,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   }, [viewAsUserId])
 
   async function loadMessages() {
-    if (role !== 'superadmin') { setMessagesLoading(false); return }
+    if (!canManageMessages) { setMessagesLoading(false); return }
     const supabase = createClient()
     const token = (await supabase.auth.getSession()).data.session?.access_token
     if (!token) { setMessagesLoading(false); return }
@@ -199,7 +199,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     setMessagesLoading(false)
   }
 
-  useEffect(() => { loadMessages() }, [role])
+  useEffect(() => { loadMessages() }, [canManageMessages])
 
   async function openAndMarkRead(msg: SiteMessage) {
     setOpenMessage(msg)
@@ -312,10 +312,12 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
       {/* Recent Messages - site reports from the SiteFeedback widget,
           per Sean 2026-07-29: this is the bare-bones inbox, living on the
           Dashboard right below WCM Certification rather than a separate
-          page. Admin-only (Sean is the only bcps role=superadmin today).
-          Click a message to read it (marks read) and reply inline - the
-          reply emails the reporter directly if we have their address. */}
-      {role === 'superadmin' && (
+          page. Gated on canManageMessages (bcps role admin or superadmin -
+          e.g. Sean and, as of 2026-07-29, Felicia Hicks), not the Sidebar's
+          binary superadmin/user role. Click a message to read it (marks
+          read) and reply inline - the reply emails the reporter directly
+          if we have their address. */}
+      {canManageMessages && (
         <div className="dash-panel" id="dashboard-messages-panel" style={{ marginBottom: 24 }}>
           <div className="dash-panel-header">
             <h3>Recent Messages</h3>
