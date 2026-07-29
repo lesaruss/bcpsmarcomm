@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServiceClient, createAnonClientWithToken } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,7 +7,7 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
+const svc = createServiceClient(URL, SERVICE)
 
 // List of support-access grants the *current admin* has requested, for the
 // Dashboard "Access Requests" panel. Only shows grants still open (requested
@@ -15,10 +15,7 @@ const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 export async function GET(req: NextRequest) {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
   if (!token) return NextResponse.json({ error: 'Forbidden' }, { status: 401 })
-  const asUser = createClient(URL, ANON, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false },
-  })
+  const asUser = createAnonClientWithToken(URL, ANON, token)
   const { data: { user } } = await asUser.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 401 })
 
