@@ -19,6 +19,15 @@
   --sidebar-dark: #125e8a;
   --sidebar-text: rgba(255,255,255,0.75);
   --sidebar-hover: rgba(255,255,255,0.12);
+  /* Alias, added 2026-07-29: var(--primary) is referenced all over the
+     app (WCM Certification CTAs, Request Access, Send Reply, etc.) but
+     was never actually defined - every one of those usages was silently
+     falling back to unset/transparent this whole time (confirmed via
+     getComputedStyle: --primary computed to an empty string, Send Reply's
+     background rendered fully transparent - invisible white-on-white
+     text). Aliasing to the real brand blue fixes every existing call site
+     at once instead of hardcoding colors component by component. */
+  --primary: var(--blue);
 }
 
 html, body { height: 100%; width: 100%; }
