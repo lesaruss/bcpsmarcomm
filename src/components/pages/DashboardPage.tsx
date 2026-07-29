@@ -107,6 +107,7 @@ interface SiteMessage {
   admin_reply: string | null
   replied_at: string | null
   notify_error: string | null
+  user_id: string | null
 }
 
 export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPageProps) {
@@ -126,6 +127,9 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   const [replyText, setReplyText] = useState('')
   const [replySending, setReplySending] = useState(false)
   const [replyNotice, setReplyNotice] = useState<string | null>(null)
+  const [accessRequesting, setAccessRequesting] = useState(false)
+  const [accessNotice, setAccessNotice] = useState<string | null>(null)
+  const [accessRequests, setAccessRequests] = useState<Array<{ id: string; target_name: string; status: string; requested_at: string; approved_at: string | null }>>([])
 
   useEffect(() => {
     const supabase = createClient()
@@ -201,10 +205,25 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
 
   useEffect(() => { loadMessages() }, [canManageMessages])
 
+  async function loadAccessRequests() {
+    if (!canManageMessages) return
+    const supabase = createClient()
+    const token = (await supabase.auth.getSession()).data.session?.access_token
+    if (!token) return
+    const r = await fetch('/api/bcps/access-requests', { headers: { Authorization: `Bearer ${token}` } })
+    if (r.ok) {
+      const j = await r.json()
+      setAccessRequests(j.requests ?? [])
+    }
+  }
+
+  useEffect(() => { loadAccessRequests() }, [canManageMessages])
+
   async function openAndMarkRead(msg: SiteMessage) {
     setOpenMessage(msg)
     setReplyText('')
     setReplyNotice(null)
+    setAccessNotice(null)
     if (!msg.read_at) {
       const supabase = createClient()
       const token = (await supabase.auth.getSession()).data.session?.access_token
@@ -240,6 +259,34 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
       setReplyNotice(e.message || 'Something went wrong.')
     } finally {
       setReplySending(false)
+    }
+  }
+
+  async function requestAccess() {
+    if (!openMessage) return
+    setAccessRequesting(true)
+    setAccessNotice(null)
+    try {
+      const supabase = createClient()
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) return
+      const r = await fetch('/api/bcps/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: openMessage.id, action: 'request_access' }),
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error || 'Could not request access.')
+      if (j.already) {
+        setAccessNotice(j.status === 'approved' ? 'Access already granted for this person.' : 'A request is already pending with them.')
+      } else {
+        setAccessNotice(j.warning ? `Request saved, but not emailed: ${j.warning}` : 'Access request sent to them by email.')
+      }
+      loadAccessRequests()
+    } catch (e: any) {
+      setAccessNotice(e.message || 'Something went wrong.')
+    } finally {
+      setAccessRequesting(false)
     }
   }
 
@@ -359,6 +406,36 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                   {m.page ? `${m.page} — ` : ''}{m.message.length > 110 ? m.message.slice(0, 107) + '...' : m.message}
                 </div>
               </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Access Requests - outstanding/active grants this admin has out,
+          per Sean 2026-07-29, so a pending or approved request doesn't
+          get lost once the email is sent. "Waiting" = they haven't
+          responded yet; "View" opens the read-only diagnostic page once
+          they approve. */}
+      {canManageMessages && accessRequests.length > 0 && (
+        <div className="dash-panel" style={{ marginBottom: 24 }}>
+          <div className="dash-panel-header">
+            <h3>Access Requests</h3>
+          </div>
+          <div className="note-list">
+            {accessRequests.map(ar => (
+              <div key={ar.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{ar.target_name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {ar.status === 'approved' ? `Approved ${relativeTime(ar.approved_at || ar.requested_at)}` : `Requested ${relativeTime(ar.requested_at)} — waiting on them`}
+                  </div>
+                </div>
+                {ar.status === 'approved' ? (
+                  <a href={`/bcps/support-access/${ar.id}`} style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>View &rarr;</a>
+                ) : (
+                  <span style={{ fontSize: 10, fontWeight: 800, color: '#C55326', textTransform: 'uppercase' }}>Pending</span>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -539,13 +616,34 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
             {replyNotice && (
               <p style={{ fontSize: 12.5, color: replyNotice.startsWith('Reply sent') ? '#16750C' : '#c0392b', margin: '8px 0 0' }}>{replyNotice}</p>
             )}
-            <button
-              onClick={sendReply}
-              disabled={replySending || !replyText.trim()}
-              style={{ marginTop: 14, padding: '10px 20px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: replySending ? 'default' : 'pointer', opacity: replySending || !replyText.trim() ? 0.6 : 1 }}
-            >
-              {replySending ? 'Sending...' : 'Send Reply'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+              <button
+                onClick={sendReply}
+                disabled={replySending || !replyText.trim()}
+                style={{ padding: '10px 20px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: replySending ? 'default' : 'pointer', opacity: replySending || !replyText.trim() ? 0.6 : 1 }}
+              >
+                {replySending ? 'Sending...' : 'Send Reply'}
+              </button>
+
+              {/* Request Access: only offered when this report is tied to a
+                  real account (user_id) - per Sean 2026-07-29, this only
+                  ever fires off a specific ticket, never a standing button
+                  on every member's profile. Sends them a read-only,
+                  member-approved access request by email; nothing is
+                  visible until they say yes. */}
+              {openMessage.user_id && (
+                <button
+                  onClick={requestAccess}
+                  disabled={accessRequesting}
+                  style={{ padding: '10px 20px', background: '#fff', color: 'var(--primary)', border: '1.5px solid var(--primary)', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: accessRequesting ? 'default' : 'pointer', opacity: accessRequesting ? 0.6 : 1 }}
+                >
+                  {accessRequesting ? 'Requesting...' : 'Request Access'}
+                </button>
+              )}
+            </div>
+            {accessNotice && (
+              <p style={{ fontSize: 12.5, color: accessNotice.includes('sent') || accessNotice.includes('already') ? '#16750C' : '#c0392b', margin: '8px 0 0' }}>{accessNotice}</p>
+            )}
           </div>
         </div>
       )}
