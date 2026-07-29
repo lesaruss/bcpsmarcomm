@@ -199,7 +199,7 @@ interface NavSection { label: string; items: NavItem[] }
 
 const SECTIONS: NavSection[] = [
   { label: 'Platform', items: [
-    { id: 'dashboard', label: 'Passport' },
+    { id: 'dashboard', label: 'Dashboard' },
     { id: 'queue', label: 'Queue' },
     { id: 'notes', label: 'Meeting Notes' },
     { id: 'departments', label: 'Departments' },
