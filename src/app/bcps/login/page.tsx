@@ -74,7 +74,10 @@ export default function BCPSLoginPage() {
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '11px 14px', borderRadius: '8px',
     background: '#f8fafc', border: '1px solid #d1d5db',
-    color: '#111827', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+    // 2026-07-29 (Logan, per V mobile audit): was 14px, under the 16px
+    // threshold that triggers iOS Safari auto-zoom-on-focus - this page has
+    // its own inline style so the globals.css .form-input fix didn't cover it.
+    color: '#111827', fontSize: '16px', outline: 'none', boxSizing: 'border-box',
     fontFamily: "'Montserrat', sans-serif",
   }
 
