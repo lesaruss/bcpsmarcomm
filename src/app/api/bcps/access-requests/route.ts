@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (role !== 'admin' && role !== 'superadmin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { data: grants, error: grantsErr } = await svc.from('support_access_grants')
-    .select('id, target_user_id, status, reason, requested_at, approved_at')
+    .select('id, target_user_id, status, reason, requested_at, approved_at, requested_by')
     .eq('requested_by', user.id)
     .in('status', ['requested', 'approved'])
     .order('requested_at', { ascending: false })
