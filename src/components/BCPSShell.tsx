@@ -25,7 +25,7 @@ const SUPERADMIN_EMAILS = new Set(['contact@lesaruss.com'])
 const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm', 'pulse-approvals'])
 
 const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
-  dashboard:                { title: 'Passport',                sub: 'Broward County Public Schools' },
+  dashboard:                { title: 'Dashboard',               sub: 'Broward County Public Schools' },
   notes:                    { title: 'Meeting Notes',           sub: 'Briefs & Records' },
   profile:                  { title: 'My Profile',              sub: 'Account & Settings' },
   departments:              { title: 'Departments',             sub: 'Directory & Profiles' },
