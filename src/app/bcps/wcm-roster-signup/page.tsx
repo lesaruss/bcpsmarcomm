@@ -55,7 +55,6 @@ export default function WCMRosterSignupPage() {
   const [removeIds, setRemoveIds] = useState<Set<string>>(new Set())
 
   const [newRows, setNewRows] = useState<NewWcmRow[]>([])
-  const [naChecked, setNaChecked] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -193,8 +192,8 @@ export default function WCMRosterSignupPage() {
       setResult({ type: 'error', text: 'Each new WCM you add needs at least a name.' })
       return
     }
-    if (!naChecked && removals.length === 0 && additions.length === 0) {
-      setResult({ type: 'error', text: 'Remove someone, add someone, or check "No dedicated WCM this year" before submitting.' })
+    if (removals.length === 0 && additions.length === 0) {
+      setResult({ type: 'error', text: 'Remove someone or add someone before submitting. Every department needs a Web Content Manager on file.' })
       return
     }
 
@@ -223,17 +222,13 @@ export default function WCMRosterSignupPage() {
           wcm_personnel_number: row.personnelNumber.trim() || undefined,
         })
       }
-      if (naChecked) {
-        await postChange({ ...common, action: 'na' })
-      }
 
-      const count = removals.length + additions.length + (naChecked ? 1 : 0)
+      const count = removals.length + additions.length
       setResult({
         type: 'success',
         text: `Thank you! ${count} update${count === 1 ? '' : 's'} submitted and awaiting review by the District Web Team. Nothing changes on the live roster until then.`,
       })
       setNewRows([])
-      setNaChecked(false)
       setRemoveIds(new Set())
       // Re-pull current WCMs so the pending-removal strike-through clears
       // now that the removal has actually been recorded.
@@ -402,7 +397,7 @@ export default function WCMRosterSignupPage() {
                   style={{ marginTop: 2 }}
                 />
                 {originalDirectorName && originalDirectorName.trim().toUpperCase() !== 'TBD'
-                  ? `I'm not ${originalDirectorName} \u2014 someone else is completing this form.`
+                  ? `I'm not ${originalDirectorName} — someone else is completing this form.`
                   : `I'm completing this on behalf of the director, not the director myself.`}
               </label>
               {notDirector && (
@@ -492,7 +487,7 @@ export default function WCMRosterSignupPage() {
               </div>
             )}
 
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 24 }}>
               <label className="form-label" style={{ display: 'block', marginBottom: 8 }}>
                 Add a Web Content Manager
               </label>
@@ -538,18 +533,6 @@ export default function WCMRosterSignupPage() {
               >
                 + Add a WCM
               </button>
-            </div>
-
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={naChecked}
-                  onChange={e => setNaChecked(e.target.checked)}
-                  style={{ marginTop: 2 }}
-                />
-                My department does not need a dedicated Web Content Manager this year (N/A).
-              </label>
             </div>
 
             <button type="submit" className="btn-primary" disabled={submitting} style={{ padding: '11px 28px', fontSize: 14 }}>
