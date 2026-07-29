@@ -89,7 +89,7 @@ export default function AccessRequestPage() {
                 </p>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => act('approve')} disabled={acting}
-                    style={{ padding: '10px 20px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: acting ? 0.6 : 1 }}>
+                    style={{ padding: '10px 20px', background: '#1a7f37', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: acting ? 0.6 : 1 }}>
                     Approve
                   </button>
                   <button onClick={() => act('deny')} disabled={acting}
