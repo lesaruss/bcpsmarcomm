@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import type { PageId } from '@/lib/types'
 import { MEMBERS } from '@/lib/data'
+import { useBCPSShell } from '@/components/BCPSShell'
 
 interface DashboardPageProps {
   onNavigate: (page: PageId) => void
@@ -95,6 +96,19 @@ interface AssignmentNote {
   created_at: string
 }
 
+interface SiteMessage {
+  id: string
+  created_at: string
+  email: string | null
+  page: string | null
+  message: string
+  status: string
+  read_at: string | null
+  admin_reply: string | null
+  replied_at: string | null
+  notify_error: string | null
+}
+
 export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPageProps) {
   const [notes, setNotes] = useState<AssignmentNote[]>([])
   const [notesLoading, setNotesLoading] = useState(true)
@@ -104,6 +118,14 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   const [teamMembers, setTeamMembers] = useState<Array<{ user_id: string; name: string; initials: string; color: string; role: string; department: { slug: string; name: string; division: string | null } | null }>>([])
   const [meId, setMeId] = useState<string | null>(null)
   const router = useRouter()
+
+  const { role } = useBCPSShell()
+  const [messages, setMessages] = useState<SiteMessage[]>([])
+  const [messagesLoading, setMessagesLoading] = useState(true)
+  const [openMessage, setOpenMessage] = useState<SiteMessage | null>(null)
+  const [replyText, setReplyText] = useState('')
+  const [replySending, setReplySending] = useState(false)
+  const [replyNotice, setReplyNotice] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -163,6 +185,63 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
         setNotesLoading(false)
       })
   }, [viewAsUserId])
+
+  async function loadMessages() {
+    if (role !== 'superadmin') { setMessagesLoading(false); return }
+    const supabase = createClient()
+    const token = (await supabase.auth.getSession()).data.session?.access_token
+    if (!token) { setMessagesLoading(false); return }
+    const r = await fetch('/api/bcps/messages', { headers: { Authorization: `Bearer ${token}` } })
+    if (r.ok) {
+      const j = await r.json()
+      setMessages(j.messages ?? [])
+    }
+    setMessagesLoading(false)
+  }
+
+  useEffect(() => { loadMessages() }, [role])
+
+  async function openAndMarkRead(msg: SiteMessage) {
+    setOpenMessage(msg)
+    setReplyText('')
+    setReplyNotice(null)
+    if (!msg.read_at) {
+      const supabase = createClient()
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) return
+      await fetch('/api/bcps/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: msg.id, action: 'read' }),
+      })
+      loadMessages()
+    }
+  }
+
+  async function sendReply() {
+    if (!openMessage || !replyText.trim()) return
+    setReplySending(true)
+    setReplyNotice(null)
+    try {
+      const supabase = createClient()
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) return
+      const r = await fetch('/api/bcps/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: openMessage.id, action: 'reply', reply_text: replyText.trim() }),
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error || 'Could not send reply.')
+      setReplyNotice(j.warning ? `Saved, but not emailed: ${j.warning}` : 'Reply sent.')
+      setReplyText('')
+      loadMessages()
+    } catch (e: any) {
+      setReplyNotice(e.message || 'Something went wrong.')
+    } finally {
+      setReplySending(false)
+    }
+  }
 
   return (
     <div className="dashboard">
@@ -226,6 +305,59 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                 Continue Certification
               </a>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Messages - site reports from the SiteFeedback widget,
+          per Sean 2026-07-29: this is the bare-bones inbox, living on the
+          Dashboard right below WCM Certification rather than a separate
+          page. Admin-only (Sean is the only bcps role=superadmin today).
+          Click a message to read it (marks read) and reply inline - the
+          reply emails the reporter directly if we have their address. */}
+      {role === 'superadmin' && (
+        <div className="dash-panel" id="dashboard-messages-panel" style={{ marginBottom: 24 }}>
+          <div className="dash-panel-header">
+            <h3>Recent Messages</h3>
+            {messages.length > 0 && (
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                {messages.filter(m => !m.read_at).length} unread
+              </span>
+            )}
+          </div>
+          <div className="note-list">
+            {messagesLoading ? (
+              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+            ) : messages.length === 0 ? (
+              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No messages yet.</div>
+            ) : messages.slice(0, 6).map((m) => (
+              <button
+                key={m.id}
+                onClick={() => openAndMarkRead(m)}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left', background: 'none',
+                  border: 'none', borderBottom: '1px solid var(--border)', padding: '10px 0',
+                  cursor: 'pointer', font: 'inherit',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {!m.read_at && (
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                  )}
+                  <span style={{ fontWeight: m.read_at ? 600 : 800, color: 'var(--text)', fontSize: '13px' }}>
+                    {m.email || 'Not identified'}
+                  </span>
+                  <span className="dot">&middot;</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{relativeTime(m.created_at)}</span>
+                  {m.status === 'replied' && (
+                    <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 800, color: '#16750C', textTransform: 'uppercase' }}>Replied</span>
+                  )}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+                  {m.page ? `${m.page} — ` : ''}{m.message.length > 110 ? m.message.slice(0, 107) + '...' : m.message}
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -367,6 +499,51 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', margin: '6px 0 16px' }}>{openNote.author} &middot; {relativeTime(openNote.created_at)}</div>
             <p style={{ fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: 0 }}>{openNote.note_text}</p>
+          </div>
+        </div>
+      )}
+
+      {openMessage && (
+        <div onClick={() => setOpenMessage(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 1000 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, maxWidth: 560, width: '100%', maxHeight: '85vh', overflow: 'auto', padding: 28 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{openMessage.email || 'Not identified'}</h2>
+              <button onClick={() => setOpenMessage(null)} style={{ background: 'none', border: 'none', fontSize: 24, lineHeight: 1, cursor: 'pointer' }} aria-label="Close">&times;</button>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', margin: '6px 0 16px' }}>
+              {openMessage.page ? `${openMessage.page} · ` : ''}{relativeTime(openMessage.created_at)}
+            </div>
+            <p style={{ fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: '0 0 20px' }}>{openMessage.message}</p>
+
+            {openMessage.admin_reply && (
+              <div style={{ background: 'var(--bg, #f5f5f5)', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+                  Your reply{openMessage.replied_at ? ` · ${relativeTime(openMessage.replied_at)}` : ''}
+                </div>
+                <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{openMessage.admin_reply}</div>
+              </div>
+            )}
+
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+              {openMessage.admin_reply ? 'Send another reply' : 'Reply'}
+            </label>
+            <textarea
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              rows={4}
+              placeholder={openMessage.email ? `Reply to ${openMessage.email}...` : 'No email on file — this will be saved but not sent.'}
+              style={{ width: '100%', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+            />
+            {replyNotice && (
+              <p style={{ fontSize: 12.5, color: replyNotice.startsWith('Reply sent') ? '#16750C' : '#c0392b', margin: '8px 0 0' }}>{replyNotice}</p>
+            )}
+            <button
+              onClick={sendReply}
+              disabled={replySending || !replyText.trim()}
+              style={{ marginTop: 14, padding: '10px 20px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: replySending ? 'default' : 'pointer', opacity: replySending || !replyText.trim() ? 0.6 : 1 }}
+            >
+              {replySending ? 'Sending...' : 'Send Reply'}
+            </button>
           </div>
         </div>
       )}
