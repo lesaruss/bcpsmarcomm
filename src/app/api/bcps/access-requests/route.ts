@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     .in('status', ['requested', 'approved'])
     .order('requested_at', { ascending: false })
 
-  const targetIds = [...new Set((grants ?? []).map(g => g.target_user_id))]
+  const targetIds = Array.from(new Set((grants ?? []).map(g => g.target_user_id)))
   const { data: profiles } = targetIds.length
     ? await svc.from('wcm_cert_users').select('user_id, full_name, email').in('user_id', targetIds)
     : { data: [] }
