@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import '../wcm-registration.css'
 import WcmPilotHeader from '../WcmPilotHeader'
-import WcmPilotFeedback from '../WcmPilotFeedback'
 
 interface DeptOption {
   id: string
@@ -290,7 +289,6 @@ export default function WCMRegistrationRegisterPage() {
         </div>
       </div>
 
-      <WcmPilotFeedback />
     </div>
   )
 }
