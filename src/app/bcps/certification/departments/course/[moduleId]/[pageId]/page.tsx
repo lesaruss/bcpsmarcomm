@@ -195,10 +195,13 @@ export default function CoursePlayerPage({ params }: Props) {
           return
         }
       }
-      // Navigate to next page / module
-      if (next) {
-        router.push(`/bcps/certification/departments/course/${next.moduleId}/${next.pageId}`)
-      } else {
+      // Let the "Continue to Module X" link already rendered below (once
+      // quizPassed) be the way the user advances. Auto-navigating here used
+      // to fire in the same tick as showing the score, so the pass/fail
+      // screen flashed for a fraction of a second before redirecting away
+      // (WCM Hot Lab feedback, Leon Clinch, 2026-07-30). Only auto-advance
+      // when there is truly nothing left to continue to.
+      if (!next) {
         router.push('/bcps/certification/departments/complete')
       }
     }
