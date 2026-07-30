@@ -10,6 +10,7 @@ interface Doc {
   description: string | null
   type: string | null
   date: string | null
+  date_sort: string | null
   icon: string | null
   section: 'documents' | 'meeting-notes' | 'records'
   visibility: string
@@ -26,6 +27,27 @@ interface Doc {
 type Group = { id: string; slug: string; name: string }
 type Member = { user_id: string; email: string; name: string }
 type Grant = { id: string; object_id: string; subject_type: string; subject_id: string; role: string }
+type Series = { id: string; slug: string; title: string; section: string | null }
+
+type SortMode = 'date_desc' | 'date_asc' | 'az' | 'za'
+
+// Featured docs always float to the top regardless of sort mode (matches
+// the existing star/feature behavior). Within the rest, sort by the chosen
+// mode - date modes fall back to title when a doc has no doc_date_sort yet
+// rather than dropping it to a random spot.
+function sortDocs(list: Doc[], mode: SortMode): Doc[] {
+  return [...list].sort((a, b) => {
+    if (a.featured !== b.featured) return a.featured ? -1 : 1
+    if (mode === 'az') return a.title.localeCompare(b.title)
+    if (mode === 'za') return b.title.localeCompare(a.title)
+    const av = a.date_sort ? new Date(a.date_sort).getTime() : null
+    const bv = b.date_sort ? new Date(b.date_sort).getTime() : null
+    if (av === null && bv === null) return a.title.localeCompare(b.title)
+    if (av === null) return 1
+    if (bv === null) return -1
+    return mode === 'date_asc' ? av - bv : bv - av
+  })
+}
 
 const SECTIONS = [
   { key: 'documents', label: 'Documents', description: 'Plans, governance frameworks, implementation guides, and reference documents.' },
@@ -59,6 +81,9 @@ export default function DocumentsPage() {
   const [contentLoading, setContentLoading] = useState<Record<string, boolean>>({})
   const [requestDraft, setRequestDraft] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState<string>('documents')
+  const [allSeries, setAllSeries] = useState<Series[]>([])
+  const [sortMode, setSortMode] = useState<SortMode>('date_desc')
+  const [seriesFilter, setSeriesFilter] = useState<string>('all')
 
   const isAdmin = role === 'admin' || role === 'superadmin'
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
@@ -72,6 +97,7 @@ export default function DocumentsPage() {
     if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
     setDocs(j.documents ?? []); setRole(j.role)
     setGroups(j.groups ?? []); setMembers(j.members ?? []); setGrants(j.grants ?? [])
+    setAllSeries(j.all_series ?? [])
     setLoading(false)
   }, [token])
 
@@ -261,10 +287,35 @@ export default function DocumentsPage() {
         </div>
 
         {SECTIONS.filter(section => section.key === activeTab).map(section => {
-          const sectionDocs = docs.filter(d => (d.section || 'documents') === section.key)
+          let sectionDocs = docs.filter(d => (d.section || 'documents') === section.key)
+          if (section.key === 'meeting-notes' && seriesFilter !== 'all') {
+            sectionDocs = sectionDocs.filter(d => d.series_id === seriesFilter)
+          }
+          sectionDocs = sortDocs(sectionDocs, section.key === 'documents' ? sortMode : 'date_desc')
           return (
             <div key={section.key} className="docs-section-group">
               <p className="docs-section-desc">{section.description}</p>
+
+              {section.key === 'documents' && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+                  <select style={A.sel} value={sortMode} onChange={e => setSortMode(e.target.value as SortMode)}>
+                    <option value="date_desc">Sort: Newest first</option>
+                    <option value="date_asc">Sort: Oldest first</option>
+                    <option value="az">Sort: A → Z</option>
+                    <option value="za">Sort: Z → A</option>
+                  </select>
+                </div>
+              )}
+
+              {section.key === 'meeting-notes' && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+                  <select style={A.sel} value={seriesFilter} onChange={e => setSeriesFilter(e.target.value)}>
+                    <option value="all">All meeting types</option>
+                    {allSeries.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+                  </select>
+                </div>
+              )}
+
               <div className="docs-section-divider" />
               {sectionDocs.length === 0 ? (
                 <div style={{ fontSize: 13, color: '#9ca3af' }}>Nothing here yet.</div>
