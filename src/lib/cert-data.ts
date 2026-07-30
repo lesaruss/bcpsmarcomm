@@ -42,7 +42,7 @@ export const MODULES: CourseModule[] = [
         { question: 'What is the minimum passing score for a Mastery Check?', options: ['70%', '75%', '80%', '90%'], correctIndex: 2 },
         { question: 'Which best describes the role of a department WCM?', options: ['A person who only uploads PDFs', 'The person responsible for keeping a department website accurate, current, and compliant with BCPS standards', 'An IT technician who manages servers', 'A graphic designer for the district'], correctIndex: 1 },
         { question: 'How does a department website differ from a school website in terms of impact?', options: ['It serves fewer people', 'Department pages are the authoritative source for the entire district and may be referenced by all 200+ schools', 'It is easier to maintain', 'School sites are more important'], correctIndex: 1 },
-        { question: 'Where can you find the official BCPS department web standards?', options: ['On the BCPS intranet only', 'browardschools.com/wcm-community/departments/standards-guidelines', 'In the Finalsite help center', 'By emailing IT support'], correctIndex: 1 },
+        { question: 'Where can you find the official BCPS department web standards?', options: ['On the BCPS intranet only', 'The "BCPS Department Standards and Guidelines" page, linked from the Resources section of this module', 'In the Finalsite help center', 'By emailing IT support'], correctIndex: 1 },
       ]},
     ]
   },
