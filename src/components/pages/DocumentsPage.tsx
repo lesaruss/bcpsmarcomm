@@ -31,6 +31,13 @@ type Series = { id: string; slug: string; title: string; section: string | null 
 
 type SortMode = 'date_desc' | 'date_asc' | 'az' | 'za'
 
+// Some documents are just tracked here for visibility (e.g. Broward Powered
+// by AI, hosted on its own separate site) rather than migrated into this
+// app. Their doc_url is an absolute external link - open those in a new tab
+// instead of the in-app iframe lightbox, since most external sites block
+// being framed and the ask was explicitly "open it up on a new page."
+const isExternal = (url: string) => /^https?:\/\//i.test(url)
+
 // Featured docs always float to the top regardless of sort mode (matches
 // the existing star/feature behavior). Within the rest, sort by the chosen
 // mode - date modes fall back to title when a doc has no doc_date_sort yet
@@ -327,9 +334,10 @@ export default function DocumentsPage() {
                   const dgrants = grantsFor(doc.effective_object_id)
                   return (
                     <div key={doc.id} className="doc-card">
-                      {(isAdmin || doc.featured) && (
+                      {(isAdmin || doc.featured || isExternal(doc.doc_url)) && (
                         <div className="doc-badge-row">
                           {isAdmin && <span className="doc-access-badge">{badge.icon} {badge.label}</span>}
+                          {isExternal(doc.doc_url) && <span className="doc-access-badge">↗ Opens on another site</span>}
                           {isAdmin && (
                             <button
                               type="button"
@@ -345,7 +353,7 @@ export default function DocumentsPage() {
                       )}
 
                       <button
-                        onClick={() => setPreview(doc)}
+                        onClick={() => isExternal(doc.doc_url) ? window.open(doc.doc_url, '_blank', 'noopener,noreferrer') : setPreview(doc)}
                         style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', width: '100%', font: 'inherit', color: 'inherit' }}
                       >
                         <div className="doc-icon-row">
