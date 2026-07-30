@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data: docs, error } = await svc.from('acl_objects')
-    .select('id, slug, title, description, doc_type, doc_date, icon, section, visibility, sensitive, owner_id, doc_url, series_id, featured')
+    .select('id, slug, title, description, doc_type, doc_date, doc_date_sort, icon, section, visibility, sensitive, owner_id, doc_url, series_id, featured')
     .eq('brand', BRAND).eq('kind', 'document')
     .order('featured', { ascending: false }).order('section').order('title')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -139,14 +139,22 @@ export async function GET(req: NextRequest) {
     const can_edit = isAdmin || eff.ownerId === user.id || (!!grant && ['edit', 'manage'].includes(grant.role))
     return {
       id: d.id, slug: d.slug, title: d.title, description: d.description,
-      type: d.doc_type, date: d.doc_date, icon: d.icon, section: d.section || 'documents',
+      type: d.doc_type, date: d.doc_date, date_sort: d.doc_date_sort, icon: d.icon, section: d.section || 'documents',
       visibility: eff.visibility, sensitive: eff.sensitive, doc_url: d.doc_url,
       is_dynamic: isDynamic(d.doc_url), can_edit, featured: !!d.featured,
       series_id: d.series_id || null, series_title: eff.seriesTitle, effective_object_id: eff.objectId,
     }
   })
 
-  const extra: Record<string, unknown> = {}
+  // Full list of meeting-note series (Hot Lab, OOC-Felicia, Farrah Wilson,
+  // etc.), independent of whether any instance has been created yet, so the
+  // Meeting Notes tab's series filter always shows every recurring meeting
+  // type as a selectable option, not just ones with existing notes.
+  const { data: seriesList } = await svc.from('acl_objects')
+    .select('id, slug, title, section')
+    .eq('brand', BRAND).eq('kind', 'document_series').order('title')
+
+  const extra: Record<string, unknown> = { all_series: seriesList ?? [] }
   if (isAdmin) {
     const [groups, members] = await Promise.all([
       svc.from('acl_groups').select('id, slug, name').eq('brand', BRAND).order('name'),
@@ -194,7 +202,7 @@ export async function POST(req: NextRequest) {
         const row: Record<string, unknown> = { updated_at: new Date().toISOString() }
         for (const [bodyKey, col] of [
           ['title', 'title'], ['description', 'description'], ['doc_type', 'doc_type'],
-          ['doc_date', 'doc_date'], ['icon', 'icon'], ['section', 'section'],
+          ['doc_date', 'doc_date'], ['doc_date_sort', 'doc_date_sort'], ['icon', 'icon'], ['section', 'section'],
           ['visibility', 'visibility'], ['sensitive', 'sensitive'], ['featured', 'featured'],
         ] as const) {
           if (body[bodyKey] !== undefined) row[col] = body[bodyKey]
