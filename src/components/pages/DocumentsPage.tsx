@@ -57,7 +57,7 @@ function sortDocs(list: Doc[], mode: SortMode): Doc[] {
 }
 
 const SECTIONS = [
-  { key: 'documents', label: 'Documents', description: 'Plans, governance frameworks, implementation guides, and reference documents.' },
+  { key: 'documents', label: 'Playbooks', description: 'Main projects with multiple tasks. Plans, governance frameworks, implementation guides, and reference documents.' },
   { key: 'meeting-notes', label: 'Meeting Notes', description: 'Notes and action items from platform sessions, hot labs, and planning meetings.' },
   { key: 'records', label: 'Records', description: 'Performance appraisals and confidential employment records.' },
 ]
@@ -299,6 +299,20 @@ export default function DocumentsPage() {
             sectionDocs = sectionDocs.filter(d => d.series_id === seriesFilter)
           }
           sectionDocs = sortDocs(sectionDocs, section.key === 'documents' ? sortMode : 'date_desc')
+
+          // For meeting-notes, group by department/series
+          const meetingsByDept = section.key === 'meeting-notes'
+            ? (() => {
+                const grouped: Record<string, Doc[]> = {}
+                sectionDocs.forEach(doc => {
+                  const dept = doc.series_title || 'Other'
+                  if (!grouped[dept]) grouped[dept] = []
+                  grouped[dept].push(doc)
+                })
+                return Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]))
+              })()
+            : []
+
           return (
             <div key={section.key} className="docs-section-group">
               <p className="docs-section-desc">{section.description}</p>
@@ -314,17 +328,41 @@ export default function DocumentsPage() {
                 </div>
               )}
 
-              {section.key === 'meeting-notes' && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
-                  <select style={A.sel} value={seriesFilter} onChange={e => setSeriesFilter(e.target.value)}>
-                    <option value="all">All meeting types</option>
-                    {allSeries.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-                  </select>
-                </div>
-              )}
-
               <div className="docs-section-divider" />
-              {sectionDocs.length === 0 ? (
+
+              {section.key === 'meeting-notes' && meetingsByDept.length > 0 ? (
+                <div className="docs-grid">
+                  {meetingsByDept.map(([dept, deptMeetings]) => (
+                    <div key={dept} className="doc-card" style={{ position: 'relative' }}>
+                      <div style={{ marginBottom: 16 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', margin: '0 0 12px 0' }}>{dept}</h3>
+                        <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+                          {deptMeetings.length} meeting{deptMeetings.length !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+
+                      <div style={{ borderTop: '1px solid rgba(0,0,0,0.09)', paddingTop: 12 }}>
+                        {deptMeetings.map(doc => (
+                          <div key={doc.id} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                            <button
+                              onClick={() => isExternal(doc.doc_url) ? window.open(doc.doc_url, '_blank', 'noopener,noreferrer') : setPreview(doc)}
+                              style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', width: '100%', font: 'inherit', color: 'inherit' }}
+                            >
+                              <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 4 }}>{doc.title}</div>
+                            </button>
+                            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8 }}>{doc.date}</div>
+                            <button style={{ ...A.btn, fontSize: 10 }} onClick={() => isExternal(doc.doc_url) ? window.open(doc.doc_url, '_blank', 'noopener,noreferrer') : setPreview(doc)}>
+                              View
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : section.key === 'meeting-notes' ? (
+                <div style={{ fontSize: 13, color: '#9ca3af' }}>Nothing here yet.</div>
+              ) : sectionDocs.length === 0 ? (
                 <div style={{ fontSize: 13, color: '#9ca3af' }}>Nothing here yet.</div>
               ) : (
               <div className="docs-grid">
