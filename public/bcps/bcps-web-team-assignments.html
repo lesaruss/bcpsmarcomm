@@ -29,19 +29,43 @@
 
   header.bcps-header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 200;
-    height: 64px; background: #ffffff;
+    background: #ffffff;
     border-bottom: 3px solid var(--bcps-blue);
-    display: flex; align-items: center; padding: 0 28px;
-    gap: 20px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   }
-  .bcps-logo { height: 44px; width: auto; display: block; }
-  .bcps-header-divider { width: 1px; height: 32px; background: var(--border); }
-  .bcps-header-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); }
-  .bcps-header-spacer { flex: 1; }
-  .version-pill { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; background: rgba(22,114,167,0.10); color: var(--bcps-blue); border: 1px solid rgba(22,114,167,0.25); border-radius: 20px; padding: 4px 12px; white-space: nowrap; }
+  .bcps-header-row1 {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; padding: 10px 20px 8px; min-height: 48px;
+  }
+  .bcps-header-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .bcps-logo { height: 32px; width: auto; display: block; flex-shrink: 0; }
+  .bcps-header-row2 {
+    padding: 6px 20px 10px; border-top: 1px solid var(--border);
+  }
+  .bcps-header-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: var(--bcps-blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .version-pill { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; background: rgba(22,114,167,0.10); color: var(--bcps-blue); border: 1px solid rgba(22,114,167,0.25); border-radius: 20px; padding: 4px 10px; white-space: nowrap; flex-shrink: 0; }
 
-  main { max-width: 1100px; margin: 0 auto; padding: 100px 28px 80px; }
+  .bcps-header-version-wrap { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .bcps-header-version-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-30); white-space: nowrap; }
+  .bcps-header-version-select {
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    font-family: inherit; font-size: 11px; font-weight: 700; color: var(--bcps-blue-dark);
+    background: var(--surface2) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%231672A7' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat right 10px center;
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 6px 28px 6px 12px; cursor: pointer; white-space: nowrap;
+    max-width: 46vw;
+  }
+  .bcps-header-version-select:hover { border-color: var(--bcps-blue); }
+
+  @media (max-width: 520px) {
+    .bcps-header-version-label { display: none; }
+    .bcps-header-brand { gap: 8px; }
+    .bcps-logo { height: 26px; }
+    .version-pill { padding: 3px 8px; font-size: 8px; }
+    .bcps-header-version-select { max-width: 42vw; font-size: 10px; padding: 5px 24px 5px 10px; }
+  }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 92px 28px 80px; }
   h1 { font-size: clamp(22px, 3.5vw, 38px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 6px; }
   .doc-subtitle { font-size: 13px; font-weight: 600; color: var(--text-50); margin-bottom: 24px; }
   h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
@@ -119,7 +143,15 @@
   .team-badge.General { background: rgba(26,26,26,0.06); color: var(--text-50); }
   .team-badge.OOC { background: rgba(197,83,38,0.10); color: var(--bcps-orange); }
   .team-badge.AppServices { background: rgba(22,114,167,0.10); color: var(--bcps-blue-dark); }
-  #v4-person-select { font-family: inherit; font-size: 10px; font-weight: 700; padding: 6px 10px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-75); cursor: pointer; }
+  #v4-person-select, #v5-person-select, #v6-person-select {
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    font-family: inherit; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 6px 26px 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface2) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%23555555' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat right 10px center;
+    color: var(--text-75); cursor: pointer; transition: border-color 0.15s;
+  }
+  #v4-person-select:hover, #v5-person-select:hover, #v6-person-select:hover { border-color: var(--bcps-blue); color: var(--bcps-blue); }
+  #v4-person-select:focus-visible, #v5-person-select:focus-visible, #v6-person-select:focus-visible { border-color: var(--bcps-blue); }
 
   /* MODAL OVERLAY */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
@@ -216,11 +248,26 @@
 <body>
 
 <header class="bcps-header" role="banner">
-  <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
-  <div class="bcps-header-divider" aria-hidden="true"></div>
-  <span class="bcps-header-title">BCPS - Living Team Tracker</span>
-  <div class="bcps-header-spacer"></div>
-  <span class="version-pill" id="current-version-pill">Version 5 - July 22, 2026</span>
+  <div class="bcps-header-row1">
+    <div class="bcps-header-brand">
+      <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo">
+      <span class="version-pill" id="current-version-pill">Version 6 - August 5, 2026</span>
+    </div>
+    <div class="bcps-header-version-wrap">
+      <label class="bcps-header-version-label" for="header-version-select">View As Of</label>
+      <select id="header-version-select" class="bcps-header-version-select" onchange="switchVersion(this.value)" title="New versions added after each meeting">
+        <option value="v1">June 10, 2026</option>
+        <option value="v2">June 25, 2026</option>
+        <option value="v3">July 1, 2026</option>
+        <option value="v4">July 15, 2026</option>
+        <option value="v5">July 22, 2026</option>
+        <option value="v6" selected>August 5, 2026</option>
+      </select>
+    </div>
+  </div>
+  <div class="bcps-header-row2">
+    <span class="bcps-header-title">BCPS - Living Team Tracker</span>
+  </div>
 </header>
 
 <main>
@@ -230,7 +277,7 @@
   <div class="meta-row">
     <div class="meta-item">
       <span class="meta-label">Last Updated</span>
-      <span class="meta-value" id="meta-last-updated">July 22, 2026</span>
+      <span class="meta-value" id="meta-last-updated">August 5, 2026</span>
     </div>
     <div class="meta-item">
       <span class="meta-label">Source</span>
@@ -238,31 +285,20 @@
     </div>
     <div class="meta-item">
       <span class="meta-label">Active Assignments</span>
-      <span class="meta-value">29</span>
+      <span class="meta-value">30</span>
     </div>
     <div class="meta-item">
       <span class="meta-label">Completed</span>
-      <span class="meta-value">29</span>
+      <span class="meta-value">30</span>
     </div>
     <div class="meta-item">
       <span class="meta-label">Version</span>
-      <span class="meta-value" id="meta-version">v5 - July 22, 2026</span>
+      <span class="meta-value" id="meta-version">v6 - August 5, 2026</span>
     </div>
   </div>
 
   <div class="audience-banner">
     <p><strong>Audience:</strong> Sean A. Russell (District Webmaster), Tricia (Web Team Lead), Vanessa, Felicia, Nakesha, Rudy, Andrea, Melanie, Charlene - District Web Content Management core team. Starting with Version 4, this same tracker also serves as the shared queue for General web team work, OOC (Out-of-Classroom pages) work, and Application Services (portal/dashboard build) work - filter by team below to see just one slice.</p>
-  </div>
-
-  <h2>Meeting Versions</h2>
-  <div class="version-bar">
-    <span class="version-bar-label">View As Of:</span>
-    <button class="version-btn" onclick="switchVersion('v1')" data-v="v1">June 10, 2026</button>
-    <button class="version-btn" onclick="switchVersion('v2')" data-v="v2">June 25, 2026</button>
-    <button class="version-btn" onclick="switchVersion('v3')" data-v="v3">July 1, 2026</button>
-    <button class="version-btn" onclick="switchVersion('v4')" data-v="v4">July 15, 2026</button>
-    <button class="version-btn active" onclick="switchVersion('v5')" data-v="v5">July 22, 2026</button>
-    <span class="version-note">New versions added after each meeting. Click any row to view or add notes.</span>
   </div>
 
   <div class="snapshot" id="snap-v1">
@@ -1513,7 +1549,7 @@
 })();
 </script>
 
-<div class="snapshot active" id="snap-v5">
+<div class="snapshot" id="snap-v5">
 
     <div style="background:rgba(22,114,167,0.07);border:1px solid rgba(22,114,167,0.22);border-radius:8px;padding:16px 20px;margin-bottom:28px;">
       <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;color:var(--bcps-blue);margin-bottom:6px;">Meeting Update - July 22, 2026</div>
@@ -2160,6 +2196,662 @@
 })();
 </script>
 
+<div class="snapshot active" id="snap-v6">
+
+    <div style="background:rgba(22,114,167,0.07);border:1px solid rgba(22,114,167,0.22);border-radius:8px;padding:16px 20px;margin-bottom:28px;">
+      <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;color:var(--bcps-blue);margin-bottom:6px;">Meeting Update - August 5, 2026</div>
+      <p style="font-size:13px;color:var(--text-75);margin:0;line-height:1.6;">Updates from the August 5 District Web Team huddle. Deadlines refreshed across most active items; BCPS Central V2 lead/support updated (Vanessa lead, Rudy support); SharePoint Master List - Principals &amp; APs moved to Completed; Program School Maps on District Server removed from the list; Google Governance moved to Pending until the AI site launches; new items added for Athletics Page Template, the FinalSite Contract &amp; Roadmap Conversation, and the BCPS AI Site Launch (name pending confirmation). Also folded OOC and Application Services into the General list in a prior pass - use the filters below to see just your slice, or sort by person. Click any row to view or add notes.</p>
+    </div>
+
+    <div class="filter-bar" id="v6-filter-bar">
+      <span class="filter-label">Team:</span>
+      <button class="filter-chip active" data-team="all" onclick="v6Filter(this,'all')">All</button>
+      <button class="filter-chip" data-team="OOC" onclick="v6Filter(this,'OOC')">OOC</button>
+      <button class="filter-chip" data-team="Application Services" onclick="v6Filter(this,'Application Services')">Application Services</button>
+      <span class="filter-label" style="margin-left:10px;">Person:</span>
+      <select id="v6-person-select" onchange="v6FilterPerson(this.value)">
+        <option value="all">All People</option>
+      </select>
+    </div>
+    <div class="filter-bar" id="v6-priority-bar">
+      <span class="filter-label">Priority:</span>
+      <button class="filter-chip active" data-priority="all" onclick="v6FilterPriority(this,'all')">All</button>
+      <button class="filter-chip" data-priority="high" onclick="v6FilterPriority(this,'high')">High</button>
+      <button class="filter-chip" data-priority="medium" onclick="v6FilterPriority(this,'medium')">Medium</button>
+      <button class="filter-chip" data-priority="low" onclick="v6FilterPriority(this,'low')">Low</button>
+      <span class="version-note">Team tags are set live by clicking OOC / App Svc / H / M / L on each row - can apply to more than one team.</span>
+    </div>
+
+    <!-- GENERAL -->
+    <h2>General</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>General Initiatives</h3><span class="section-count">30 items</span></div>
+      <div class="col-header-row"><span>Assignment</span><span>Lead / Support</span><span>Deadline</span><span>Status</span><span>Tags</span><span>Notes</span></div>
+      <div class="assignment-row" data-slug="wcm-guidelines" data-team="General" data-lead="Vanessa" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Guidelines</div><div class="assignment-desc">Elementary and middle school sections done. High school section paused pending input from Athletics (Jalen) on standardizing required forms/pages (live streams, bag policies, etc.) - three scheduled meetings fell through. Athletics section pulled from the Q1 audit due to this delay.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Andrea, Nakesha</div></div>
+        <div><span class="assignment-deadline">Aug 31, 2026</span></div>
+        <div><div class="status-control" data-slug="wcm-guidelines" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="wcm-guidelines"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="wcm-guidelines" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="wcm-guidelines" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="wcm-guidelines" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="wcm-guidelines" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="wcm-guidelines" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-wcm-guidelines"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="back-to-school" data-team="General" data-lead="Felicia / Vanessa / Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Back to School</div><div class="assignment-desc">Push delayed one day to review the referendum page content (lives on the back-to-school page); expected live July 23. Felicia adding link to the shared app once live. Sean/Felicia building a documented action list with dates as a template for future major projects. Remaining task: manual takedown of the banner once back-to-school season ends; team submitting a FinalSite feature request for scheduled/automatic banner removal.</div></div>
+        <div><div class="assignment-lead">Felicia</div><div class="assignment-support">Vanessa, Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">Aug 14, 2026</span></div>
+        <div><div class="status-control" data-slug="back-to-school" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="back-to-school"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="back-to-school" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="back-to-school" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="back-to-school" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="back-to-school" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="back-to-school" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-back-to-school"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="wcm-audits-schools" data-team="General" data-lead="Nakesha / Vanessa" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Audits - Schools</div><div class="assignment-desc">All schools have completed entering audits; WCM members re-entering current data and starting fixes. New WCM members joining hot lab worked fixes on 2 pages (specialized programs, magnet program) with Rudy directing completion marks in BCPS Central. Open question: whether failed schools stay "failed" or convert to "incomplete" - deferred to a separate call.</div></div>
+        <div><div class="assignment-lead">Nakesha</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline none">Ongoing</span></div>
+        <div><div class="status-control" data-slug="wcm-audits-schools" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn ongoing" onclick="toggleStatusMenu6(event, this)">Ongoing <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="current" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="wcm-audits-schools"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="wcm-audits-schools" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="wcm-audits-schools" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="wcm-audits-schools" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="wcm-audits-schools" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="wcm-audits-schools" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-wcm-audits-schools"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="wcm-audits-departments" data-team="General" data-lead="Sean A. Russell / Felicia" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Audits - Departments</div><div class="assignment-desc">Wave tool confirmed as gold standard for ADA. Separating WCM-fixable vs. FinalSite-fixable items. Logic fix still in progress.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline">Aug 2026 (date TBD)</span></div>
+        <div><div class="status-control" data-slug="wcm-audits-departments" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="wcm-audits-departments"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="wcm-audits-departments" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="wcm-audits-departments" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="wcm-audits-departments" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="wcm-audits-departments" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="wcm-audits-departments" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-wcm-audits-departments"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="google-governance" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Google Governance</div><div class="assignment-desc">Strategically deprioritized until AI initiative work is pushed forward, then will be revisited. Draft to be authored by Sean and shared with the team before the Analytics Dashboard can advance. On hold until the AI site launches (targeted Aug 7, 2026).</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">July 30, 2026</span></div>
+        <div><div class="status-control" data-slug="google-governance" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn pending" onclick="toggleStatusMenu6(event, this)">Pending <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="current" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="google-governance"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="google-governance" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="google-governance" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="google-governance" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="google-governance" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="google-governance" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-google-governance"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="wcm-departments-pilot" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Departments Pilot</div><div class="assignment-desc">Refining the onboarding process and documentation for departments requesting WCM access. Volume increasing due to a district "pivot memo" and board conversations driving proactive department outreach; some WCM turnover as staff retire/leave/get replaced. Process exists but full rollout is stalled - Sean working through it.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><div class="status-control" data-slug="wcm-departments-pilot" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="wcm-departments-pilot"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="wcm-departments-pilot" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="wcm-departments-pilot" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="wcm-departments-pilot" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="wcm-departments-pilot" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="wcm-departments-pilot" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-wcm-departments-pilot"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="school-department-changes" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Department &amp; District Restructuring</div><div class="assignment-desc">Landing page created. Next step: connect with FinalSite about redirecting subdomains. Working session with Sean and Felicia at 1pm July 1; Vanessa joining to assist. FinalSite support call being arranged. Aug 5 huddle: hard deadline set.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">Aug 30, 2026</span></div>
+        <div><div class="status-control" data-slug="school-department-changes" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="school-department-changes"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="school-department-changes" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="school-department-changes" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="school-department-changes" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="school-department-changes" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="school-department-changes" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-school-department-changes"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="kick-off" data-team="General" data-lead="Sean A. Russell / Vanessa / Farrah" onclick="openNotes(this)">
+        <div><div class="assignment-name">Kick Off</div><div class="assignment-desc">Annual team kickoff event at Pompano Beach HS auditorium. September 11 target date. ~$1,000 venue cost. Sean and Vanessa working session scheduled for tomorrow. Aug 5 huddle: kickoff banner flagged as looking AI-generated/generic - needs a revision pass with Vanessa and graphics before use.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell / Vanessa</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline">Sept 1, 2026</span></div>
+        <div><div class="status-control" data-slug="kick-off" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="kick-off"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="kick-off" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="kick-off" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="kick-off" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="kick-off" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="kick-off" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-kick-off"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="qa-process" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">QA Process</div><div class="assignment-desc">Defining and rolling out a formal quality assurance process for all district web content. Target for wrap-up: July 22, 2026.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">Aug 14, 2026</span></div>
+        <div><div class="status-control" data-slug="qa-process" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="qa-process"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="qa-process" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="qa-process" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="qa-process" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="qa-process" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="qa-process" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-qa-process"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="audioeye" data-team="General" data-lead="Tricia / Sean A. Russell / Vanessa / Rudy" onclick="openNotes(this)">
+        <div><div class="assignment-name">ADA Scanner Launch (formerly AudioEye)</div><div class="assignment-desc">Renamed from AudioEye. AudioEye refused to scan 3 provided school sites for another 45-60 days, conflicting with the district's own annual September scan - team pivoting away from AudioEye to test Sean's in-house ADA scanner tool instead. Wave tool remains in use as ADA audit standard in the interim.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell / Tricia</div><div class="assignment-support">Vanessa, Rudy</div></div>
+        <div><span class="assignment-deadline">Aug 14, 2026</span></div>
+        <div><div class="status-control" data-slug="audioeye" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="audioeye"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="audioeye" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="audioeye" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="audioeye" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="audioeye" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="audioeye" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-audioeye"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="bcps-central-v2" data-team="General" data-lead="Vanessa / Tricia / Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">BCPS Central V2</div><div class="assignment-desc">V1 declared complete July 22 and moved to Completed. V2 opened as the next phase - confirmed WCM count ~72 (2 prior "confirmations" were Jack's demos, not real). Deadline is a placeholder to revisit next meeting.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Rudy</div></div>
+        <div><span class="assignment-deadline">Aug 21, 2026</span></div>
+        <div><div class="status-control" data-slug="bcps-central-v2" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="bcps-central-v2"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="bcps-central-v2" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="bcps-central-v2" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="bcps-central-v2" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="bcps-central-v2" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="bcps-central-v2" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-bcps-central-v2"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="wcm-community-communique" data-team="General" data-lead="Sean A. Russell / Vanessa" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Community Communique</div><div class="assignment-desc">Replaces prior WCM Communication Plan entry. Vanessa adding an intro video about BCPS Central to the "what's new" message. Monday send did not go out (Vanessa was out) - Tricia needs Vanessa to resend the review link. Tricia opted out of the ongoing support role.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell / Vanessa</div></div>
+        <div><span class="assignment-deadline">Aug 6, 2026</span></div>
+        <div><div class="status-control" data-slug="wcm-community-communique" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="wcm-community-communique"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="wcm-community-communique" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="wcm-community-communique" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="wcm-community-communique" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="wcm-community-communique" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="wcm-community-communique" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-wcm-community-communique"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="k12-department-pages" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">K-12 Department Pages</div><div class="assignment-desc">On Sean's list for today (7/22) - small lift that keeps slipping. Goal: send finalized page links to replace placeholder/unclear K-12 department landing pages, making them more custom and searchable rather than generic.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">July 22, 2026</span></div>
+        <div><div class="status-control" data-slug="k12-department-pages" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="k12-department-pages"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="k12-department-pages" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="k12-department-pages" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="k12-department-pages" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="k12-department-pages" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="k12-department-pages" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-k12-department-pages"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="automate-rejected-banners" data-team="General" data-lead="Tricia / Melanie" onclick="openNotes(this)">
+        <div><div class="assignment-name">Automate Message For Rejected Banner Images</div><div class="assignment-desc">Blocked - Isaac (holding the necessary files) has not responded; Tricia's attempt to gain ownership via Global Admin/PowerShell did not work (permissions gap in the Microsoft ecosystem). Two paths forward: get existing files working as-is (fast, hoped for next week), or Melanie recreates the asset (unknown timeline).</div></div>
+        <div><div class="assignment-lead">Tricia</div><div class="assignment-support">Melanie, Interns</div></div>
+        <div><span class="assignment-deadline">Aug 7, 2026</span></div>
+        <div><div class="status-control" data-slug="automate-rejected-banners" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="automate-rejected-banners"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="automate-rejected-banners" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="automate-rejected-banners" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="automate-rejected-banners" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="automate-rejected-banners" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="automate-rejected-banners" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-automate-rejected-banners"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="school-choice-minibase" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">School Choice (Minibase)</div><div class="assignment-desc">Sean consolidating all mini-base style projects into one reusable widget rather than one-off builds, reusing the earlier charter-schools build. The "Find It Fast" back-to-school module (categorized links, Felicia-editable) is the working example of this reusable widget concept. Vanessa asked whether the submission-banner minibase tool can be demoed at the September meeting as "coming soon."</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">Aug 28, 2026</span></div>
+        <div><div class="status-control" data-slug="school-choice-minibase" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn pending" onclick="toggleStatusMenu6(event, this)">Pending <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="current" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="school-choice-minibase"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="school-choice-minibase" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="school-choice-minibase" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="school-choice-minibase" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="school-choice-minibase" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="school-choice-minibase" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-school-choice-minibase"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="minibase-training" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Minibase Training</div><div class="assignment-desc">Lead reassigned this meeting from Tricia to Sean. Training minibase owners on content and file management. Decision pending on whether files will be hosted on Finalsite or through the District server.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Tricia</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><div class="status-control" data-slug="minibase-training" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="minibase-training"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="minibase-training" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="minibase-training" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="minibase-training" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="minibase-training" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="minibase-training" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-minibase-training"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="charter-schools" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Charter Schools (Matthew Cordova)</div><div class="assignment-desc">Web coordination and outreach for charter schools via Matthew Cordova. Initial contact and scoping conversation still pending from the district side. Kept active on the list.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">Aug 14, 2026</span></div>
+        <div><div class="status-control" data-slug="charter-schools" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn pending" onclick="toggleStatusMenu6(event, this)">Pending <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="current" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="charter-schools"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="charter-schools" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="charter-schools" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="charter-schools" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="charter-schools" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="charter-schools" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-charter-schools"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="wcm-communique-may12" data-team="General" data-lead="Vanessa / Sean A. Russell / Andrea / Felicia" onclick="openNotes(this)">
+        <div><div class="assignment-name">WCM Communique - May 12</div><div class="assignment-desc">WCM newsletter edition for May 12. Collaborative effort across the web team with Vanessa, Sean, Andrea, and Felicia contributing content.</div></div>
+        <div><div class="assignment-lead">Vanessa / Sean A. Russell</div><div class="assignment-support">Andrea, Felicia</div></div>
+        <div><span class="assignment-deadline">June 30, 2026</span></div>
+        <div><div class="status-control" data-slug="wcm-communique-may12" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="wcm-communique-may12"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="wcm-communique-may12" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="wcm-communique-may12" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="wcm-communique-may12" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="wcm-communique-may12" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="wcm-communique-may12" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-wcm-communique-may12"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="department-hot-labs" data-team="General" data-lead="Sean A. Russell / Felicia" onclick="openNotes(this)">
+        <div><div class="assignment-name">Department Hot Labs</div><div class="assignment-desc">Sean building an Excel list of departments to share with Shilpa/JT to populate; that list drives future team meetings and communique outreach directly. Manual add needed if someone declines the Teams/AD group invite initially but later wants in.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline">Aug 7, 2026</span></div>
+        <div><div class="status-control" data-slug="department-hot-labs" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn ongoing" onclick="toggleStatusMenu6(event, this)">Ongoing <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="current" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="department-hot-labs"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="department-hot-labs" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="department-hot-labs" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="department-hot-labs" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="department-hot-labs" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="department-hot-labs" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-department-hot-labs"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="school-hot-labs" data-team="General" data-lead="Rudy / Vanessa" onclick="openNotes(this)">
+        <div><div class="assignment-name">School Hot Labs</div><div class="assignment-desc">Rudy now has AD access (thanks to Nakesha and Courtney); meeting with Shilpa the afternoon of 7/22 to create an AD group. WCM membership defaults to "in" until someone opts out; membership persists through the year and refreshes annually.</div></div>
+        <div><div class="assignment-lead">Rudy</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline none">Ongoing</span></div>
+        <div><div class="status-control" data-slug="school-hot-labs" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn ongoing" onclick="toggleStatusMenu6(event, this)">Ongoing <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="current" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="school-hot-labs"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="school-hot-labs" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="school-hot-labs" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="school-hot-labs" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="school-hot-labs" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="school-hot-labs" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-school-hot-labs"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="sharepoint-school-logos" data-team="General" data-lead="Andrea" onclick="openNotes(this)">
+        <div><div class="assignment-name">SharePoint Master List - School Logos</div><div class="assignment-desc">Split out from the master list as lower priority. Logos believed current unless a school changed its own logo without notifying the team. Possibly outdated in some cases - holding off on a full revisit for now. No date set.</div></div>
+        <div><div class="assignment-lead">Andrea</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><div class="status-control" data-slug="sharepoint-school-logos" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn pending" onclick="toggleStatusMenu6(event, this)">Pending <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="current" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="sharepoint-school-logos"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="sharepoint-school-logos" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="sharepoint-school-logos" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="sharepoint-school-logos" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="sharepoint-school-logos" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="sharepoint-school-logos" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-sharepoint-school-logos"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="old-dillard-museum" data-team="General" data-lead="Vanessa / Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Old Dillard Museum</div><div class="assignment-desc">Web content project for the Old Dillard Museum. Pending content delivery from Edison, who did not meet the original deadline.</div></div>
+        <div><div class="assignment-lead">Vanessa</div><div class="assignment-support">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><div class="status-control" data-slug="old-dillard-museum" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn pending" onclick="toggleStatusMenu6(event, this)">Pending <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="current" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="old-dillard-museum"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="old-dillard-museum" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="old-dillard-museum" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="old-dillard-museum" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="old-dillard-museum" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="old-dillard-museum" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-old-dillard-museum"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="audit-ooc-pages" data-team="General" data-lead="Sean A. Russell / Felicia" onclick="openNotes(this)">
+        <div><div class="assignment-name">Audit OOC Pages</div><div class="assignment-desc">Auditing pages managed by Out-of-Classroom staff. Starting with the Academic section at Crystal Lake Middle School to assess compliance and content accuracy.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Felicia</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><div class="status-control" data-slug="audit-ooc-pages" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="audit-ooc-pages"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc on ooc" data-slug="audit-ooc-pages" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="audit-ooc-pages" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="audit-ooc-pages" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="audit-ooc-pages" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="audit-ooc-pages" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-audit-ooc-pages"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="analytics-dashboard" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">Analytics Dashboard (Google Governance)</div><div class="assignment-desc">Recategorized from Application Services to OOC this meeting. Sean doing final checks; giving himself buffer ahead of the date below. Pending embed feature and search term data.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">July 30, 2026</span></div>
+        <div><div class="status-control" data-slug="analytics-dashboard" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="analytics-dashboard"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc on ooc" data-slug="analytics-dashboard" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="analytics-dashboard" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="analytics-dashboard" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="analytics-dashboard" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="analytics-dashboard" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-analytics-dashboard"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="department-audit-dashboards" data-team="General" data-lead="Sean A. Russell / Vanessa / Brannon" onclick="openNotes(this)">
+        <div><div class="assignment-name">Department Audit Dashboards</div><div class="assignment-desc">Recategorized from Application Services to OOC this meeting - flagged as duplicative/condensable with the Analytics Dashboard.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Vanessa, Brannon</div></div>
+        <div><span class="assignment-deadline">July 30, 2026</span></div>
+        <div><div class="status-control" data-slug="department-audit-dashboards" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="department-audit-dashboards"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc on ooc" data-slug="department-audit-dashboards" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="department-audit-dashboards" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="department-audit-dashboards" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="department-audit-dashboards" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="department-audit-dashboards" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-department-audit-dashboards"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="security-concerns" data-team="General" data-lead="Sean A. Russell / Vanessa" onclick="openNotes(this)">
+        <div><div class="assignment-name">Security Concerns</div><div class="assignment-desc">Lockdown steps for the WCM Community exist but haven't been executed. Sean proposed a quick 30-minute working call to walk through and implement live; Vanessa says a communication plan (informing WCM members, access codes) is needed first. Separate offline call to be scheduled.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div><div class="assignment-support">Vanessa</div></div>
+        <div><span class="assignment-deadline">Aug 10, 2026</span></div>
+        <div><div class="status-control" data-slug="security-concerns" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="security-concerns"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="security-concerns" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app on app" data-slug="security-concerns" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="security-concerns" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="security-concerns" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="security-concerns" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-security-concerns"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="canvas-course-departments" data-team="General" data-lead="Sean A. Russell / Rudy" onclick="openNotes(this)">
+        <div><div class="assignment-name">Canvas Course - Departments</div><div class="assignment-desc">Split out from the schools pilot (now completed). Separate process for departments, tracked on its own going forward. Team avoiding "lab" terminology for the department course; Felicia following up directly with Rudy to ensure follow-through.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell / Rudy</div></div>
+        <div><span class="assignment-deadline none">-</span></div>
+        <div><div class="status-control" data-slug="canvas-course-departments" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn pending" onclick="toggleStatusMenu6(event, this)">Pending <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="current" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="canvas-course-departments"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="canvas-course-departments" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app on app" data-slug="canvas-course-departments" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="canvas-course-departments" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="canvas-course-departments" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="canvas-course-departments" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-canvas-course-departments"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="athletics-page-template" data-team="General" data-lead="Vanessa / Andrea / Nakesha" onclick="openNotes(this)">
+        <div><div class="assignment-name">Athletics Page Template</div><div class="assignment-desc">Athletics/Jalen has been unresponsive for 30+ days on the athletics-page-standard proposal. Team moving forward unilaterally with a standardized athletics page template rather than continuing to wait.</div></div>
+        <div><div class="assignment-lead">Vanessa / Andrea / Nakesha</div></div>
+        <div><span class="assignment-deadline">Aug 14, 2026</span></div>
+        <div><div class="status-control" data-slug="athletics-page-template" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="athletics-page-template"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="athletics-page-template" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="athletics-page-template" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="athletics-page-template" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="athletics-page-template" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="athletics-page-template" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-athletics-page-template"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="finalsite-contract-conversation" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">FinalSite Contract &amp; Roadmap Conversation</div><div class="assignment-desc">Vendor contract negotiation: current 3-year contract expires March 2027 with a 1-year renewal option. Pushing FinalSite for deeper engagement on the district's AI roadmap and a dedicated support contact. Also tracking a persistent Sway video-embed limitation and an open support ticket regarding a "publisher" bug.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">Aug 8, 2026</span></div>
+        <div><div class="status-control" data-slug="finalsite-contract-conversation" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="finalsite-contract-conversation"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="finalsite-contract-conversation" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="finalsite-contract-conversation" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="finalsite-contract-conversation" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="finalsite-contract-conversation" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="finalsite-contract-conversation" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-finalsite-contract-conversation"></span></button></div>
+      </div>
+      <div class="assignment-row" data-slug="bcps-ai-site-launch" data-team="General" data-lead="Sean A. Russell" onclick="openNotes(this)">
+        <div><div class="assignment-name">BCPS AI Site Launch (name pending confirmation)</div><div class="assignment-desc">Met with chiefs/directors who provided final content requirements; processing updates now to launch by Friday. Note: name transcribed from the Aug 5 huddle recording as "bar schools.ai" / "bardtools.ai" - almost certainly browardschools.ai, pending Sean's confirmation.</div></div>
+        <div><div class="assignment-lead">Sean A. Russell</div></div>
+        <div><span class="assignment-deadline">Aug 7, 2026</span></div>
+        <div><div class="status-control" data-slug="bcps-ai-site-launch" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" class="" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" class="" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" class="" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>
+        <div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="bcps-ai-site-launch"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="bcps-ai-site-launch" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="bcps-ai-site-launch" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="bcps-ai-site-launch" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="bcps-ai-site-launch" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="bcps-ai-site-launch" data-priority="low" onclick="setPriority6(this)">L</button></div></div>
+        <div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-bcps-ai-site-launch"></span></button></div>
+      </div>
+    </div>
+
+    <h2>Completed Tasks</h2>
+    <div class="section-block">
+      <div class="section-header"><h3>Completed</h3><span class="section-count">30 items</span></div>
+      <div class="completed-grid">
+        <div class="completed-header"><div>Assignment</div><div>Lead</div><div>Completed</div><div>Actions</div></div>
+        <div class="completed-row" data-slug="bcps-central-v1" onclick="openNotes(this)"><div class="completed-name">BCPS Central (V1)</div><div>Tricia / Sean A. Russell</div><div>Jul 22, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="bcps-central-v1" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="left-navigation-structure" onclick="openNotes(this)"><div class="completed-name">Left Navigation Structure</div><div>Vanessa</div><div>Jul 22, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="left-navigation-structure" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="school-board-records" onclick="openNotes(this)"><div class="completed-name">School Board Records</div><div>Tricia / Sean A. Russell</div><div>Jul 22, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="school-board-records" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="canvas-course-pilot-schools" onclick="openNotes(this)"><div class="completed-name">Canvas Course Pilot Launch - Schools</div><div>Vanessa / Rudy</div><div>Jul 22, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="canvas-course-pilot-schools" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="embed-page-powerapps" onclick="openNotes(this)"><div class="completed-name">Way to Embed a Page into PowerApps</div><div>Tricia</div><div>Jul 22, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="embed-page-powerapps" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="assign-tasks-leads-support" onclick="openNotes(this)"><div class="completed-name">Assign Tasks for Leads and Support</div><div>Tricia / Sean A. Russell</div><div><span class="status-badge completed">Done</span></div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="assign-tasks-leads-support" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="wcm-communique-jan15" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Jan 15</div><div>Vanessa / Sean A. Russell</div><div>Jan 14, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="wcm-communique-jan15" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="wcm-communique-feb11" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Feb 11</div><div>Vanessa / Sean A. Russell</div><div>Feb 10, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="wcm-communique-feb11" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-dept-feb12" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Departments (Feb 12)</div><div>Sean A. Russell / Tricia</div><div>Feb 10, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="wcm-quarterly-dept-feb12" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-schools-feb20" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Schools (Feb 20)</div><div>Tricia / Sean A. Russell</div><div>Feb 20, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="wcm-quarterly-schools-feb20" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="magnet-innovative-feb18" onclick="openNotes(this)"><div class="completed-name">Magnet/Innovative Online Info Session (Feb 18)</div><div>Vanessa / Rudy</div><div>Feb 20, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="magnet-innovative-feb18" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="dual-languages" onclick="openNotes(this)"><div class="completed-name">Dual Languages</div><div>Vanessa</div><div>Feb 27, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="dual-languages" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="hot-lab-calendar" onclick="openNotes(this)"><div class="completed-name">Create New Hot Lab Calendar</div><div>Sean A. Russell / Vanessa</div><div>Feb 27, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="hot-lab-calendar" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="popups-dept-pages" onclick="openNotes(this)"><div class="completed-name">Pop-ups on Individual Department Pages</div><div>Sean A. Russell</div><div>Mar 6, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="popups-dept-pages" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="issues-with-caption" onclick="openNotes(this)"><div class="completed-name">Issues with Caption</div><div>Andrea</div><div>Mar 9, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="issues-with-caption" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="email-errors-teams" onclick="openNotes(this)"><div class="completed-name">Email Errors from Canceling Teams Meeting</div><div>Sean A. Russell</div><div>Mar 9, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="email-errors-teams" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="bsc-minibase" onclick="openNotes(this)"><div class="completed-name">Business Support Center (Minibase)</div><div>Tricia / Charlene</div><div>Mar 27, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="bsc-minibase" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="launch-wcm-hub" onclick="openNotes(this)"><div class="completed-name">Launch WCM Hub (Website)</div><div>Vanessa / Sean A. Russell</div><div>Apr 1, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="launch-wcm-hub" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="wcm-communique-mar26" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Mar 26</div><div>Sean A. Russell / Vanessa</div><div>Mar 25, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="wcm-communique-mar26" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-dept-apr9" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Departments (Apr 9)</div><div>Sean A. Russell / Tricia</div><div>Apr 13, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="wcm-quarterly-dept-apr9" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="wcm-quarterly-schools-apr10" onclick="openNotes(this)"><div class="completed-name">WCM Quarterly Meeting - Schools (Apr 10)</div><div>Tricia / Sean A. Russell</div><div>Mar 31, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="wcm-quarterly-schools-apr10" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="missing-profile-image" onclick="openNotes(this)"><div class="completed-name">Missing Profile Image in Contact Info</div><div>Sean A. Russell</div><div>Mar 25, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="missing-profile-image" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="popup-formatting-issues" onclick="openNotes(this)"><div class="completed-name">Multiple Pop-up Formatting Issues</div><div>Sean A. Russell</div><div>Mar 25, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="popup-formatting-issues" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="ppo-minibase" onclick="openNotes(this)"><div class="completed-name">PPO Minibase</div><div>Tricia</div><div>Mar 27, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="ppo-minibase" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="wcm-communique-apr15" onclick="openNotes(this)"><div class="completed-name">WCM Communique - Apr 15</div><div>Vanessa / Sean A. Russell</div><div>Apr 3, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="wcm-communique-apr15" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="maintenance-update-process" onclick="openNotes(this)"><div class="completed-name">Find Process for Maintenance Update</div><div>Tricia</div><div>-</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="maintenance-update-process" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="streamvu" onclick="openNotes(this)"><div class="completed-name">StreamVu</div><div>Sean A. Russell, Nakesha</div><div>May 19, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="streamvu" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="combination-schools-menu" onclick="openNotes(this)"><div class="completed-name">Combination Schools in Menu</div><div>Felicia</div><div>May 20, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="combination-schools-menu" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="confirm-lab-courses" onclick="openNotes(this)"><div class="completed-name">Confirm Lab Courses</div><div>Rudy</div><div><span class="status-badge completed">Done</span></div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="confirm-lab-courses" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+        <div class="completed-row" data-slug="sharepoint-principals-aps" onclick="openNotes(this)"><div class="completed-name">SharePoint Master List Update</div><div>Andrea / Vanessa</div><div>Aug 5, 2026</div><div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="sharepoint-principals-aps" onclick="reopenAssignment6(this)">Reopen</button></div></div>
+      </div>
+    </div>
+
+  </div>
+
+
+<script>
+(function(){
+  var currentTeam6 = 'all';
+  var currentPerson6 = 'all';
+  var currentPriority6 = 'all';
+  var tagMap = {}; // slug -> { ooc: bool, app: bool, priority: 'high'|'medium'|'low'|null, status: string, completed_at: string|null }
+  var TAGS_TABLE = 'https://fwbhwfxpncrsfhttimna.supabase.co/rest/v1/bcps_assignment_tags';
+  var TAGS_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+  var STATUS_LABELS = { 'in-progress': 'In Progress', 'pending': 'Pending', 'ongoing': 'Ongoing', 'completed': 'Completed' };
+
+  function tagHeaders(extra){
+    var h = { 'apikey': TAGS_KEY, 'Authorization': 'Bearer ' + TAGS_KEY, 'Content-Type': 'application/json' };
+    if (extra) for (var k in extra) h[k] = extra[k];
+    return h;
+  }
+
+  function rowDefault(r){
+    var cell = r.querySelector('.tag-controls');
+    var statusBtn = r.querySelector('.status-badge-btn');
+    var statusClass = 'in-progress';
+    if (statusBtn) {
+      var classes = statusBtn.className.split(/\s+/);
+      for (var i = 0; i < classes.length; i++) {
+        if (STATUS_LABELS[classes[i]]) { statusClass = classes[i]; break; }
+      }
+    }
+    var oocBtn = cell ? cell.querySelector('[data-field="ooc"]') : null;
+    var appBtn = cell ? cell.querySelector('[data-field="app"]') : null;
+    return {
+      ooc: oocBtn ? oocBtn.classList.contains('on') : false,
+      app: appBtn ? appBtn.classList.contains('on') : false,
+      priority: null,
+      status: statusClass,
+      completed_at: null
+    };
+  }
+
+  function renderRowTags(slug){
+    var state = tagMap[slug];
+    if (!state) return;
+    document.querySelectorAll('.tag-controls[data-tagcell="' + slug + '"]').forEach(function(cell){
+      var oocBtn = cell.querySelector('[data-field="ooc"]');
+      var appBtn = cell.querySelector('[data-field="app"]');
+      if (oocBtn) oocBtn.classList.toggle('on', !!state.ooc);
+      if (appBtn) appBtn.classList.toggle('on', !!state.app);
+      cell.querySelectorAll('.priority-pill').forEach(function(p){
+        p.classList.toggle('on', state.priority === p.getAttribute('data-priority'));
+      });
+    });
+    document.querySelectorAll('.status-control[data-slug="' + slug + '"]').forEach(function(ctrl){
+      var btn = ctrl.querySelector('.status-badge-btn');
+      if (!btn) return;
+      var label = STATUS_LABELS[state.status] || 'In Progress';
+      btn.className = 'status-badge-btn ' + state.status;
+      btn.innerHTML = label + ' <span class="status-caret">&#9662;</span>';
+      ctrl.querySelectorAll('.status-menu button').forEach(function(opt){
+        opt.classList.toggle('current', opt.getAttribute('data-status') === state.status);
+      });
+    });
+  }
+
+  function formatToday(){
+    var d = new Date();
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function rowText(el, sel){
+    var n = el.querySelector(sel);
+    return n ? n.textContent.trim() : '';
+  }
+
+  function sectionBlockFor(slug){
+    var row = document.querySelector('#snap-v6 .assignment-row[data-slug="' + slug + '"]');
+    if (row) return row.closest('.section-block');
+    return document.querySelector('#snap-v6 h2 + .section-block'); // General Initiatives fallback
+  }
+
+  function generalSectionBlock(){
+    var headings = document.querySelectorAll('#snap-v6 h2');
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].textContent.trim() === 'General') return headings[i].nextElementSibling;
+    }
+    return null;
+  }
+
+  function completedGrid(){
+    return document.querySelector('#snap-v6 .completed-grid');
+  }
+
+  function moveRowToCompleted(row, completedDateLabel){
+    var slug = row.getAttribute('data-slug');
+    var name = rowText(row, '.assignment-name');
+    var leadEl = row.querySelector('.assignment-lead');
+    var supportEl = row.querySelector('.assignment-support');
+    var lead = leadEl ? leadEl.textContent.trim() : '';
+    var support = supportEl ? supportEl.textContent.trim() : '';
+    var leadFull = support ? (lead + ' / ' + support) : lead;
+
+    var originalMarkup = encodeURIComponent(row.outerHTML);
+    row.remove();
+
+    var grid = completedGrid();
+    var rowDiv = document.createElement('div');
+    rowDiv.className = 'completed-row';
+    rowDiv.setAttribute('data-slug', slug);
+    rowDiv.setAttribute('onclick', 'openNotes(this)');
+    rowDiv.setAttribute('data-original', originalMarkup);
+    rowDiv.innerHTML =
+      '<div class="completed-name">' + name + '</div>' +
+      '<div>' + leadFull + '</div>' +
+      '<div>' + completedDateLabel + '</div>' +
+      '<div onclick="event.stopPropagation()"><button type="button" class="reopen-btn" data-slug="' + slug + '" onclick="reopenAssignment6(this)">Reopen</button></div>';
+    // insert as first data row (right after header)
+    var header = grid.querySelector('.completed-header');
+    header.insertAdjacentElement('afterend', rowDiv);
+    updateSectionCounts();
+  }
+
+  function moveRowToGeneral(slug, originalMarkupEncoded, completedRowEl){
+    var target = generalSectionBlock();
+    var newRow;
+    if (originalMarkupEncoded) {
+      var wrap = document.createElement('div');
+      wrap.innerHTML = decodeURIComponent(originalMarkupEncoded);
+      newRow = wrap.firstElementChild;
+    } else {
+      // Fallback reconstruction for legacy completed rows with no stored markup
+      var name = rowText(completedRowEl, '.completed-name');
+      var lead = completedRowEl.children[1] ? completedRowEl.children[1].textContent.trim() : '-';
+      newRow = document.createElement('div');
+      newRow.className = 'assignment-row';
+      newRow.setAttribute('data-slug', slug);
+      newRow.setAttribute('data-team', 'General');
+      newRow.setAttribute('data-lead', lead);
+      newRow.setAttribute('onclick', 'openNotes(this)');
+      newRow.innerHTML =
+        '<div><div class="assignment-name">' + name + '</div><div class="assignment-desc"></div></div>' +
+        '<div><div class="assignment-lead">' + lead + '</div></div>' +
+        '<div><span class="assignment-deadline none">-</span></div>' +
+        '<div><div class="status-control" data-slug="' + slug + '" onclick="event.stopPropagation()"><button type="button" class="status-badge-btn in-progress" onclick="toggleStatusMenu6(event, this)">In Progress <span class="status-caret">&#9662;</span></button><div class="status-menu"><button type="button" class="current" data-status="in-progress" onclick="chooseStatus6(event,this)">In Progress</button><button type="button" data-status="pending" onclick="chooseStatus6(event,this)">Pending</button><button type="button" data-status="ongoing" onclick="chooseStatus6(event,this)">Ongoing</button><button type="button" data-status="completed" onclick="chooseStatus6(event,this)">Completed</button></div></div></div>' +
+        '<div class="tag-controls" onclick="event.stopPropagation()" data-tagcell="' + slug + '"><div class="tag-toggle-row"><button type="button" class="tag-toggle ooc" data-slug="' + slug + '" data-field="ooc" onclick="toggleTag6(this)">OOC</button><button type="button" class="tag-toggle app" data-slug="' + slug + '" data-field="app" onclick="toggleTag6(this)">App Svc</button></div><div class="priority-row"><button type="button" class="priority-pill high" data-slug="' + slug + '" data-priority="high" onclick="setPriority6(this)">H</button><button type="button" class="priority-pill medium" data-slug="' + slug + '" data-priority="medium" onclick="setPriority6(this)">M</button><button type="button" class="priority-pill low" data-slug="' + slug + '" data-priority="low" onclick="setPriority6(this)">L</button></div></div>' +
+        '<div><button class="notes-btn" tabindex="-1"><span class="notes-icon">&#128221;</span> Notes <span class="note-count" id="nc6-' + slug + '"></span></button></div>';
+    }
+    if (target) target.appendChild(newRow);
+    if (completedRowEl) completedRowEl.remove();
+    renderRowTags(slug);
+    applyV6Filters();
+    updateSectionCounts();
+  }
+
+  function patchTag(slug, fields){
+    fetch(TAGS_TABLE + '?assignment_slug=eq.' + encodeURIComponent(slug), {
+      method: 'PATCH',
+      headers: tagHeaders({ 'Prefer': 'return=minimal' }),
+      body: JSON.stringify(fields)
+    }).catch(function(){ /* silent fail, local state already updated */ });
+  }
+
+  function seedAndLoadTags(){
+    var rows = document.querySelectorAll('#snap-v6 .assignment-row[data-slug]');
+    var seedRows = [];
+    rows.forEach(function(r){
+      var slug = r.getAttribute('data-slug');
+      tagMap[slug] = rowDefault(r);
+      seedRows.push({ assignment_slug: slug, team_ooc: tagMap[slug].ooc, team_app_services: tagMap[slug].app, status: tagMap[slug].status });
+    });
+    fetch(TAGS_TABLE, {
+      method: 'POST',
+      headers: tagHeaders({ 'Prefer': 'resolution=ignore-duplicates,return=minimal' }),
+      body: JSON.stringify(seedRows)
+    }).catch(function(){ /* silent */ }).then(function(){
+      return fetch(TAGS_TABLE + '?select=assignment_slug,team_ooc,team_app_services,priority,status,completed_at', { headers: tagHeaders() });
+    }).then(function(res){ return res.json(); }).then(function(dbRows){
+      (dbRows || []).forEach(function(row){
+        tagMap[row.assignment_slug] = { ooc: !!row.team_ooc, app: !!row.team_app_services, priority: row.priority || null, status: row.status || 'in-progress', completed_at: row.completed_at || null };
+      });
+      rows.forEach(function(r){
+        var slug = r.getAttribute('data-slug');
+        renderRowTags(slug);
+        // Reconcile: if DB already says completed but row is still active in the DOM (e.g. a fresh reload after a prior completion), move it now.
+        if (tagMap[slug] && tagMap[slug].status === 'completed') {
+          var dateLabel = tagMap[slug].completed_at ? new Date(tagMap[slug].completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : formatToday();
+          moveRowToCompleted(r, dateLabel);
+        }
+      });
+      applyV6Filters();
+      updateSectionCounts();
+    }).catch(function(){ applyV6Filters(); updateSectionCounts(); });
+  }
+
+  window.toggleTag6 = function(btn){
+    var slug = btn.getAttribute('data-slug');
+    var field = btn.getAttribute('data-field');
+    if (!tagMap[slug]) tagMap[slug] = { ooc: false, app: false, priority: null, status: 'in-progress', completed_at: null };
+    var key = field === 'ooc' ? 'ooc' : 'app';
+    tagMap[slug][key] = !tagMap[slug][key];
+    renderRowTags(slug);
+    applyV6Filters();
+    patchTag(slug, field === 'ooc' ? { team_ooc: tagMap[slug].ooc } : { team_app_services: tagMap[slug].app });
+  };
+
+  window.setPriority6 = function(btn){
+    var slug = btn.getAttribute('data-slug');
+    var val = btn.getAttribute('data-priority');
+    if (!tagMap[slug]) tagMap[slug] = { ooc: false, app: false, priority: null, status: 'in-progress', completed_at: null };
+    tagMap[slug].priority = (tagMap[slug].priority === val) ? null : val;
+    renderRowTags(slug);
+    applyV6Filters();
+    patchTag(slug, { priority: tagMap[slug].priority });
+  };
+
+  window.toggleStatusMenu6 = function(evt, btn){
+    evt.stopPropagation();
+    var menu = btn.parentElement.querySelector('.status-menu');
+    var wasOpen = menu.classList.contains('open');
+    document.querySelectorAll('.status-menu.open').forEach(function(m){ m.classList.remove('open'); });
+    if (!wasOpen) menu.classList.add('open');
+  };
+
+  document.addEventListener('click', function(){
+    document.querySelectorAll('.status-menu.open').forEach(function(m){ m.classList.remove('open'); });
+  });
+
+  window.chooseStatus6 = function(evt, btn){
+    evt.stopPropagation();
+    var ctrl = btn.closest('.status-control');
+    var slug = ctrl.getAttribute('data-slug');
+    var newStatus = btn.getAttribute('data-status');
+    ctrl.querySelector('.status-menu').classList.remove('open');
+    if (!tagMap[slug]) tagMap[slug] = { ooc: false, app: false, priority: null, status: 'in-progress', completed_at: null };
+
+    if (newStatus === 'completed') {
+      var row = ctrl.closest('.assignment-row');
+      var name = row ? rowText(row, '.assignment-name') : slug;
+      var ok = window.confirm('Mark "' + name + '" as completed? This will move it to the Completed section.');
+      if (!ok) return;
+      var dateLabel = formatToday();
+      tagMap[slug].status = 'completed';
+      tagMap[slug].completed_at = new Date().toISOString();
+      patchTag(slug, { status: 'completed', completed_at: tagMap[slug].completed_at });
+      if (row) moveRowToCompleted(row, dateLabel);
+      return;
+    }
+
+    tagMap[slug].status = newStatus;
+    renderRowTags(slug);
+    applyV6Filters();
+    patchTag(slug, { status: newStatus });
+  };
+
+  window.reopenAssignment6 = function(btn){
+    var slug = btn.getAttribute('data-slug');
+    var completedRowEl = btn.closest('.completed-row');
+    var name = rowText(completedRowEl, '.completed-name') || slug;
+    var ok = window.confirm('Reopen "' + name + '"? This will move it back into the active assignments list.');
+    if (!ok) return;
+    if (!tagMap[slug]) tagMap[slug] = { ooc: false, app: false, priority: null, status: 'in-progress', completed_at: null };
+    tagMap[slug].status = 'in-progress';
+    tagMap[slug].completed_at = null;
+    patchTag(slug, { status: 'in-progress', completed_at: null });
+    var originalMarkupEncoded = completedRowEl.getAttribute('data-original');
+    moveRowToGeneral(slug, originalMarkupEncoded, completedRowEl);
+  };
+
+  function updateSectionCounts(){
+    document.querySelectorAll('#snap-v6 .section-block').forEach(function(block){
+      var rows = block.querySelectorAll('.assignment-row');
+      if (!rows.length) {
+        var completedRows = block.querySelectorAll('.completed-row');
+        if (completedRows.length) {
+          var countEl = block.querySelector('.section-count');
+          if (countEl) countEl.textContent = completedRows.length + ' items';
+        }
+        return;
+      }
+      var countEl2 = block.querySelector('.section-count');
+      if (countEl2) countEl2.textContent = rows.length + (rows.length === 1 ? ' item' : ' items');
+    });
+    var totalActive = document.querySelectorAll('#snap-v6 .assignment-row').length;
+    var totalCompleted = document.querySelectorAll('#snap-v6 .completed-row').length;
+    var metaValues = document.querySelectorAll('.meta-row .meta-item .meta-value');
+    // meta-row order: Last Updated, Source, Active Assignments, Completed, Version
+    if (metaValues[2]) metaValues[2].textContent = totalActive;
+    if (metaValues[3]) metaValues[3].textContent = totalCompleted;
+  }
+
+  function applyV6Filters(){
+    var rows = document.querySelectorAll('#snap-v6 .assignment-row');
+    rows.forEach(function(r){
+      var slug = r.getAttribute('data-slug');
+      var lead = (r.getAttribute('data-lead')||'');
+      var state = tagMap[slug] || { ooc: false, app: false, priority: null };
+      var teamMatch = currentTeam6 === 'all'
+        || (currentTeam6 === 'OOC' && state.ooc)
+        || (currentTeam6 === 'Application Services' && state.app);
+      var personMatch = currentPerson6 === 'all' || lead.indexOf(currentPerson6) !== -1;
+      var priorityMatch = currentPriority6 === 'all' || state.priority === currentPriority6;
+      r.style.display = (teamMatch && personMatch && priorityMatch) ? '' : 'none';
+    });
+    document.querySelectorAll('#snap-v6 .section-block').forEach(function(block){
+      var rowsInBlock = block.querySelectorAll('.assignment-row');
+      if (!rowsInBlock.length) return; // leave Completed table alone - never filtered
+      var visible = 0;
+      rowsInBlock.forEach(function(r){ if (r.style.display !== 'none') visible++; });
+      var show = visible !== 0;
+      block.style.display = show ? '' : 'none';
+      var heading = block.previousElementSibling;
+      if (heading && heading.tagName === 'H2') heading.style.display = show ? '' : 'none';
+    });
+  }
+  window.v6Filter = function(btn, val){
+    currentTeam6 = val;
+    document.querySelectorAll('#v6-filter-bar .filter-chip').forEach(function(c){ c.classList.remove('active'); });
+    btn.classList.add('active');
+    applyV6Filters();
+  };
+  window.v6FilterPerson = function(val){
+    currentPerson6 = val;
+    applyV6Filters();
+  };
+  window.v6FilterPriority = function(btn, val){
+    currentPriority6 = val;
+    document.querySelectorAll('#v6-priority-bar .filter-chip').forEach(function(c){ c.classList.remove('active'); });
+    btn.classList.add('active');
+    applyV6Filters();
+  };
+  document.addEventListener('DOMContentLoaded', function(){
+    var leads = new Set();
+    document.querySelectorAll('#snap-v6 .assignment-row').forEach(function(r){
+      var lead = r.getAttribute('data-lead');
+      if (lead) lead.split('/').forEach(function(n){ n = n.trim(); if (n && n !== '-') leads.add(n); });
+    });
+    var sel = document.getElementById('v6-person-select');
+    Array.from(leads).sort().forEach(function(n){
+      var opt = document.createElement('option');
+      opt.value = n; opt.textContent = n;
+      sel.appendChild(opt);
+    });
+    seedAndLoadTags();
+  });
+})();
+</script>
 </main>
 
 <!-- NOTES MODAL -->
@@ -2199,8 +2891,8 @@
   let currentSlug = null;
   let noteCounts = {};
 
-  const VERSION_LABELS = { v1: 'Version 1 - June 10, 2026', v2: 'Version 2 - June 25, 2026', v3: 'Version 3 - July 1, 2026', v4: 'Version 4 - July 15, 2026', v5: 'Version 5 - July 22, 2026' };
-  const NC_PREFIXES = ['nc', 'nc2', 'nc3', 'nc4', 'nc5'];
+  const VERSION_LABELS = { v1: 'Version 1 - June 10, 2026', v2: 'Version 2 - June 25, 2026', v3: 'Version 3 - July 1, 2026', v4: 'Version 4 - July 15, 2026', v5: 'Version 5 - July 22, 2026', v6: 'Version 6 - August 5, 2026' };
+  const NC_PREFIXES = ['nc', 'nc2', 'nc3', 'nc4', 'nc5', 'nc6'];
 
   // Load all note counts on page load
   async function loadAllCounts() {
@@ -2326,6 +3018,8 @@
     if (pill && VERSION_LABELS[v]) pill.textContent = VERSION_LABELS[v];
     const metaV = document.getElementById('meta-version');
     if (metaV && VERSION_LABELS[v]) metaV.textContent = VERSION_LABELS[v].replace('Version ', 'v').replace(' - ', ' - ');
+    const headerSel = document.getElementById('header-version-select');
+    if (headerSel && headerSel.value !== v) headerSel.value = v;
   }
 
   // ---- VOICE RECORDER ----
