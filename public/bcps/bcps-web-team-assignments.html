@@ -66,7 +66,7 @@
   }
 
   main { max-width: 1100px; margin: 0 auto; padding: 92px 28px 80px; }
-  h1 { font-size: clamp(22px, 3.5vw, 38px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 6px; }
+  h1 { font-size: clamp(22px, 3.5vw, 38px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; text-transform: uppercase; margin-top: 28px; margin-bottom: 6px; }
   .doc-subtitle { font-size: 13px; font-weight: 600; color: var(--text-50); margin-bottom: 24px; }
   h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.22em; color: var(--bcps-blue); margin: 40px 0 16px; }
 
@@ -114,6 +114,7 @@
   .overdue-badge { display: inline-flex; align-items: center; font-size: 8px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; background: #b91c1c; border-radius: 10px; padding: 2px 7px; cursor: pointer; width: fit-content; }
   .overdue-badge:hover { background: #931515; }
   .ef-editor { position: fixed; z-index: 400; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.18); padding: 14px; width: 260px; font-size: 12px; }
+  .ef-editor.ef-centered { top: 50%; left: 50%; transform: translate(-50%, -50%); }
   .ef-editor label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-50); margin: 8px 0 4px; }
   .ef-editor label:first-child { margin-top: 0; }
   .ef-editor input[type="text"], .ef-editor input[type="date"] { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit; }
@@ -3022,6 +3023,12 @@
     document.getElementById('modal-title').textContent = name;
     document.getElementById('modal-overlay').classList.add('open');
     document.getElementById('note-input').value = '';
+    // Default the author to whoever leads this assignment - they're the one reporting out.
+    const leadEl = rowEl.querySelector('.assignment-lead');
+    const rowLeadText = (typeof efCache !== 'undefined' && efCache[slug] && efCache[slug].lead_override)
+      ? efCache[slug].lead_override
+      : (leadEl ? leadEl.textContent.split('/')[0].trim() : (rowEl.getAttribute('data-lead') || '').split('/')[0].trim());
+    if (rowLeadText) document.getElementById('author-input').value = rowLeadText;
     loadNotes();
     setTimeout(() => document.getElementById('note-input').focus(), 100);
   }
@@ -3455,8 +3462,7 @@
     backdrop.className = 'ef-backdrop';
     backdrop.onclick = window.closeEfEditor;
     var box = document.createElement('div');
-    box.className = 'ef-editor';
-    positionBox(box, rect, 230);
+    box.className = 'ef-editor ef-centered';
     box.innerHTML =
       '<label>Start Date</label><input type="date" id="ef-start" value="' + (ef.start_date || '') + '">' +
       '<label>Deadline</label><input type="date" id="ef-deadline" value="' + (ef.deadline_date || '') + '">' +
