@@ -257,27 +257,32 @@
   #snap-v5 .completed-grid { grid-template-columns: 1fr 120px 130px 90px; }
 
   @media (max-width: 700px) {
-    /* Mobile card layout: each field gets its own full-width row with a label,
-       instead of the desktop grid squishing into 2 cramped columns where a
-       bare pill or date had no way to tell you which column it belonged to. */
+    /* Mobile card layout: description stays on the left; every other field
+       (Lead/Support, Status, Deadline, Tags, Notes) stacks in a single
+       labeled column on the right, instead of the old grid squishing 5-6
+       columns into 2 raw ones where a bare pill or date had no way to tell
+       you which column it belonged to. */
     .col-header-row { display: none; }
 
     .assignment-row {
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      gap: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 14px;
+      row-gap: 10px;
+      align-items: start;
       padding: 16px 18px;
     }
-    .assignment-row > div { width: 100%; }
+    .assignment-row > div { width: 100%; min-width: 0; }
 
-    /* Reorder fields for mobile: Assignment name/desc, Lead/Support, Status, Deadline, Tags, Notes */
-    .assignment-row > div:first-child { order: 1; }
-    .assignment-row > div:has(.assignment-lead) { order: 2; }
-    .assignment-row > div:has(.status-badge, .status-control) { order: 3; }
-    .assignment-row > div:has(.assignment-deadline) { order: 4; }
-    .assignment-row > .tag-controls { order: 5; }
-    .assignment-row > div:has(.notes-btn) { order: 6; }
+    /* Left column: name/desc, spans the full height of the row. */
+    .assignment-row > div:first-child { grid-column: 1; grid-row: 1 / -1; }
+
+    /* Right column: everything else stacks here, top to bottom in this order. */
+    .assignment-row > div:has(.assignment-lead) { grid-column: 2; order: 1; }
+    .assignment-row > div:has(.status-badge, .status-control) { grid-column: 2; order: 2; }
+    .assignment-row > div:has(.assignment-deadline) { grid-column: 2; order: 3; }
+    .assignment-row > .tag-controls { grid-column: 2; order: 4; }
+    .assignment-row > div:has(.notes-btn) { grid-column: 2; order: 5; }
 
     .assignment-row > div:has(.assignment-lead)::before,
     .assignment-row > div:has(.status-badge, .status-control)::before,
@@ -301,18 +306,25 @@
     .assignment-row > .tag-controls { gap: 8px; }
     .assignment-row .tag-toggle-row, .assignment-row .priority-row { flex-wrap: wrap; }
 
-    /* Completed table: same card treatment (name, then labeled Lead/Support + Completed date, then Reopen) */
+    /* Completed table: same two-column treatment -- name on the left,
+       Lead/Support + Completed date + Reopen stacked on the right. */
     .completed-header { display: none; }
     .completed-grid { display: block; }
     .completed-row {
-      display: flex !important;
-      flex-direction: column;
-      gap: 10px;
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 14px;
+      row-gap: 8px;
+      align-items: start;
       padding: 16px 18px;
       border-bottom: 1px solid var(--border);
     }
     .completed-row:last-child { border-bottom: none; }
-    .completed-row > div { padding: 0; border-bottom: none; width: 100%; }
+    .completed-row > div { padding: 0; border-bottom: none; width: 100%; min-width: 0; }
+    .completed-row > div:first-child { grid-column: 1; grid-row: 1 / -1; }
+    .completed-row > div:nth-child(2) { grid-column: 2; }
+    .completed-row > div:nth-child(3) { grid-column: 2; }
+    .completed-row > div:nth-child(4) { grid-column: 2; align-self: flex-start; }
     .completed-row > div:nth-child(2)::before { content: "Lead / Support"; }
     .completed-row > div:nth-child(3)::before { content: "Completed"; }
     .completed-row > div:nth-child(2)::before,
@@ -325,7 +337,6 @@
       color: var(--text-30);
       margin-bottom: 5px;
     }
-    .completed-row > div:nth-child(4) { align-self: flex-start; }
   }
 </style>
 </head>
