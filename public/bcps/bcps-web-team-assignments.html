@@ -123,6 +123,21 @@
   .ef-editor button { font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); cursor: pointer; }
   .ef-editor button.ef-save { background: var(--bcps-blue); border-color: var(--bcps-blue); color: #fff; }
   .ef-backdrop { position: fixed; inset: 0; z-index: 399; background: transparent; }
+  .ef-date-display { cursor: pointer; background: #fff; }
+  .ef-cal-backdrop { position: fixed; inset: 0; z-index: 450; background: rgba(0,0,0,0.35); }
+  .ef-cal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 451; background: var(--surface); border-radius: 10px; box-shadow: 0 12px 36px rgba(0,0,0,0.28); padding: 14px; width: 260px; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow-y: auto; font-size: 12px; box-sizing: border-box; }
+  .ef-cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .ef-cal-header button { font-size: 13px; font-weight: 700; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); cursor: pointer; }
+  .ef-cal-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text); }
+  .ef-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .ef-cal-dow { font-size: 9px; font-weight: 800; text-transform: uppercase; color: var(--text-30); text-align: center; padding: 4px 0; }
+  .ef-cal-day { font-size: 11px; font-weight: 600; text-align: center; padding: 7px 0; border-radius: 6px; cursor: pointer; border: 1px solid transparent; background: none; font-family: inherit; }
+  .ef-cal-day:hover { background: rgba(22,114,167,0.10); }
+  .ef-cal-day.ef-cal-empty { cursor: default; }
+  .ef-cal-day.ef-cal-empty:hover { background: none; }
+  .ef-cal-day.ef-cal-selected { background: var(--bcps-blue); color: #fff; }
+  .ef-cal-day.ef-cal-today:not(.ef-cal-selected) { border-color: var(--bcps-blue); }
+  .ef-cal-clear { display: block; width: 100%; margin-top: 10px; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); cursor: pointer; }
 
   .status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
   .status-badge.in-progress { background: rgba(22,114,167,0.10); border: 1px solid rgba(22,114,167,0.25); color: var(--bcps-blue-dark); }
@@ -3451,21 +3466,29 @@
 
   window.closeEfEditor = function(){
     document.querySelectorAll('.ef-editor, .ef-backdrop').forEach(function(n){ n.remove(); });
+    if (window.closeCalendarPicker) window.closeCalendarPicker();
   };
+
+  function formatDateDisplay(iso){
+    if (!iso) return '';
+    var parts = iso.split('-');
+    if (parts.length !== 3) return iso;
+    var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
   window.openDeadlineEditor = function(el){
     window.closeEfEditor();
     var slug = el.getAttribute('data-slug');
     var ef = efCache[slug] || {};
-    var rect = el.getBoundingClientRect();
     var backdrop = document.createElement('div');
     backdrop.className = 'ef-backdrop';
     backdrop.onclick = window.closeEfEditor;
     var box = document.createElement('div');
     box.className = 'ef-editor ef-centered';
     box.innerHTML =
-      '<label>Start Date</label><input type="date" id="ef-start" value="' + (ef.start_date || '') + '">' +
-      '<label>Deadline</label><input type="date" id="ef-deadline" value="' + (ef.deadline_date || '') + '">' +
+      '<label>Start Date</label><input type="text" class="ef-date-display" id="ef-start" readonly data-iso="' + (ef.start_date || '') + '" value="' + formatDateDisplay(ef.start_date) + '" placeholder="Not set" onclick="openCalendarPicker(\'ef-start\')">' +
+      '<label>Deadline</label><input type="text" class="ef-date-display" id="ef-deadline" readonly data-iso="' + (ef.deadline_date || '') + '" value="' + formatDateDisplay(ef.deadline_date) + '" placeholder="Not set" onclick="openCalendarPicker(\'ef-deadline\')">' +
       '<div class="ef-row" style="margin-top:8px;"><input type="checkbox" id="ef-ongoing" ' + (ef.is_ongoing ? 'checked' : '') + '><label style="margin:0;" for="ef-ongoing">Ongoing (no fixed deadline)</label></div>' +
       '<div class="ef-actions"><button onclick="closeEfEditor()">Cancel</button><button class="ef-save" onclick="saveDeadlineEditor(\'' + slug + '\')">Save</button></div>';
     document.body.appendChild(backdrop);
@@ -3473,8 +3496,8 @@
   };
 
   window.saveDeadlineEditor = function(slug){
-    var start = document.getElementById('ef-start').value || null;
-    var deadline = document.getElementById('ef-deadline').value || null;
+    var start = document.getElementById('ef-start').getAttribute('data-iso') || null;
+    var deadline = document.getElementById('ef-deadline').getAttribute('data-iso') || null;
     var ongoing = document.getElementById('ef-ongoing').checked;
     efCache[slug] = Object.assign({}, efCache[slug], { start_date: start, deadline_date: deadline, is_ongoing: ongoing, overdue_dismissed: false });
     efUpsert(slug, { start_date: start, deadline_date: deadline, is_ongoing: ongoing, overdue_dismissed: false });
@@ -3482,6 +3505,101 @@
     renderOverdue(slug);
     window.closeEfEditor();
   };
+
+  // Custom calendar picker - fully centered and clamped to the viewport ourselves,
+  // instead of relying on each browser/device's native <input type="date"> popup
+  // (which was getting cut off on some phones).
+  var calState = { targetId: null, year: null, month: null };
+
+  window.openCalendarPicker = function(targetId){
+    var input = document.getElementById(targetId);
+    var iso = input.getAttribute('data-iso');
+    var base = iso ? new Date(iso + 'T00:00:00') : new Date();
+    calState.targetId = targetId;
+    calState.year = base.getFullYear();
+    calState.month = base.getMonth();
+
+    var backdrop = document.createElement('div');
+    backdrop.className = 'ef-cal-backdrop';
+    backdrop.id = 'ef-cal-backdrop';
+    backdrop.onclick = window.closeCalendarPicker;
+
+    var cal = document.createElement('div');
+    cal.className = 'ef-cal';
+    cal.id = 'ef-cal';
+    cal.onclick = function(e){ e.stopPropagation(); };
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(cal);
+    renderCalendar();
+  };
+
+  window.closeCalendarPicker = function(){
+    var b = document.getElementById('ef-cal-backdrop');
+    var c = document.getElementById('ef-cal');
+    if (b) b.remove();
+    if (c) c.remove();
+  };
+
+  window.calChangeMonth = function(delta){
+    calState.month += delta;
+    if (calState.month < 0) { calState.month = 11; calState.year--; }
+    if (calState.month > 11) { calState.month = 0; calState.year++; }
+    renderCalendar();
+  };
+
+  window.selectCalendarDay = function(iso){
+    var input = document.getElementById(calState.targetId);
+    if (input) {
+      input.setAttribute('data-iso', iso);
+      input.value = formatDateDisplay(iso);
+    }
+    window.closeCalendarPicker();
+  };
+
+  window.clearCalendarDate = function(){
+    var input = document.getElementById(calState.targetId);
+    if (input) {
+      input.setAttribute('data-iso', '');
+      input.value = '';
+    }
+    window.closeCalendarPicker();
+  };
+
+  function renderCalendar(){
+    var cal = document.getElementById('ef-cal');
+    if (!cal) return;
+    var input = document.getElementById(calState.targetId);
+    var selectedIso = input ? input.getAttribute('data-iso') : '';
+    var today = new Date();
+    var todayIso = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+
+    var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    var firstOfMonth = new Date(calState.year, calState.month, 1);
+    var startWeekday = firstOfMonth.getDay();
+    var daysInMonth = new Date(calState.year, calState.month + 1, 0).getDate();
+
+    var html = '<div class="ef-cal-header">' +
+      '<button type="button" onclick="calChangeMonth(-1)" aria-label="Previous month">&#8249;</button>' +
+      '<span class="ef-cal-title">' + monthNames[calState.month] + ' ' + calState.year + '</span>' +
+      '<button type="button" onclick="calChangeMonth(1)" aria-label="Next month">&#8250;</button>' +
+      '</div><div class="ef-cal-grid">';
+
+    ['S','M','T','W','T','F','S'].forEach(function(d){ html += '<div class="ef-cal-dow">' + d + '</div>'; });
+
+    for (var i = 0; i < startWeekday; i++) {
+      html += '<div class="ef-cal-day ef-cal-empty"></div>';
+    }
+    for (var day = 1; day <= daysInMonth; day++) {
+      var iso = calState.year + '-' + String(calState.month+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+      var cls = 'ef-cal-day';
+      if (iso === selectedIso) cls += ' ef-cal-selected';
+      if (iso === todayIso) cls += ' ef-cal-today';
+      html += '<button type="button" class="' + cls + '" onclick="selectCalendarDay(\'' + iso + '\')">' + day + '</button>';
+    }
+    html += '</div><button type="button" class="ef-cal-clear" onclick="clearCalendarDate()">Clear Date</button>';
+    cal.innerHTML = html;
+  }
 
   window.openLeadEditor = function(el){
     window.closeEfEditor();
@@ -3525,7 +3643,7 @@
     renderOverdue(slug);
   };
 
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') window.closeEfEditor(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { window.closeCalendarPicker(); window.closeEfEditor(); } });
   document.addEventListener('click', function(e){
     if (e.target.closest && e.target.closest('.status-menu button')) {
       setTimeout(window.refreshOverdueBadges, 60);
