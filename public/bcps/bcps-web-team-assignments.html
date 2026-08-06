@@ -218,10 +218,12 @@
   .no-speech-note { font-size: 10px; color: var(--text-30); }
 
 
-  /* TAGS + PRIORITY (v5) */
-  #snap-v5 .assignment-row, #snap-v5 .col-header-row { grid-template-columns: 1fr 160px 110px 110px 150px 80px; }
+  /* TAGS + PRIORITY (v5, v6) */
+  #snap-v5 .assignment-row, #snap-v5 .col-header-row,
+  #snap-v6 .assignment-row, #snap-v6 .col-header-row { grid-template-columns: 1fr 160px 110px 110px 150px 80px; }
   @media (max-width: 900px) {
-    #snap-v5 .assignment-row, #snap-v5 .col-header-row { grid-template-columns: 1fr 1fr; }
+    #snap-v5 .assignment-row, #snap-v5 .col-header-row,
+    #snap-v6 .assignment-row, #snap-v6 .col-header-row { grid-template-columns: 1fr 1fr; }
   }
   .tag-controls { display: flex; flex-direction: column; gap: 6px; }
   .tag-toggle-row { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -255,9 +257,75 @@
   #snap-v5 .completed-grid { grid-template-columns: 1fr 120px 130px 90px; }
 
   @media (max-width: 700px) {
-    .assignment-row { grid-template-columns: 1fr 1fr; }
-    .col-header-row { grid-template-columns: 1fr 1fr; }
-    .completed-grid { grid-template-columns: 1fr 1fr; }
+    /* Mobile card layout: each field gets its own full-width row with a label,
+       instead of the desktop grid squishing into 2 cramped columns where a
+       bare pill or date had no way to tell you which column it belonged to. */
+    .col-header-row { display: none; }
+
+    .assignment-row {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 14px;
+      padding: 16px 18px;
+    }
+    .assignment-row > div { width: 100%; }
+
+    /* Reorder fields for mobile: Assignment name/desc, Lead/Support, Status, Deadline, Tags, Notes */
+    .assignment-row > div:first-child { order: 1; }
+    .assignment-row > div:has(.assignment-lead) { order: 2; }
+    .assignment-row > div:has(.status-badge, .status-control) { order: 3; }
+    .assignment-row > div:has(.assignment-deadline) { order: 4; }
+    .assignment-row > .tag-controls { order: 5; }
+    .assignment-row > div:has(.notes-btn) { order: 6; }
+
+    .assignment-row > div:has(.assignment-lead)::before,
+    .assignment-row > div:has(.status-badge, .status-control)::before,
+    .assignment-row > div:has(.assignment-deadline)::before,
+    .assignment-row > .tag-controls::before,
+    .assignment-row > div:has(.notes-btn)::before {
+      display: block;
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-30);
+      margin-bottom: 5px;
+    }
+    .assignment-row > div:has(.assignment-lead)::before { content: "Lead / Support"; }
+    .assignment-row > div:has(.status-badge, .status-control)::before { content: "Status"; }
+    .assignment-row > div:has(.assignment-deadline)::before { content: "Deadline"; }
+    .assignment-row > .tag-controls::before { content: "Tags"; }
+    .assignment-row > div:has(.notes-btn)::before { content: "Notes"; }
+
+    .assignment-row > .tag-controls { gap: 8px; }
+    .assignment-row .tag-toggle-row, .assignment-row .priority-row { flex-wrap: wrap; }
+
+    /* Completed table: same card treatment (name, then labeled Lead/Support + Completed date, then Reopen) */
+    .completed-header { display: none; }
+    .completed-grid { display: block; }
+    .completed-row {
+      display: flex !important;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .completed-row:last-child { border-bottom: none; }
+    .completed-row > div { padding: 0; border-bottom: none; width: 100%; }
+    .completed-row > div:nth-child(2)::before { content: "Lead / Support"; }
+    .completed-row > div:nth-child(3)::before { content: "Completed"; }
+    .completed-row > div:nth-child(2)::before,
+    .completed-row > div:nth-child(3)::before {
+      display: block;
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-30);
+      margin-bottom: 5px;
+    }
+    .completed-row > div:nth-child(4) { align-self: flex-start; }
   }
 </style>
 </head>
