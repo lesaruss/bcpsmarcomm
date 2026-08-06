@@ -251,10 +251,15 @@
   .no-speech-note { font-size: 10px; color: var(--text-30); }
 
 
-  /* TAGS + PRIORITY (v5, v6) */
-  #snap-v5 .assignment-row, #snap-v5 .col-header-row { grid-template-columns: 1fr 160px 110px 110px 150px 80px; }
-  /* v6: Notes moved inline under the description, so one fewer column than v5. */
-  #snap-v6 .assignment-row, #snap-v6 .col-header-row { grid-template-columns: 1fr 160px 130px 110px 150px; }
+  /* TAGS + PRIORITY (v5, v6) -- desktop only. These use an ID selector, which beats the
+     mobile media query's plain .assignment-row class on specificity regardless of source
+     order, so they MUST be scoped to a min-width or they silently override the mobile
+     card grid at every width -- that was the real "everything crammed right" drift bug. */
+  @media (min-width: 901px) {
+    #snap-v5 .assignment-row, #snap-v5 .col-header-row { grid-template-columns: 1fr 160px 110px 110px 150px 80px; }
+    /* v6: Notes moved inline under the description, so one fewer column than v5. */
+    #snap-v6 .assignment-row, #snap-v6 .col-header-row { grid-template-columns: 1fr 160px 130px 110px 150px; }
+  }
   /* Below 900px the labeled card layout (further down) takes over for both v5 and v6,
      so no separate raw 2-column override is needed here. */
   .tag-controls { display: flex; flex-direction: column; gap: 6px; }
@@ -315,13 +320,18 @@
     .assignment-row > div:has(.status-badge, .status-control) { grid-column: 2; order: 2; }
     .assignment-row > div:has(.assignment-deadline) { grid-column: 2; order: 3; }
     .assignment-row > .tag-controls { grid-column: 2; order: 4; }
-    .assignment-row > div:has(.notes-btn) { grid-column: 2; order: 5; }
+    /* :not(:first-child) matters for v6: its Notes button now lives inside the same
+       div as the name/desc (see .notes-btn-stacked), so without this exclusion this
+       rule would re-grab that div and drag the whole left block over to column 2 --
+       that was the "everything's on the right" drift bug. Older snapshots (v1-v5)
+       still have Notes in its own div, so this rule still applies to them normally. */
+    .assignment-row > div:has(.notes-btn):not(:first-child) { grid-column: 2; order: 5; }
 
     .assignment-row > div:has(.assignment-lead)::before,
     .assignment-row > div:has(.status-badge, .status-control)::before,
     .assignment-row > div:has(.assignment-deadline)::before,
     .assignment-row > .tag-controls::before,
-    .assignment-row > div:has(.notes-btn)::before {
+    .assignment-row > div:has(.notes-btn):not(:first-child)::before {
       display: block;
       font-size: 9px;
       font-weight: 800;
@@ -336,7 +346,7 @@
     /* v6 already labels Start/Deadline inline on each line, so no category header needed. */
     #snap-v6 .assignment-row > div:has(.assignment-deadline)::before { display: none; }
     .assignment-row > .tag-controls::before { content: "Tags"; }
-    .assignment-row > div:has(.notes-btn)::before { content: "Notes"; }
+    .assignment-row > div:has(.notes-btn):not(:first-child)::before { content: "Notes"; }
 
     .assignment-row > .tag-controls { gap: 8px; }
     .assignment-row .tag-toggle-row, .assignment-row .priority-row { flex-wrap: wrap; }
