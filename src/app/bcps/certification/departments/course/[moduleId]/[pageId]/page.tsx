@@ -251,9 +251,10 @@ export default function CoursePlayerPage({ params }: Props) {
         .cert-content td { padding: 9px 14px; border-bottom: 1px solid #e8eef4; }
         .cert-content tr:nth-child(even) td { background: #f8fafb; }
         .cert-content a { color: #1672A7; }
-        .course-shell { display: flex; align-items: stretch; gap: 24px; padding: 28px 24px 48px; box-sizing: border-box; }
+        .course-shell { padding: 28px 24px 48px; box-sizing: border-box; }
+        .course-card-row { display: flex; align-items: stretch; gap: 24px; }
+        .course-content-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
         .course-rail { width: 280px; flex-shrink: 0; background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); overflow-y: auto; }
-        .course-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
         .course-outline-toggle { display: none; }
         @media (max-width: 960px) {
           .course-shell { padding: 20px 16px 40px; }
@@ -327,29 +328,27 @@ export default function CoursePlayerPage({ params }: Props) {
       <div className="course-shell">
       {/* Page content */}
       <div style={S.contentArea} className="course-main">
-        {/* Breadcrumb row with module info + page counter + outline trigger --
-            full width, flush to the rail's edge (V, 2026-08-07) */}
+        {/* Breadcrumb row: module name + mobile outline trigger only. The
+            status badges (saving, admin preview, page counter) now live in
+            the rail next to Course Overview so they read on the same line
+            as the persistent nav (V, 2026-08-07). The hamburger button
+            stays here rather than moving into the rail, because .course-rail
+            is display:none on mobile -- if the toggle lived inside it there
+            would be no way left to open the mobile drawer. */}
         <div style={S.breadcrumbRow}>
           <div style={S.breadcrumb}>{mod.id === 'final' ? 'Final Assignments' : `Module ${mod.number}: ${mod.title}`}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            {saving && <span style={S.saving}>Saving...</span>}
-            {isAdmin && (
-              <div style={{ fontSize: 10, fontWeight: 800, color: '#854F0B', background: '#fef3e2', borderRadius: 20, padding: '3px 10px', letterSpacing: 0.4, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                Admin Preview
-              </div>
-            )}
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#1672A7', borderRadius: 20, padding: '3px 10px', letterSpacing: 0.3, whiteSpace: 'nowrap' }}>
-              Page {pageIndex + 1} of {totalPages}
-            </div>
-            <button onClick={() => setMenuOpen(true)} className="course-outline-toggle" style={S.outlineBtn} aria-label="Open course outline">
-              <span style={S.hamburgerLine} />
-              <span style={S.hamburgerLine} />
-              <span style={S.hamburgerLine} />
-            </button>
-          </div>
+          <button onClick={() => setMenuOpen(true)} className="course-outline-toggle" style={S.outlineBtn} aria-label="Open course outline">
+            <span style={S.hamburgerLine} />
+            <span style={S.hamburgerLine} />
+            <span style={S.hamburgerLine} />
+          </button>
         </div>
 
-        <div style={S.contentInner}>
+        {/* Content column + rail: a stretch row so the rail top-aligns with
+            this column and matches its height exactly, whether the module
+            content is short or long (V, 2026-08-07). */}
+        <div className="course-card-row">
+        <div className="course-content-col">
         <h1 style={S.pageTitle}>{page.title}</h1>
 
         <div style={S.contentCard}>
@@ -452,9 +451,10 @@ export default function CoursePlayerPage({ params }: Props) {
           ) : null}
         </div>
         </div>
-      </div>
 
-        {/* Module rail, right-hand side */}
+        {/* Module rail, right-hand side. Stretch-aligned with course-content-col
+            above, so its top edge and height always match the content column
+            next to it (V, 2026-08-07). */}
         <div className="course-rail">
           <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #eef0f3' }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: '#0e4e73', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Your Progress</div>
@@ -465,7 +465,20 @@ export default function CoursePlayerPage({ params }: Props) {
             <div style={{ height: 6, background: '#e5e9ee', borderRadius: 8, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${overallPct}%`, background: overallPct >= 100 ? '#16750C' : '#1672A7', borderRadius: 8, transition: 'width 0.3s ease' }} />
             </div>
-            <Link href="/bcps/certification/departments/welcome" style={{ fontSize: 12, color: '#1672A7', fontWeight: 700, textDecoration: 'none', display: 'block', marginTop: 14 }}>Course Overview</Link>
+            <div style={S.railOverviewRow}>
+              <Link href="/bcps/certification/departments/welcome" style={S.railOverviewLink}>Course Overview</Link>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                {saving && <span style={S.saving}>Saving...</span>}
+                {isAdmin && (
+                  <div style={{ fontSize: 10, fontWeight: 800, color: '#854F0B', background: '#fef3e2', borderRadius: 20, padding: '3px 10px', letterSpacing: 0.4, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                    Admin Preview
+                  </div>
+                )}
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#1672A7', borderRadius: 20, padding: '3px 10px', letterSpacing: 0.3, whiteSpace: 'nowrap' }}>
+                  Page {pageIndex + 1} of {totalPages}
+                </div>
+              </div>
+            </div>
           </div>
           <div style={{ paddingBottom: 20 }}>
             {MODULES.map((m: CourseModule, idx: number) => {
@@ -498,6 +511,8 @@ export default function CoursePlayerPage({ params }: Props) {
             })}
           </div>
         </div>
+        </div>
+      </div>
       </div>
     </>
   )
@@ -509,9 +524,10 @@ const S: Record<string, React.CSSProperties> = {
   outlineBtn: { background: 'none', border: '1px solid #e0e8ef', borderRadius: 8, cursor: 'pointer', padding: '7px 9px', display: 'flex', flexDirection: 'column', gap: 4 },
   hamburgerLine: { display: 'block', width: 18, height: 2, background: '#555', borderRadius: 2 },
   contentArea: { width: '100%', boxSizing: 'border-box' as const },
-  breadcrumbRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 12, width: '100%' },
-  contentInner: { maxWidth: 960, width: '100%', margin: '0 auto' },
+  breadcrumbRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, width: '100%' },
   breadcrumb: { fontSize: 12, color: '#999', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  railOverviewRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 14 },
+  railOverviewLink: { fontSize: 12, color: '#1672A7', fontWeight: 700, textDecoration: 'none' as const, flexShrink: 0 },
   pageTitle: { fontSize: 24, fontWeight: 900, color: '#0e4e73', margin: '0 0 22px', lineHeight: 1.2 },
   contentCard: { background: '#fff', borderRadius: 12, padding: '32px 36px', boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 24 },
   content: { fontSize: 15, color: '#2a2a2a', fontWeight: 400 },
