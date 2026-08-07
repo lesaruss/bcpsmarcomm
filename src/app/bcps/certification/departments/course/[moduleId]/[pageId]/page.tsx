@@ -251,8 +251,8 @@ export default function CoursePlayerPage({ params }: Props) {
         .cert-content td { padding: 9px 14px; border-bottom: 1px solid #e8eef4; }
         .cert-content tr:nth-child(even) td { background: #f8fafb; }
         .cert-content a { color: #1672A7; }
-        .course-shell { display: flex; align-items: flex-start; }
-        .course-rail { width: 260px; flex-shrink: 0; border-right: 1px solid #eef0f3; background: #fafbfc; min-height: 100vh; position: sticky; top: 0; overflow-y: auto; }
+        .course-shell { display: flex; align-items: flex-start; gap: 24px; }
+        .course-rail { width: 280px; flex-shrink: 0; background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); position: sticky; top: 28px; max-height: calc(100vh - 56px); overflow-y: auto; }
         .course-main { flex: 1; min-width: 0; }
         .course-outline-toggle { display: none; }
         @media (max-width: 960px) {
@@ -320,52 +320,10 @@ export default function CoursePlayerPage({ params }: Props) {
           (Hot Lab 2026-07-28): WCMs need a where-am-I indicator, not just a
           hidden drawer. Mobile keeps the existing hamburger + slide-in
           drawer above (course-outline-toggle / course-rail CSS classes
-          swap which one is visible at the 960px breakpoint). */}
+          swap which one is visible at the 960px breakpoint). Rail sits to
+          the right of the content on desktop, styled as a rounded card to
+          match the content card (V, 2026-08-07). */}
       <div className="course-shell">
-        <div className="course-rail">
-          <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #eef0f3' }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: '#0e4e73', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Your Progress</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
-              <span style={{ fontSize: 28, fontWeight: 900, color: overallPct >= 100 ? '#16750C' : '#1672A7' }}>{overallPct}%</span>
-              <span style={{ fontSize: 11, color: '#888' }}>{overallCompleted} of {overallTotal} pages</span>
-            </div>
-            <div style={{ height: 6, background: '#e5e9ee', borderRadius: 8, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${overallPct}%`, background: overallPct >= 100 ? '#16750C' : '#1672A7', borderRadius: 8, transition: 'width 0.3s ease' }} />
-            </div>
-            <Link href="/bcps/certification/departments/welcome" style={{ fontSize: 12, color: '#1672A7', fontWeight: 700, textDecoration: 'none', display: 'block', marginTop: 14 }}>Course Overview</Link>
-          </div>
-          <div style={{ paddingBottom: 20 }}>
-            {MODULES.map((m: CourseModule, idx: number) => {
-              const modAllDone = m.pages.every((p: CoursePage) => completedPages.has(`${m.id}::${p.id}`))
-              const modActive = m.id === moduleId
-              const unlocked = isModuleUnlocked(idx)
-              return (
-                <div key={m.id} style={{ borderLeft: `3px solid ${modActive ? '#1672A7' : modAllDone ? '#16750C' : 'transparent'}`, opacity: unlocked ? 1 : 0.45 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#777', padding: '8px 16px 3px', textTransform: 'uppercase', letterSpacing: 0.4, lineHeight: 1.4 }}>
-                    {!unlocked && <span style={{ marginRight: 4 }}>LOCKED -</span>}
-                    {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
-                    {modAllDone && <span style={{ marginLeft: 4, color: '#16750C' }}>+</span>}
-                  </div>
-                  {(modActive || modAllDone || isAdmin) && unlocked && m.pages.map((p: CoursePage) => {
-                    const pk = `${m.id}::${p.id}`
-                    const isActive = m.id === moduleId && p.id === pageId
-                    const isDone = completedPages.has(pk)
-                    const accessible = canNavigateTo(m.id, p.id)
-                    return accessible ? (
-                      <Link key={p.id} href={`/bcps/certification/departments/course/${m.id}/${p.id}`}
-                        style={{ display: 'block', fontSize: 12, padding: '5px 16px', textDecoration: 'none', borderRadius: 4, margin: '1px 4px', background: isActive ? '#e8f4fd' : 'transparent', color: isDone ? '#16750C' : isActive ? '#1672A7' : '#444', fontWeight: isActive ? 700 : 400, lineHeight: 1.4 }}>
-                        {isDone ? '+ ' : '  '}{p.title}
-                      </Link>
-                    ) : (
-                      <span key={p.id} style={{ display: 'block', fontSize: 12, padding: '5px 16px', color: '#bbb', lineHeight: 1.4, margin: '1px 4px' }}>{p.title}</span>
-                    )
-                  })}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
       {/* Page content */}
       <div style={S.contentArea} className="course-main">
         {/* Breadcrumb row with module info + page counter + outline trigger */}
@@ -491,6 +449,51 @@ export default function CoursePlayerPage({ params }: Props) {
           ) : null}
         </div>
       </div>
+
+        {/* Module rail, right-hand side */}
+        <div className="course-rail">
+          <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #eef0f3' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#0e4e73', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Your Progress</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
+              <span style={{ fontSize: 28, fontWeight: 900, color: overallPct >= 100 ? '#16750C' : '#1672A7' }}>{overallPct}%</span>
+              <span style={{ fontSize: 11, color: '#888' }}>{overallCompleted} of {overallTotal} pages</span>
+            </div>
+            <div style={{ height: 6, background: '#e5e9ee', borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${overallPct}%`, background: overallPct >= 100 ? '#16750C' : '#1672A7', borderRadius: 8, transition: 'width 0.3s ease' }} />
+            </div>
+            <Link href="/bcps/certification/departments/welcome" style={{ fontSize: 12, color: '#1672A7', fontWeight: 700, textDecoration: 'none', display: 'block', marginTop: 14 }}>Course Overview</Link>
+          </div>
+          <div style={{ paddingBottom: 20 }}>
+            {MODULES.map((m: CourseModule, idx: number) => {
+              const modAllDone = m.pages.every((p: CoursePage) => completedPages.has(`${m.id}::${p.id}`))
+              const modActive = m.id === moduleId
+              const unlocked = isModuleUnlocked(idx)
+              return (
+                <div key={m.id} style={{ borderLeft: `3px solid ${modActive ? '#1672A7' : modAllDone ? '#16750C' : 'transparent'}`, opacity: unlocked ? 1 : 0.45 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#777', padding: '8px 16px 3px', textTransform: 'uppercase', letterSpacing: 0.4, lineHeight: 1.4 }}>
+                    {!unlocked && <span style={{ marginRight: 4 }}>LOCKED -</span>}
+                    {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
+                    {modAllDone && <span style={{ marginLeft: 4, color: '#16750C' }}>+</span>}
+                  </div>
+                  {(modActive || modAllDone || isAdmin) && unlocked && m.pages.map((p: CoursePage) => {
+                    const pk = `${m.id}::${p.id}`
+                    const isActive = m.id === moduleId && p.id === pageId
+                    const isDone = completedPages.has(pk)
+                    const accessible = canNavigateTo(m.id, p.id)
+                    return accessible ? (
+                      <Link key={p.id} href={`/bcps/certification/departments/course/${m.id}/${p.id}`}
+                        style={{ display: 'block', fontSize: 12, padding: '5px 16px', textDecoration: 'none', borderRadius: 4, margin: '1px 4px', background: isActive ? '#e8f4fd' : 'transparent', color: isDone ? '#16750C' : isActive ? '#1672A7' : '#444', fontWeight: isActive ? 700 : 400, lineHeight: 1.4 }}>
+                        {isDone ? '+ ' : '  '}{p.title}
+                      </Link>
+                    ) : (
+                      <span key={p.id} style={{ display: 'block', fontSize: 12, padding: '5px 16px', color: '#bbb', lineHeight: 1.4, margin: '1px 4px' }}>{p.title}</span>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
     </>
   )
