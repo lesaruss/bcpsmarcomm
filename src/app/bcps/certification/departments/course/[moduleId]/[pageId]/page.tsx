@@ -251,11 +251,12 @@ export default function CoursePlayerPage({ params }: Props) {
         .cert-content td { padding: 9px 14px; border-bottom: 1px solid #e8eef4; }
         .cert-content tr:nth-child(even) td { background: #f8fafb; }
         .cert-content a { color: #1672A7; }
-        .course-shell { display: flex; align-items: flex-start; gap: 24px; }
-        .course-rail { width: 280px; flex-shrink: 0; background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); position: sticky; top: 28px; max-height: calc(100vh - 56px); overflow-y: auto; }
-        .course-main { flex: 1; min-width: 0; }
+        .course-shell { display: flex; align-items: stretch; gap: 24px; padding: 28px 24px 48px; box-sizing: border-box; }
+        .course-rail { width: 280px; flex-shrink: 0; background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); overflow-y: auto; }
+        .course-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
         .course-outline-toggle { display: none; }
         @media (max-width: 960px) {
+          .course-shell { padding: 20px 16px 40px; }
           .course-rail { display: none; }
           .course-outline-toggle { display: flex !important; }
         }
@@ -326,8 +327,9 @@ export default function CoursePlayerPage({ params }: Props) {
       <div className="course-shell">
       {/* Page content */}
       <div style={S.contentArea} className="course-main">
-        {/* Breadcrumb row with module info + page counter + outline trigger */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 12 }}>
+        {/* Breadcrumb row with module info + page counter + outline trigger --
+            full width, flush to the rail's edge (V, 2026-08-07) */}
+        <div style={S.breadcrumbRow}>
           <div style={S.breadcrumb}>{mod.id === 'final' ? 'Final Assignments' : `Module ${mod.number}: ${mod.title}`}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {saving && <span style={S.saving}>Saving...</span>}
@@ -347,6 +349,7 @@ export default function CoursePlayerPage({ params }: Props) {
           </div>
         </div>
 
+        <div style={S.contentInner}>
         <h1 style={S.pageTitle}>{page.title}</h1>
 
         <div style={S.contentCard}>
@@ -448,6 +451,7 @@ export default function CoursePlayerPage({ params }: Props) {
             <Link href="/bcps/certification/departments/complete" style={{ ...S.navBtn, ...S.navBtnPrimary }}>Finish Course</Link>
           ) : null}
         </div>
+        </div>
       </div>
 
         {/* Module rail, right-hand side */}
@@ -504,7 +508,9 @@ const S: Record<string, React.CSSProperties> = {
   saving: { fontSize: 12, color: '#1672A7', fontStyle: 'italic' },
   outlineBtn: { background: 'none', border: '1px solid #e0e8ef', borderRadius: 8, cursor: 'pointer', padding: '7px 9px', display: 'flex', flexDirection: 'column', gap: 4 },
   hamburgerLine: { display: 'block', width: 18, height: 2, background: '#555', borderRadius: 2 },
-  contentArea: { padding: '28px 24px 48px', maxWidth: 820, width: '100%', margin: '0 auto', boxSizing: 'border-box' as const },
+  contentArea: { width: '100%', boxSizing: 'border-box' as const },
+  breadcrumbRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 12, width: '100%' },
+  contentInner: { maxWidth: 960, width: '100%', margin: '0 auto' },
   breadcrumb: { fontSize: 12, color: '#999', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
   pageTitle: { fontSize: 24, fontWeight: 900, color: '#0e4e73', margin: '0 0 22px', lineHeight: 1.2 },
   contentCard: { background: '#fff', borderRadius: 12, padding: '32px 36px', boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 24 },
