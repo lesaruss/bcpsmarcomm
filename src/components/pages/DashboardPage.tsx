@@ -617,7 +617,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
             <div className="dash-panel">
               <div className="dash-panel-header">
                 <h3>My Department</h3>
-                {myDept && <button className="link-btn" onClick={() => router.push(`/bcps?page=departments&dept=${myDept.slug}`, { scroll: false })}>Open profile &rarr;</button>}
+                {myDept && <button className="link-btn" onClick={() => router.push(`/?page=departments&dept=${myDept.slug}`, { scroll: false })}>Open profile &rarr;</button>}
               </div>
               <div style={{ padding: '4px 0' }}>
                 {myDept ? (
