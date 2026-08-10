@@ -136,7 +136,7 @@ function MissionControlTab({ profile, onProfileUpdate }: { profile: UserProfile 
               <span>Password</span>
               <a
                 className="btn btn-secondary"
-                href={`/bcps/set-password?next=${encodeURIComponent('/bcps?page=profile')}`}
+                href={`/set-password?next=${encodeURIComponent('/?page=profile')}`}
                 style={{ textDecoration: 'none', fontSize: '13px', padding: '6px 14px' }}
               >
                 Change Password
