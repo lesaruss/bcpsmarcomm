@@ -23,7 +23,19 @@ export default function CoursePlayerPage({ params }: Props) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  // Modules the user has manually expanded in the outline/rail accordion.
+  // The active module is always shown expanded regardless of this set.
+  const [openModules, setOpenModules] = useState<Set<string>>(new Set())
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
+
+  const toggleModule = useCallback((modId: string) => {
+    setOpenModules(prev => {
+      const next = new Set(prev)
+      if (next.has(modId)) next.delete(modId)
+      else next.add(modId)
+      return next
+    })
+  }, [])
 
   const mod = getModuleById(moduleId)
   const page = getPageById(moduleId, pageId)
@@ -290,14 +302,34 @@ export default function CoursePlayerPage({ params }: Props) {
             const modAllDone = m.pages.every((p: CoursePage) => completedPages.has(`${m.id}::${p.id}`))
             const modActive = m.id === moduleId
             const unlocked = isModuleUnlocked(idx)
+            // Accordion: only the active module is forced open. Every other
+            // unlocked module is collapsed by default and expands on click
+            // (Sean, voice note 2026-08-10).
+            const isOpen = modActive || openModules.has(m.id)
             return (
               <div key={m.id} style={{ borderLeft: `3px solid ${modActive ? '#1672A7' : modAllDone ? '#16750C' : 'transparent'}`, opacity: unlocked ? 1 : 0.45 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#777', padding: '8px 16px 3px', textTransform: 'uppercase', letterSpacing: 0.4, lineHeight: 1.4 }}>
-                  {!unlocked && <span style={{ marginRight: 4 }}>LOCKED -</span>}
-                  {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
-                  {modAllDone && <span style={{ marginLeft: 4, color: '#16750C' }}>+</span>}
-                </div>
-                {(modActive || modAllDone || isAdmin) && unlocked && m.pages.map((p: CoursePage) => {
+                {unlocked ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleModule(m.id)}
+                    aria-expanded={isOpen}
+                    style={S.moduleAccordionBtn}
+                  >
+                    <span>
+                      {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
+                      {modAllDone && <span style={{ marginLeft: 4, color: '#16750C' }}>+</span>}
+                    </span>
+                    {!modActive && (
+                      <span aria-hidden="true" style={{ ...S.moduleChevron, transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>&#9656;</span>
+                    )}
+                  </button>
+                ) : (
+                  <div style={S.moduleHeaderStatic}>
+                    <span style={{ marginRight: 4 }}>LOCKED -</span>
+                    {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
+                  </div>
+                )}
+                {isOpen && unlocked && m.pages.map((p: CoursePage) => {
                   const pk = `${m.id}::${p.id}`
                   const isActive = m.id === moduleId && p.id === pageId
                   const isDone = completedPages.has(pk)
@@ -457,7 +489,18 @@ export default function CoursePlayerPage({ params }: Props) {
             next to it (V, 2026-08-07). */}
         <div className="course-rail">
           <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #eef0f3' }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: '#0e4e73', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Your Progress</div>
+            {/* Admin Preview pill moved here, top-right of the progress
+                header, so the overview/page-number row below no longer
+                fights it for width and overflows (Sean, voice note
+                2026-08-10). */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#0e4e73', textTransform: 'uppercase', letterSpacing: 0.5 }}>Your Progress</div>
+              {isAdmin && (
+                <div style={{ fontSize: 10, fontWeight: 800, color: '#854F0B', background: '#fef3e2', borderRadius: 20, padding: '3px 10px', letterSpacing: 0.4, textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  Admin Preview
+                </div>
+              )}
+            </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
               <span style={{ fontSize: 28, fontWeight: 900, color: overallPct >= 100 ? '#16750C' : '#1672A7' }}>{overallPct}%</span>
               <span style={{ fontSize: 11, color: '#888' }}>{overallCompleted} of {overallTotal} pages</span>
@@ -469,11 +512,6 @@ export default function CoursePlayerPage({ params }: Props) {
               <Link href="/certification/departments/welcome" style={S.railOverviewLink}>Course Overview</Link>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 {saving && <span style={S.saving}>Saving...</span>}
-                {isAdmin && (
-                  <div style={{ fontSize: 10, fontWeight: 800, color: '#854F0B', background: '#fef3e2', borderRadius: 20, padding: '3px 10px', letterSpacing: 0.4, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                    Admin Preview
-                  </div>
-                )}
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#1672A7', borderRadius: 20, padding: '3px 10px', letterSpacing: 0.3, whiteSpace: 'nowrap' }}>
                   Page {pageIndex + 1} of {totalPages}
                 </div>
@@ -485,14 +523,34 @@ export default function CoursePlayerPage({ params }: Props) {
               const modAllDone = m.pages.every((p: CoursePage) => completedPages.has(`${m.id}::${p.id}`))
               const modActive = m.id === moduleId
               const unlocked = isModuleUnlocked(idx)
+              // Accordion: only the active module is forced open. Every other
+              // unlocked module is collapsed by default and expands on click
+              // (Sean, voice note 2026-08-10).
+              const isOpen = modActive || openModules.has(m.id)
               return (
                 <div key={m.id} style={{ borderLeft: `3px solid ${modActive ? '#1672A7' : modAllDone ? '#16750C' : 'transparent'}`, opacity: unlocked ? 1 : 0.45 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#777', padding: '8px 16px 3px', textTransform: 'uppercase', letterSpacing: 0.4, lineHeight: 1.4 }}>
-                    {!unlocked && <span style={{ marginRight: 4 }}>LOCKED -</span>}
-                    {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
-                    {modAllDone && <span style={{ marginLeft: 4, color: '#16750C' }}>+</span>}
-                  </div>
-                  {(modActive || modAllDone || isAdmin) && unlocked && m.pages.map((p: CoursePage) => {
+                  {unlocked ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleModule(m.id)}
+                      aria-expanded={isOpen}
+                      style={S.moduleAccordionBtn}
+                    >
+                      <span>
+                        {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
+                        {modAllDone && <span style={{ marginLeft: 4, color: '#16750C' }}>+</span>}
+                      </span>
+                      {!modActive && (
+                        <span aria-hidden="true" style={{ ...S.moduleChevron, transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>&#9656;</span>
+                      )}
+                    </button>
+                  ) : (
+                    <div style={S.moduleHeaderStatic}>
+                      <span style={{ marginRight: 4 }}>LOCKED -</span>
+                      {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
+                    </div>
+                  )}
+                  {isOpen && unlocked && m.pages.map((p: CoursePage) => {
                     const pk = `${m.id}::${p.id}`
                     const isActive = m.id === moduleId && p.id === pageId
                     const isDone = completedPages.has(pk)
@@ -523,6 +581,9 @@ const S: Record<string, React.CSSProperties> = {
   saving: { fontSize: 12, color: '#1672A7', fontStyle: 'italic' },
   outlineBtn: { background: 'none', border: '1px solid #e0e8ef', borderRadius: 8, cursor: 'pointer', padding: '7px 9px', display: 'flex', flexDirection: 'column', gap: 4 },
   hamburgerLine: { display: 'block', width: 18, height: 2, background: '#555', borderRadius: 2 },
+  moduleAccordionBtn: { display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' as const, fontFamily: 'inherit', fontSize: 10, fontWeight: 700, color: '#777', padding: '8px 16px 3px', textTransform: 'uppercase' as const, letterSpacing: 0.4, lineHeight: 1.4 },
+  moduleHeaderStatic: { fontSize: 10, fontWeight: 700, color: '#777', padding: '8px 16px 3px', textTransform: 'uppercase' as const, letterSpacing: 0.4, lineHeight: 1.4 },
+  moduleChevron: { fontSize: 10, transition: 'transform 0.15s ease', flexShrink: 0 },
   contentArea: { width: '100%', boxSizing: 'border-box' as const },
   breadcrumbRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, width: '100%' },
   breadcrumb: { fontSize: 12, color: '#999', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
