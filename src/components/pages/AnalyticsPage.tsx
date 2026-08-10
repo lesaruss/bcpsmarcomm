@@ -162,7 +162,7 @@ function PaginationBar({
   )
 }
 
-const DEPT_LINK = (urlSlug: string) => `/bcps?page=departments&dept=${urlSlug}`
+const DEPT_LINK = (urlSlug: string) => `/?page=departments&dept=${urlSlug}`
 
 // ─── Period Selector ──────────────────────────────────────────────────────────
 function PeriodSelector({
