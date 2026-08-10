@@ -365,7 +365,7 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
                   <div className="dv-division">{dept.division}</div>
                   {dept.blurb && <p className="dv-blurb">{dept.blurb}</p>}
                   <div className="dv-links">
-                    <a className="dv-profile-link" href={`/bcps/department?id=${dept.id}`}>
+                    <a className="dv-profile-link" href={`/department?id=${dept.id}`}>
                       Visit Profile
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
                     </a>
