@@ -51,7 +51,7 @@ export default function SupportAccessViewPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: 'close' }),
       })
-      router.push('/bcps?page=dashboard', { scroll: false })
+      router.push('/?page=dashboard', { scroll: false })
     } finally {
       setClosing(false)
     }
