@@ -58,7 +58,7 @@ export default function MembersPage() {
     const roleLabel = m.role === 'superadmin' ? 'Superadmin' : m.role === 'admin' ? 'Administrator' : 'Team Member'
     return (
       <div style={{ padding: 32, maxWidth: 760 }}>
-        <button onClick={() => go('/bcps?page=members')} style={{ ...linkBtn, marginBottom: 18 }}>&larr; All members</button>
+        <button onClick={() => go('/?page=members')} style={{ ...linkBtn, marginBottom: 18 }}>&larr; All members</button>
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: 28 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
             {m.photo_url
