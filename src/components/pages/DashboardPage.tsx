@@ -545,7 +545,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                   </div>
                 </div>
                 {ar.status === 'approved' ? (
-                  <a href={`/bcps/support-access/${ar.id}`} style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>View &rarr;</a>
+                  <a href={`/support-access/${ar.id}`} style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>View &rarr;</a>
                 ) : (
                   <span style={{ fontSize: 10, fontWeight: 800, color: '#C55326', textTransform: 'uppercase' }}>Pending</span>
                 )}
