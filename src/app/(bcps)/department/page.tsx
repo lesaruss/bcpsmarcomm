@@ -222,7 +222,7 @@ function DepartmentContent() {
     <div style={{textAlign:'center',padding:'80px 20px',color:'rgba(26,26,26,0.55)'}}>
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{margin:'0 auto 12px',display:'block',opacity:0.4}}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <h3 style={{fontSize:15,fontWeight:700,color:'#1a1a1a',marginBottom:6}}>Something went wrong</h3>
-      <p style={{fontSize:13}}>{error || 'Department not found.'} <a href="/bcps?page=departments" style={{color:'#1672A7'}}>Return to departments</a></p>
+      <p style={{fontSize:13}}>{error || 'Department not found.'} <a href="/?page=departments" style={{color:'#1672A7'}}>Return to departments</a></p>
     </div>
   )
 
