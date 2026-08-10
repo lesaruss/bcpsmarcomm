@@ -65,7 +65,7 @@ function HomeInner() {
     window.scrollTo(0, 0)
     // Keep URL in sync so BCPSShell Topbar title stays current
     if (!breadcrumb) {
-      router.push(`/bcps?page=${page}`, { scroll: false })
+      router.push(`/?page=${page}`, { scroll: false })
     }
   }, [effectiveRole, router])
 
