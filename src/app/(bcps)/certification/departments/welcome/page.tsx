@@ -32,12 +32,12 @@ export default function WelcomePage() {
 
   const totalGroups = Math.ceil(MODULES.length / GROUP_SIZE)
   const visibleMods = MODULES.slice(group * GROUP_SIZE, (group + 1) * GROUP_SIZE)
-  const firstPageHref = `/bcps/certification/departments/course/${MODULES[0].id}/${MODULES[0].pages[0].id}`
+  const firstPageHref = `/certification/departments/course/${MODULES[0].id}/${MODULES[0].pages[0].id}`
 
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/bcps/login'); return }
+      if (!user) { router.push('/login'); return }
       const [userRes, progressRes] = await Promise.all([
         supabase.from('wcm_cert_users').select('full_name,department,is_admin').eq('user_id', user.id).maybeSingle(),
         supabase.from('wcm_cert_progress').select('module_id,page_id,completed').eq('user_id', user.id).eq('course_id', COURSE_ID),
@@ -155,7 +155,7 @@ export default function WelcomePage() {
                     {allDone ? (
                       <span style={{ fontSize: 12, color: '#16750C', fontWeight: 700 }}>Complete</span>
                     ) : unlocked ? (
-                      <a href={`/bcps/certification/departments/course/${mod.id}/${mod.pages[0].id}`}
+                      <a href={`/certification/departments/course/${mod.id}/${mod.pages[0].id}`}
                         style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: '#1672A7', padding: '8px 18px', borderRadius: 7, textDecoration: 'none' }}>
                         {completedSet.size > 0 && mod.pages.some((p: CoursePage) => completedSet.has(`${mod.id}::${p.id}`)) ? 'Continue' : 'Start'}
                       </a>

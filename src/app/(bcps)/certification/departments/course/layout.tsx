@@ -21,7 +21,7 @@ export default async function CourseLayout({ children }: { children: React.React
     }
   )
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/bcps/login')
+  if (!user) redirect('/login')
   return <>{children}</>
 }
 

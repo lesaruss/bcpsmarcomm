@@ -26,12 +26,8 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // ── Legacy WCM Pilot Program URLs (renamed to WCM Department Registration
-  // 2026-07-28). Permanent redirect so old links/bookmarks still land, both
-  // the bare public path and the internal /bcps-prefixed one. ─────────────
-  if (
-    pathname === '/wcm-pilot' || pathname.startsWith('/wcm-pilot/') ||
-    pathname === '/bcps/wcm-pilot' || pathname.startsWith('/bcps/wcm-pilot/')
-  ) {
+  // 2026-07-28). Permanent redirect so old links/bookmarks still land. ─────
+  if (pathname === '/wcm-pilot' || pathname.startsWith('/wcm-pilot/')) {
     const url = request.nextUrl.clone()
     url.pathname = pathname.replace('/wcm-pilot', '/wcm-registration')
     return NextResponse.redirect(url, 308)
@@ -44,80 +40,25 @@ export async function middleware(request: NextRequest) {
     const email = (user?.email || '').toLowerCase()
     if (!user || !SENSITIVE_DOC_ALLOWED.has(email)) {
       const url = request.nextUrl.clone()
-      url.pathname = '/bcps'
+      url.pathname = '/'
       url.search = '?page=documents&denied=1'
       return NextResponse.redirect(url)
     }
     return NextResponse.next()
   }
 
-  // ── Standalone BCPS property (bcpsmarcomm.com) ───────────────────────────
-  if (
-    !(pathname === '/bcps' || pathname.startsWith('/bcps/')) &&
-    !pathname.startsWith('/briefs/') &&
-    !pathname.startsWith('/embeds/') &&
-    !pathname.startsWith('/auth/') &&
-    !pathname.startsWith('/_next/') &&
-    !pathname.startsWith('/api/')
-  ) {
-    const isLoginPath =
-      pathname === '/login' ||
-      pathname.startsWith('/login') ||
-      pathname.startsWith('/set-password')
-    // Department WCM Roster signup: reachable at the clean top-level URL
-    // bcpsmarcomm.com/wcm-roster-signup (rewritten to /bcps/wcm-roster-signup
-    // below) so Directors never see the internal "/bcps" segment. No account
-    // required - this is one of the only genuinely public pages on this site.
-    const isWcmRosterSignup = pathname.startsWith('/wcm-roster-signup')
-    // WCM Department Registration welcome page (renamed from WCM Pilot
-    // Program 2026-07-28): same reasoning as isWcmRosterSignup above -
-    // reachable at bcpsmarcomm.com/wcm-registration with no "/bcps" segment
-    // and no account required, shared with brand new WCMs.
-    const isWcmRegistration = pathname.startsWith('/wcm-registration')
-    const isStaticFile = /\.(html|pptx|pdf|png|jpg|svg|css|js|webp|mp3|mp4)(\?|$)/.test(pathname)
-
-    // Root-level static documents (e.g. /bcps-implementation-plan-2026-2027.pdf)
-    // are public assets served straight from /public - do not rewrite them into
-    // the /bcps app namespace (no matching file lives there) or gate them behind auth.
-    if (isStaticFile) {
-      return NextResponse.next()
-    }
-
-    const rewriteUrl = request.nextUrl.clone()
-    rewriteUrl.pathname = '/bcps' + (pathname === '/' ? '' : pathname)
-
-    let response = NextResponse.rewrite(rewriteUrl)
-
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() { return request.cookies.getAll() },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-            response = NextResponse.rewrite(rewriteUrl)
-            cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options)
-            )
-          },
-        },
-      }
-    )
-
-    const { data: { user } } = await supabase.auth.getUser()
-    response.headers.set('x-pathname', rewriteUrl.pathname)
-
-    if (!user && !isLoginPath && !isWcmRosterSignup && !isWcmRegistration && !isStaticFile) {
-      const loginUrl = request.nextUrl.clone()
-      loginUrl.pathname = '/login'
-      return NextResponse.redirect(loginUrl)
-    }
-
-    return response
+  // Root-level static documents (e.g. /bcps-implementation-plan-2026-2027.pdf)
+  // are public assets served straight from /public - no auth needed.
+  const isStaticFile = /\.(html|pptx|pdf|png|jpg|svg|css|js|webp|mp3|mp4)(\?|$)/.test(pathname)
+  if (isStaticFile) {
+    return NextResponse.next()
   }
 
-  // ── Standard auth middleware for /bcps/* paths ───────────────────────────
+  // ── Standard auth middleware. bcpsmarcomm.com is one standalone property -
+  // every page lives at its own clean top-level path. The old dual-path
+  // rewrite into an internal "/bcps" namespace (which made bcpsmarcomm.com/bcps/*
+  // resolve alongside the clean URL) is removed 2026-08-10 per Sean: no
+  // /bcps/ segment should exist in any URL on this site, ever. ─────────────
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -144,29 +85,27 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/') ||
     pathname.startsWith('/auth') ||
     pathname === '/login' ||
-    pathname === '/bcps/login' ||
-    pathname.startsWith('/bcps/login') ||
-    pathname.startsWith('/bcps/set-password') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/set-password') ||
     // Department WCM Roster signup: the one page on this site Directors
     // reach with no account. Real access control lives here, not just the
     // BCPSShell wrapper - without this line an anonymous visitor gets
     // redirected to /login before the page ever renders.
-    pathname.startsWith('/bcps/wcm-roster-signup') ||
+    pathname.startsWith('/wcm-roster-signup') ||
     // WCM Department Registration welcome page (renamed from WCM Pilot
     // Program 2026-07-28): shared with brand new WCMs who have no account
     // yet. Same reasoning as wcm-roster-signup above - must stay public or
     // anonymous visitors get bounced to /login before seeing it.
-    pathname.startsWith('/bcps/wcm-registration') ||
+    pathname.startsWith('/wcm-registration') ||
     pathname.startsWith('/briefs/') ||
-    pathname.startsWith('/embeds/') ||
-    (pathname.startsWith('/bcps/') && /\.(html|pptx|pdf|png|jpg|svg|css|js|webp|mp3|mp4)(\?|$)/.test(pathname))
+    pathname.startsWith('/embeds/')
 
   if (isPublic) return supabaseResponse
 
   if (!user) {
     // WCM Certification is not a separate account system - per V,
-    // 2026-07-28: one BCPS Marcomm login gates every /bcps/* module,
-    // certification included. No bespoke cert login/register exists.
+    // 2026-07-28: one BCPS Marcomm login gates every page, certification
+    // included. No bespoke cert login/register exists.
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     return NextResponse.redirect(loginUrl)

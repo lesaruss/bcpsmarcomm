@@ -4,10 +4,10 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
 function getSafeNext(): string {
-  if (typeof window === 'undefined') return '/bcps'
+  if (typeof window === 'undefined') return '/'
   const next = new URLSearchParams(window.location.search).get('next')
   if (next && next.startsWith('/') && !next.startsWith('//')) return next
-  return '/bcps'
+  return '/'
 }
 
 export default function BCPSLoginPage() {
@@ -49,7 +49,7 @@ export default function BCPSLoginPage() {
     }
 
     const mustChange = data.user?.user_metadata?.must_change_password
-    window.location.href = mustChange ? '/bcps/set-password' : getSafeNext()
+    window.location.href = mustChange ? '/set-password' : getSafeNext()
   }
 
   const handleForgotPassword = async (e: React.FormEvent) => {

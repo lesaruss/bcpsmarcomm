@@ -136,7 +136,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   }, [canManageMessages])
 
   const handleBellClick = useCallback(() => {
-    router.push('/bcps?page=dashboard', { scroll: false })
+    router.push('/?page=dashboard', { scroll: false })
     setTimeout(() => {
       document.getElementById('dashboard-messages-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 250)
@@ -144,8 +144,8 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
 
   // Active page: cert routes and department route use pathname; others read ?page=
   const activePage = useMemo<PageId>(() => {
-    if (pathname.startsWith('/bcps/certification')) return 'bcps-certification'
-    if (pathname.startsWith('/bcps/department')) return 'department'
+    if (pathname.startsWith('/certification')) return 'bcps-certification'
+    if (pathname.startsWith('/department')) return 'department'
     return (searchParams.get('page') as PageId) || 'dashboard'
   }, [pathname, searchParams])
 
@@ -154,24 +154,24 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   // Engine-driven page enforcement: if the user lands on a page they may not reach, send to dashboard.
   useEffect(() => {
     if (!allowedPages || viewAs) return
-    const pathRouted = pathname.startsWith('/bcps/certification') || pathname.startsWith('/bcps/department')
+    const pathRouted = pathname.startsWith('/certification') || pathname.startsWith('/department')
     // Hardcoded admin-tier pages (SUPERADMIN_PAGES) are gated by role alone and
     // don't depend on the acl_objects registry, since that registry has shown
     // eventual-consistency lag right after a new page is registered (also true
     // for the pre-existing Minibase page, which isn't in acl_objects either).
     const roleGated = role === 'superadmin' && SUPERADMIN_PAGES.has(activePage)
     if (!pathRouted && activePage !== 'dashboard' && !allowedPages.includes(activePage) && !roleGated) {
-      router.replace('/bcps?page=dashboard', { scroll: false })
+      router.replace('/?page=dashboard', { scroll: false })
     }
   }, [allowedPages, activePage, pathname, viewAs, router])
 
   // Called by Sidebar for all pages; route special cases here
   const handleNavigate = useCallback((page: PageId) => {
     if (page === 'bcps-certification') {
-      router.push('/bcps/certification/departments')
+      router.push('/certification/departments')
       return
     }
-    router.push(`/bcps?page=${page}`, { scroll: false })
+    router.push(`/?page=${page}`, { scroll: false })
   }, [router])
 
   const handleViewAs = useCallback((member: TeamMember | null) => {
@@ -180,7 +180,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
     if (member) {
       const current = (searchParams.get('page') as PageId) || 'dashboard'
       if (SUPERADMIN_PAGES.has(current)) {
-        router.push('/bcps?page=dashboard', { scroll: false })
+        router.push('/?page=dashboard', { scroll: false })
       }
     }
   }, [searchParams, router])
@@ -190,7 +190,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
     // One BCPS Marcomm login for every module, certification included
     // (per V, 2026-07-28) - no more bespoke cert-only sign-out target.
-    window.location.href = '/bcps/login'
+    window.location.href = '/login'
   }
 
   return (

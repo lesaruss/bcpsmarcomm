@@ -42,7 +42,7 @@ export default function CoursePlayerPage({ params }: Props) {
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/bcps/login'); return }
+      if (!user) { router.push('/login'); return }
       setUserId(user.id)
       await supabase.from('wcm_cert_users').upsert(
         { user_id: user.id, email: user.email!, full_name: user.user_metadata?.full_name || null, is_admin: false },
@@ -92,7 +92,7 @@ export default function CoursePlayerPage({ params }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId }),
     }).catch(console.error)
-    router.push('/bcps')
+    router.push('/')
   }, [userId, moduleId, pageId])
 
   const markComplete = useCallback(async () => {
@@ -114,15 +114,15 @@ export default function CoursePlayerPage({ params }: Props) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: userId, course_id: COURSE_ID }),
           }).catch(console.error)
-          router.push('/bcps/certification/departments/complete')
+          router.push('/certification/departments/complete')
           return
         }
       }
     }
     if (next) {
-      router.push(`/bcps/certification/departments/course/${next.moduleId}/${next.pageId}`)
+      router.push(`/certification/departments/course/${next.moduleId}/${next.pageId}`)
     } else {
-      router.push('/bcps/certification/departments/complete')
+      router.push('/certification/departments/complete')
     }
   }, [userId, completedPages, pageKey, moduleId, pageId, next])
 
@@ -144,7 +144,7 @@ export default function CoursePlayerPage({ params }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, course_id: COURSE_ID }),
       }).catch(console.error)
-      router.push('/bcps/certification/departments/complete')
+      router.push('/certification/departments/complete')
     }
   }, [userId, completedPages, pageKey, moduleId, pageId])
 
@@ -191,7 +191,7 @@ export default function CoursePlayerPage({ params }: Props) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: userId, course_id: COURSE_ID }),
           }).catch(console.error)
-          router.push('/bcps/certification/departments/complete')
+          router.push('/certification/departments/complete')
           return
         }
       }
@@ -202,7 +202,7 @@ export default function CoursePlayerPage({ params }: Props) {
       // (WCM Hot Lab feedback, Leon Clinch, 2026-07-30). Only auto-advance
       // when there is truly nothing left to continue to.
       if (!next) {
-        router.push('/bcps/certification/departments/complete')
+        router.push('/certification/departments/complete')
       }
     }
   }
@@ -226,7 +226,7 @@ export default function CoursePlayerPage({ params }: Props) {
   }
 
   if (loading) return <div style={S.loading}>Loading...</div>
-  if (!mod || !page) return <div style={S.loading}>Page not found. <Link href="/bcps/certification/departments/welcome">Return to overview.</Link></div>
+  if (!mod || !page) return <div style={S.loading}>Page not found. <Link href="/certification/departments/welcome">Return to overview.</Link></div>
 
   const isCurrentComplete = completedPages.has(pageKey)
   const canGoNext = next ? canNavigateTo(next.moduleId, next.pageId) || isCurrentComplete : false
@@ -283,7 +283,7 @@ export default function CoursePlayerPage({ params }: Props) {
           <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#888', lineHeight: 1, padding: '2px 6px' }}>x</button>
         </div>
         <div style={{ padding: '8px 12px 6px' }}>
-          <Link href="/bcps/certification/departments/welcome" onClick={() => setMenuOpen(false)} style={{ fontSize: 12, color: '#1672A7', fontWeight: 700, textDecoration: 'none', display: 'block', padding: '6px 4px' }}>Course Overview</Link>
+          <Link href="/certification/departments/welcome" onClick={() => setMenuOpen(false)} style={{ fontSize: 12, color: '#1672A7', fontWeight: 700, textDecoration: 'none', display: 'block', padding: '6px 4px' }}>Course Overview</Link>
         </div>
         <div style={{ borderTop: '1px solid #eef0f3', flex: 1, overflowY: 'auto' }}>
           {MODULES.map((m: CourseModule, idx: number) => {
@@ -303,7 +303,7 @@ export default function CoursePlayerPage({ params }: Props) {
                   const isDone = completedPages.has(pk)
                   const accessible = canNavigateTo(m.id, p.id)
                   return accessible ? (
-                    <Link key={p.id} href={`/bcps/certification/departments/course/${m.id}/${p.id}`}
+                    <Link key={p.id} href={`/certification/departments/course/${m.id}/${p.id}`}
                       onClick={() => setMenuOpen(false)}
                       style={{ display: 'block', fontSize: 12, padding: '5px 16px', textDecoration: 'none', borderRadius: 4, margin: '1px 4px', background: isActive ? '#e8f4fd' : 'transparent', color: isDone ? '#16750C' : isActive ? '#1672A7' : '#444', fontWeight: isActive ? 700 : 400, lineHeight: 1.4 }}>
                       {isDone ? '+ ' : '  '}{p.title}
@@ -410,7 +410,7 @@ export default function CoursePlayerPage({ params }: Props) {
                   {quizPassed && next && (
                     <div style={{ marginTop: 4, marginBottom: 8 }}>
                       <Link
-                        href={`/bcps/certification/departments/course/${next.moduleId}/${next.pageId}`}
+                        href={`/certification/departments/course/${next.moduleId}/${next.pageId}`}
                         style={{ ...S.completeBtn, display: 'inline-block', textDecoration: 'none', textAlign: 'center' as const }}
                       >
                         Continue to {getModuleById(next.moduleId)?.id === 'final' ? 'Final Assignments' : `Module ${getModuleById(next.moduleId)?.number}`} &rarr;
@@ -440,14 +440,14 @@ export default function CoursePlayerPage({ params }: Props) {
 
         <div style={S.navFooter}>
           {prev ? (
-            <Link href={`/bcps/certification/departments/course/${prev.moduleId}/${prev.pageId}`} style={S.navBtn}>Previous</Link>
+            <Link href={`/certification/departments/course/${prev.moduleId}/${prev.pageId}`} style={S.navBtn}>Previous</Link>
           ) : <span />}
           {next && (isCurrentComplete || canGoNext) ? (
-            <Link href={`/bcps/certification/departments/course/${next.moduleId}/${next.pageId}`} style={{ ...S.navBtn, ...S.navBtnPrimary }}>Continue</Link>
+            <Link href={`/certification/departments/course/${next.moduleId}/${next.pageId}`} style={{ ...S.navBtn, ...S.navBtnPrimary }}>Continue</Link>
           ) : next ? (
             <span style={{ ...S.navBtn, ...S.navBtnDisabled }}>Complete this page to continue</span>
           ) : isCurrentComplete ? (
-            <Link href="/bcps/certification/departments/complete" style={{ ...S.navBtn, ...S.navBtnPrimary }}>Finish Course</Link>
+            <Link href="/certification/departments/complete" style={{ ...S.navBtn, ...S.navBtnPrimary }}>Finish Course</Link>
           ) : null}
         </div>
         </div>
@@ -466,7 +466,7 @@ export default function CoursePlayerPage({ params }: Props) {
               <div style={{ height: '100%', width: `${overallPct}%`, background: overallPct >= 100 ? '#16750C' : '#1672A7', borderRadius: 8, transition: 'width 0.3s ease' }} />
             </div>
             <div style={S.railOverviewRow}>
-              <Link href="/bcps/certification/departments/welcome" style={S.railOverviewLink}>Course Overview</Link>
+              <Link href="/certification/departments/welcome" style={S.railOverviewLink}>Course Overview</Link>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 {saving && <span style={S.saving}>Saving...</span>}
                 {isAdmin && (
@@ -498,7 +498,7 @@ export default function CoursePlayerPage({ params }: Props) {
                     const isDone = completedPages.has(pk)
                     const accessible = canNavigateTo(m.id, p.id)
                     return accessible ? (
-                      <Link key={p.id} href={`/bcps/certification/departments/course/${m.id}/${p.id}`}
+                      <Link key={p.id} href={`/certification/departments/course/${m.id}/${p.id}`}
                         style={{ display: 'block', fontSize: 12, padding: '5px 16px', textDecoration: 'none', borderRadius: 4, margin: '1px 4px', background: isActive ? '#e8f4fd' : 'transparent', color: isDone ? '#16750C' : isActive ? '#1672A7' : '#444', fontWeight: isActive ? 700 : 400, lineHeight: 1.4 }}>
                         {isDone ? '+ ' : '  '}{p.title}
                       </Link>

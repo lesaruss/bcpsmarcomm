@@ -12,7 +12,7 @@ export default async function DepartmentsRoot() {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/bcps/login')
+  if (!user) redirect('/login')
 
   const { data: progress } = await supabase
     .from('wcm_cert_progress')
@@ -22,7 +22,7 @@ export default async function DepartmentsRoot() {
 
   const rows = progress || []
   if (rows.length === 0) {
-    redirect('/bcps/certification/departments/welcome')
+    redirect('/certification/departments/welcome')
   }
 
   const allKeys = MODULES.flatMap((mod) => mod.pages.map((page) => `${mod.id}::${page.id}`))
@@ -34,7 +34,7 @@ export default async function DepartmentsRoot() {
   )
 
   if (allKeys.every((k) => completedPages.has(k))) {
-    redirect('/bcps/certification/departments/complete')
+    redirect('/certification/departments/complete')
   }
 
   // Resume at the most recently visited page, not just the first incomplete
@@ -54,17 +54,17 @@ export default async function DepartmentsRoot() {
     )[0]
 
   if (lastVisited) {
-    redirect(`/bcps/certification/departments/course/${lastVisited.module_id}/${lastVisited.page_id}`)
+    redirect(`/certification/departments/course/${lastVisited.module_id}/${lastVisited.page_id}`)
   }
 
   // Fallback for legacy rows with no last_visited_at: first incomplete page.
   for (const mod of MODULES) {
     for (const page of mod.pages) {
       if (!completedPages.has(`${mod.id}::${page.id}`)) {
-        redirect(`/bcps/certification/departments/course/${mod.id}/${page.id}`)
+        redirect(`/certification/departments/course/${mod.id}/${page.id}`)
       }
     }
   }
 
-  redirect('/bcps/certification/departments/complete')
+  redirect('/certification/departments/complete')
 }

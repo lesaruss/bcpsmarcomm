@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase'
 
 function safeNext(raw: string | null): string {
   if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw
-  return '/bcps'
+  return '/'
 }
 
 export default function SetPasswordPage() {
@@ -53,7 +53,7 @@ export default function SetPasswordPage() {
     const timeout = setTimeout(() => {
       if (!ready) {
         supabase.auth.getUser().then(({ data }) => {
-          if (!data.user) window.location.href = '/bcps/login'
+          if (!data.user) window.location.href = '/login'
         })
       }
     }, 3000)

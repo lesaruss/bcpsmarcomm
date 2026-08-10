@@ -13,7 +13,7 @@ export default async function CompletePage() {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/bcps/login')
+  if (!user) redirect('/login')
 
   const [certRes, userRes] = await Promise.all([
     supabase.from('wcm_certifications').select('issued_at,expires_at').eq('user_id', user.id).eq('course_id', COURSE_ID).maybeSingle(),
@@ -22,7 +22,7 @@ export default async function CompletePage() {
 
   const cert = certRes.data
   const certUser = userRes.data
-  if (!cert) redirect('/bcps/certification/departments')
+  if (!cert) redirect('/certification/departments')
 
   const issuedDate = new Date(cert.issued_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const expiresDate = new Date(cert.expires_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -73,7 +73,7 @@ export default async function CompletePage() {
             To receive your certification badge, submit evidence of your active WCM role as described in the final module. The Office of Communications will process your submission and issue your badge within five business days.
           </p>
 
-          <Link href="/bcps/certification/departments" style={S.dashBtn}>Return to Dashboard</Link>
+          <Link href="/certification/departments" style={S.dashBtn}>Return to Dashboard</Link>
         </div>
       </main>
     </div>

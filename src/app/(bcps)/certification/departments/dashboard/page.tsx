@@ -26,7 +26,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/bcps/login'); return }
+      if (!user) { router.push('/login'); return }
       const [userRes, progressRes] = await Promise.all([
         supabase.from('wcm_cert_users').select('full_name,department,is_admin').eq('user_id', user.id).maybeSingle(),
         supabase.from('wcm_cert_progress').select('module_id,page_id,completed,last_visited_at').eq('user_id', user.id).eq('course_id', COURSE_ID),
@@ -60,16 +60,16 @@ export default function DashboardPage() {
       .filter((p) => allKeys.has(`${p.module_id}::${p.page_id}`) && p.last_visited_at)
       .sort((a, b) => new Date(b.last_visited_at as string).getTime() - new Date(a.last_visited_at as string).getTime())[0]
     if (lastVisited) {
-      return `/bcps/certification/departments/course/${lastVisited.module_id}/${lastVisited.page_id}`
+      return `/certification/departments/course/${lastVisited.module_id}/${lastVisited.page_id}`
     }
     for (const mod of MODULES) {
       for (const page of mod.pages) {
         if (!completedSet.has(`${mod.id}::${page.id}`)) {
-          return `/bcps/certification/departments/course/${mod.id}/${page.id}`
+          return `/certification/departments/course/${mod.id}/${page.id}`
         }
       }
     }
-    return '/bcps/certification/departments/complete'
+    return '/certification/departments/complete'
   }
 
   function isModuleUnlocked(modIndex: number): boolean {
@@ -85,7 +85,7 @@ export default function DashboardPage() {
       <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
       {certUser?.is_admin && (
         <div style={{ padding: '8px 32px', background: '#fffbe6', borderBottom: '1px solid #ffe58f', fontSize: 12, fontWeight: 700 }}>
-          <a href="/bcps/certification/departments/admin" style={{ color: '#1672A7', textDecoration: 'none' }}>Admin View</a>
+          <a href="/certification/departments/admin" style={{ color: '#1672A7', textDecoration: 'none' }}>Admin View</a>
         </div>
       )}
 
@@ -126,7 +126,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div style={{ marginBottom: 28 }}>
-            <a href="/bcps/certification/departments/complete" style={{ display: 'inline-block', padding: '13px 30px', background: '#16750C', color: '#fff', borderRadius: 8, fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
+            <a href="/certification/departments/complete" style={{ display: 'inline-block', padding: '13px 30px', background: '#16750C', color: '#fff', borderRadius: 8, fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
               View Your Certificate
             </a>
           </div>
@@ -167,7 +167,7 @@ export default function DashboardPage() {
                     ) : someModDone ? (
                       <span style={{ fontSize: 12, color: '#1672A7', fontWeight: 700 }}>{modPct}%</span>
                     ) : unlocked ? (
-                      <a href={`/bcps/certification/departments/course/${mod.id}/${mod.pages[0].id}`}
+                      <a href={`/certification/departments/course/${mod.id}/${mod.pages[0].id}`}
                         style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: '#1672A7', padding: '6px 14px', borderRadius: 6, textDecoration: 'none' }}>
                         Start
                       </a>

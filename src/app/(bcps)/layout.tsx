@@ -6,10 +6,10 @@ import BCPSShell from '@/components/BCPSShell'
 export default async function BCPSLayout({ children }: { children: React.ReactNode }) {
   const headersList = headers()
   const pathname = headersList.get('x-pathname') || ''
-  const isWcmPortal     = pathname.startsWith('/bcps/wcm-portal')
-  const isWcmRosterForm = pathname.startsWith('/bcps/wcm-roster-signup')
-  const isWcmRegistration = pathname.startsWith('/bcps/wcm-registration')
-  const isLoginPage    = pathname.startsWith('/bcps/login') || pathname.startsWith('/bcps/set-password')
+  const isWcmPortal     = pathname.startsWith('/wcm-portal')
+  const isWcmRosterForm = pathname.startsWith('/wcm-roster-signup')
+  const isWcmRegistration = pathname.startsWith('/wcm-registration')
+  const isLoginPage    = pathname.startsWith('/login') || pathname.startsWith('/set-password')
 
   // WCM Certification is gated the same as every other /bcps/* module now
   // (per V, 2026-07-28) - no more bespoke cert-only auth bypass here.
@@ -31,7 +31,7 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
       }
     )
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) redirect('/bcps/login')
+    if (!user) redirect('/login')
   }
 
   // Login/set-password: render without BCPSShell wrapper

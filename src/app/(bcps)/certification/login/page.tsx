@@ -7,5 +7,5 @@ import { redirect } from 'next/navigation'
 // request ever reaches this page, so anyone landing here is already
 // authenticated. Send them straight into the smart-resume course root.
 export default function CertLoginRedirect() {
-  redirect('/bcps/certification/departments')
+  redirect('/certification/departments')
 }

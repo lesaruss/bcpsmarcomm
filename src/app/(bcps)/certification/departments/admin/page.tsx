@@ -13,10 +13,10 @@ export default async function AdminDashboard() {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/bcps/login')
+  if (!user) redirect('/login')
 
   const { data: adminCheck } = await supabase.from('wcm_cert_users').select('is_admin').eq('user_id', user.id).single()
-  if (!adminCheck?.is_admin) redirect('/bcps/certification/departments')
+  if (!adminCheck?.is_admin) redirect('/certification/departments')
 
   const [usersRes, progressRes, certsRes] = await Promise.all([
     supabase.from('wcm_cert_users').select('user_id,email,full_name,department,created_at').eq('is_admin', false).order('created_at', { ascending: false }),
@@ -55,8 +55,8 @@ export default async function AdminDashboard() {
           <span style={S.headerTitle}>Admin - WCM Certification Dashboard</span>
           <span style={S.headerSub}>Department - Broward County Public Schools</span>
         </div>
-        <Link href="/bcps/certification/departments/course/mod1/welcome" style={{ ...S.backBtn, marginLeft: 'auto' }}>Preview Course Content</Link>
-        <Link href="/bcps/certification/departments" style={S.backBtn}>My Progress</Link>
+        <Link href="/certification/departments/course/mod1/welcome" style={{ ...S.backBtn, marginLeft: 'auto' }}>Preview Course Content</Link>
+        <Link href="/certification/departments" style={S.backBtn}>My Progress</Link>
       </header>
 
       <main style={S.main}>

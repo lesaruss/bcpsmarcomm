@@ -21,28 +21,28 @@ export default function CertificationShell({ children }: { children: React.React
 
   const handleNavigate = (page: PageId) => {
     const routes: Partial<Record<PageId, string>> = {
-      dashboard: '/bcps',
-      departments: '/bcps/departments.html',
-      queue: '/bcps',
-      notes: '/bcps',
-      profile: '/bcps',
-      analytics: '/bcps',
-      superadmin: '/bcps',
-      marcomm: '/bcps',
-      minutes: '/bcps',
-      wcm: '/bcps',
-      'bcps-google-governance': '/bcps/google-governance-plan.html',
-      'bcps-assignments': '/bcps/bcps-web-team-assignments.html',
-      'bcps-certification': '/bcps/certification/departments',
+      dashboard: '/',
+      departments: '/departments.html',
+      queue: '/',
+      notes: '/',
+      profile: '/',
+      analytics: '/',
+      superadmin: '/',
+      marcomm: '/',
+      minutes: '/',
+      wcm: '/',
+      'bcps-google-governance': '/google-governance-plan.html',
+      'bcps-assignments': '/bcps-web-team-assignments.html',
+      'bcps-certification': '/certification/departments',
     }
-    window.location.href = routes[page] ?? '/bcps'
+    window.location.href = routes[page] ?? '/'
   }
 
   const handleSignOut = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
     // One BCPS Marcomm login for every module (per V, 2026-07-28).
-    window.location.href = '/bcps/login'
+    window.location.href = '/login'
   }
 
   return (

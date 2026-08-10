@@ -208,7 +208,7 @@ export default function WCMPortalPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>{userEmail}</span>
           <button
-            onClick={async () => { await supabase.auth.signOut(); window.location.href = '/bcps/login' }}
+            onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login' }}
             style={{ padding: '6px 14px', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: 6, background: 'transparent', cursor: 'pointer', fontSize: 13 }}
           >
             Sign Out
