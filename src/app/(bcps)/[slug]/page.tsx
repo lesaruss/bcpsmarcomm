@@ -1,6 +1,6 @@
-// src/app/bcps/[slug]/page.tsx
+// src/app/(bcps)/[slug]/page.tsx
 // SSR page for a specific BCPS brief by slug.
-// Route: k12unlocked.com/bcps/[slug]
+// Route: bcpsmarcomm.com/[slug]
 
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
