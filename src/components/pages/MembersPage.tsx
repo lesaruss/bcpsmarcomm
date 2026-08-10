@@ -53,7 +53,7 @@ export default function MembersPage() {
   // ── Public profile view ──────────────────────────────────────────────
   if (memberId) {
     const m = members.find(x => x.user_id === memberId)
-    if (!m) return <div style={{ padding: 32 }}>Member not found. <button onClick={() => go('/bcps?page=members')} style={linkBtn}>Back to Members</button></div>
+    if (!m) return <div style={{ padding: 32 }}>Member not found. <button onClick={() => go('/?page=members')} style={linkBtn}>Back to Members</button></div>
     const isMe = m.user_id === meId
     const roleLabel = m.role === 'superadmin' ? 'Superadmin' : m.role === 'admin' ? 'Administrator' : 'Team Member'
     return (
