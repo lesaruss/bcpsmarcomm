@@ -58,7 +58,7 @@ export default function BCPSLoginPage() {
     setError('')
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/bcps/set-password`,
+      redirectTo: `${window.location.origin}/set-password`,
     })
 
     if (error) {
