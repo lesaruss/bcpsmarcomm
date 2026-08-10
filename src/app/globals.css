@@ -595,6 +595,20 @@ body {
   border: 2px solid #fff;
 }
 
+/* Topbar mobile reflow (Sean, voice note 2026-08-10): the topbar has no
+   flex-wrap, so title+hamburger and search+notif+signout are forced onto
+   one line and get squeezed/overflow at narrow widths - part of why
+   resizing down didn't "look like proper mobile view". At mobile widths,
+   let the topbar wrap and push the search input onto its own row below
+   title/notif/signout, so nothing above it is cramped. Desktop layout
+   (single row, search inline) is untouched above this breakpoint. */
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; row-gap: 10px; }
+  .topbar-right { flex-wrap: wrap; row-gap: 8px; justify-content: flex-end; }
+  .topbar-search { order: 10; flex: 1 1 100%; }
+  .search-input { width: 100%; box-sizing: border-box; }
+}
+
 /* ── SHARED UTILITIES ── */
 .btn {
   border: none; border-radius: 8px; padding: 8px 16px;

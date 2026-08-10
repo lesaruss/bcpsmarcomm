@@ -37,6 +37,15 @@ export default function CoursePlayerPage({ params }: Props) {
     })
   }, [])
 
+  // Escape closes the mobile course-outline modal (Sean, voice note
+  // 2026-08-10: retire the side drawer, replace with a dismissible modal).
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menuOpen])
+
   const mod = getModuleById(moduleId)
   const page = getPageById(moduleId, pageId)
   const next = getNextPage(moduleId, pageId)
@@ -237,6 +246,68 @@ export default function CoursePlayerPage({ params }: Props) {
     return prevMod.pages.every((p: CoursePage) => completedPages.has(`${prevMod.id}::${p.id}`))
   }
 
+  // Shared module-list accordion markup, used by BOTH the persistent
+  // desktop rail and the mobile modal, so the two presentations can never
+  // drift apart (Sean, voice note 2026-08-10: "one menu", not two divergent
+  // copies). `closeOnNav` closes the mobile modal when a page link is
+  // clicked; the desktop rail doesn't need that since it has no open/close
+  // state.
+  function renderModuleList(closeOnNav: boolean) {
+    return (
+      <>
+        {MODULES.map((m: CourseModule, idx: number) => {
+          const modAllDone = m.pages.every((p: CoursePage) => completedPages.has(`${m.id}::${p.id}`))
+          const modActive = m.id === moduleId
+          const unlocked = isModuleUnlocked(idx)
+          // Accordion: only the active module is forced open. Every other
+          // unlocked module is collapsed by default and expands on click
+          // (Sean, voice note 2026-08-10).
+          const isOpen = modActive || openModules.has(m.id)
+          return (
+            <div key={m.id} style={{ borderLeft: `3px solid ${modActive ? '#1672A7' : modAllDone ? '#16750C' : 'transparent'}`, opacity: unlocked ? 1 : 0.45 }}>
+              {unlocked ? (
+                <button
+                  type="button"
+                  onClick={() => toggleModule(m.id)}
+                  aria-expanded={isOpen}
+                  style={S.moduleAccordionBtn}
+                >
+                  <span>
+                    {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
+                    {modAllDone && <span style={{ marginLeft: 4, color: '#16750C' }}>+</span>}
+                  </span>
+                  {!modActive && (
+                    <span aria-hidden="true" style={{ ...S.moduleChevron, transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>&#9656;</span>
+                  )}
+                </button>
+              ) : (
+                <div style={S.moduleHeaderStatic}>
+                  <span style={{ marginRight: 4 }}>LOCKED -</span>
+                  {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
+                </div>
+              )}
+              {isOpen && unlocked && m.pages.map((p: CoursePage) => {
+                const pk = `${m.id}::${p.id}`
+                const isActive = m.id === moduleId && p.id === pageId
+                const isDone = completedPages.has(pk)
+                const accessible = canNavigateTo(m.id, p.id)
+                return accessible ? (
+                  <Link key={p.id} href={`/certification/departments/course/${m.id}/${p.id}`}
+                    onClick={closeOnNav ? () => setMenuOpen(false) : undefined}
+                    style={{ display: 'block', fontSize: 12, padding: '5px 16px', textDecoration: 'none', borderRadius: 4, margin: '1px 4px', background: isActive ? '#e8f4fd' : 'transparent', color: isDone ? '#16750C' : isActive ? '#1672A7' : '#444', fontWeight: isActive ? 700 : 400, lineHeight: 1.4 }}>
+                    {isDone ? '+ ' : '  '}{p.title}
+                  </Link>
+                ) : (
+                  <span key={p.id} style={{ display: 'block', fontSize: 12, padding: '5px 16px', color: '#bbb', lineHeight: 1.4, margin: '1px 4px' }}>{p.title}</span>
+                )
+              })}
+            </div>
+          )
+        })}
+      </>
+    )
+  }
+
   if (loading) return <div style={S.loading}>Loading...</div>
   if (!mod || !page) return <div style={S.loading}>Page not found. <Link href="/certification/departments/welcome">Return to overview.</Link></div>
 
@@ -263,7 +334,14 @@ export default function CoursePlayerPage({ params }: Props) {
         .cert-content td { padding: 9px 14px; border-bottom: 1px solid #e8eef4; }
         .cert-content tr:nth-child(even) td { background: #f8fafb; }
         .cert-content a { color: #1672A7; }
-        .course-shell { padding: 28px 24px 48px; box-sizing: border-box; }
+        /* Mobile overflow guards: admin-authored page.content is raw HTML
+           (tables, images) that can carry fixed pixel widths from whatever
+           it was pasted from. Without these, a single wide table or image
+           forces horizontal scroll on the whole page at mobile widths
+           (Sean, voice note 2026-08-10). */
+        .cert-content img { max-width: 100%; height: auto; }
+        .cert-content, .cert-content td, .cert-content th { overflow-wrap: break-word; word-break: break-word; }
+        .course-shell { padding: 28px 24px 48px; box-sizing: border-box; max-width: 100%; }
         .course-card-row { display: flex; align-items: stretch; gap: 24px; }
         .course-content-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
         .course-rail { width: 280px; flex-shrink: 0; background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); overflow-y: auto; }
@@ -272,91 +350,78 @@ export default function CoursePlayerPage({ params }: Props) {
           .course-shell { padding: 20px 16px 40px; }
           .course-rail { display: none; }
           .course-outline-toggle { display: flex !important; }
+          /* contentCard's inline padding (32px 36px) is too wide at phone
+             widths and was one of the things making the page not "look
+             like proper mobile view" when resized down - it eats most of
+             the 375-428px viewport width before any text renders. The
+             !important is required because inline style attributes
+             otherwise always beat a stylesheet rule of any specificity. */
+          .course-content-card { padding: 20px 18px !important; }
+          /* Mark Complete / Save & Exit sit side by side with nowrap text;
+             at phone widths their combined width can exceed the card, which
+             was pushing the page wider than the viewport. Wrapping keeps
+             both buttons fully visible without any horizontal scroll. */
+          .course-actions-row { flex-wrap: wrap; row-gap: 10px; }
         }
       `}</style>
 
-      {/* Course outline drawer overlay */}
+      {/* Mobile course outline modal - retires the old side drawer (Sean,
+          voice note 2026-08-10: "one menu", fixed rail on desktop, pop-up
+          modal on mobile). Only ever opened by the mobile-only hamburger
+          (.course-outline-toggle, hidden above the 960px breakpoint), so it
+          never appears on desktop. Backdrop click, the close button, and
+          Escape (effect above) all dismiss it. `top` and `zIndex` are both
+          kept clear of the site topbar + BCPS Pulse bar (BCPSShell.tsx /
+          PulseWidget.tsx, ~68px + up to ~90px tall once the mobile search
+          row from globals.css is included): the top offset leaves that
+          space empty, and zIndex 35 sits below the topbar's sticky zIndex
+          40 (globals.css) as a second guard so a height miscalculation
+          still can't paint this over the blue bar. */}
       {menuOpen && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 40 }}
+          role="presentation"
           onClick={() => setMenuOpen(false)}
-        />
+          style={{
+            position: 'fixed', top: 130, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.45)', zIndex: 35,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Course outline"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 12, width: '100%', maxWidth: 360,
+              maxHeight: 'calc(100vh - 160px)', overflowY: 'auto',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.28)',
+              display: 'flex', flexDirection: 'column',
+            }}
+          >
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #eef0f3', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#0e4e73' }}>Course Outline</span>
+              <button type="button" onClick={() => setMenuOpen(false)} aria-label="Close course outline" style={S.modalCloseBtn}>x</button>
+            </div>
+            <div style={{ padding: '8px 12px 6px', flexShrink: 0 }}>
+              <Link href="/certification/departments/welcome" onClick={() => setMenuOpen(false)} style={{ fontSize: 12, color: '#1672A7', fontWeight: 700, textDecoration: 'none', display: 'block', padding: '6px 4px' }}>Course Overview</Link>
+            </div>
+            <div style={{ borderTop: '1px solid #eef0f3', overflowY: 'auto' }}>
+              {renderModuleList(true)}
+            </div>
+          </div>
+        </div>
       )}
-
-      {/* Course outline drawer */}
-      <div style={{
-        position: 'fixed', top: 0, right: 0, bottom: 0, width: 300,
-        background: '#fff', boxShadow: '-4px 0 20px rgba(0,0,0,0.15)',
-        zIndex: 50, transform: menuOpen ? 'translateX(0)' : 'translateX(100%)',
-        transition: 'transform 0.25s ease', overflowY: 'auto', display: 'flex', flexDirection: 'column'
-      }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #eef0f3', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: '#0e4e73' }}>Course Outline</span>
-          <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#888', lineHeight: 1, padding: '2px 6px' }}>x</button>
-        </div>
-        <div style={{ padding: '8px 12px 6px' }}>
-          <Link href="/certification/departments/welcome" onClick={() => setMenuOpen(false)} style={{ fontSize: 12, color: '#1672A7', fontWeight: 700, textDecoration: 'none', display: 'block', padding: '6px 4px' }}>Course Overview</Link>
-        </div>
-        <div style={{ borderTop: '1px solid #eef0f3', flex: 1, overflowY: 'auto' }}>
-          {MODULES.map((m: CourseModule, idx: number) => {
-            const modAllDone = m.pages.every((p: CoursePage) => completedPages.has(`${m.id}::${p.id}`))
-            const modActive = m.id === moduleId
-            const unlocked = isModuleUnlocked(idx)
-            // Accordion: only the active module is forced open. Every other
-            // unlocked module is collapsed by default and expands on click
-            // (Sean, voice note 2026-08-10).
-            const isOpen = modActive || openModules.has(m.id)
-            return (
-              <div key={m.id} style={{ borderLeft: `3px solid ${modActive ? '#1672A7' : modAllDone ? '#16750C' : 'transparent'}`, opacity: unlocked ? 1 : 0.45 }}>
-                {unlocked ? (
-                  <button
-                    type="button"
-                    onClick={() => toggleModule(m.id)}
-                    aria-expanded={isOpen}
-                    style={S.moduleAccordionBtn}
-                  >
-                    <span>
-                      {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
-                      {modAllDone && <span style={{ marginLeft: 4, color: '#16750C' }}>+</span>}
-                    </span>
-                    {!modActive && (
-                      <span aria-hidden="true" style={{ ...S.moduleChevron, transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>&#9656;</span>
-                    )}
-                  </button>
-                ) : (
-                  <div style={S.moduleHeaderStatic}>
-                    <span style={{ marginRight: 4 }}>LOCKED -</span>
-                    {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
-                  </div>
-                )}
-                {isOpen && unlocked && m.pages.map((p: CoursePage) => {
-                  const pk = `${m.id}::${p.id}`
-                  const isActive = m.id === moduleId && p.id === pageId
-                  const isDone = completedPages.has(pk)
-                  const accessible = canNavigateTo(m.id, p.id)
-                  return accessible ? (
-                    <Link key={p.id} href={`/certification/departments/course/${m.id}/${p.id}`}
-                      onClick={() => setMenuOpen(false)}
-                      style={{ display: 'block', fontSize: 12, padding: '5px 16px', textDecoration: 'none', borderRadius: 4, margin: '1px 4px', background: isActive ? '#e8f4fd' : 'transparent', color: isDone ? '#16750C' : isActive ? '#1672A7' : '#444', fontWeight: isActive ? 700 : 400, lineHeight: 1.4 }}>
-                      {isDone ? '+ ' : '  '}{p.title}
-                    </Link>
-                  ) : (
-                    <span key={p.id} style={{ display: 'block', fontSize: 12, padding: '5px 16px', color: '#bbb', lineHeight: 1.4, margin: '1px 4px' }}>{p.title}</span>
-                  )
-                })}
-              </div>
-            )
-          })}
-        </div>
-      </div>
 
       {/* Persistent desktop progress/nav rail + main content, per Sean
           (Hot Lab 2026-07-28): WCMs need a where-am-I indicator, not just a
-          hidden drawer. Mobile keeps the existing hamburger + slide-in
-          drawer above (course-outline-toggle / course-rail CSS classes
-          swap which one is visible at the 960px breakpoint). Rail sits to
-          the right of the content on desktop, styled as a rounded card to
-          match the content card (V, 2026-08-07). */}
+          hidden drawer. Mobile now uses the hamburger + centered modal
+          above instead of a slide-in side drawer (course-outline-toggle /
+          course-rail CSS classes swap which one is visible at the 960px
+          breakpoint; Sean, voice note 2026-08-10). Rail sits to the right
+          of the content on desktop, styled as a rounded card to match the
+          content card (V, 2026-08-07). */}
       <div className="course-shell">
       {/* Page content */}
       <div style={S.contentArea} className="course-main">
@@ -366,10 +431,13 @@ export default function CoursePlayerPage({ params }: Props) {
             as the persistent nav (V, 2026-08-07). The hamburger button
             stays here rather than moving into the rail, because .course-rail
             is display:none on mobile -- if the toggle lived inside it there
-            would be no way left to open the mobile drawer. */}
+            would be no way left to open the mobile modal. The hamburger
+            itself only renders at mobile widths via the .course-outline-
+            toggle CSS class above (display:none by default, display:flex
+            below the 960px breakpoint) - it is fully hidden on desktop. */}
         <div style={S.breadcrumbRow}>
           <div style={S.breadcrumb}>{mod.id === 'final' ? 'Final Assignments' : `Module ${mod.number}: ${mod.title}`}</div>
-          <button onClick={() => setMenuOpen(true)} className="course-outline-toggle" style={S.outlineBtn} aria-label="Open course outline">
+          <button type="button" onClick={() => setMenuOpen(true)} className="course-outline-toggle" style={S.outlineBtn} aria-label="Open course outline">
             <span style={S.hamburgerLine} />
             <span style={S.hamburgerLine} />
             <span style={S.hamburgerLine} />
@@ -383,7 +451,7 @@ export default function CoursePlayerPage({ params }: Props) {
         <div className="course-content-col">
         <h1 style={S.pageTitle}>{page.title}</h1>
 
-        <div style={S.contentCard}>
+        <div className="course-content-card" style={S.contentCard}>
           {isContentPage && (
             <>
               {page.content && <div className="cert-content" style={S.content} dangerouslySetInnerHTML={{ __html: page.content }} />}
@@ -393,13 +461,13 @@ export default function CoursePlayerPage({ params }: Props) {
                 </div>
               )}
               {!isCurrentComplete && (
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 28 }}>
+                <div className="course-actions-row" style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 28 }}>
                   <button style={S.completeBtn} onClick={markCompleteOnly}>Mark Complete</button>
                   <button style={S.saveExitBtn} onClick={saveAndExit}>Save &amp; Exit</button>
                 </div>
               )}
               {isCurrentComplete && (
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 20 }}>
+                <div className="course-actions-row" style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 20 }}>
                   <div style={S.completedNote}>+ Completed</div>
                   <button style={S.saveExitBtn} onClick={saveAndExit}>Save &amp; Exit</button>
                 </div>
@@ -519,54 +587,7 @@ export default function CoursePlayerPage({ params }: Props) {
             </div>
           </div>
           <div style={{ paddingBottom: 20 }}>
-            {MODULES.map((m: CourseModule, idx: number) => {
-              const modAllDone = m.pages.every((p: CoursePage) => completedPages.has(`${m.id}::${p.id}`))
-              const modActive = m.id === moduleId
-              const unlocked = isModuleUnlocked(idx)
-              // Accordion: only the active module is forced open. Every other
-              // unlocked module is collapsed by default and expands on click
-              // (Sean, voice note 2026-08-10).
-              const isOpen = modActive || openModules.has(m.id)
-              return (
-                <div key={m.id} style={{ borderLeft: `3px solid ${modActive ? '#1672A7' : modAllDone ? '#16750C' : 'transparent'}`, opacity: unlocked ? 1 : 0.45 }}>
-                  {unlocked ? (
-                    <button
-                      type="button"
-                      onClick={() => toggleModule(m.id)}
-                      aria-expanded={isOpen}
-                      style={S.moduleAccordionBtn}
-                    >
-                      <span>
-                        {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
-                        {modAllDone && <span style={{ marginLeft: 4, color: '#16750C' }}>+</span>}
-                      </span>
-                      {!modActive && (
-                        <span aria-hidden="true" style={{ ...S.moduleChevron, transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>&#9656;</span>
-                      )}
-                    </button>
-                  ) : (
-                    <div style={S.moduleHeaderStatic}>
-                      <span style={{ marginRight: 4 }}>LOCKED -</span>
-                      {m.id === 'final' ? 'FINAL' : `MOD ${m.number}`} - {m.title}
-                    </div>
-                  )}
-                  {isOpen && unlocked && m.pages.map((p: CoursePage) => {
-                    const pk = `${m.id}::${p.id}`
-                    const isActive = m.id === moduleId && p.id === pageId
-                    const isDone = completedPages.has(pk)
-                    const accessible = canNavigateTo(m.id, p.id)
-                    return accessible ? (
-                      <Link key={p.id} href={`/certification/departments/course/${m.id}/${p.id}`}
-                        style={{ display: 'block', fontSize: 12, padding: '5px 16px', textDecoration: 'none', borderRadius: 4, margin: '1px 4px', background: isActive ? '#e8f4fd' : 'transparent', color: isDone ? '#16750C' : isActive ? '#1672A7' : '#444', fontWeight: isActive ? 700 : 400, lineHeight: 1.4 }}>
-                        {isDone ? '+ ' : '  '}{p.title}
-                      </Link>
-                    ) : (
-                      <span key={p.id} style={{ display: 'block', fontSize: 12, padding: '5px 16px', color: '#bbb', lineHeight: 1.4, margin: '1px 4px' }}>{p.title}</span>
-                    )
-                  })}
-                </div>
-              )
-            })}
+            {renderModuleList(false)}
           </div>
         </div>
         </div>
@@ -579,14 +600,15 @@ export default function CoursePlayerPage({ params }: Props) {
 const S: Record<string, React.CSSProperties> = {
   loading: { padding: 40, fontFamily: "'Montserrat', sans-serif", fontSize: 15 },
   saving: { fontSize: 12, color: '#1672A7', fontStyle: 'italic' },
-  outlineBtn: { background: 'none', border: '1px solid #e0e8ef', borderRadius: 8, cursor: 'pointer', padding: '7px 9px', display: 'flex', flexDirection: 'column', gap: 4 },
+  outlineBtn: { background: 'none', border: '1px solid #e0e8ef', borderRadius: 8, cursor: 'pointer', padding: '7px 9px', display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 },
+  modalCloseBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#888', lineHeight: 1, padding: '2px 6px' },
   hamburgerLine: { display: 'block', width: 18, height: 2, background: '#555', borderRadius: 2 },
   moduleAccordionBtn: { display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' as const, fontFamily: 'inherit', fontSize: 10, fontWeight: 700, color: '#777', padding: '8px 16px 3px', textTransform: 'uppercase' as const, letterSpacing: 0.4, lineHeight: 1.4 },
   moduleHeaderStatic: { fontSize: 10, fontWeight: 700, color: '#777', padding: '8px 16px 3px', textTransform: 'uppercase' as const, letterSpacing: 0.4, lineHeight: 1.4 },
   moduleChevron: { fontSize: 10, transition: 'transform 0.15s ease', flexShrink: 0 },
   contentArea: { width: '100%', boxSizing: 'border-box' as const },
   breadcrumbRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, width: '100%' },
-  breadcrumb: { fontSize: 12, color: '#999', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  breadcrumb: { fontSize: 12, color: '#999', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.5, flex: 1, minWidth: 0, overflowWrap: 'break-word' as const },
   railOverviewRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 14 },
   railOverviewLink: { fontSize: 12, color: '#1672A7', fontWeight: 700, textDecoration: 'none' as const, flexShrink: 0 },
   pageTitle: { fontSize: 24, fontWeight: 900, color: '#0e4e73', margin: '0 0 22px', lineHeight: 1.2 },
