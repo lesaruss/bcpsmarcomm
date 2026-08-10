@@ -597,7 +597,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                 <div className="avatar avatar-sm" style={{ background: m.color }}>{m.initials}</div>
                 <div className="member-info">
                   <strong>
-                    <button onClick={() => router.push(`/bcps?page=members&member=${m.user_id}`, { scroll: false })}
+                    <button onClick={() => router.push(`/?page=members&member=${m.user_id}`, { scroll: false })}
                       style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontWeight: 700, color: 'var(--primary)' }}>
                       {m.name}
                     </button>
