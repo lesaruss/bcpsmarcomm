@@ -515,7 +515,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
               </a>
             )}
             {!certProgress.allDone && certProgress.hasAnyProgress && (
-              <a href="/bcps/certification/departments" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              <a href="/certification/departments" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                 Continue Certification
               </a>
             )}
