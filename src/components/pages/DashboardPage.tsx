@@ -490,7 +490,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
         <div className="dash-panel" style={{ marginBottom: 24 }}>
           <div className="dash-panel-header">
             <h3>WCM Certification</h3>
-            <a href="/bcps/certification/departments" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>
+            <a href="/certification/departments" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>
               {certProgress.allDone ? 'View certificate →' : 'Continue →'}
             </a>
           </div>
