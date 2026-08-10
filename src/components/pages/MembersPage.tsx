@@ -101,7 +101,7 @@ export default function MembersPage() {
               <div style={{ marginTop: 22 }}>
                 <div style={sub}>Department</div>
                 {m.department ? (
-                  <button onClick={() => go(`/bcps?page=departments&dept=${m.department!.slug}`)} style={{ ...card, cursor: 'pointer', textAlign: 'left' }}>
+                  <button onClick={() => go(`/?page=departments&dept=${m.department!.slug}`)} style={{ ...card, cursor: 'pointer', textAlign: 'left' }}>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>{m.department.name}</div>
                     <div style={{ fontSize: 12, color: '#6b7280' }}>{m.department.division || ''}</div>
                     <div style={{ fontSize: 12, color: '#0e4e73', marginTop: 6, fontWeight: 700 }}>View Department Profile &rarr;</div>
