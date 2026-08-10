@@ -55,7 +55,7 @@ function HomeInner() {
   useEffect(() => {
     if (viewAs && SUPERADMIN_PAGES.has(nav.page)) {
       setNav({ page: 'dashboard' })
-      router.push('/bcps?page=dashboard', { scroll: false })
+      router.push('/?page=dashboard', { scroll: false })
     }
   }, [viewAs, nav.page, router])
 
