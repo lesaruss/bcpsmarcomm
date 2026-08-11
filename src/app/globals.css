@@ -595,17 +595,27 @@ body {
   border: 2px solid #fff;
 }
 
-/* Topbar mobile reflow (Sean, voice note 2026-08-10): the topbar has no
-   flex-wrap, so title+hamburger and search+notif+signout are forced onto
-   one line and get squeezed/overflow at narrow widths - part of why
-   resizing down didn't "look like proper mobile view". At mobile widths,
-   let the topbar wrap and push the search input onto its own row below
-   title/notif/signout, so nothing above it is cramped. Desktop layout
+/* Topbar mobile reflow (Sean, voice note 2026-08-10; updated 2026-08-11 -
+   notifications + sign-out must stay on the SAME row as the hamburger/
+   title, not wrap away with the search field. Fix: pull the search input
+   out of the flex flow with position:absolute, anchored to .topbar
+   (already position:sticky, which is a valid containing block for
+   absolute descendants) and inset left:0/right:0 so it spans edge-to-edge
+   within the topbar's own padding - full width, not the old flex-basis
+   trick. .topbar gains padding-bottom to reserve room for that row.
+   With search removed from flex flow, topbar-left (hamburger/title) and
+   topbar-right (notif + sign-out) are the only two flex children left,
+   so they naturally stay on one row (no wrap needed). Desktop layout
    (single row, search inline) is untouched above this breakpoint. */
 @media (max-width: 640px) {
-  .topbar { flex-wrap: wrap; row-gap: 10px; }
-  .topbar-right { flex-wrap: wrap; row-gap: 8px; justify-content: flex-end; }
-  .topbar-search { order: 10; flex: 1 1 100%; }
+  .topbar { flex-wrap: nowrap; padding-bottom: 56px; }
+  .topbar-right { flex-wrap: nowrap; }
+  .topbar-search {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 14px;
+  }
   .search-input { width: 100%; box-sizing: border-box; }
 }
 
