@@ -79,6 +79,20 @@ export default async function BcpsPublicBriefPage({ params }: Props) {
 
   if (error || !data) notFound()
 
+  // Interactive briefs (inline <script>) can't render via dangerouslySetInnerHTML -
+  // React never executes injected script tags, so the page would load but its
+  // data/logic would silently never run (seen 2026-08-13 on the OOC Web Team
+  // Assignments brief). Serve those as a real document through brief-raw instead.
+  if (data.content.includes('<script')) {
+    return (
+      <iframe
+        src={`/api/bcps/brief-raw/${slug}`}
+        title={data.title ?? slug}
+        style={{ display: 'block', border: 'none', width: '100%', height: '100vh' }}
+      />
+    )
+  }
+
   return (
     <div
       style={{ minHeight: '100vh', background: '#fff' }}
