@@ -298,25 +298,12 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Viewing-as banner */}
-        {viewAs && (
-          <div style={{
-            background: 'rgba(255,255,0,0.12)', borderBottom: '1px solid rgba(255,255,0,0.2)',
-            padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px',
-          }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F4C436" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#F4C436', flex: 1 }}>Viewing as {viewAs.name}</span>
-            <button
-              onClick={() => selectViewAs(null)}
-              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '10px', fontWeight: 700, cursor: 'pointer', padding: 0 }}
-            >
-              Exit
-            </button>
-          </div>
-        )}
+        {/* Redundant "Viewing as" banner removed 2026-08-13 per V: standardized on
+            GeekFon Society's gold-standard "View as" pattern - a single control
+            living in the nav drawer, not a banner. The footer user-switcher below
+            already surfaces the active simulation (avatar + "Viewing as user"
+            subtitle) and lets SuperAdmin reset by re-selecting their own entry
+            (checkmark included), so this second indicator was duplicate UI. */}
 
         {/* Nav */}
         <nav className="sidebar-nav">
