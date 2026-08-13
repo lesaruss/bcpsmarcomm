@@ -263,31 +263,12 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          {/* Diagnostic view-as banner */}
-          {viewAs && (
-            <div style={{
-              background: '#fffbeb', borderBottom: '1px solid #fde68a',
-              padding: '8px 28px', display: 'flex', alignItems: 'center', gap: '10px',
-            }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#92400e' }}>
-                Diagnostic view: seeing the platform as <strong>{viewAs.name}</strong> ({viewAs.roleLabel})
-              </span>
-              <button
-                onClick={() => handleViewAs(null)}
-                style={{
-                  marginLeft: 'auto', background: 'none', border: '1px solid #d97706',
-                  borderRadius: '6px', color: '#92400e', fontSize: '11px', fontWeight: 700,
-                  padding: '3px 10px', cursor: 'pointer',
-                }}
-              >
-                Exit diagnostic
-              </button>
-            </div>
-          )}
+          {/* View-as diagnostic banner removed 2026-08-13 per V: standardizing "View
+              as" across the LESARUSS Universe on GeekFon Society's gold-standard
+              pattern (nav-drawer only, never visible in the page body). The
+              Sidebar's own footer switcher (view/onViewAs prop) already shows the
+              active simulation and offers a reset entry, so this banner was a
+              redundant always-visible duplicate. See Sidebar.tsx. */}
 
           {/* Pulse strip - superadmin only */}
           <PulseWidget role={role} />
