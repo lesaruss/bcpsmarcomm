@@ -20,22 +20,15 @@ export default function CertificationShell({ children }: { children: React.React
   }, [])
 
   const handleNavigate = (page: PageId) => {
+    // Static-file destinations only; every app page falls through to the SPA
+    // router below. (departments used to point at /departments.html, which
+    // does not exist - clicking Departments from a certification page 404'd.)
     const routes: Partial<Record<PageId, string>> = {
-      dashboard: '/',
-      departments: '/departments.html',
-      queue: '/',
-      notes: '/',
-      profile: '/',
-      analytics: '/',
-      superadmin: '/',
-      marcomm: '/',
-      minutes: '/',
-      wcm: '/',
       'bcps-google-governance': '/google-governance-plan.html',
       'bcps-assignments': '/bcps-web-team-assignments.html',
       'bcps-certification': '/certification/departments',
     }
-    window.location.href = routes[page] ?? '/'
+    window.location.href = routes[page] ?? `/?page=${page}`
   }
 
   const handleSignOut = async () => {
