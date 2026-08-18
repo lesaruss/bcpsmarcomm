@@ -233,6 +233,12 @@ export default function BCPSLoginPage() {
                 Access is limited to the BCPS district web team.<br />
                 Contact Sean Russell if you need access.
               </p>
+              <p style={{ textAlign: 'center', marginTop: '10px', fontSize: '12px', lineHeight: '1.6' }}>
+                Have not registered as a WCM yet?{' '}
+                <a href='/briefs/bcps-wcm-registration-2026-27' style={{ color: '#0e4e73', fontWeight: 700 }}>
+                  Start registration here
+                </a>.
+              </p>
             </>
           )}
         </div>
