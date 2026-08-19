@@ -4,6 +4,10 @@
     "src/app/api/bcps/ada-scan/route.ts": {
       "memory": 3009,
       "maxDuration": 240
+    },
+    "src/app/api/bcps/school-scan/route.ts": {
+      "memory": 3009,
+      "maxDuration": 240
     }
   }
 }
