@@ -9,6 +9,10 @@ type Member = {
   user_id: string; name: string; email: string; role: string; initials: string; color: string
   title: string | null; bio: string | null; photo_url: string | null
   last_sign_in_at: string | null; groups: string[]; department: Dept | null
+  // True only when the department's own director completed this registration
+  // themselves (matched by email at registration time, see wcm-pilot-register).
+  // Never set true by an admin manually reassigning a department below.
+  department_confirmed: boolean
 }
 type DeptOption = { slug: string; name: string; division: string | null }
 
@@ -80,7 +84,9 @@ export default function MembersPage() {
     const prevMembers = members
     const next = slug ? allDepartments.find(d => d.slug === slug) : null
     setMembers(ms => ms.map(m => m.user_id === userId
-      ? { ...m, department: next ? { slug: next.slug, name: next.name, division: next.division, director_name: null } : null }
+      // Manual admin reassignment always resets department_confirmed - see
+      // admin-set-department, which is the only other place this touches.
+      ? { ...m, department: next ? { slug: next.slug, name: next.name, division: next.division, director_name: null } : null, department_confirmed: false }
       : m))
     setEditingDeptFor(null)
     setSavingDeptFor(userId)
@@ -151,7 +157,7 @@ export default function MembersPage() {
                 <div style={sub}>Department</div>
                 {m.department ? (
                   <button onClick={() => go(`/?page=departments&dept=${m.department!.slug}`)} style={{ ...card, cursor: 'pointer', textAlign: 'left' }}>
-                    <div style={{ fontWeight: 800, fontSize: 14 }}>{m.department.name}</div>
+                    <div style={{ fontWeight: 800, fontSize: 14 }}>{m.department.name}{m.department_confirmed && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 800, color: '#1a7f37' }}>✓ Confirmed</span>}</div>
                     <div style={{ fontSize: 12, color: '#6b7280' }}>{m.department.division || ''}</div>
                     <div style={{ fontSize: 12, color: '#0e4e73', marginTop: 6, fontWeight: 700 }}>View Department Profile &rarr;</div>
                   </button>
@@ -227,6 +233,14 @@ export default function MembersPage() {
     return <span aria-hidden="true" style={{ marginLeft: 4 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
   }
 
+  // Shown next to a member's department only when the department's own
+  // director completed registration themselves (see wcm-pilot-register) -
+  // this is the one signal that the director finished their process, so it
+  // never appears just because someone (including an admin) set a department.
+  const confirmedBadge = (m: Member) => m.department_confirmed ? (
+    <span className="mp-confirmed" title="Confirmed by the department director">✓ Confirmed</span>
+  ) : null
+
   const deptSelect = (m: Member) => (
     <select
       className="mp-dept-select"
@@ -268,6 +282,7 @@ export default function MembersPage() {
                   <b>{m.department?.name || 'Unassigned'}</b>
                 </button>
               : <b>{m.department?.name || 'Unassigned'}</b>}
+          {' '}{confirmedBadge(m)}
         </div>
         {m.groups.length > 0 && <div className="mp-tags">{m.groups.map(g => <span key={g} className="mp-tag">{g}</span>)}</div>}
         <div className="mp-row">Last login: <b>{fmtLogin(m.last_sign_in_at)}</b></div>
@@ -306,6 +321,7 @@ export default function MembersPage() {
           : canEditDept
             ? <button type="button" className="mp-editable" onClick={() => setEditingDeptFor(m.user_id)}>{m.department?.name || 'Unassigned'}</button>
             : (m.department?.name || 'Unassigned')}
+        {' '}{confirmedBadge(m)}
       </td>
       <td>{m.department?.division ? <span className="mp-pill">{m.department.division}</span> : '—'}</td>
       <td>{m.groups.length ? m.groups.join(', ') : '—'}</td>
@@ -326,11 +342,14 @@ export default function MembersPage() {
           </div>
           {m.department?.division && <span className="mp-pill">{m.department.division}</span>}
         </div>
-        {cardRow('Department', editingDeptFor === m.user_id
-          ? deptSelect(m)
-          : canEditDept
-            ? <button type="button" className="mp-editable" onClick={() => setEditingDeptFor(m.user_id)}>{m.department?.name || 'Unassigned'}</button>
-            : (m.department?.name || 'Unassigned'))}
+        {cardRow('Department', <>
+          {editingDeptFor === m.user_id
+            ? deptSelect(m)
+            : canEditDept
+              ? <button type="button" className="mp-editable" onClick={() => setEditingDeptFor(m.user_id)}>{m.department?.name || 'Unassigned'}</button>
+              : (m.department?.name || 'Unassigned')}
+          {' '}{confirmedBadge(m)}
+        </>)}
         {cardRow('Groups', m.groups.length ? m.groups.join(', ') : '—')}
         {cardRow('Last login', fmtLogin(m.last_sign_in_at))}
       </div>
@@ -404,6 +423,8 @@ export default function MembersPage() {
         .mp-t-name{font-weight:700;font-size:13px;color:#1a1a1a}
         .mp-t-email{font-size:12px;color:#6b7280}
         .mp-pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border-radius:100px;background:#e8f1f8;color:#0e4e73;white-space:nowrap}
+
+        .mp-confirmed{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.04em;color:#1a7f37;background:#e6f6ea;padding:2px 7px;border-radius:100px;white-space:nowrap;vertical-align:middle}
 
         .mp-editable{background:none;border:none;padding:0;margin:0;font:inherit;color:#0e4e73;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
         .mp-editable:hover{color:#1672A7}
