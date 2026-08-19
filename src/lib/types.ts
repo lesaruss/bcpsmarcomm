@@ -26,6 +26,7 @@ export type PageId =
   | 'find-it-fast'
   | 'widgets'
   | 'requests'
+  | 'ada-scanner'
 
 export interface BreadcrumbItem {
   label: string
