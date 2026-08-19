@@ -49,9 +49,18 @@ export async function POST(req: NextRequest) {
       if (!dept) return NextResponse.json({ error: 'Unknown department' }, { status: 400 })
     }
 
+    // department_confirmed is reserved for the director's own registration
+    // (see wcm-pilot-register) - it's the one signal that the director
+    // themselves completed the process. Any manual admin reassignment here
+    // is, by definition, not that, so it always resets the flag to false
+    // rather than carrying forward whatever it was.
     const { error } = await supabase
       .from('acl_member_roles')
-      .update({ department_slug: department_slug || null })
+      .update({
+        department_slug: department_slug || null,
+        department_confirmed: false,
+        department_confirmed_at: null,
+      })
       .eq('user_id', user_id)
       .eq('brand', 'bcps')
 
