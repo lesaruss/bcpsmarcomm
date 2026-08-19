@@ -19,7 +19,7 @@ import QueuePage from '@/components/pages/QueuePage'
 import BCPSGovernancePage from '@/components/pages/BCPSGovernancePage'
 import AssignmentsPage from '@/components/pages/AssignmentsPage'
 import CertificationPage from '@/components/pages/CertificationPage'
-import RecordsPage from '@/components/pages/RecordsPage'
+import EmployeeRecordsPage from '@/components/pages/EmployeeRecordsPage'
 import GraphicsPage from '@/components/pages/GraphicsPage'
 import ReportsPage from '@/components/pages/ReportsPage'
 import MembersPage from '@/components/pages/MembersPage'
@@ -31,9 +31,10 @@ import FindItFastPage from '@/components/pages/FindItFastPage'
 import WidgetsPage from '@/components/pages/WidgetsPage'
 import RequestsPage from '@/components/pages/RequestsPage'
 import AdaScannerPage from '@/components/pages/AdaScannerPage'
+import SchoolsAdminPage from '@/components/pages/SchoolsAdminPage'
 import type { UserRole } from '@/components/Sidebar'
 
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'schools'])
 
 function HomeInner() {
   const router = useRouter()
@@ -92,7 +93,7 @@ function HomeInner() {
       {nav.page === 'queue'                  && <QueuePage onNavigate={navigate} onShowToast={showToast} viewAsUserId={viewAs?.id} />}
       {nav.page === 'bcps-google-governance' && <BCPSGovernancePage />}
       {nav.page === 'bcps-assignments'       && <AssignmentsPage />}
-      {nav.page === 'employee-records'         && <RecordsPage />}
+      {nav.page === 'employee-records'         && <EmployeeRecordsPage />}
       {nav.page === 'reports'                  && effectiveRole === 'superadmin' && <ReportsPage />}
       {nav.page === 'bcps-certification'       && <CertificationPage />}
       {nav.page === 'members'                  && <MembersPage />}
@@ -104,6 +105,7 @@ function HomeInner() {
       {nav.page === 'widgets'                 && <WidgetsPage />}
       {nav.page === 'requests'                && <RequestsPage />}
       {nav.page === 'ada-scanner'              && <AdaScannerPage />}
+      {nav.page === 'schools'                  && <SchoolsAdminPage />}
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>
