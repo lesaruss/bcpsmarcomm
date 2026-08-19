@@ -16,6 +16,22 @@ type Member = {
 }
 type DeptOption = { slug: string; name: string; division: string | null }
 
+type AdaScan = {
+  id: string; page_url: string; ada_score: number | null; wave_score: number | null; status: string
+  ada_violations_critical: number; ada_violations_serious: number; ada_violations_moderate: number; ada_violations_minor: number
+  audited_at: string
+}
+type CertRow = { id: string; course_id: string; issued_at: string; expires_at: string | null }
+type CertProgress = { course_id: string; pages_completed: number; pages_total: number; pct: number }
+type QuizAttempt = { course_id: string; module_id: string; score: number; passed: boolean; attempted_at: string }
+type Dossier = {
+  scans: AdaScan[]
+  certifications: CertRow[]
+  cert_progress: CertProgress[]
+  recent_quizzes: QuizAttempt[]
+  pages_accepted: { total_fixed: number; total_verified: number; rounds: unknown[] }
+}
+
 type SortCol = 'name' | 'department' | 'division' | 'groups' | 'login' | 'unsorted'
 type SortDir = 'asc' | 'desc'
 type ViewMode = 'tiles' | 'table'
@@ -47,6 +63,10 @@ export default function MembersPage() {
   const [editingDeptFor, setEditingDeptFor] = useState<string | null>(null)
   const [savingDeptFor, setSavingDeptFor] = useState<string | null>(null)
 
+  // ── Dossier (per-member ADA scans / certifications / pages accepted) ──
+  const [dossier, setDossier] = useState<Dossier | null>(null)
+  const [dossierLoading, setDossierLoading] = useState(false)
+
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
 
   const load = useCallback(async () => {
@@ -59,6 +79,24 @@ export default function MembersPage() {
   }, [token])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (!memberId) { setDossier(null); return }
+    let cancelled = false
+    setDossierLoading(true)
+    setDossier(null)
+    ;(async () => {
+      const t = await token()
+      if (!t) { setDossierLoading(false); return }
+      const r = await fetch(`/api/bcps/member-dossier?user_id=${memberId}`, { headers: { Authorization: `Bearer ${t}` } })
+      const j = await r.json()
+      if (!cancelled) {
+        if (r.ok) setDossier(j)
+        setDossierLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [memberId, token])
 
   useEffect(() => {
     supabase.from('bcps_departments').select('slug,name,division').order('name')
@@ -166,6 +204,83 @@ export default function MembersPage() {
             </>
           )}
         </div>
+
+        {/* ── Dossier: ADA scans, certifications, pages accepted ── */}
+        <div style={{ marginTop: 22 }}>
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: 24 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 900, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.03em' }}>Dossier</h2>
+            <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 18px' }}>Scan activity, certifications, and audit progress for {isMe ? 'you' : m.name}.</p>
+
+            {dossierLoading && <div style={{ fontSize: 13, color: '#6b7280' }}>Loading dossier...</div>}
+
+            {!dossierLoading && dossier && (
+              <div style={{ display: 'grid', gap: 22 }}>
+                <div>
+                  <div style={sub}>ADA Scan Activity ({dossier.scans.length})</div>
+                  {dossier.scans.length === 0
+                    ? <div style={{ fontSize: 13, color: '#9ca3af' }}>No ADA scans run yet.</div>
+                    : (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {dossier.scans.slice(0, 8).map(s => (
+                          <div key={s.id} style={{ ...card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1a', wordBreak: 'break-all' }}>{s.page_url}</div>
+                              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+                                {new Date(s.audited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                {' · '}{s.ada_violations_critical + s.ada_violations_serious + s.ada_violations_moderate + s.ada_violations_minor} violation(s)
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                              <span style={{ ...tag, background: s.ada_score != null && s.ada_score >= 90 ? '#e6f6ea' : s.ada_score != null && s.ada_score >= 60 ? '#fff4e0' : '#fde8e8', color: s.ada_score != null && s.ada_score >= 90 ? '#1a7f37' : s.ada_score != null && s.ada_score >= 60 ? '#9a6700' : '#c0392b' }}>
+                                ADA {s.ada_score ?? '—'}
+                              </span>
+                              {s.wave_score != null && <span style={tag}>WAVE {s.wave_score}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                </div>
+
+                <div>
+                  <div style={sub}>Certifications ({dossier.certifications.length})</div>
+                  {dossier.certifications.length === 0
+                    ? <div style={{ fontSize: 13, color: '#9ca3af' }}>No certifications issued yet.</div>
+                    : (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: dossier.cert_progress.length ? 10 : 0 }}>
+                        {dossier.certifications.map(c => (
+                          <span key={c.id} style={{ ...tag, background: '#e8f1f8', color: '#0e4e73' }}>
+                            {c.course_id} — issued {new Date(c.issued_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            {c.expires_at ? ` (expires ${new Date(c.expires_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})` : ''}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  {dossier.cert_progress.length > 0 && (
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      {dossier.cert_progress.map(p => (
+                        <div key={p.course_id} style={{ fontSize: 12, color: '#374151' }}>
+                          <b>{p.course_id}</b>: {p.pages_completed}/{p.pages_total} pages ({p.pct}%)
+                          <div style={{ height: 6, background: '#eef1f5', borderRadius: 4, marginTop: 3, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${p.pct}%`, background: '#1672A7' }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div style={sub}>Pages Accepted (Formal Audits)</div>
+                  <div style={{ fontSize: 13, color: '#374151' }}>
+                    {dossier.pages_accepted.total_fixed} finding(s) marked fixed by this department's WCM, {dossier.pages_accepted.total_verified} admin-verified.
+                    {!m.department && <span style={{ color: '#9ca3af' }}> No department assigned, so no formal audit findings to show.</span>}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     )
   }
@@ -260,7 +375,15 @@ export default function MembersPage() {
   )
 
   const tile = (m: Member) => (
-    <div key={m.user_id} className="mp-card">
+    <div
+      key={m.user_id}
+      className="mp-card"
+      role="button"
+      tabIndex={0}
+      onClick={(e) => { if ((e.target as HTMLElement).closest('select, button')) return; go(`/?page=members&member=${m.user_id}`) }}
+      onKeyDown={(e) => { if (e.key === 'Enter') go(`/?page=members&member=${m.user_id}`) }}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="mp-top">
         {m.photo_url
           ? <img src={m.photo_url} alt={m.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
@@ -310,7 +433,11 @@ export default function MembersPage() {
   }
 
   const row = (m: Member) => (
-    <tr key={m.user_id}>
+    <tr
+      key={m.user_id}
+      style={{ cursor: 'pointer' }}
+      onClick={(e) => { if ((e.target as HTMLElement).closest('select, button')) return; go(`/?page=members&member=${m.user_id}`) }}
+    >
       <td>
         <div className="mp-t-name">{m.name}</div>
         <div className="mp-t-email">{m.email}</div>
@@ -334,7 +461,12 @@ export default function MembersPage() {
       <div className="mp-mc-row"><span>{l}</span><span>{v}</span></div>
     )
     return (
-      <div key={m.user_id} className="mp-mc">
+      <div
+        key={m.user_id}
+        className="mp-mc"
+        style={{ cursor: 'pointer' }}
+        onClick={(e) => { if ((e.target as HTMLElement).closest('select, button')) return; go(`/?page=members&member=${m.user_id}`) }}
+      >
         <div className="mp-mc-top">
           <div>
             <div className="mp-t-name">{m.name}</div>
