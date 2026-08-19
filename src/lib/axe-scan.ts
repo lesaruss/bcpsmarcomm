@@ -59,24 +59,18 @@ function loadAxeSource(): string {
 export async function runAxeScan(url: string): Promise<AxeScanResult> {
   let browser: import('puppeteer-core').Browser | null = null
   try {
-    console.error('[runAxeScan] step: resolving chromium executablePath')
     const executablePath = await chromium.executablePath()
-    console.error('[runAxeScan] step: got executablePath', executablePath)
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: { width: 1280, height: 900 },
       executablePath,
       headless: true,
     })
-    console.error('[runAxeScan] step: browser launched')
     const page = await browser.newPage()
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 45_000 })
-    console.error('[runAxeScan] step: page loaded')
 
     const axeSource = loadAxeSource()
-    console.error('[runAxeScan] step: axe source loaded, length', axeSource.length)
     await page.evaluate(axeSource)
-    console.error('[runAxeScan] step: axe injected into page')
     const results = await page.evaluate(async () => {
       // @ts-expect-error injected global
       return await window.axe.run(document, {
@@ -105,9 +99,6 @@ export async function runAxeScan(url: string): Promise<AxeScanResult> {
 
     return { ok: true, violations, counts, adaScore }
   } catch (err) {
-    // Temporary verbose logging (2026-08-19) while diagnosing a live
-    // "EBADF: bad file descriptor, read" failure on Vercel - remove once
-    // root-caused.
     console.error('[runAxeScan] failed', err instanceof Error ? err.stack : err)
     return {
       ok: false,
