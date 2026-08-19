@@ -83,9 +83,13 @@ export async function runAxeScan(url: string): Promise<AxeScanResult> {
 
     return { ok: true, violations, counts, adaScore }
   } catch (err) {
+    // Temporary verbose logging (2026-08-19) while diagnosing a live
+    // "EBADF: bad file descriptor, read" failure on Vercel - remove once
+    // root-caused.
+    console.error('[runAxeScan] failed', err instanceof Error ? err.stack : err)
     return {
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err),
       violations: [],
       counts: { critical: 0, serious: 0, moderate: 0, minor: 0 },
       adaScore: null,
