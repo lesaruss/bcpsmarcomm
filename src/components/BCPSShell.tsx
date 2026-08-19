@@ -26,7 +26,8 @@ const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 
 
 const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   dashboard:                { title: 'Dashboard',               sub: 'Broward County Public Schools' },
-  notes:                    { title: 'Meeting Notes',           sub: 'Briefs & Records' },
+  notes:                    { title: 'Meeting Notes',           sub: 'Briefs' },
+  'employee-records':       { title: 'Records',                 sub: 'Performance & Confidential Documents' },
   profile:                  { title: 'My Profile',              sub: 'Account & Settings' },
   departments:              { title: 'Departments',             sub: 'Directory & Profiles' },
   analytics:                { title: 'Analytics',               sub: 'Performance Insights' },
