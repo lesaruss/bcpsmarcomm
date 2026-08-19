@@ -94,10 +94,20 @@ export default function WCMRegistrationRegisterPage() {
 
     setLoading(true)
     try {
+      // emailRedirectTo added 2026-08-19: without it, the confirmation email
+      // is built by the project-wide auth-email-hook edge function, which
+      // picks a brand purely from this redirect (or, failing that, the
+      // shared project SITE_URL) - omitting it left BCPS confirmation emails
+      // rendering under the wrong brand identity instead of BCPS Marcomm.
+      // Explicit here so the hook can never resolve this to anything but the
+      // 'bcps' brand entry, regardless of what the shared global default is.
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName } },
+        options: {
+          data: { full_name: fullName },
+          emailRedirectTo: `${window.location.origin}/certification/login`,
+        },
       })
       if (signUpError) throw signUpError
       if (!data.user) throw new Error('Registration did not return an account. Please try again.')
