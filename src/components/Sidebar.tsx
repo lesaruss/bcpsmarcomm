@@ -194,17 +194,10 @@ const Icons: Record<string, React.ReactNode> = {
       <path d="M9 12l2 2 4-4"/>
     </svg>
   ),
-  'schools': (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 21h18"/>
-      <path d="M5 21V7l7-4 7 4v14"/>
-      <path d="M9 21v-6h6v6"/>
-    </svg>
-  ),
 }
 
 // ── Nav config ─────────────────────────────────────────────────────────────
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'schools'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals'])
 
 interface NavItem { id: PageId; label: string }
 
@@ -215,9 +208,10 @@ const SECTIONS: NavSection[] = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'queue', label: 'Queue' },
     { id: 'notes', label: 'Meeting Notes' },
+    { id: 'documents', label: 'Documents' },
+    { id: 'employee-records', label: 'Records' },
     { id: 'departments', label: 'Departments' },
     { id: 'analytics', label: 'Analytics' },
-    { id: 'documents', label: 'Documents' },
     { id: 'profile', label: 'My Profile' },
     { id: 'members', label: 'Members' },
     { id: 'minibase', label: 'Minibase' },
@@ -242,12 +236,10 @@ const SECTIONS: NavSection[] = [
     { id: 'superadmin', label: 'Platform Management' },
     { id: 'permissions', label: 'Permissions' },
     { id: 'pulse-approvals', label: 'Note Approvals' },
-    { id: 'schools', label: 'School ADA Accounts' },
   ] },
   { label: 'Other', items: [
     { id: 'minutes', label: 'Minutes' },
     { id: 'reports', label: 'Reports' },
-    { id: 'employee-records', label: 'My Records' },
   ] },
 ]
 
