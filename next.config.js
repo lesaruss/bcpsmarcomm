@@ -9,9 +9,12 @@ const nextConfig = {
   // live verification run confirmed WAVE + Lighthouse worked but axe-core
   // failed with "input directory .../chromium/bin does not exist".
   experimental: {
-    serverComponentsExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
+    serverComponentsExternalPackages: ['@sparticuz/chromium', 'puppeteer-core', 'axe-core'],
     outputFileTracingIncludes: {
-      '/api/bcps/ada-scan': ['./node_modules/@sparticuz/chromium/bin/**'],
+      '/api/bcps/ada-scan': [
+        './node_modules/@sparticuz/chromium/bin/**',
+        './node_modules/axe-core/axe.min.js',
+      ],
     },
   },
   async rewrites() {
