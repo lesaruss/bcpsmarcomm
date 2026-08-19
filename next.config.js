@@ -15,6 +15,12 @@ const nextConfig = {
         './node_modules/@sparticuz/chromium/bin/**',
         './node_modules/axe-core/axe.min.js',
       ],
+      // school-scan added 2026-08-19: same axe-core/chromium engine, used by
+      // the school-facing /school-portal page instead of the DWT scanner.
+      '/api/bcps/school-scan': [
+        './node_modules/@sparticuz/chromium/bin/**',
+        './node_modules/axe-core/axe.min.js',
+      ],
     },
   },
   async rewrites() {
