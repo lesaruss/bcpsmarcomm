@@ -27,6 +27,7 @@ interface Doc {
 type Group = { id: string; slug: string; name: string }
 type Member = { user_id: string; email: string; name: string }
 type Grant = { id: string; object_id: string; subject_type: string; subject_id: string; role: string }
+type Series = { id: string; slug: string; title: string; section: string | null }
 
 const ROLE_OPTS = ['view', 'comment', 'edit', 'manage']
 const BLUE = '#1672A7'
@@ -65,6 +66,8 @@ export default function NotesPage() {
   const [contentLoading, setContentLoading] = useState<Record<string, boolean>>({})
   const [requestDraft, setRequestDraft] = useState<Record<string, string>>({})
   const [search, setSearch] = useState('')
+  const [allSeries, setAllSeries] = useState<Series[]>([])
+  const [seriesFilter, setSeriesFilter] = useState<string>('all')
 
   const isAdmin = role === 'admin' || role === 'superadmin'
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
@@ -79,6 +82,7 @@ export default function NotesPage() {
     setDocs((j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'meeting-notes'))
     setRole(j.role)
     setGroups(j.groups ?? []); setMembers(j.members ?? []); setGrants(j.grants ?? [])
+    setAllSeries((j.all_series ?? []).filter((s: Series) => s.section === 'meeting-notes'))
     setLoading(false)
   }, [token])
 
@@ -179,26 +183,33 @@ export default function NotesPage() {
     return n > 0 ? { label: `${n} granted`, icon: '\u{1F512}' } : { label: 'Admins only', icon: '\u{1F512}' }
   }
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return docs
-    const q = search.toLowerCase()
-    return docs.filter(d => d.title.toLowerCase().includes(q) || (d.series_title || '').toLowerCase().includes(q))
-  }, [docs, search])
+  const dateVal = (d: Doc) => d.date_sort ? new Date(d.date_sort).getTime() : 0
 
-  const grouped = useMemo(() => {
-    const byDept: Record<string, Doc[]> = {}
-    filtered.forEach(doc => {
-      const dept = doc.series_title || 'Other'
-      if (!byDept[dept]) byDept[dept] = []
-      byDept[dept].push(doc)
-    })
-    Object.values(byDept).forEach(list => list.sort((a, b) => {
-      const av = a.date_sort ? new Date(a.date_sort).getTime() : 0
-      const bv = b.date_sort ? new Date(b.date_sort).getTime() : 0
-      return bv - av
-    }))
-    return Object.entries(byDept).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [filtered])
+  const filtered = useMemo(() => {
+    let list = docs
+    if (seriesFilter !== 'all') list = list.filter(d => d.series_id === seriesFilter)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      list = list.filter(d => d.title.toLowerCase().includes(q) || (d.series_title || '').toLowerCase().includes(q))
+    }
+    return list
+  }, [docs, search, seriesFilter])
+
+  // Default "All" view: one flat list across every meeting series, newest
+  // first - per Sean/V 2026-08-19 ("sorted by ALL as a default
+  // chronologically"). Picking a specific series from the filter narrows to
+  // just that series' notes, still newest first.
+  const chronological = useMemo(() => [...filtered].sort((a, b) => dateVal(b) - dateVal(a)), [filtered])
+
+  // Series with zero notes yet (e.g. District Web Team Huddle, OOC Web
+  // Meeting) still need to show up as filter options and as an honest empty
+  // state, rather than silently disappearing because nothing's been
+  // captured into them yet.
+  const emptySeries = useMemo(() => {
+    if (seriesFilter !== 'all') return []
+    const withDocs = new Set(docs.map(d => d.series_id).filter(Boolean))
+    return allSeries.filter(s => !withDocs.has(s.id))
+  }, [allSeries, docs, seriesFilter])
 
   if (loading) return <div style={{ padding: 32 }}>Loading meeting notes...</div>
 
@@ -249,7 +260,7 @@ export default function NotesPage() {
       <div className="docs-section">
         <div className="docs-header">
           <h1>Meeting Notes</h1>
-          <p>Notes and recaps from platform sessions, hot labs, and planning meetings, grouped by series.
+          <p>Notes and recaps from every recurring meeting you have access to, newest first. Use the filter to narrow to one meeting.
             {isAdmin && ' As an admin, each one also shows who has access and an Edit button to manage access or content directly here.'}
           </p>
         </div>
@@ -257,28 +268,43 @@ export default function NotesPage() {
         {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '0 0 20px' }}>{err}</div>}
         {toast && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '0 0 20px' }}>{toast}</div>}
 
-        <div className="notes-search-wrap">
-          <svg className="notes-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input
-            type="text"
-            className="notes-search"
-            placeholder="Search meeting notes..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            aria-label="Search meeting notes"
-          />
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 28 }}>
+          <div className="notes-search-wrap" style={{ marginBottom: 0, flex: 1, minWidth: 200 }}>
+            <svg className="notes-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              type="text"
+              className="notes-search"
+              placeholder="Search meeting notes..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              aria-label="Search meeting notes"
+            />
+          </div>
+          <select
+            style={A.sel}
+            value={seriesFilter}
+            onChange={e => setSeriesFilter(e.target.value)}
+            aria-label="Filter by meeting"
+          >
+            <option value="all">All meetings</option>
+            {allSeries.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+          </select>
         </div>
 
-        {grouped.length === 0 ? (
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>{search ? 'Nothing matches your search.' : 'No meeting notes yet.'}</div>
-        ) : grouped.map(([dept, deptDocs]) => (
-          <div key={dept} className="docs-section-group">
-            <p className="docs-section-label">{dept}</p>
-            <div className="docs-section-divider" />
+        <p className="docs-section-label">
+          {seriesFilter === 'all' ? 'All Meetings' : allSeries.find(s => s.id === seriesFilter)?.title || 'Meeting'}
+        </p>
+        <div className="docs-section-divider" />
+
+        {chronological.length === 0 ? (
+          <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: emptySeries.length ? 24 : 0 }}>
+            {search ? 'Nothing matches your search.' : 'No meeting notes yet for this meeting.'}
+          </div>
+        ) : (
             <div className="docs-grid">
-              {deptDocs.map(doc => {
+              {chronological.map(doc => {
                 const badge = accessBadge(doc)
                 const openPanel = panel[doc.slug]
                 const dgrants = grantsFor(doc.effective_object_id)
@@ -308,7 +334,12 @@ export default function NotesPage() {
                     >
                       <div className="doc-icon-row">
                         <div className="doc-icon">{doc.icon}</div>
-                        <h2 className="doc-title">{doc.title}</h2>
+                        <div>
+                          <h2 className="doc-title">{doc.title}</h2>
+                          {seriesFilter === 'all' && doc.series_title && (
+                            <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1672A7', marginTop: 4 }}>{doc.series_title}</div>
+                          )}
+                        </div>
                       </div>
                       <p className="doc-description">{doc.description}</p>
                     </button>
@@ -419,8 +450,25 @@ export default function NotesPage() {
                 )
               })}
             </div>
+        )}
+
+        {emptySeries.length > 0 && (
+          <div style={{ marginTop: 32 }}>
+            <p className="docs-section-label">Other Meetings (No Notes Yet)</p>
+            <div className="docs-section-divider" />
+            <div className="docs-grid">
+              {emptySeries.map(s => (
+                <div key={s.id} className="doc-card" style={{ opacity: 0.6 }}>
+                  <div className="doc-icon-row">
+                    <div className="doc-icon">📁</div>
+                    <h2 className="doc-title">{s.title}</h2>
+                  </div>
+                  <p className="doc-description">Nothing captured here yet.</p>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
+        )}
       </div>
 
       {preview && (
