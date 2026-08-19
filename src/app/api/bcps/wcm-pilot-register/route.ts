@@ -24,6 +24,17 @@ const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 // every new WCM showed up Unassigned no matter what they picked. Validated
 // server-side against bcps_departments rather than trusted blindly from the
 // client.
+//
+// department_confirmed added 2026-08-19 (same day, follow-up from Sean/V):
+// there's still only one registration form for everyone (WCM or director) -
+// no separate director flow exists. Rather than add a role picker, we treat
+// the registering email matching that department's bcps_departments.director_email
+// as proof the director themselves is the one completing registration, and
+// only then mark department_confirmed = true. A regular WCM registering into
+// the same department gets the department auto-populated same as always, but
+// stays unconfirmed. This is the ONLY place department_confirmed is ever set
+// true - admin-set-department always resets it to false on manual reassignment,
+// since that's explicitly not the director completing their own process.
 export async function POST(req: NextRequest) {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
   if (!token) return NextResponse.json({ error: 'Missing session.' }, { status: 401 })
@@ -42,9 +53,23 @@ export async function POST(req: NextRequest) {
   } catch { /* no body is fine, department stays unassigned */ }
 
   try {
+    let departmentConfirmed = false
+
     if (departmentSlug) {
-      const { data: dept } = await svc.from('bcps_departments').select('slug').eq('slug', departmentSlug).maybeSingle()
-      if (!dept) departmentSlug = null // unknown slug - don't let a bad client value silently set a fake department
+      const { data: dept } = await svc
+        .from('bcps_departments')
+        .select('slug, director_email')
+        .eq('slug', departmentSlug)
+        .maybeSingle()
+      if (!dept) {
+        departmentSlug = null // unknown slug - don't let a bad client value silently set a fake department
+      } else if (
+        dept.director_email &&
+        user.email &&
+        dept.director_email.trim().toLowerCase() === user.email.trim().toLowerCase()
+      ) {
+        departmentConfirmed = true
+      }
     }
 
     const { data: group } = await svc
@@ -55,7 +80,14 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     const { error: roleError } = await svc.from('acl_member_roles').upsert(
-      { user_id: user.id, brand: BRAND, role: 'user', department_slug: departmentSlug },
+      {
+        user_id: user.id,
+        brand: BRAND,
+        role: 'user',
+        department_slug: departmentSlug,
+        department_confirmed: departmentConfirmed,
+        department_confirmed_at: departmentConfirmed ? new Date().toISOString() : null,
+      },
       { onConflict: 'user_id,brand' }
     )
     if (roleError) throw roleError
