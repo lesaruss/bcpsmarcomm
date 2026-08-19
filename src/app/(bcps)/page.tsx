@@ -34,7 +34,7 @@ import AdaScannerPage from '@/components/pages/AdaScannerPage'
 import SchoolsAdminPage from '@/components/pages/SchoolsAdminPage'
 import type { UserRole } from '@/components/Sidebar'
 
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'schools'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals'])
 
 function HomeInner() {
   const router = useRouter()
