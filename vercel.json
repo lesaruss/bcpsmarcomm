@@ -1,3 +1,9 @@
 {
-  "fluid": true
+  "fluid": true,
+  "functions": {
+    "src/app/api/bcps/ada-scan/route.ts": {
+      "memory": 3009,
+      "maxDuration": 240
+    }
+  }
 }
