@@ -211,6 +211,7 @@ const SECTIONS: NavSection[] = [
     { id: 'departments', label: 'Departments' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'documents', label: 'Documents' },
+    { id: 'employee-records', label: 'Records' },
     { id: 'profile', label: 'My Profile' },
     { id: 'members', label: 'Members' },
     { id: 'minibase', label: 'Minibase' },
@@ -239,7 +240,6 @@ const SECTIONS: NavSection[] = [
   { label: 'Other', items: [
     { id: 'minutes', label: 'Minutes' },
     { id: 'reports', label: 'Reports' },
-    { id: 'employee-records', label: 'My Records' },
   ] },
 ]
 
