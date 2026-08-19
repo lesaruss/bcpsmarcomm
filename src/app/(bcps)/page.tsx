@@ -30,6 +30,7 @@ import DepartmentAuditPage from '@/components/pages/DepartmentAuditPage'
 import FindItFastPage from '@/components/pages/FindItFastPage'
 import WidgetsPage from '@/components/pages/WidgetsPage'
 import RequestsPage from '@/components/pages/RequestsPage'
+import AdaScannerPage from '@/components/pages/AdaScannerPage'
 import type { UserRole } from '@/components/Sidebar'
 
 const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals'])
@@ -102,6 +103,7 @@ function HomeInner() {
       {nav.page === 'find-it-fast'            && <FindItFastPage />}
       {nav.page === 'widgets'                 && <WidgetsPage />}
       {nav.page === 'requests'                && <RequestsPage />}
+      {nav.page === 'ada-scanner'              && <AdaScannerPage />}
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>
