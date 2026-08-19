@@ -10,8 +10,10 @@ type Member = {
   title: string | null; bio: string | null; photo_url: string | null
   last_sign_in_at: string | null; groups: string[]; department: Dept | null
 }
+type DeptOption = { slug: string; name: string; division: string | null }
 
-type SortMode = 'name' | 'division' | 'login' | 'unsorted'
+type SortCol = 'name' | 'department' | 'division' | 'groups' | 'login' | 'unsorted'
+type SortDir = 'asc' | 'desc'
 type ViewMode = 'tiles' | 'table'
 
 export default function MembersPage() {
@@ -29,8 +31,17 @@ export default function MembersPage() {
   // ── Directory view controls (search / division filter / sort / view toggle) ──
   const [search, setSearch] = useState('')
   const [divisionFilter, setDivisionFilter] = useState('')
-  const [sortMode, setSortMode] = useState<SortMode>('name')
+  const [sortCol, setSortCol] = useState<SortCol>('name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [view, setView] = useState<ViewMode>('tiles')
+
+  // Full department list (every BCPS department, not just ones with a member
+  // assigned yet) - powers the division filter options and the department
+  // reassignment dropdown, per V's ask that "all of the divisions" show up
+  // as choices, not just whatever the currently-loaded members happen to have.
+  const [allDepartments, setAllDepartments] = useState<DeptOption[]>([])
+  const [editingDeptFor, setEditingDeptFor] = useState<string | null>(null)
+  const [savingDeptFor, setSavingDeptFor] = useState<string | null>(null)
 
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
 
@@ -45,6 +56,11 @@ export default function MembersPage() {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    supabase.from('bcps_departments').select('slug,name,division').order('name')
+      .then(({ data }) => { if (data) setAllDepartments(data) })
+  }, [supabase])
+
   const go = (url: string) => router.push(url, { scroll: false })
 
   async function saveProfile() {
@@ -55,6 +71,30 @@ export default function MembersPage() {
       body: JSON.stringify(form),
     })
     setSaving(false); setEditing(false); load()
+  }
+
+  // Reassign a member's department from the directory. Admin/superadmin only -
+  // enforced server-side in /api/bcps/admin-set-department, this is just the
+  // affordance. Optimistic update with rollback on failure.
+  async function assignDepartment(userId: string, slug: string) {
+    const prevMembers = members
+    const next = slug ? allDepartments.find(d => d.slug === slug) : null
+    setMembers(ms => ms.map(m => m.user_id === userId
+      ? { ...m, department: next ? { slug: next.slug, name: next.name, division: next.division, director_name: null } : null }
+      : m))
+    setEditingDeptFor(null)
+    setSavingDeptFor(userId)
+    const t = await token()
+    const r = await fetch('/api/bcps/admin-set-department', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, department_slug: slug || null }),
+    })
+    setSavingDeptFor(null)
+    if (!r.ok) {
+      setMembers(prevMembers)
+      alert('Could not update that department assignment. Please try again.')
+    }
   }
 
   if (loading) return <div style={{ padding: 32 }}>Loading...</div>
@@ -130,7 +170,21 @@ export default function MembersPage() {
     : 'Never signed in'
   const roleLabelFor = (m: Member) => m.role === 'superadmin' ? 'Superadmin' : m.role === 'admin' ? 'Administrator' : 'Team Member'
 
-  const divisions = Array.from(new Set(members.map(m => m.department?.division).filter(Boolean))).sort() as string[]
+  // Admin/superadmin can reassign a member's department inline from this page.
+  // Raw role comes straight off the /api/bcps/members payload for the viewer's
+  // own row (that endpoint returns the real acl_member_roles.role, not the
+  // two-tier 'user'/'superadmin' UserRole the shell context collapses to).
+  const myRole = members.find(m => m.user_id === meId)?.role
+  const canEditDept = myRole === 'admin' || myRole === 'superadmin'
+
+  // Division filter uses every real BCPS division, not just ones a currently
+  // loaded member happens to belong to.
+  const divisions = Array.from(new Set(allDepartments.map(d => d.division).filter(Boolean))).sort() as string[]
+  const departmentsByDivision = allDepartments.reduce<Record<string, DeptOption[]>>((acc, d) => {
+    const key = d.division || 'Other'
+    ;(acc[key] = acc[key] || []).push(d)
+    return acc
+  }, {})
 
   const filtered = members.filter(m => {
     if (divisionFilter && m.department?.division !== divisionFilter) return false
@@ -139,11 +193,57 @@ export default function MembersPage() {
     return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || (m.title || '').toLowerCase().includes(q)
   })
 
+  function compare(a: Member, b: Member): number {
+    switch (sortCol) {
+      case 'name': return a.name.localeCompare(b.name)
+      case 'department': return (a.department?.name || '').localeCompare(b.department?.name || '') || a.name.localeCompare(b.name)
+      case 'division': return (a.department?.division || '').localeCompare(b.department?.division || '') || a.name.localeCompare(b.name)
+      case 'groups': return [...a.groups].sort().join(', ').localeCompare([...b.groups].sort().join(', ')) || a.name.localeCompare(b.name)
+      case 'login': return new Date(a.last_sign_in_at || 0).getTime() - new Date(b.last_sign_in_at || 0).getTime()
+      default: return 0
+    }
+  }
+
   const sorted = [...filtered]
-  if (sortMode === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name))
-  else if (sortMode === 'division') sorted.sort((a, b) => (a.department?.division || '').localeCompare(b.department?.division || '') || a.name.localeCompare(b.name))
-  else if (sortMode === 'login') sorted.sort((a, b) => new Date(b.last_sign_in_at || 0).getTime() - new Date(a.last_sign_in_at || 0).getTime())
-  // 'unsorted' leaves filtered array in its original (API) order
+  if (sortCol !== 'unsorted') {
+    sorted.sort((a, b) => compare(a, b) * (sortDir === 'asc' ? 1 : -1))
+  }
+
+  // Clicking a header sorts ascending (or newest-first for Last Login) the
+  // first time, and reverses on every click after that.
+  function clickHeader(col: SortCol) {
+    if (sortCol === col) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return }
+    setSortCol(col)
+    setSortDir(col === 'login' ? 'desc' : 'asc')
+  }
+
+  function pickSort(col: SortCol) {
+    setSortCol(col)
+    setSortDir(col === 'login' ? 'desc' : 'asc')
+  }
+
+  function sortArrow(col: SortCol) {
+    if (sortCol !== col) return null
+    return <span aria-hidden="true" style={{ marginLeft: 4 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
+  }
+
+  const deptSelect = (m: Member) => (
+    <select
+      className="mp-dept-select"
+      autoFocus
+      defaultValue={m.department?.slug || ''}
+      disabled={savingDeptFor === m.user_id}
+      onChange={e => assignDepartment(m.user_id, e.target.value)}
+      onBlur={() => setEditingDeptFor(null)}
+    >
+      <option value="">Unassigned</option>
+      {Object.entries(departmentsByDivision).map(([div, depts]) => (
+        <optgroup key={div} label={div}>
+          {depts.map(d => <option key={d.slug} value={d.slug}>{d.name}</option>)}
+        </optgroup>
+      ))}
+    </select>
+  )
 
   const tile = (m: Member) => (
     <div key={m.user_id} className="mp-card">
@@ -159,7 +259,16 @@ export default function MembersPage() {
       </div>
       {m.department?.division && <div className="mp-division">{m.department.division}</div>}
       <div className="mp-meta">
-        <div className="mp-row">Department: <b>{m.department?.name || 'Unassigned'}</b></div>
+        <div className="mp-row">
+          Department:{' '}
+          {editingDeptFor === m.user_id
+            ? deptSelect(m)
+            : canEditDept
+              ? <button type="button" className="mp-editable" onClick={() => setEditingDeptFor(m.user_id)}>
+                  <b>{m.department?.name || 'Unassigned'}</b>
+                </button>
+              : <b>{m.department?.name || 'Unassigned'}</b>}
+        </div>
         {m.groups.length > 0 && <div className="mp-tags">{m.groups.map(g => <span key={g} className="mp-tag">{g}</span>)}</div>}
         <div className="mp-row">Last login: <b>{fmtLogin(m.last_sign_in_at)}</b></div>
       </div>
@@ -168,7 +277,7 @@ export default function MembersPage() {
 
   const tilesView = () => {
     if (!sorted.length) return null
-    if (sortMode === 'division') {
+    if (sortCol === 'division') {
       const byDiv = new Map<string, Member[]>()
       sorted.forEach(m => {
         const key = m.department?.division || 'Unassigned'
@@ -191,7 +300,13 @@ export default function MembersPage() {
         <div className="mp-t-name">{m.name}</div>
         <div className="mp-t-email">{m.email}</div>
       </td>
-      <td>{m.department?.name || 'Unassigned'}</td>
+      <td>
+        {editingDeptFor === m.user_id
+          ? deptSelect(m)
+          : canEditDept
+            ? <button type="button" className="mp-editable" onClick={() => setEditingDeptFor(m.user_id)}>{m.department?.name || 'Unassigned'}</button>
+            : (m.department?.name || 'Unassigned')}
+      </td>
       <td>{m.department?.division ? <span className="mp-pill">{m.department.division}</span> : '—'}</td>
       <td>{m.groups.length ? m.groups.join(', ') : '—'}</td>
       <td>{fmtLogin(m.last_sign_in_at)}</td>
@@ -211,23 +326,33 @@ export default function MembersPage() {
           </div>
           {m.department?.division && <span className="mp-pill">{m.department.division}</span>}
         </div>
-        {cardRow('Department', m.department?.name || 'Unassigned')}
+        {cardRow('Department', editingDeptFor === m.user_id
+          ? deptSelect(m)
+          : canEditDept
+            ? <button type="button" className="mp-editable" onClick={() => setEditingDeptFor(m.user_id)}>{m.department?.name || 'Unassigned'}</button>
+            : (m.department?.name || 'Unassigned'))}
         {cardRow('Groups', m.groups.length ? m.groups.join(', ') : '—')}
         {cardRow('Last login', fmtLogin(m.last_sign_in_at))}
       </div>
     )
   }
 
+  const Th = ({ col, label }: { col: SortCol; label: string }) => (
+    <th onClick={() => clickHeader(col)} aria-sort={sortCol === col ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      {label}{sortArrow(col)}
+    </th>
+  )
+
   const tableView = () => (
     <div className="mp-table-wrap">
       <table className="mp-native-table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Department</th>
-            <th>Division</th>
-            <th>Groups</th>
-            <th>Last Login</th>
+            <Th col="name" label="Name" />
+            <Th col="department" label="Department" />
+            <Th col="division" label="Division" />
+            <Th col="groups" label="Groups" />
+            <Th col="login" label="Last Login" />
           </tr>
         </thead>
         <tbody>{sorted.map(row)}</tbody>
@@ -272,17 +397,22 @@ export default function MembersPage() {
 
         .mp-table-wrap{display:block}
         .mp-native-table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid #dde3ea;border-radius:10px;overflow:hidden}
-        .mp-native-table thead th{text-align:left;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6b7280;padding:12px;border-bottom:1.5px solid #dde3ea;white-space:nowrap}
+        .mp-native-table thead th{text-align:left;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6b7280;padding:12px;border-bottom:1.5px solid #dde3ea;white-space:nowrap;cursor:pointer;user-select:none}
+        .mp-native-table thead th:hover{color:#1672A7}
         .mp-native-table tbody td{padding:12px;border-bottom:1px solid #dde3ea;vertical-align:middle}
         .mp-native-table tbody tr:hover{background:#f6fafd}
         .mp-t-name{font-weight:700;font-size:13px;color:#1a1a1a}
         .mp-t-email{font-size:12px;color:#6b7280}
         .mp-pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border-radius:100px;background:#e8f1f8;color:#0e4e73;white-space:nowrap}
 
+        .mp-editable{background:none;border:none;padding:0;margin:0;font:inherit;color:#0e4e73;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+        .mp-editable:hover{color:#1672A7}
+        .mp-dept-select{font-family:inherit;font-size:12px;font-weight:700;padding:5px 8px;border:1.5px solid #1672A7;border-radius:6px;background:#fff;color:#1a1a1a;max-width:220px}
+
         .mp-cards{display:none}
         .mp-mc{border:1.5px solid #dde3ea;border-radius:10px;padding:14px 16px;margin-bottom:10px;background:#fff}
         .mp-mc-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}
-        .mp-mc-row{font-size:12px;color:#525252;display:flex;justify-content:space-between;gap:12px;padding:3px 0}
+        .mp-mc-row{font-size:12px;color:#525252;display:flex;justify-content:space-between;gap:12px;padding:3px 0;align-items:center}
         .mp-mc-row span:first-child{color:#6b7280;font-weight:700;font-size:10px;letter-spacing:.07em;text-transform:uppercase}
         @media(max-width:860px){.mp-table-wrap .mp-native-table{display:none}.mp-table-wrap .mp-cards{display:block}}
 
@@ -304,9 +434,16 @@ export default function MembersPage() {
           <option value="">All Divisions</option>
           {divisions.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
-        <select className="mp-select" value={sortMode} onChange={e => setSortMode(e.target.value as SortMode)} aria-label="Sort members">
+        <select
+          className="mp-select"
+          value={sortCol}
+          onChange={e => pickSort(e.target.value as SortCol)}
+          aria-label="Sort members"
+        >
           <option value="name">Name A&ndash;Z</option>
+          <option value="department">Department</option>
           <option value="division">Division</option>
+          <option value="groups">Groups</option>
           <option value="login">Most recently active</option>
           <option value="unsorted">Unsorted</option>
         </select>
