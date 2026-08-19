@@ -19,9 +19,13 @@
 // school-scan is gated purely by "is your signed-in email listed as a
 // school's wcm_email," exactly like /wcm-portal does today.
 //
-// GET: list all schools (admin/superadmin only) - starts empty, schools
-// are added one at a time as they're onboarded (no bulk import - per V,
-// 2026-08-19, there's no existing consolidated school roster to import).
+// GET: list all schools - any signed-in BCPS Marcomm account, not just
+// admin/superadmin. Per V, 2026-08-19: this is a working tool for the whole
+// team, not a locked-down console - anyone with a BCPS Marcomm login should
+// be able to onboard a school, same as any other page here. Starts empty,
+// schools are added one at a time as they're onboarded (no bulk import -
+// per V, 2026-08-19, there's no existing consolidated school roster to
+// import).
 // POST: create a school row AND (optionally, if wcm_email + a temp
 // password are supplied) create the WCM's Supabase Auth account in the
 // same call, exactly like an admin creating any other WCM account -
@@ -36,12 +40,15 @@ export const dynamic = 'force-dynamic'
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const BRAND = 'bcps'
 
 const noStoreFetch: typeof fetch = (input, init) => fetch(input, { ...(init ?? {}), cache: 'no-store' })
 const svc = createClient(SUPA_URL, SERVICE, { auth: { persistSession: false }, global: { fetch: noStoreFetch } })
 
-async function requireAdmin(req: NextRequest): Promise<{ ok: true; userId: string } | { ok: false; status: number; error: string }> {
+// Any authenticated BCPS Marcomm login - no role/tier check. The page is
+// registered as public in acl_objects, so the gate here just needs to match:
+// a valid session is all that's required, exactly like the pages this tool
+// sits next to (ADA Scanner, Minibase, etc.).
+async function requireAuth(req: NextRequest): Promise<{ ok: true; userId: string } | { ok: false; status: number; error: string }> {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
   if (!token) return { ok: false, status: 401, error: 'Unauthorized' }
   const asUser = createClient(SUPA_URL, ANON, {
@@ -50,16 +57,11 @@ async function requireAdmin(req: NextRequest): Promise<{ ok: true; userId: strin
   })
   const { data: { user } } = await asUser.auth.getUser()
   if (!user) return { ok: false, status: 401, error: 'Unauthorized' }
-
-  const { data: roleRow } = await svc.from('acl_member_roles')
-    .select('role').eq('user_id', user.id).eq('brand', BRAND).maybeSingle()
-  const role = roleRow?.role || 'user'
-  if (role !== 'admin' && role !== 'superadmin') return { ok: false, status: 403, error: 'Forbidden' }
   return { ok: true, userId: user.id }
 }
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin(req)
+  const auth = await requireAuth(req)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { data, error } = await svc
@@ -72,7 +74,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdmin(req)
+  const auth = await requireAuth(req)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const body = await req.json().catch(() => ({}))
