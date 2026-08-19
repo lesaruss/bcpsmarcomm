@@ -10,6 +10,7 @@
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
 import fs from 'fs'
+import path from 'path'
 
 export type AxeImpact = 'critical' | 'serious' | 'moderate' | 'minor' | null
 
@@ -32,12 +33,26 @@ export type AxeScanResult = {
   adaScore: number | null
 }
 
-// axe-core/axe.min.js resolves to a file path via require; read its source
-// so it can be injected via CDP page.evaluate() rather than a <script> tag,
-// which the target site's CSP would otherwise block.
+// Read axe-core's bundled UMD build so it can be injected via CDP
+// page.evaluate() rather than a <script> tag, which the target site's CSP
+// would otherwise block.
+//
+// Root-caused 2026-08-19: `require.resolve('axe-core/axe.min.js')` looked
+// right locally, but under Next's webpack build it gets rewritten at
+// COMPILE time into a bundler-internal module id (a plain number, e.g.
+// `1300`) even though @sparticuz/chromium/puppeteer-core/axe-core are all
+// marked serverComponentsExternalPackages - require.resolve itself isn't
+// covered by that setting. fs.readFileSync(1300) then fails with the
+// misleading "EBADF: bad file descriptor, read" instead of a clear
+// "not a string" error. Building the path manually from process.cwd()
+// (which is the Lambda's /var/task root at runtime) sidesteps
+// require.resolve entirely; outputFileTracingIncludes in next.config.js
+// ensures this exact file ships with the ada-scan route's Lambda.
 function loadAxeSource(): string {
-  const p = require.resolve('axe-core/axe.min.js')
-  console.error('[runAxeScan] resolved axe-core path:', p, 'exists:', fs.existsSync(p))
+  const p = path.join(process.cwd(), 'node_modules', 'axe-core', 'axe.min.js')
+  if (!fs.existsSync(p)) {
+    throw new Error(`axe-core bundle not found at ${p} - check next.config.js outputFileTracingIncludes`)
+  }
   return fs.readFileSync(p, 'utf8')
 }
 
