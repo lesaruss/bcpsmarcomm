@@ -37,24 +37,31 @@ export type AxeScanResult = {
 // which the target site's CSP would otherwise block.
 function loadAxeSource(): string {
   const p = require.resolve('axe-core/axe.min.js')
+  console.error('[runAxeScan] resolved axe-core path:', p, 'exists:', fs.existsSync(p))
   return fs.readFileSync(p, 'utf8')
 }
 
 export async function runAxeScan(url: string): Promise<AxeScanResult> {
   let browser: import('puppeteer-core').Browser | null = null
   try {
+    console.error('[runAxeScan] step: resolving chromium executablePath')
     const executablePath = await chromium.executablePath()
+    console.error('[runAxeScan] step: got executablePath', executablePath)
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: { width: 1280, height: 900 },
       executablePath,
       headless: true,
     })
+    console.error('[runAxeScan] step: browser launched')
     const page = await browser.newPage()
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 45_000 })
+    console.error('[runAxeScan] step: page loaded')
 
     const axeSource = loadAxeSource()
+    console.error('[runAxeScan] step: axe source loaded, length', axeSource.length)
     await page.evaluate(axeSource)
+    console.error('[runAxeScan] step: axe injected into page')
     const results = await page.evaluate(async () => {
       // @ts-expect-error injected global
       return await window.axe.run(document, {
