@@ -27,7 +27,6 @@ interface Doc {
 type Group = { id: string; slug: string; name: string }
 type Member = { user_id: string; email: string; name: string }
 type Grant = { id: string; object_id: string; subject_type: string; subject_id: string; role: string }
-type Series = { id: string; slug: string; title: string; section: string | null }
 
 type SortMode = 'date_desc' | 'date_asc' | 'az' | 'za'
 
@@ -56,10 +55,13 @@ function sortDocs(list: Doc[], mode: SortMode): Doc[] {
   })
 }
 
+// Meeting Notes and Records used to live here as tabs. Split out 2026-08-19
+// per Sean/V - Meeting Notes now lives solely under its own nav item
+// (/?page=notes) and Records under its own (/?page=employee-records) - so
+// there's exactly one place to find each, no more duplicate/confusing
+// homes. Documents is now single-section; the tab bar is skipped below.
 const SECTIONS = [
   { key: 'documents', label: 'Playbooks', description: 'Main projects with multiple tasks. Plans, governance frameworks, implementation guides, and reference documents.' },
-  { key: 'meeting-notes', label: 'Meeting Notes', description: 'Notes and action items from platform sessions, hot labs, and planning meetings.' },
-  { key: 'records', label: 'Records', description: 'Performance appraisals and confidential employment records.' },
 ]
 
 const ROLE_OPTS = ['view', 'comment', 'edit', 'manage']
@@ -88,9 +90,7 @@ export default function DocumentsPage() {
   const [contentLoading, setContentLoading] = useState<Record<string, boolean>>({})
   const [requestDraft, setRequestDraft] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState<string>('documents')
-  const [allSeries, setAllSeries] = useState<Series[]>([])
   const [sortMode, setSortMode] = useState<SortMode>('date_desc')
-  const [seriesFilter, setSeriesFilter] = useState<string>('all')
 
   const isAdmin = role === 'admin' || role === 'superadmin'
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
@@ -102,9 +102,9 @@ export default function DocumentsPage() {
     const r = await fetch('/api/bcps/documents', { headers: { Authorization: `Bearer ${t}` } })
     const j = await r.json()
     if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
-    setDocs(j.documents ?? []); setRole(j.role)
+    setDocs((j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'documents'))
+    setRole(j.role)
     setGroups(j.groups ?? []); setMembers(j.members ?? []); setGrants(j.grants ?? [])
-    setAllSeries(j.all_series ?? [])
     setLoading(false)
   }, [token])
 
@@ -270,7 +270,7 @@ export default function DocumentsPage() {
       <div className="docs-section">
         <div className="docs-header">
           <h1>Documents</h1>
-          <p>BCPS marketing communications plans, governance documents, meeting notes, and records. Click any document to preview, or use Request an edit to ask for a change.
+          <p>BCPS marketing communications plans, governance documents, and implementation guides. Click any document to preview, or use Request an edit to ask for a change. Looking for meeting notes or records? Those live under their own nav items now.
             {isAdmin && ' As an admin, each document also shows who has access and an Edit button to manage access or content directly here.'}
           </p>
         </div>
@@ -278,40 +278,8 @@ export default function DocumentsPage() {
         {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '0 0 20px' }}>{err}</div>}
         {toast && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '0 0 20px' }}>{toast}</div>}
 
-        <div className="docs-tabbar">
-          {SECTIONS.map(section => {
-            const count = docs.filter(d => (d.section || 'documents') === section.key).length
-            return (
-              <button
-                key={section.key}
-                className={activeTab === section.key ? 'docs-tab docs-tab-active' : 'docs-tab'}
-                onClick={() => setActiveTab(section.key)}
-              >
-                {section.label}{count > 0 ? ` (${count})` : ''}
-              </button>
-            )
-          })}
-        </div>
-
         {SECTIONS.filter(section => section.key === activeTab).map(section => {
-          let sectionDocs = docs.filter(d => (d.section || 'documents') === section.key)
-          if (section.key === 'meeting-notes' && seriesFilter !== 'all') {
-            sectionDocs = sectionDocs.filter(d => d.series_id === seriesFilter)
-          }
-          sectionDocs = sortDocs(sectionDocs, section.key === 'documents' ? sortMode : 'date_desc')
-
-          // For meeting-notes, group by department/series
-          const meetingsByDept = section.key === 'meeting-notes'
-            ? (() => {
-                const grouped: Record<string, Doc[]> = {}
-                sectionDocs.forEach(doc => {
-                  const dept = doc.series_title || 'Other'
-                  if (!grouped[dept]) grouped[dept] = []
-                  grouped[dept].push(doc)
-                })
-                return Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]))
-              })()
-            : []
+          const sectionDocs = sortDocs(docs.filter(d => (d.section || 'documents') === section.key), sortMode)
 
           return (
             <div key={section.key} className="docs-section-group">
@@ -330,39 +298,7 @@ export default function DocumentsPage() {
 
               <div className="docs-section-divider" />
 
-              {section.key === 'meeting-notes' && meetingsByDept.length > 0 ? (
-                <div className="docs-grid">
-                  {meetingsByDept.map(([dept, deptMeetings]) => (
-                    <div key={dept} className="doc-card" style={{ position: 'relative' }}>
-                      <div style={{ marginBottom: 16 }}>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', margin: '0 0 12px 0' }}>{dept}</h3>
-                        <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-                          {deptMeetings.length} meeting{deptMeetings.length !== 1 ? 's' : ''}
-                        </div>
-                      </div>
-
-                      <div style={{ borderTop: '1px solid rgba(0,0,0,0.09)', paddingTop: 12 }}>
-                        {deptMeetings.map(doc => (
-                          <div key={doc.id} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                            <button
-                              onClick={() => isExternal(doc.doc_url) ? window.open(doc.doc_url, '_blank', 'noopener,noreferrer') : setPreview(doc)}
-                              style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', width: '100%', font: 'inherit', color: 'inherit' }}
-                            >
-                              <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 4 }}>{doc.title}</div>
-                            </button>
-                            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8 }}>{doc.date}</div>
-                            <button style={{ ...A.btn, fontSize: 10 }} onClick={() => isExternal(doc.doc_url) ? window.open(doc.doc_url, '_blank', 'noopener,noreferrer') : setPreview(doc)}>
-                              View
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : section.key === 'meeting-notes' ? (
-                <div style={{ fontSize: 13, color: '#9ca3af' }}>Nothing here yet.</div>
-              ) : sectionDocs.length === 0 ? (
+              {sectionDocs.length === 0 ? (
                 <div style={{ fontSize: 13, color: '#9ca3af' }}>Nothing here yet.</div>
               ) : (
               <div className="docs-grid">
@@ -418,11 +354,7 @@ export default function DocumentsPage() {
                       </div>
 
                       <div className="doc-meta">
-                        <span className={
-                          section.key === 'meeting-notes' ? 'doc-type-notes' :
-                          section.key === 'records' ? 'doc-type-record' :
-                          'doc-type'
-                        }>{doc.type}</span>
+                        <span className="doc-type">{doc.type}</span>
                         <span>{doc.date}</span>
                       </div>
 
