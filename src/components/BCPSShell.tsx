@@ -26,8 +26,7 @@ const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 
 
 const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   dashboard:                { title: 'Dashboard',               sub: 'Broward County Public Schools' },
-  notes:                    { title: 'Meeting Notes',           sub: 'Briefs' },
-  'employee-records':       { title: 'Records',                 sub: 'Performance & Confidential Documents' },
+  notes:                    { title: 'Meeting Notes',           sub: 'Briefs & Records' },
   profile:                  { title: 'My Profile',              sub: 'Account & Settings' },
   departments:              { title: 'Departments',             sub: 'Directory & Profiles' },
   analytics:                { title: 'Analytics',               sub: 'Performance Insights' },
@@ -50,6 +49,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'find-it-fast':           { title: 'Find It Fast',          sub: 'Back to School Widget Content' },
   'widgets':                { title: 'Widgets',               sub: 'Embeddable Modules' },
   'ada-scanner':            { title: 'ADA Scanner',           sub: 'Accessibility Compliance Check' },
+  'schools':                { title: 'School ADA Accounts',   sub: 'School-Level WCM Portal Accounts' },
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────
