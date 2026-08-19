@@ -9,6 +9,7 @@ interface DeptOption {
   id: string
   department_name: string
   location_number: string
+  department_slug: string | null
 }
 
 function titleCase(s: string): string {
@@ -125,9 +126,14 @@ export default function WCMRegistrationRegisterPage() {
       const { data: sessionData } = await supabase.auth.getSession()
       const accessToken = sessionData.session?.access_token
       if (accessToken) {
+        // Pass the resolved bcps_departments slug (not just the free-text
+        // department name saved above) so the real permissions row gets a
+        // department on creation instead of showing Unassigned in the
+        // Members directory until an admin fixes it by hand.
         await fetch('/api/bcps/wcm-pilot-register', {
           method: 'POST',
           headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ department_slug: manualDept ? null : (selectedDept?.department_slug ?? null) }),
         }).catch(() => { /* best effort, follow up manually if this fails */ })
       }
 
