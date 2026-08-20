@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import type { PageId } from '@/lib/types'
 import { MEMBERS } from '@/lib/data'
 import { useBCPSShell } from '@/components/BCPSShell'
+import { getTotalPages } from '@/lib/cert-data'
 
 interface DashboardPageProps {
   onNavigate: (page: PageId) => void
@@ -177,7 +178,14 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
         .then(({ data }) => {
           if (!data) return
           const completed = data.filter((r: { completed: boolean }) => r.completed).length
-          const total = 89 // total pages in dept-wcm-v1
+          // Was hardcoded to 89, a stale count left over from before the
+          // course content was trimmed - real total lives in cert-data.ts
+          // and drifts whenever modules/pages are added or removed. The
+          // stale number meant this widget could never show 100% even
+          // after a WCM finished every real page, and kept sending them
+          // back into a course that had nothing left to do (Kristin
+          // Kupetsky, 2026-08-20).
+          const total = getTotalPages()
           const pct = Math.round((completed / total) * 100)
           // hasAnyProgress: any row at all (even just last_visited_at, no
           // Mark Complete yet) means Save & Exit has already tracked a real
