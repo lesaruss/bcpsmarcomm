@@ -20,7 +20,7 @@ export default async function AdminDashboard() {
 
   const [usersRes, progressRes, certsRes] = await Promise.all([
     supabase.from('wcm_cert_users').select('user_id,email,full_name,department,created_at').eq('is_admin', false).order('created_at', { ascending: false }),
-    supabase.from('wcm_cert_progress').select('user_id,module_id,page_id,completed').eq('course_id', COURSE_ID),
+    supabase.from('wcm_cert_progress').select('user_id,module_id,page_id,completed,submission_text').eq('course_id', COURSE_ID),
     supabase.from('wcm_certifications').select('user_id,issued_at,expires_at').eq('course_id', COURSE_ID),
   ])
 
@@ -28,6 +28,23 @@ export default async function AdminDashboard() {
   const allProgress = progressRes.data || []
   const certMap = new Map((certsRes.data || []).map(c => [c.user_id, c]))
   const totalPages = getTotalPages()
+
+  // Assignment submissions (Module 9 PDF review, Final Assignment audit,
+  // Submit Badge Evidence) so the Office of Communications has somewhere
+  // to actually read what WCMs wrote - previously nothing captured this
+  // text at all (Kristin Kupetsky, 2026-08-20).
+  const submissions = (allProgress || [])
+    .filter((p: { submission_text: string | null }) => p.submission_text && p.submission_text.trim().length > 0)
+    .map((p: { user_id: string; module_id: string; page_id: string; submission_text: string | null }) => {
+      const u = users.find(usr => usr.user_id === p.user_id)
+      const modu = MODULES.find(m => m.id === p.module_id)
+      const pageTitle = modu?.pages.find(pg => pg.id === p.page_id)?.title || p.page_id
+      return {
+        userLabel: u?.full_name || u?.email || p.user_id,
+        pageTitle,
+        text: p.submission_text as string,
+      }
+    })
 
   const userStats = users.map(u => {
     const uProgress = allProgress.filter(p => p.user_id === u.user_id)
@@ -136,6 +153,22 @@ export default async function AdminDashboard() {
               ))}
             </tbody>
           </table>
+        </details>
+
+        <details style={S.details}>
+          <summary style={S.summary}>Assignment Submissions ({submissions.length})</summary>
+          {submissions.length === 0 ? (
+            <p style={{ fontSize: 13, color: '#888', marginTop: 8 }}>No assignment submissions yet.</p>
+          ) : (
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {submissions.map((s, i) => (
+                <div key={i} style={{ background: '#fff', borderRadius: 10, padding: '14px 18px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0e4e73' }}>{s.userLabel} <span style={{ fontWeight: 400, color: '#888' }}>&mdash; {s.pageTitle}</span></div>
+                  <p style={{ fontSize: 13, color: '#333', margin: '6px 0 0', whiteSpace: 'pre-wrap' as const }}>{s.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </details>
       </main>
     </div>
