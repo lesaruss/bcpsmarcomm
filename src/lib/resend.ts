@@ -13,6 +13,7 @@ export async function sendEmail(opts: {
   subject: string
   html: string
   replyTo?: string
+  cc?: string | string[]
 }): Promise<{ ok: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) return { ok: false, error: 'RESEND_API_KEY not configured' }
@@ -30,6 +31,7 @@ export async function sendEmail(opts: {
         subject: opts.subject,
         html: opts.html,
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+        ...(opts.cc ? { cc: Array.isArray(opts.cc) ? opts.cc : [opts.cc] } : {}),
       }),
     })
     if (!res.ok) {
