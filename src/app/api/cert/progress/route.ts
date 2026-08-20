@@ -9,7 +9,7 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { user_id, course_id, module_id, page_id, completed, completed_at } = body
+    const { user_id, course_id, module_id, page_id, completed, completed_at, submission_text } = body
 
     if (!user_id || !course_id || !module_id || !page_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -22,6 +22,9 @@ export async function POST(req: NextRequest) {
     if (completed) {
       record.completed = true
       record.completed_at = completed_at || new Date().toISOString()
+    }
+    if (typeof submission_text === 'string') {
+      record.submission_text = submission_text
     }
 
     const { error } = await supabase
