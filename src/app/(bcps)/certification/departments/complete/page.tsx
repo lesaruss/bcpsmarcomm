@@ -73,7 +73,7 @@ export default async function CompletePage() {
             To receive your certification badge, submit evidence of your active WCM role as described in the final module. The Office of Communications will process your submission and issue your badge within five business days.
           </p>
 
-          <Link href="/certification/departments" style={S.dashBtn}>Return to Dashboard</Link>
+          <Link href="/" style={S.dashBtn}>Return to Dashboard</Link>
         </div>
       </main>
     </div>
