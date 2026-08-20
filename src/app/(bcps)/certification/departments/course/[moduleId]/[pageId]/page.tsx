@@ -16,6 +16,9 @@ export default function CoursePlayerPage({ params }: Props) {
   const [userId, setUserId] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [completedPages, setCompletedPages] = useState<Set<string>>(new Set())
+  const [submissions, setSubmissions] = useState<Record<string, string>>({})
+  const [submissionDraft, setSubmissionDraft] = useState('')
+  const [submissionSaved, setSubmissionSaved] = useState(false)
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({})
   const [quizSubmitted, setQuizSubmitted] = useState(false)
   const [quizScore, setQuizScore] = useState(0)
@@ -72,16 +75,39 @@ export default function CoursePlayerPage({ params }: Props) {
       const { data: profile } = await supabase.from('wcm_cert_users').select('is_admin').eq('user_id', user.id).maybeSingle()
       setIsAdmin(!!profile?.is_admin)
       const { data } = await supabase.from('wcm_cert_progress')
-        .select('module_id,page_id,completed')
+        .select('module_id,page_id,completed,submission_text')
         .eq('user_id', user.id)
         .eq('course_id', COURSE_ID)
       if (data) {
         setCompletedPages(new Set(data.filter((r: { completed: boolean }) => r.completed).map((r: { module_id: string; page_id: string }) => `${r.module_id}::${r.page_id}`)))
+        const subs: Record<string, string> = {}
+        data.forEach((r: { module_id: string; page_id: string; submission_text: string | null }) => {
+          if (r.submission_text) subs[`${r.module_id}::${r.page_id}`] = r.submission_text
+        })
+        setSubmissions(subs)
       }
       setLoading(false)
     }
     init()
   }, [moduleId, pageId])
+
+  // Load whatever submission text exists for the page being viewed (or
+  // start blank) whenever the learner navigates to a new page.
+  useEffect(() => {
+    setSubmissionDraft(submissions[pageKey] || '')
+    setSubmissionSaved(false)
+  }, [pageKey, submissions])
+
+  const saveSubmission = useCallback(async (text: string) => {
+    if (!userId) return
+    await fetch('/api/cert/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, submission_text: text }),
+    }).catch(console.error)
+    setSubmissions(prev => ({ ...prev, [pageKey]: text }))
+    setSubmissionSaved(true)
+  }, [userId, moduleId, pageId, pageKey])
 
   useEffect(() => {
     if (!userId || loading) return
@@ -122,7 +148,10 @@ export default function CoursePlayerPage({ params }: Props) {
       const res = await fetch('/api/cert/progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true }),
+        body: JSON.stringify({
+          user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true,
+          ...(page?.type === 'assignment' ? { submission_text: submissionDraft } : {}),
+        }),
       })
       if (!res.ok) { console.error('Failed to save progress') }
       else {
@@ -145,7 +174,7 @@ export default function CoursePlayerPage({ params }: Props) {
     } else {
       router.push('/certification/departments/complete')
     }
-  }, [userId, completedPages, pageKey, moduleId, pageId, next])
+  }, [userId, completedPages, pageKey, moduleId, pageId, next, page, submissionDraft])
 
   // Marks page complete without navigating - activates the footer Continue button
   const markCompleteOnly = useCallback(async () => {
@@ -153,7 +182,10 @@ export default function CoursePlayerPage({ params }: Props) {
     const res = await fetch('/api/cert/progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true }),
+      body: JSON.stringify({
+        user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true,
+        ...(page?.type === 'assignment' ? { submission_text: submissionDraft } : {}),
+      }),
     })
     if (!res.ok) { console.error('Failed to save progress'); return }
     const newCompleted = new Set(Array.from(completedPages).concat(pageKey))
@@ -167,7 +199,7 @@ export default function CoursePlayerPage({ params }: Props) {
       }).catch(console.error)
       router.push('/certification/departments/complete')
     }
-  }, [userId, completedPages, pageKey, moduleId, pageId])
+  }, [userId, completedPages, pageKey, moduleId, pageId, page, submissionDraft])
 
   async function handleQuizSubmit() {
     if (!page?.questions || !userId || !mod) return
@@ -183,10 +215,21 @@ export default function CoursePlayerPage({ params }: Props) {
       score, passed, answers: quizAnswers, attempted_at: new Date().toISOString(),
     })
     if (passed) {
-      // Mark ALL pages in this module complete so the next module unlocks.
-      // Users who skipped "Mark Complete" on content pages still advance cleanly.
+      // Mark remaining CONTENT pages in this module complete so the next
+      // module unlocks, so users who skipped "Mark Complete" on reading
+      // pages still advance cleanly. Assignment pages (and the final
+      // module's Submit Badge Evidence page) require the learner to
+      // actually do and submit something - passing the quiz must never
+      // silently tick those off. Before this fix, passing the Final Quiz
+      // force-completed the Final Assignment and Submit Badge Evidence
+      // pages along with everything else in the "final" module, which
+      // satisfied the all-pages-complete check and fired /certification/
+      // departments/complete instantly - before the learner ever saw those
+      // pages (Kristin Kupetsky, 2026-08-20: quiz score flashed then jumped
+      // straight to the certificate, with no way back to the required
+      // submission steps).
       const incompletePages = mod.pages.filter(
-        (p: CoursePage) => !completedPages.has(`${moduleId}::${p.id}`)
+        (p: CoursePage) => p.type !== 'assignment' && !(moduleId === 'final' && p.id === 'badge') && !completedPages.has(`${moduleId}::${p.id}`)
       )
       if (incompletePages.length > 0) {
         await Promise.all(
@@ -201,8 +244,8 @@ export default function CoursePlayerPage({ params }: Props) {
             })
           )
         )
-        const allModuleKeys = mod.pages.map((p: CoursePage) => `${moduleId}::${p.id}`)
-        const newCompleted = new Set([...Array.from(completedPages), ...allModuleKeys])
+        const newlyCompletedKeys = incompletePages.map((p: CoursePage) => `${moduleId}::${p.id}`)
+        const newCompleted = new Set([...Array.from(completedPages), ...newlyCompletedKeys])
         setCompletedPages(newCompleted)
         // Check full course completion
         const allKeys = MODULES.flatMap((m: CourseModule) => m.pages.map((p: CoursePage) => `${m.id}::${p.id}`))
@@ -457,13 +500,43 @@ export default function CoursePlayerPage({ params }: Props) {
               {page.content && <div className="cert-content" style={S.content} dangerouslySetInnerHTML={{ __html: page.content }} />}
               {page.type === 'assignment' && (
                 <div style={S.assignmentBox}>
-                  <p style={{ margin: 0, fontSize: 13, color: '#666' }}>When you have completed this assignment, mark it complete to continue.</p>
+                  <label htmlFor="assignment-submission" style={{ display: 'block', margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#0e4e73' }}>
+                    Your submission
+                  </label>
+                  <textarea
+                    id="assignment-submission"
+                    value={submissionDraft}
+                    onChange={(e) => { setSubmissionDraft(e.target.value); setSubmissionSaved(false) }}
+                    placeholder="Type your summary here..."
+                    rows={6}
+                    style={S.submissionTextarea}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
+                    <button
+                      type="button"
+                      style={S.saveExitBtn}
+                      onClick={() => saveSubmission(submissionDraft)}
+                    >
+                      Save Draft
+                    </button>
+                    {submissionSaved && <span style={{ fontSize: 12, color: '#16750C', fontWeight: 700 }}>Saved</span>}
+                  </div>
+                  <p style={{ margin: '10px 0 0', fontSize: 12, color: '#888' }}>Marking this assignment complete saves your submission and sends it to the Office of Communications for review.</p>
                 </div>
               )}
               {!isCurrentComplete && (
                 <div className="course-actions-row" style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 28 }}>
-                  <button style={S.completeBtn} onClick={markCompleteOnly}>Mark Complete</button>
+                  <button
+                    style={{ ...S.completeBtn, opacity: page.type === 'assignment' && submissionDraft.trim().length < 20 ? 0.5 : 1 }}
+                    disabled={page.type === 'assignment' && submissionDraft.trim().length < 20}
+                    onClick={markCompleteOnly}
+                  >
+                    Mark Complete
+                  </button>
                   <button style={S.saveExitBtn} onClick={saveAndExit}>Save &amp; Exit</button>
+                  {page.type === 'assignment' && submissionDraft.trim().length < 20 && (
+                    <span style={{ fontSize: 12, color: '#888' }}>Write at least a few sentences before marking this complete.</span>
+                  )}
                 </div>
               )}
               {isCurrentComplete && (
@@ -617,6 +690,7 @@ const S: Record<string, React.CSSProperties> = {
   completeBtn: { padding: '13px 30px', background: '#1672A7', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const },
   completedNote: { color: '#16750C', fontWeight: 700, fontSize: 14 },
   assignmentBox: { background: '#f8fafb', border: '1px solid #e0e8ef', borderRadius: 8, padding: '14px 18px', marginTop: 24 },
+  submissionTextarea: { width: '100%', boxSizing: 'border-box' as const, fontFamily: 'inherit', fontSize: 14, color: '#222', border: '1px solid #d0d9e3', borderRadius: 8, padding: '10px 12px', resize: 'vertical' as const, lineHeight: 1.5 },
   question: { marginBottom: 24 },
   questionText: { fontSize: 15, fontWeight: 600, color: '#222', margin: '0 0 10px', lineHeight: 1.5 },
   option: { display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14, color: '#444', margin: '4px 0', cursor: 'pointer', lineHeight: 1.5 },
