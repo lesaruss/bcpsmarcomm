@@ -8,8 +8,16 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --blue: #003F87;
-    --blue-light: #005CB9;
+    /* BCPS brand kit (source: MarComm Quick Reference Sheet v3, verified 2026-08-13):
+       official BCPS Blue as the primary interactive color, plus the navy/gold pairing
+       used in the Student AI Council module so this widget reads as part of the same
+       family of BCPS-built tools. Fonts: Century Gothic for headlines, Arial for body -
+       the two approved BCPS fonts we have web-safe fallback stacks for (no webfont). */
+    --navy: #0C2340;
+    --navy-2: #13315C;
+    --gold: #C8A24A;
+    --blue: #1672A7;
+    --blue-dark: #0E4E73;
     --blue-faint: #EBF1F8;
     --teal: #00838F;
     --teal-light: #E0F4F5;
@@ -20,10 +28,12 @@
     --white: #FFFFFF;
     --bg: #F5F7FA;
     --radius: 8px;
+    --font-head: "Century Gothic", "Apple Gothic", Arial, Helvetica, sans-serif;
+    --font-body: Arial, Helvetica, sans-serif;
   }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-body);
     background: var(--white);
     color: var(--text);
     font-size: 14px;
@@ -32,7 +42,7 @@
 
   /* HEADER */
   .module-header {
-    background: var(--blue);
+    background: linear-gradient(135deg, var(--navy), var(--navy-2));
     color: #fff;
     padding: 16px 20px 14px;
     display: flex;
@@ -41,14 +51,18 @@
   }
   .module-header svg { flex-shrink: 0; }
   .module-header h1 {
+    font-family: var(--font-head);
     font-size: 16px;
     font-weight: 700;
     letter-spacing: 0.01em;
   }
   .module-header p {
-    font-size: 12px;
-    color: rgba(255,255,255,0.78);
-    margin-top: 1px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--gold);
+    margin-bottom: 3px;
   }
 
   /* CONTROLS */
@@ -90,8 +104,8 @@
     -webkit-appearance: none;
   }
   input[type="search"]:focus, select:focus {
-    border-color: var(--blue-light);
-    box-shadow: 0 0 0 3px rgba(0,92,185,0.12);
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(22,114,167,0.15);
   }
   select {
     padding-left: 10px;
@@ -130,7 +144,7 @@
     transition: all 0.12s;
     white-space: nowrap;
   }
-  .grade-btn:hover { border-color: var(--blue-light); color: var(--blue-light); }
+  .grade-btn:hover { border-color: var(--blue); color: var(--blue); }
   .grade-btn.active {
     background: var(--blue);
     border-color: var(--blue);
@@ -171,8 +185,9 @@
   .card:hover { background: var(--blue-faint); }
 
   .card-name {
+    font-family: var(--font-head);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text);
     line-height: 1.35;
   }
@@ -197,7 +212,7 @@
   .badge-city {
     background: var(--blue-faint);
     color: var(--blue);
-    border: 1px solid rgba(0,63,135,0.15);
+    border: 1px solid rgba(22,114,167,0.2);
   }
 
   .card-meta {
@@ -227,13 +242,13 @@
     gap: 5px;
     font-size: 12px;
     font-weight: 500;
-    color: var(--blue-light);
+    color: var(--blue);
     text-decoration: none;
     transition: color 0.1s;
   }
-  .card-link:hover { color: var(--blue); text-decoration: underline; }
+  .card-link:hover { color: var(--blue-dark); text-decoration: underline; }
   .card-link:focus-visible {
-    outline: 2px solid var(--blue-light);
+    outline: 2px solid var(--blue);
     outline-offset: 2px;
     border-radius: 2px;
   }
@@ -276,7 +291,7 @@
     transition: all 0.12s;
     line-height: 1;
   }
-  .pg-btn:hover:not(:disabled) { border-color: var(--blue-light); color: var(--blue-light); }
+  .pg-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
   .pg-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
   .pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
   .pg-ellipsis { color: var(--text-muted); font-size: 13px; padding: 0 4px; }
@@ -301,8 +316,8 @@
     <rect x="6" y="20" width="16" height="2" fill="#fff"/>
   </svg>
   <div>
+    <p>Broward County Public Schools &middot; <span id="headerCount">&hellip;</span> Charter Schools</p>
     <h1>Charter School Directory</h1>
-    <p>Broward County Public Schools - <span id="headerCount">&hellip;</span> Charter Schools</p>
   </div>
 </div>
 
