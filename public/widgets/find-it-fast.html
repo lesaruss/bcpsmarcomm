@@ -4,21 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Find It Fast - BCPS Back to School</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 <style>
   #fif-module, #fif-module * { box-sizing: border-box; }
   #fif-module {
-    --fif-accent: #ba4e24;
-    --fif-accent-dark: #8c3b1b;
-    --fif-gold: #D9A404;
+    /* BCPS brand kit (verified 2026-08-13): official BCPS Blue as the primary
+       accent, plus the navy/gold pairing from the Student AI Council module so
+       this widget matches the Charter School Directory and reads as one family
+       of BCPS-built tools. Century Gothic for headlines, Arial for body - the
+       approved BCPS fonts, both web-safe with no external font load. */
+    --fif-navy: #0C2340;
+    --fif-navy-2: #13315C;
+    --fif-accent: #1672A7;
+    --fif-accent-dark: #0E4E73;
+    --fif-gold: #C8A24A;
     --fif-text: #1a1a1a;
     --fif-secondary: #555555;
     --fif-muted: #767676;
     --fif-border: #e2e6ea;
-    --fif-bg-tint: #f8f0ec;
-    font-family: "Open Sans", "Segoe UI", Arial, Helvetica, sans-serif;
+    --fif-bg-tint: #EBF1F8;
+    --fif-font-head: "Century Gothic", "Apple Gothic", Arial, Helvetica, sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
     background: #ffffff;
     color: var(--fif-text);
     max-width: 960px;
@@ -36,6 +41,7 @@
     margin: 0 0 6px;
   }
   #fif-module h2 {
+    font-family: var(--fif-font-head);
     margin: 0 0 8px;
     font-size: 28px;
     line-height: 1.2;
@@ -75,7 +81,7 @@
   }
   #fif-module input[type="search"]:focus,
   #fif-module button:focus-visible {
-    outline: 3px solid var(--fif-gold);
+    outline: 3px solid var(--fif-accent);
     outline-offset: 2px;
   }
   #fif-module .fif-clear-btn {
@@ -111,8 +117,8 @@
   #fif-module .fif-cat-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
   #fif-module .fif-cat-btn:hover { background: rgba(220, 221, 224, 0.8); color: #232327; }
   #fif-module .fif-cat-btn[aria-pressed="true"] {
-    background: rgba(0, 0, 0, 0.7);
-    border-color: #262626;
+    background: linear-gradient(135deg, var(--fif-navy), var(--fif-navy-2));
+    border-color: var(--fif-navy);
     color: #ffffff;
   }
   #fif-module .fif-count {
@@ -146,6 +152,7 @@
   }
   #fif-module .fif-card-tag svg { width: 14px; height: 14px; }
   #fif-module .fif-card h3 {
+    font-family: var(--fif-font-head);
     margin: 0;
     font-size: 16px;
     line-height: 1.3;
