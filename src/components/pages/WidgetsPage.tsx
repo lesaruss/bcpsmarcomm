@@ -119,7 +119,26 @@ export default function WidgetsPage() {
 
   const copyEmbed = async (w: Widget) => {
     const src = `https://bcpsmarcomm.com${w.preview_path}`
-    const snippet = `<iframe src="${src}" style="width:100%;border:0;" title="${w.title}"></iframe>`
+    const frameId = `bcps-widget-${w.slug}`
+    // The embed pages post their real rendered height to window.parent via
+    // postMessage (type: 'bcps-widget-resize', slug, height) once loaded and
+    // whenever their content changes. Without a listener on the destination
+    // page, the <iframe> has no explicit height and falls back to the
+    // browser default (~150-250px tall) regardless of the widget's actual
+    // content. This companion script is what makes the iframe grow/shrink
+    // to match - it's self-contained so it works on any destination site.
+    const snippet = `<iframe id="${frameId}" src="${src}" style="width:100%;border:0;display:block;" height="600" title="${w.title}"></iframe>
+<script>
+(function(){
+  var ifr = document.getElementById('${frameId}');
+  if (!ifr) return;
+  window.addEventListener('message', function(e){
+    var d = e.data;
+    if (!d || d.type !== 'bcps-widget-resize' || d.slug !== '${w.slug}') return;
+    ifr.style.height = d.height + 'px';
+  });
+})();
+</script>`
     try {
       await navigator.clipboard.writeText(snippet)
       showToast(`Embed code for ${w.title} copied`)
