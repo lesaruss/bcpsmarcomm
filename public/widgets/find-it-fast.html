@@ -338,7 +338,7 @@
     var height = Math.ceil(document.body.getBoundingClientRect().height);
     if (Math.abs(height - lastPostedHeight) < 2) return;
     lastPostedHeight = height;
-    window.parent.postMessage({ type: "fif-resize", slug: "find-it-fast", height: height }, "*");
+    window.parent.postMessage({ type: "bcps-widget-resize", slug: "find-it-fast", height: height }, "*");
   }
 
   function externalIcon() {
