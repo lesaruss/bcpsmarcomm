@@ -9,13 +9,12 @@
 
   :root {
     /* BCPS brand kit (source: MarComm Quick Reference Sheet v3, verified 2026-08-13):
-       official BCPS Blue as the primary interactive color, plus the navy/gold pairing
-       used in the Student AI Council module so this widget reads as part of the same
-       family of BCPS-built tools. Fonts: Century Gothic for headlines, Arial for body -
-       the two approved BCPS fonts we have web-safe fallback stacks for (no webfont). */
-    --navy: #0C2340;
-    --navy-2: #13315C;
-    --gold: #C8A24A;
+       official BCPS Blue as the primary interactive color. No internal title/header
+       here by design (Sean, 2026-08-21) - the navy/gold module-header treatment read
+       as off-brand rather than "district," and was dropped in favor of this module
+       just being clean content, with the destination page supplying its own heading.
+       Fonts: Century Gothic for headlines, Arial for body - the two approved BCPS
+       fonts we have web-safe fallback stacks for (no webfont). */
     --blue: #1672A7;
     --blue-dark: #0E4E73;
     --blue-faint: #EBF1F8;
@@ -40,36 +39,11 @@
     line-height: 1.5;
   }
 
-  /* HEADER */
-  .module-header {
-    background: linear-gradient(135deg, var(--navy), var(--navy-2));
-    color: #fff;
-    padding: 16px 20px 14px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .module-header svg { flex-shrink: 0; }
-  .module-header h1 {
-    font-family: var(--font-head);
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-  }
-  .module-header p {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--gold);
-    margin-bottom: 3px;
-  }
-
   /* CONTROLS */
   .controls {
     background: var(--white);
     border-bottom: 1px solid var(--border);
-    padding: 14px 20px;
+    padding: 18px 20px 14px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -300,27 +274,15 @@
     .search-row { flex-direction: column; }
     select { min-width: unset; width: 100%; }
     .grid { grid-template-columns: 1fr; }
-    .module-header h1 { font-size: 14px; }
   }
 </style>
 </head>
 <body>
 
-<div class="module-header">
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-    <rect width="28" height="28" rx="6" fill="rgba(255,255,255,0.15)"/>
-    <path d="M14 6L6 10v2h16v-2L14 6z" fill="#fff"/>
-    <rect x="8" y="12" width="3" height="8" fill="rgba(255,255,255,0.8)"/>
-    <rect x="12.5" y="12" width="3" height="8" fill="rgba(255,255,255,0.8)"/>
-    <rect x="17" y="12" width="3" height="8" fill="rgba(255,255,255,0.8)"/>
-    <rect x="6" y="20" width="16" height="2" fill="#fff"/>
-  </svg>
-  <div>
-    <p>Broward County Public Schools &middot; <span id="headerCount">&hellip;</span> Charter Schools</p>
-    <h1>Charter School Directory</h1>
-  </div>
-</div>
-
+<!-- No internal title/header here by design (Sean, 2026-08-21): this embed
+     is meant to sit inside a page section that already has its own heading
+     ("Charter School Directory" / similar), so this module starts straight
+     into the search controls instead of duplicating a header. -->
 <div class="controls">
   <div class="search-row">
     <div class="search-wrap">
@@ -547,7 +509,6 @@ async function init() {
   } catch (e) {
     SCHOOLS = [];
   }
-  document.getElementById('headerCount').textContent = SCHOOLS.length;
   document.getElementById('totalCount').textContent = SCHOOLS.length;
   populateCityFilter();
   render();
