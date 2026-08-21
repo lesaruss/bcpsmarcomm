@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import FindItFastPage from './FindItFastPage'
+import CharterSchoolsPage from './CharterSchoolsPage'
 
 interface Widget {
   id: string
@@ -24,6 +25,7 @@ type Grant = { id: string; object_id: string; subject_type: string; subject_id: 
 // in-app editor - widgets with no entry just show preview + embed.
 const EDITORS: Record<string, React.ComponentType> = {
   'find-it-fast': FindItFastPage,
+  'charter-school-directory': CharterSchoolsPage,
 }
 
 const ROLE_OPTS = ['view', 'edit', 'manage']
