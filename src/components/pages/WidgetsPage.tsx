@@ -48,8 +48,13 @@ export default function WidgetsPage() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  const [expanded, setExpanded] = useState<Record<string, 'edit' | 'access' | null>>({})
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [toast, setToast] = useState('')
+  // Which widget's editor is open in the modal (null = none). Editors used to
+  // expand inline under the card, which pushed the rest of the page down and
+  // meant scrolling to find them - per Sean 2026-08-21, they now open in an
+  // overlay with their own Close button instead.
+  const [editingSlug, setEditingSlug] = useState<string | null>(null)
 
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
 
@@ -94,8 +99,23 @@ export default function WidgetsPage() {
   const groupName = (gid: string) => groups.find(g => g.id === gid)?.name || 'Group'
   const memberName = (uid: string) => members.find(m => m.user_id === uid)?.name || 'Unknown'
 
-  const toggle = (slug: string, panel: 'edit' | 'access') =>
-    setExpanded(prev => ({ ...prev, [slug]: prev[slug] === panel ? null : panel }))
+  const toggleAccess = (slug: string) =>
+    setExpanded(prev => ({ ...prev, [slug]: !prev[slug] }))
+
+  // Lock page scroll while the editor modal is open so the backdrop reads as
+  // a real overlay rather than a tall page the user can still scroll behind.
+  useEffect(() => {
+    document.body.style.overflow = editingSlug ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [editingSlug])
+
+  // Esc closes the modal, same as the Close button.
+  useEffect(() => {
+    if (!editingSlug) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setEditingSlug(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [editingSlug])
 
   const copyEmbed = async (w: Widget) => {
     const src = `https://bcpsmarcomm.com${w.preview_path}`
@@ -126,7 +146,7 @@ export default function WidgetsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, alignItems: 'start' }}>
       {widgets.map(w => {
         const Editor = w.editor_component ? EDITORS[w.editor_component] : null
-        const panel = expanded[w.slug]
+        const accessOpen = !!expanded[w.slug]
         const wgrants = grantsFor(w.object_id)
         return (
           <div key={w.slug} style={{ ...C.card, marginBottom: 0 }}>
@@ -139,12 +159,10 @@ export default function WidgetsPage() {
                 <button style={C.btn} onClick={() => copyEmbed(w)}>Copy embed code</button>
                 <a href={w.preview_path} target="_blank" rel="noopener noreferrer" style={{ ...C.btn, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Open full preview ↗</a>
                 {Editor && w.can_edit && (
-                  <button style={panel === 'edit' ? C.btnPrimary : C.btn} onClick={() => toggle(w.slug, 'edit')}>
-                    {panel === 'edit' ? 'Close editor' : 'Edit'}
-                  </button>
+                  <button style={C.btn} onClick={() => setEditingSlug(w.slug)}>Edit</button>
                 )}
                 {isAdmin && (
-                  <button style={panel === 'access' ? C.btnPrimary : C.btn} onClick={() => toggle(w.slug, 'access')}>
+                  <button style={accessOpen ? C.btnPrimary : C.btn} onClick={() => toggleAccess(w.slug)}>
                     Manage editors
                   </button>
                 )}
@@ -159,13 +177,7 @@ export default function WidgetsPage() {
               <iframe src={w.preview_path} title={`${w.title} preview`} style={{ width: '100%', height: 360, border: 0, display: 'block' }} />
             </div>
 
-            {panel === 'edit' && Editor && (
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #f1f1f1' }}>
-                <Editor />
-              </div>
-            )}
-
-            {panel === 'access' && isAdmin && (
+            {accessOpen && isAdmin && (
               <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #f1f1f1' }}>
                 <div style={C.sublabel}>Who can edit {w.title}</div>
                 {!w.object_id && <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>Setting up access for this widget - try again in a moment.</div>}
@@ -192,6 +204,49 @@ export default function WidgetsPage() {
         )
       })}
       </div>
+
+      {editingSlug && (() => {
+        const w = widgets.find(x => x.slug === editingSlug)
+        const Editor = w?.editor_component ? EDITORS[w.editor_component] : null
+        if (!w || !Editor) return null
+        return (
+          <div
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(17, 24, 39, 0.55)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 24, zIndex: 1000,
+            }}
+            onClick={() => setEditingSlug(null)}
+          >
+            <div
+              style={{
+                background: '#fff', borderRadius: 12, width: '100%', maxWidth: 1000,
+                maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+                position: 'relative',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{
+                position: 'sticky', top: 0, background: '#fff', zIndex: 1,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '14px 20px', borderBottom: '1px solid #f1f1f1',
+              }}>
+                <div style={{ fontSize: 15, fontWeight: 800 }}>Editing: {w.title}</div>
+                <button
+                  style={{ ...C.btn, padding: '6px 12px' }}
+                  onClick={() => setEditingSlug(null)}
+                  aria-label="Close editor"
+                >
+                  Close ✕
+                </button>
+              </div>
+              <div style={{ padding: '4px 4px 20px' }}>
+                <Editor />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
