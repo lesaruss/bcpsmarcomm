@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
                 </tr>
               </table>
               <p style="margin:0 0 16px;font-size:13px;color:#555;line-height:1.6;">
-                To receive your certification badge, submit evidence of your active WCM role as described in the final module. The Office of Communications will process your submission and issue your badge within five business days.
+                Next: get into Finalsite to actually update your department page. Your certificate page below has step-by-step login instructions for both recertifying and first-time WCMs.
               </p>
               <a href="https://bcpsmarcomm.com/certification/departments/complete"
                  style="display:inline-block;padding:10px 20px;background:#1672A7;color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;">
