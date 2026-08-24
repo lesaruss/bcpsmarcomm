@@ -70,10 +70,13 @@ export default async function CompletePage() {
           </div>
 
           <p style={S.nextSteps}>
-            To receive your certification badge, submit evidence of your active WCM role as described in the final module. The Office of Communications will process your submission and issue your badge within five business days.
+            Next: get into Finalsite to actually update your department page. Recertifying WCMs already have access &mdash; first-time WCMs submit a short access request first.
           </p>
 
-          <Link href="/" style={S.dashBtn}>Return to Dashboard</Link>
+          <a href="https://bcpsmarcomm.com/briefs/bcps-wcm-cert-complete-2026-27" style={S.dashBtn}>Get Into Finalsite</a>
+          <div style={{ marginTop: 12 }}>
+            <Link href="/" style={{ fontSize: 13, color: '#888', textDecoration: 'underline' }}>Return to Dashboard</Link>
+          </div>
         </div>
       </main>
     </div>
