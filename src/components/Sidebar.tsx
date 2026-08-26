@@ -250,6 +250,7 @@ const SECTIONS: NavSection[] = [
     { id: 'superadmin', label: 'Platform Management' },
     { id: 'permissions', label: 'Permissions' },
     { id: 'pulse-approvals', label: 'Note Approvals' },
+    { id: 'registrations', label: 'Registrations' },
   ] },
   { label: 'Other', items: [
     { id: 'minutes', label: 'Minutes' },
