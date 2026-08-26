@@ -32,6 +32,7 @@ import WidgetsPage from '@/components/pages/WidgetsPage'
 import RequestsPage from '@/components/pages/RequestsPage'
 import AdaScannerPage from '@/components/pages/AdaScannerPage'
 import SchoolsAdminPage from '@/components/pages/SchoolsAdminPage'
+import RegistrationsPage from '@/components/pages/RegistrationsPage'
 import type { UserRole } from '@/components/Sidebar'
 
 const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals'])
