@@ -35,7 +35,7 @@ import SchoolsAdminPage from '@/components/pages/SchoolsAdminPage'
 import RegistrationsPage from '@/components/pages/RegistrationsPage'
 import type { UserRole } from '@/components/Sidebar'
 
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations'])
 
 function HomeInner() {
   const router = useRouter()
