@@ -107,6 +107,7 @@ function HomeInner() {
       {nav.page === 'requests'                && <RequestsPage />}
       {nav.page === 'ada-scanner'              && <AdaScannerPage />}
       {nav.page === 'schools'                  && <SchoolsAdminPage />}
+      {nav.page === 'registrations'            && effectiveRole === 'superadmin' && <RegistrationsPage />}
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>
