@@ -19,6 +19,7 @@ export type PageId =
   | 'reports'
   | 'documents'
   | 'permissions'
+  | 'registrations'
   | 'members'
   | 'community-relations'
   | 'minibase'
