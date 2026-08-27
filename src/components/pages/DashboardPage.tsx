@@ -7,6 +7,7 @@ import type { PageId } from '@/lib/types'
 import { MEMBERS } from '@/lib/data'
 import { useBCPSShell } from '@/components/BCPSShell'
 import { getTotalPages } from '@/lib/cert-data'
+import { SAMPLE_ROLE_MEMBERS } from '@/components/Sidebar'
 
 interface DashboardPageProps {
   onNavigate: (page: PageId) => void
@@ -159,6 +160,89 @@ const TOOL_TILES = [
   { key: 'wcmhub', name: 'WCM Hub', desc: 'Your home base on bcpsmarcomm.com', icon: 'WH', page: 'wcm' as PageId },
 ]
 
+// Fictitious "preview a role" identities (Sean, 2026-08-27): purely to let a
+// SuperAdmin confirm the new dashboard layout renders correctly for each
+// access tier, never tied to a real person's account. These ids never match
+// anything in the live /api/bcps/members or bcps_departments data, so every
+// section below that would normally fetch live data is substituted with
+// fully-synthetic, clearly-labeled sample content instead.
+const SAMPLE_IDS = new Set(SAMPLE_ROLE_MEMBERS.map(m => m.id))
+
+const SAMPLE_DEPT_DETAIL: Record<string, DeptDetail> = {
+  SWC: {
+    slug: 'sample-department', name: 'Sample Department (Preview)', division: 'Sample Division',
+    director_name: 'Jordan Rivera', director_email: 'sample.director@browardschools.com',
+    chief_title: 'Chief Officer', chief_name: 'Alex Chen',
+    wcm_name: 'Wendy Ramirez', wcm_email: 'sample-wcm@preview.local',
+    audit_status: 'in_progress', ada_score: 82, health_status: 'good',
+    blurb: 'This is sample preview data shown for layout verification only - it is not a real department record.',
+    website_url: 'https://browardschools.com/o/sample-department', audit_date: new Date().toISOString(), current_round: 2,
+  },
+  SDW: {
+    slug: 'sample-department', name: 'Sample Department (Preview)', division: 'Sample Division',
+    director_name: 'Jordan Rivera', director_email: 'sample.director@browardschools.com',
+    chief_title: 'Chief Officer', chief_name: 'Alex Chen',
+    wcm_name: 'Dana Okafor', wcm_email: 'sample-dwt@preview.local',
+    audit_status: 'complete', ada_score: 94, health_status: 'excellent',
+    blurb: 'This is sample preview data shown for layout verification only - it is not a real department record.',
+    website_url: 'https://browardschools.com/o/sample-department', audit_date: new Date().toISOString(), current_round: 3,
+  },
+  SSA: {
+    slug: 'sample-department', name: 'Sample Department (Preview)', division: 'District Web Team',
+    director_name: 'Jordan Rivera', director_email: 'sample.director@browardschools.com',
+    chief_title: 'Chief Officer', chief_name: 'Alex Chen',
+    wcm_name: 'Sam Rivera', wcm_email: 'sample-superadmin@preview.local',
+    audit_status: 'complete', ada_score: 97, health_status: 'excellent',
+    blurb: 'This is sample preview data shown for layout verification only - it is not a real department record.',
+    website_url: 'https://browardschools.com/o/sample-department', audit_date: new Date().toISOString(), current_round: 4,
+  },
+}
+
+function sampleDoc(id: string, title: string, section: CatalogDoc['section'], daysAgo: number, featured: boolean, type: string): CatalogDoc {
+  const d = new Date(Date.now() - daysAgo * 86400000)
+  const iso = d.toISOString()
+  return {
+    id, slug: id, title, description: 'Sample preview content for layout verification.',
+    type, date: iso, date_sort: iso, section, doc_url: '#', featured, series_title: 'Sample Playbook',
+  }
+}
+
+const SAMPLE_MEETING_NOTES: Record<string, CatalogDoc[]> = {
+  SWC: [
+    sampleDoc('sample-mn-1', 'Hot Lab Recap - Sample Week', 'meeting-notes', 2, false, 'Meeting Note'),
+    sampleDoc('sample-mn-2', 'District Web Team Huddle - Sample', 'meeting-notes', 6, false, 'Meeting Note'),
+    sampleDoc('sample-mn-3', 'Department WCM Check-in - Sample', 'meeting-notes', 10, false, 'Meeting Note'),
+  ],
+  SDW: [
+    sampleDoc('sample-mn-4', 'District Web Team Huddle - Sample', 'meeting-notes', 1, false, 'Meeting Note'),
+    sampleDoc('sample-mn-5', 'Hot Lab Recap - Sample Week', 'meeting-notes', 5, false, 'Meeting Note'),
+    sampleDoc('sample-mn-6', 'Cross-Department Sync - Sample', 'meeting-notes', 9, false, 'Meeting Note'),
+  ],
+  SSA: [
+    sampleDoc('sample-mn-7', 'SuperAdmin Governance Review - Sample', 'meeting-notes', 1, false, 'Meeting Note'),
+    sampleDoc('sample-mn-8', 'District Web Team Huddle - Sample', 'meeting-notes', 4, false, 'Meeting Note'),
+    sampleDoc('sample-mn-9', 'Hot Lab Recap - Sample Week', 'meeting-notes', 8, false, 'Meeting Note'),
+  ],
+}
+
+const SAMPLE_DOCUMENTS: Record<string, CatalogDoc[]> = {
+  SWC: [
+    sampleDoc('sample-doc-1', 'WCM Hub Style Guide - Sample', 'documents', 3, true, 'Website'),
+    sampleDoc('sample-doc-2', 'Page Audit Checklist - Sample', 'documents', 7, false, 'Report'),
+    sampleDoc('sample-doc-3', 'ADA Quick Reference - Sample', 'documents', 12, false, 'Guide'),
+  ],
+  SDW: [
+    sampleDoc('sample-doc-4', 'District Web Team Playbook - Sample', 'documents', 2, true, 'Website'),
+    sampleDoc('sample-doc-5', 'Departmental Rollout Plan - Sample', 'documents', 8, false, 'Report'),
+    sampleDoc('sample-doc-6', 'ADA Quick Reference - Sample', 'documents', 14, false, 'Guide'),
+  ],
+  SSA: [
+    sampleDoc('sample-doc-7', 'District-Wide Audit Summary - Sample', 'documents', 1, true, 'Report'),
+    sampleDoc('sample-doc-8', 'SuperAdmin Console Guide - Sample', 'documents', 6, false, 'Guide'),
+    sampleDoc('sample-doc-9', 'ADA Quick Reference - Sample', 'documents', 15, false, 'Guide'),
+  ],
+}
+
 export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPageProps) {
   const [notes, setNotes] = useState<AssignmentNote[]>([])
   const [notesLoading, setNotesLoading] = useState(true)
@@ -302,11 +386,19 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   // and the Department Profile card at the bottom of the page. Waits on
   // teamMembers (already fetched above) to resolve the department slug,
   // same source the existing "My Department" quick tile uses.
-  const myDeptSlug = (viewAsUserId
-    ? teamMembers.find(m => m.initials === viewAsUserId)?.department?.slug
-    : teamMembers.find(m => m.user_id === meId)?.department?.slug) ?? null
+  const isSampleView = !!viewAsUserId && SAMPLE_IDS.has(viewAsUserId)
 
+  const myDeptSlug = isSampleView
+    ? SAMPLE_DEPT_DETAIL[viewAsUserId!].slug
+    : (viewAsUserId
+      ? teamMembers.find(m => m.initials === viewAsUserId)?.department?.slug
+      : teamMembers.find(m => m.user_id === meId)?.department?.slug) ?? null
+
+  // Sample identities are never real people/departments - substitute fully
+  // synthetic data instead of hitting bcps_departments with a slug that
+  // will never exist.
   useEffect(() => {
+    if (isSampleView) { setDeptDetail(SAMPLE_DEPT_DETAIL[viewAsUserId!]); setDeptDetailLoading(false); return }
     if (!myDeptSlug) { setDeptDetail(null); setDeptDetailLoading(false); return }
     setDeptDetailLoading(true)
     const supabase = createClient()
@@ -319,7 +411,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
         setDeptDetail(data ?? null)
         setDeptDetailLoading(false)
       })
-  }, [myDeptSlug])
+  }, [myDeptSlug, isSampleView, viewAsUserId])
 
   // Documents + Meeting Notes tiles both read the same access-filtered
   // catalog NotesPage/DocumentsPage already use (/api/bcps/documents),
@@ -338,15 +430,21 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     })()
   }, [])
 
-  const meetingNotes = docs
-    .filter(d => d.section === 'meeting-notes')
-    .sort((a, b) => (b.date_sort || '').localeCompare(a.date_sort || ''))
-    .slice(0, 3)
+  const meetingNotes = isSampleView
+    ? SAMPLE_MEETING_NOTES[viewAsUserId!]
+    : docs
+      .filter(d => d.section === 'meeting-notes')
+      .sort((a, b) => (b.date_sort || '').localeCompare(a.date_sort || ''))
+      .slice(0, 3)
 
-  const documentsList = (docMode === 'favorites'
-    ? docs.filter(d => d.section === 'documents' && d.featured)
-    : docs.filter(d => d.section === 'documents').sort((a, b) => (b.date_sort || '').localeCompare(a.date_sort || ''))
-  ).slice(0, 5)
+  const documentsList = isSampleView
+    ? (docMode === 'favorites'
+      ? SAMPLE_DOCUMENTS[viewAsUserId!].filter(d => d.featured)
+      : SAMPLE_DOCUMENTS[viewAsUserId!])
+    : (docMode === 'favorites'
+      ? docs.filter(d => d.section === 'documents' && d.featured)
+      : docs.filter(d => d.section === 'documents').sort((a, b) => (b.date_sort || '').localeCompare(a.date_sort || ''))
+    ).slice(0, 5)
 
   function scrollToProfile() {
     profileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
