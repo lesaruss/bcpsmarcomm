@@ -764,6 +764,67 @@ body {
 .console-name { font-size: 12px; font-weight: 800; }
 .console-desc { font-size: 10px; color: var(--text-muted); text-align: center; }
 
+/* Dashboard redesign additions, 2026-08-27 (Sean): daily-use tool tiles,
+   page audit summary, meeting notes + documents feed, and a fuller
+   department profile revealed by clicking the member's name in the
+   welcome banner. Reuses the existing dash-panel/dashboard-grid system,
+   no new design language introduced. */
+.welcome-name-btn {
+  background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+  font: inherit; color: inherit; font-weight: 800;
+  text-decoration: underline; text-decoration-color: rgba(255,255,255,0.45);
+  text-underline-offset: 3px;
+}
+.welcome-name-btn:hover { text-decoration-color: rgba(255,255,255,0.9); }
+
+.tool-tiles { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.tool-tile {
+  display: flex; flex-direction: column; gap: 8px; padding: 14px;
+  background: #fafbfc; border: 1.5px solid var(--border); border-radius: 10px;
+  text-decoration: none; color: var(--text-primary); cursor: pointer;
+  transition: border-color .15s, background .15s; text-align: left;
+  font-family: inherit;
+}
+.tool-tile:hover { border-color: var(--blue); background: var(--blue-xlight); }
+.tool-tile-icon {
+  width: 32px; height: 32px; border-radius: 8px; background: var(--blue);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800;
+}
+.tool-tile-name { font-size: 13px; font-weight: 800; }
+.tool-tile-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+@media (max-width: 700px) { .tool-tiles { grid-template-columns: 1fr; } }
+
+.audit-summary { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.audit-stat { flex-shrink: 0; min-width: 78px; }
+.audit-stat-value { font-size: 26px; font-weight: 800; line-height: 1; }
+.audit-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.audit-meter { flex: 1; min-width: 120px; }
+.audit-meter-track { height: 8px; background: var(--border); border-radius: 8px; overflow: hidden; }
+.audit-meter-fill { height: 100%; border-radius: 8px; transition: width .4s ease; }
+
+.doc-toggle { display: flex; gap: 2px; background: var(--bg-page); border-radius: 8px; padding: 2px; }
+.doc-toggle button {
+  border: none; background: none; padding: 5px 11px; border-radius: 6px;
+  font-size: 11px; font-weight: 800; color: var(--text-muted); cursor: pointer;
+  font-family: inherit;
+}
+.doc-toggle button.active { background: #fff; color: var(--blue); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+
+.profile-section { margin-top: 24px; }
+.profile-row { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.profile-block { flex: 1 1 150px; min-width: 140px; }
+.profile-block .pb-k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: 3px; font-weight: 700; }
+.profile-block .pb-v { font-size: 14px; font-weight: 700; }
+.profile-block .pb-v.muted { font-weight: 400; color: var(--text-muted); }
+.profile-blurb { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 13.5px; line-height: 1.6; }
+
+/* Two-column desktop / one-column mobile, per Sean 2026-08-27 - the
+   dashboard grid had no mobile collapse before this. */
+@media (max-width: 860px) {
+  .dashboard-grid, .stats-grid { grid-template-columns: 1fr; }
+}
+
 /* ── NOTES PAGE (React ver) ── */
 .notes-page { max-width: 1100px; }
 .notes-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; }
