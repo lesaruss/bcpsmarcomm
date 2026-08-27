@@ -112,6 +112,53 @@ interface SiteMessage {
   user_id: string | null
 }
 
+interface DeptDetail {
+  slug: string
+  name: string
+  division: string | null
+  director_name: string | null
+  director_email: string | null
+  chief_title: string | null
+  chief_name: string | null
+  wcm_name: string | null
+  wcm_email: string | null
+  audit_status: string | null
+  ada_score: number | null
+  health_status: string | null
+  blurb: string | null
+  website_url: string | null
+  audit_date: string | null
+  current_round: number | null
+}
+
+interface CatalogDoc {
+  id: string
+  slug: string
+  title: string
+  description: string | null
+  type: string | null
+  date: string | null
+  date_sort: string | null
+  section: 'documents' | 'meeting-notes' | 'records'
+  doc_url: string
+  featured: boolean
+  series_title: string | null
+}
+
+// Daily-use tool launchers, per Sean 2026-08-27: exactly three for now,
+// more to come later. Finalsite CMS URL confirmed via canon
+// (bcps-two-distinct-wcm-systems) - browardschools.com/admin is the
+// district's real live CMS, separate login/AD SSO from bcpsmarcomm.com.
+// Hot Lab has no standing Teams join link on file anywhere in this repo or
+// canon (it's a recurring live call, not a static URL) - links to the
+// in-portal Hot Lab meeting notes/series instead until Sean supplies a
+// real join link.
+const TOOL_TILES = [
+  { key: 'finalsite', name: 'Finalsite CMS', desc: 'Edit your live department page', icon: 'FS', href: 'https://browardschools.com/admin', external: true },
+  { key: 'hotlab', name: 'Hot Lab', desc: 'Live group call on Teams - we solve issues and walk through updates', icon: 'HL', page: 'notes' as PageId },
+  { key: 'wcmhub', name: 'WCM Hub', desc: 'Your home base on bcpsmarcomm.com', icon: 'WH', page: 'wcm' as PageId },
+]
+
 export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPageProps) {
   const [notes, setNotes] = useState<AssignmentNote[]>([])
   const [notesLoading, setNotesLoading] = useState(true)
@@ -132,6 +179,15 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   const [accessRequesting, setAccessRequesting] = useState(false)
   const [accessNotice, setAccessNotice] = useState<string | null>(null)
   const [accessRequests, setAccessRequests] = useState<Array<{ id: string; target_name: string; status: string; requested_at: string; approved_at: string | null }>>([])
+
+  // New dashboard tiles, per Sean 2026-08-27: department profile (bottom,
+  // click name), daily-use tools, page audit, meeting notes, documents.
+  const [deptDetail, setDeptDetail] = useState<DeptDetail | null>(null)
+  const [deptDetailLoading, setDeptDetailLoading] = useState(true)
+  const [docs, setDocs] = useState<CatalogDoc[]>([])
+  const [docsLoading, setDocsLoading] = useState(true)
+  const [docMode, setDocMode] = useState<'newest' | 'favorites'>('newest')
+  const profileRef = useRef<HTMLDivElement | null>(null)
 
   // Voice input for replies (per Sean, 2026-07-29): admins are trusted
   // professionals, so unlike GeekFon's Passport/Plus dictate-vs-record
@@ -241,6 +297,60 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   }
 
   useEffect(() => { loadAccessRequests() }, [canManageMessages])
+
+  // My Department's full profile + audit standing, for the Page Audit tile
+  // and the Department Profile card at the bottom of the page. Waits on
+  // teamMembers (already fetched above) to resolve the department slug,
+  // same source the existing "My Department" quick tile uses.
+  const myDeptSlug = (viewAsUserId
+    ? teamMembers.find(m => m.initials === viewAsUserId)?.department?.slug
+    : teamMembers.find(m => m.user_id === meId)?.department?.slug) ?? null
+
+  useEffect(() => {
+    if (!myDeptSlug) { setDeptDetail(null); setDeptDetailLoading(false); return }
+    setDeptDetailLoading(true)
+    const supabase = createClient()
+    supabase
+      .from('bcps_departments')
+      .select('slug, name, division, director_name, director_email, chief_title, chief_name, wcm_name, wcm_email, audit_status, ada_score, health_status, blurb, website_url, audit_date, current_round')
+      .eq('slug', myDeptSlug)
+      .maybeSingle()
+      .then(({ data }) => {
+        setDeptDetail(data ?? null)
+        setDeptDetailLoading(false)
+      })
+  }, [myDeptSlug])
+
+  // Documents + Meeting Notes tiles both read the same access-filtered
+  // catalog NotesPage/DocumentsPage already use (/api/bcps/documents),
+  // split client-side by section - no new endpoint needed.
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient()
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) { setDocsLoading(false); return }
+      const r = await fetch('/api/bcps/documents', { headers: { Authorization: `Bearer ${token}` } })
+      if (r.ok) {
+        const j = await r.json()
+        setDocs(j.documents ?? [])
+      }
+      setDocsLoading(false)
+    })()
+  }, [])
+
+  const meetingNotes = docs
+    .filter(d => d.section === 'meeting-notes')
+    .sort((a, b) => (b.date_sort || '').localeCompare(a.date_sort || ''))
+    .slice(0, 3)
+
+  const documentsList = (docMode === 'favorites'
+    ? docs.filter(d => d.section === 'documents' && d.featured)
+    : docs.filter(d => d.section === 'documents').sort((a, b) => (b.date_sort || '').localeCompare(a.date_sort || ''))
+  ).slice(0, 5)
+
+  function scrollToProfile() {
+    profileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   async function openAndMarkRead(msg: SiteMessage) {
     setOpenMessage(msg)
@@ -411,7 +521,16 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
       {/* Welcome Banner */}
       <div className="welcome-banner">
         <div className="welcome-text">
-          <h2>Good morning, {viewAsUserId ? MEMBERS.find(m => m.initials === viewAsUserId)?.name.split(' ')[0] ?? 'Team' : (userName ?? 'there')}</h2>
+          <h2>
+            Good morning,{' '}
+            {myDeptSlug ? (
+              <button className="welcome-name-btn" onClick={scrollToProfile} title="View department profile">
+                {viewAsUserId ? MEMBERS.find(m => m.initials === viewAsUserId)?.name.split(' ')[0] ?? 'Team' : (userName ?? 'there')}
+              </button>
+            ) : (
+              viewAsUserId ? MEMBERS.find(m => m.initials === viewAsUserId)?.name.split(' ')[0] ?? 'Team' : (userName ?? 'there')
+            )}
+          </h2>
           <p>Here&apos;s what&apos;s happening across Broward County Public Schools today.</p>
         </div>
         <button className="btn btn-primary" onClick={() => onNavigate('notes')}>
@@ -530,6 +649,126 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
           </div>
         </div>
       )}
+      </div>
+
+      {/* Your Tools + My Page Audit, per Sean 2026-08-27: daily-use tool
+          launchers (not a passive status display) directly below WCM
+          Certification, with the page audit summary beside it. */}
+      <div className="dashboard-grid" style={{ marginBottom: 24 }}>
+        <div className="dash-panel">
+          <div className="dash-panel-header">
+            <h3>Your Tools</h3>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Daily use</span>
+          </div>
+          <div className="tool-tiles">
+            {TOOL_TILES.map(t => (
+              t.external ? (
+                <a key={t.key} className="tool-tile" href={t.href} target="_blank" rel="noopener noreferrer">
+                  <span className="tool-tile-icon">{t.icon}</span>
+                  <span className="tool-tile-name">{t.name}</span>
+                  <span className="tool-tile-desc">{t.desc}</span>
+                </a>
+              ) : (
+                <button key={t.key} type="button" className="tool-tile" onClick={() => onNavigate(t.page!)}>
+                  <span className="tool-tile-icon">{t.icon}</span>
+                  <span className="tool-tile-name">{t.name}</span>
+                  <span className="tool-tile-desc">{t.desc}</span>
+                </button>
+              )
+            ))}
+          </div>
+        </div>
+
+        {myDeptSlug && (
+          <div className="dash-panel">
+            <div className="dash-panel-header">
+              <h3>My Page Audit</h3>
+              <button className="link-btn" onClick={() => onNavigate('department-audit')}>View full findings &rarr;</button>
+            </div>
+            {deptDetailLoading ? (
+              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+            ) : deptDetail ? (
+              <div className="audit-summary">
+                <div className="audit-stat">
+                  <div className="audit-stat-value" style={{ color: deptDetail.ada_score == null ? 'var(--text-muted)' : deptDetail.ada_score >= 80 ? '#16a34a' : deptDetail.ada_score >= 60 ? '#b45309' : '#dc2626' }}>
+                    {deptDetail.ada_score != null ? Math.round(deptDetail.ada_score) : '—'}
+                  </div>
+                  <div className="audit-stat-label">Current ADA score</div>
+                </div>
+                <div className="audit-stat">
+                  <div className="audit-stat-value">{deptDetail.current_round ?? '—'}</div>
+                  <div className="audit-stat-label">Audit round</div>
+                </div>
+                <div className="audit-meter">
+                  <div className="audit-meter-track">
+                    <div className="audit-meter-fill" style={{ width: `${Math.max(0, Math.min(100, deptDetail.ada_score ?? 0))}%`, background: (deptDetail.ada_score ?? 0) >= 80 ? '#16a34a' : (deptDetail.ada_score ?? 0) >= 60 ? '#F4C436' : '#dc2626' }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                    {deptDetail.audit_date ? `Last audited ${new Date(deptDetail.audit_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Not yet audited'}
+                    {deptDetail.audit_status ? ` · ${deptDetail.audit_status.replace('_', ' ')}` : ''}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No audit on file yet for your department.</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Latest Meeting Notes + Documents, per Sean 2026-08-27: meeting
+          notes tile directly under My Page Audit, documents (5 newest or
+          up to 5 favorited) as the final tile. Both read the same
+          access-filtered catalog as the Meeting Notes/Documents pages. */}
+      <div className="dashboard-grid" style={{ marginBottom: 24 }}>
+        <div className="dash-panel">
+          <div className="dash-panel-header">
+            <h3>Latest Meeting Notes</h3>
+            <button className="link-btn" onClick={() => onNavigate('notes')}>View all &rarr;</button>
+          </div>
+          <div className="note-list">
+            {docsLoading ? (
+              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+            ) : meetingNotes.length === 0 ? (
+              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No meeting notes yet.</div>
+            ) : meetingNotes.map(d => (
+              <div key={d.id} className="note-list-item">
+                <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
+                <div className="note-list-meta">
+                  <span>{d.series_title || 'Meeting Notes'}</span>
+                  {d.date && (<><span className="dot">&middot;</span><span>{d.date}</span></>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="dash-panel">
+          <div className="dash-panel-header">
+            <h3>Documents</h3>
+            <div className="doc-toggle">
+              <button className={docMode === 'favorites' ? 'active' : ''} onClick={() => setDocMode('favorites')}>Favorites</button>
+              <button className={docMode === 'newest' ? 'active' : ''} onClick={() => setDocMode('newest')}>Newest</button>
+            </div>
+          </div>
+          <div className="note-list">
+            {docsLoading ? (
+              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+            ) : documentsList.length === 0 ? (
+              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
+                {docMode === 'favorites' ? 'No favorited documents yet.' : 'No documents yet.'}
+              </div>
+            ) : documentsList.map(d => (
+              <div key={d.id} className="note-list-item">
+                <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
+                <div className="note-list-meta">
+                  {d.type && (<span>{d.type}</span>)}
+                  {d.date && (<><span className="dot">&middot;</span><span>{d.date}</span></>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
 
@@ -690,6 +929,57 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
           </div>
         </div>
       </div>
+
+      {/* Department Profile, per Sean 2026-08-27: what a member sees when
+          they click their own name in the welcome banner - moved to the
+          bottom of the page, below the rest of the dashboard. */}
+      {myDeptSlug && (
+        <div className="profile-section dash-panel" ref={profileRef} id="dashboard-profile-card">
+          <div className="dash-panel-header">
+            <h3>Department Profile</h3>
+            {deptDetail?.website_url && (
+              <a className="link-btn" href={deptDetail.website_url.startsWith('http') ? deptDetail.website_url : `https://${deptDetail.website_url}`} target="_blank" rel="noopener noreferrer">
+                View live page &rarr;
+              </a>
+            )}
+          </div>
+          {deptDetailLoading ? (
+            <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+          ) : deptDetail ? (
+            <>
+              <div className="profile-row">
+                <div className="profile-block">
+                  <div className="pb-k">Department</div>
+                  <div className="pb-v">{deptDetail.name}</div>
+                </div>
+                <div className="profile-block">
+                  <div className="pb-k">Division</div>
+                  <div className={`pb-v${deptDetail.division ? '' : ' muted'}`}>{deptDetail.division || 'Not listed'}</div>
+                </div>
+                <div className="profile-block">
+                  <div className="pb-k">Web Content Manager</div>
+                  <div className={`pb-v${deptDetail.wcm_name ? '' : ' muted'}`}>{deptDetail.wcm_name || 'Unassigned'}</div>
+                </div>
+                <div className="profile-block">
+                  <div className="pb-k">Director</div>
+                  <div className={`pb-v${deptDetail.director_name ? '' : ' muted'}`}>{deptDetail.director_name || 'Not listed'}</div>
+                </div>
+                {deptDetail.chief_name && (
+                  <div className="profile-block">
+                    <div className="pb-k">{deptDetail.chief_title || 'Chief'}</div>
+                    <div className="pb-v">{deptDetail.chief_name}</div>
+                  </div>
+                )}
+              </div>
+              {deptDetail.blurb && (
+                <div className="profile-blurb">{deptDetail.blurb}</div>
+              )}
+            </>
+          ) : (
+            <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No department profile on file yet.</div>
+          )}
+        </div>
+      )}
 
       {openNote && (
         <div onClick={() => setOpenNote(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 1000 }}>
