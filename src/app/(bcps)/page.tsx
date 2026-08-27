@@ -33,7 +33,7 @@ import RequestsPage from '@/components/pages/RequestsPage'
 import AdaScannerPage from '@/components/pages/AdaScannerPage'
 import SchoolsAdminPage from '@/components/pages/SchoolsAdminPage'
 import RegistrationsPage from '@/components/pages/RegistrationsPage'
-import type { UserRole } from '@/components/Sidebar'
+import { SAMPLE_SUPERADMIN_ID, type UserRole } from '@/components/Sidebar'
 
 const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations'])
 
@@ -41,7 +41,9 @@ function HomeInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { role, viewAs } = useBCPSShell()
-  const effectiveRole: UserRole = viewAs ? 'user' : role
+  // The fictitious Superadmin sample identity previews the real superadmin
+  // experience instead of collapsing to 'user' like every other viewAs pick.
+  const effectiveRole: UserRole = viewAs ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? 'superadmin' : 'user') : role
 
   const urlPage = (searchParams.get('page') as PageId) || 'dashboard'
   const urlSub = searchParams.get('dept') || undefined
@@ -54,9 +56,10 @@ function HomeInner() {
     setNav(prev => (prev.page === urlPage && prev.subPage === urlSub && !prev.breadcrumb) ? prev : { page: urlPage, subPage: urlSub })
   }, [urlPage, urlSub])
 
-  // If viewAs switches to a non-superadmin view, bounce off superadmin pages
+  // If viewAs switches to a non-superadmin view, bounce off superadmin pages.
+  // Exempt the Superadmin sample identity - it's meant to preview those pages.
   useEffect(() => {
-    if (viewAs && SUPERADMIN_PAGES.has(nav.page)) {
+    if (viewAs && viewAs.id !== SAMPLE_SUPERADMIN_ID && SUPERADMIN_PAGES.has(nav.page)) {
       setNav({ page: 'dashboard' })
       router.push('/?page=dashboard', { scroll: false })
     }
