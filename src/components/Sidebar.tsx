@@ -20,6 +20,19 @@ export const TEAM_MEMBERS: TeamMember[] = [
   { id: 'NA', name: 'Nakesha Ali-Sirju', initials: 'NA', color: '#0891B2', roleLabel: 'Web Team' },
 ]
 
+// Fictitious, sample-data-only identities so a SuperAdmin can preview each
+// access tier's layout without simulating a real person's account. Per
+// Sean, 2026-08-27: "we can have a fictitious member in here... I'm not
+// actually looking at somebody's account, I just need to make sure the
+// formatting is the same." Never resolved against live data - DashboardPage
+// substitutes fully-synthetic content for these ids instead of fetching.
+export const SAMPLE_SUPERADMIN_ID = 'SSA'
+export const SAMPLE_ROLE_MEMBERS: TeamMember[] = [
+  { id: 'SWC', name: 'Wendy Ramirez', initials: 'SWC', color: '#9CA3AF', roleLabel: 'Web Content Manager (Sample)' },
+  { id: 'SDW', name: 'Dana Okafor',   initials: 'SDW', color: '#9CA3AF', roleLabel: 'District Web Team Member (Sample)' },
+  { id: SAMPLE_SUPERADMIN_ID, name: 'Sam Rivera', initials: 'SSA', color: '#9CA3AF', roleLabel: 'Superadmin (Sample)' },
+]
+
 interface SidebarProps {
   activePage: PageId
   onNavigate: (page: PageId) => void
@@ -280,8 +293,10 @@ export default function Sidebar({
 }: SidebarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false)
 
-  // Effective role for nav filtering: if superadmin is viewing as a user, collapse to user nav
-  const effectiveRole: UserRole = viewAs ? 'user' : role
+  // Effective role for nav filtering: if superadmin is viewing as a user, collapse to user nav.
+  // Exception: the fictitious Superadmin sample identity should actually preview the
+  // superadmin-tier experience, not collapse to 'user' like every other viewAs selection.
+  const effectiveRole: UserRole = viewAs ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? 'superadmin' : 'user') : role
 
   const nav = (page: PageId) => {
     onNavigate(page)
@@ -395,6 +410,39 @@ export default function Sidebar({
                       )}
                     </button>
                   ))}
+
+                  <div style={{ borderTop: '1px dashed rgba(255,255,255,0.15)', margin: '4px 0' }}/>
+                  <div style={{ padding: '8px 14px 4px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.4)' }}>
+                    Preview a role (sample data)
+                  </div>
+                  {SAMPLE_ROLE_MEMBERS.map(member => (
+                    <button
+                      key={member.id}
+                      onClick={() => selectViewAs(member)}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '9px 14px', background: viewAs?.id === member.id ? 'rgba(255,255,255,0.12)' : 'none',
+                        border: 'none', cursor: 'pointer', textAlign: 'left',
+                        transition: 'background 0.12s',
+                      }}
+                      onMouseOver={e => { if (viewAs?.id !== member.id) e.currentTarget.style.background = 'rgba(255,255,255,0.07)' }}
+                      onMouseOut={e => { if (viewAs?.id !== member.id) e.currentTarget.style.background = 'none' }}
+                    >
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: member.color, border: '1px dashed rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                        {member.initials}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{member.name} <span style={{ fontSize: '9px', fontWeight: 700, color: '#F4C436', border: '1px solid #F4C436', borderRadius: '4px', padding: '1px 4px', marginLeft: '4px' }}>SAMPLE</span></div>
+                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>{member.roleLabel}</div>
+                      </div>
+                      {viewAs?.id === member.id && (
+                        <svg style={{ marginLeft: 'auto' }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F4C436" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+
                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }}/>
                   <button
                     onClick={() => selectViewAs(null)}
