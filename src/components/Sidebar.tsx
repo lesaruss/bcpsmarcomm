@@ -481,7 +481,7 @@ export default function Sidebar({
                 </div>
                 <div className="sidebar-user-info" style={{ flex: 1, textAlign: 'left' }}>
                   <strong>{displayUser?.name ?? 'Team Member'}</strong>
-                  <span>{viewAs ? 'Viewing as user' : 'SuperAdmin'}</span>
+                  <span>{viewAs ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? 'Viewing as superadmin (sample)' : 'Viewing as user') : 'SuperAdmin'}</span>
                 </div>
                 <span style={{ color: 'rgba(255,255,255,0.4)', marginRight: 2 }}>
                   <ChevronIcon up={switcherOpen} />
