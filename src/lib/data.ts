@@ -6,6 +6,12 @@ export const MEMBERS: Member[] = [
   { id: 3, name: 'Tricia Allen', initials: 'TA', color: '#2E8B57', role: 'Content Strategist', email: 'tallen@browardschools.com' },
   { id: 4, name: 'Nakesha Ali-Sirju', initials: 'NA', color: '#D4600A', role: 'Communications Specialist', email: 'nalisirju@browardschools.com' },
   { id: 5, name: 'Victoria', initials: 'V', color: '#C0392B', role: 'SuperAdmin', email: 'vegan@lesaruss.com' },
+  // Fictitious "preview a role" sample identities (Sean, 2026-08-27) - never
+  // resolved against live data, only used so DashboardPage's name-lookup
+  // greeting works for the sample View As entries defined in Sidebar.tsx.
+  { id: 6, name: 'Wendy Ramirez', initials: 'SWC', color: '#9CA3AF', role: 'Web Content Manager (Sample)', email: 'sample-wcm@preview.local' },
+  { id: 7, name: 'Dana Okafor', initials: 'SDW', color: '#9CA3AF', role: 'District Web Team Member (Sample)', email: 'sample-dwt@preview.local' },
+  { id: 8, name: 'Sam Rivera', initials: 'SSA', color: '#9CA3AF', role: 'Superadmin (Sample)', email: 'sample-superadmin@preview.local' },
 ]
 
 export const BETA_MEMBERS: BetaMember[] = [
