@@ -636,6 +636,51 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
         </button>
       </div>
 
+      {/* WCM Certification status banner - per the approved dashboard brief
+          (bcps-wcm-dashboard-preview-2026-08-27, certBanner()), this is a
+          full-width span-12 card immediately below the welcome header,
+          above everything else. Previously this was squeezed into the
+          left/right dashboard-grid next to Recent Messages, which visually
+          demoted it below the stat tiles - that did not match the approved
+          design and is the fix here (Sean, 2026-08-28). Covers all three
+          states (not started, in progress, complete). */}
+      {certProgress !== null && (
+        <div className="dash-panel" style={{ marginBottom: 24 }}>
+          <div className="dash-panel-header">
+            <h3>WCM Certification</h3>
+            <a href="/certification/departments" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>
+              {certProgress.allDone ? 'View certificate →' : 'Continue →'}
+            </a>
+          </div>
+          <div style={{ padding: '4px 0 8px', display: 'flex', alignItems: 'center', gap: 24 }}>
+            <div style={{ flexShrink: 0, minWidth: 90 }}>
+              <div style={{ fontSize: '28px', fontWeight: 900, color: certProgress.allDone ? '#16750C' : 'var(--primary)', lineHeight: 1 }}>{certProgress.pct}%</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 3, whiteSpace: 'nowrap' }}>
+                {certProgress.allDone ? 'Complete' : `${certProgress.completed} of ${certProgress.total} pages`}
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ height: 8, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: certProgress.pct + '%', background: certProgress.allDone ? '#16750C' : 'var(--primary)', borderRadius: 8, transition: 'width 0.4s ease' }} />
+              </div>
+            </div>
+            {certProgress.allDone && (
+              <div style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>+</div>
+            )}
+            {!certProgress.allDone && certProgress.completed === 0 && !certProgress.hasAnyProgress && (
+              <a href="/certification/departments/welcome" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                Begin Certification
+              </a>
+            )}
+            {!certProgress.allDone && certProgress.hasAnyProgress && (
+              <a href="/certification/departments" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                Continue Certification
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="stats-grid">
         {STAT_CARDS.map((card) => (
@@ -647,18 +692,15 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
         ))}
       </div>
 
-      {/* Two-column: Recent Messages left, WCM Certification right - per
-          Sean 2026-07-29 ("bring things up a little bit"), replacing the
-          previous full-width stacked layout. */}
-      <div className="dashboard-grid" style={{ marginBottom: 24 }}>
       {/* Recent Messages - site reports from the SiteFeedback widget,
-          per Sean 2026-07-29: this is the bare-bones inbox, living on the
-          Dashboard right below WCM Certification rather than a separate
-          page. Gated on canManageMessages (bcps role admin or superadmin -
-          e.g. Sean and, as of 2026-07-29, Felicia Hicks), not the Sidebar's
-          binary superadmin/user role. Click a message to read it (marks
-          read) and reply inline - the reply emails the reporter directly
-          if we have their address. */}
+          per Sean 2026-07-29: this is the bare-bones inbox. Was previously
+          paired with WCM Certification in a two-column grid; now its own
+          full-width row since Certification moved to the top (Sean,
+          2026-08-28). Gated on canManageMessages (bcps role admin or
+          superadmin - e.g. Sean and, as of 2026-07-29, Felicia Hicks), not
+          the Sidebar's binary superadmin/user role. Click a message to
+          read it (marks read) and reply inline - the reply emails the
+          reporter directly if we have their address. */}
       {canManageMessages && (
         <div className="dash-panel" id="dashboard-messages-panel" style={{ marginBottom: 24 }}>
           <div className="dash-panel-header">
@@ -705,49 +747,6 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
           </div>
         </div>
       )}
-
-      {/* WCM Certification status banner, per Sean (Hot Lab 2026-07-28 item 7):
-          in-progress cert status needs to be visible on the main dashboard,
-          not buried in the grid. Full-width, directly below the stat tiles
-          and above Recent Notes. Covers all three states (not started,
-          in progress, complete) since it replaces the old grid tile. */}
-      {certProgress !== null && (
-        <div className="dash-panel" style={{ marginBottom: 24 }}>
-          <div className="dash-panel-header">
-            <h3>WCM Certification</h3>
-            <a href="/certification/departments" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>
-              {certProgress.allDone ? 'View certificate →' : 'Continue →'}
-            </a>
-          </div>
-          <div style={{ padding: '4px 0 8px', display: 'flex', alignItems: 'center', gap: 24 }}>
-            <div style={{ flexShrink: 0, minWidth: 90 }}>
-              <div style={{ fontSize: '28px', fontWeight: 900, color: certProgress.allDone ? '#16750C' : 'var(--primary)', lineHeight: 1 }}>{certProgress.pct}%</div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 3, whiteSpace: 'nowrap' }}>
-                {certProgress.allDone ? 'Complete' : `${certProgress.completed} of ${certProgress.total} pages`}
-              </div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ height: 8, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: certProgress.pct + '%', background: certProgress.allDone ? '#16750C' : 'var(--primary)', borderRadius: 8, transition: 'width 0.4s ease' }} />
-              </div>
-            </div>
-            {certProgress.allDone && (
-              <div style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>+</div>
-            )}
-            {!certProgress.allDone && certProgress.completed === 0 && !certProgress.hasAnyProgress && (
-              <a href="/certification/departments/welcome" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                Begin Certification
-              </a>
-            )}
-            {!certProgress.allDone && certProgress.hasAnyProgress && (
-              <a href="/certification/departments" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                Continue Certification
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-      </div>
 
       {/* Your Tools + My Page Audit, per Sean 2026-08-27: daily-use tool
           launchers (not a passive status display) directly below WCM
