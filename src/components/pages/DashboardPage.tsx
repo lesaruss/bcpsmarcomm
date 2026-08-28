@@ -780,32 +780,34 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
           <div className="dash-panel">
             <div className="dash-panel-header">
               <h3>My Page Audit</h3>
-              <button className="link-btn" onClick={() => onNavigate('department-audit')}>View full findings &rarr;</button>
             </div>
             {deptDetailLoading ? (
               <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
             ) : deptDetail ? (
-              <div className="audit-summary">
-                <div className="audit-stat">
-                  <div className="audit-stat-value" style={{ color: deptDetail.ada_score == null ? 'var(--text-muted)' : deptDetail.ada_score >= 80 ? '#16a34a' : deptDetail.ada_score >= 60 ? '#b45309' : '#dc2626' }}>
-                    {deptDetail.ada_score != null ? Math.round(deptDetail.ada_score) : '—'}
+              <>
+                <div className="audit-summary">
+                  <div className="audit-stat">
+                    <div className="audit-stat-value" style={{ color: deptDetail.ada_score == null ? 'var(--text-muted)' : deptDetail.ada_score >= 80 ? '#16a34a' : deptDetail.ada_score >= 60 ? '#b45309' : '#dc2626' }}>
+                      {deptDetail.ada_score != null ? Math.round(deptDetail.ada_score) : '—'}
+                    </div>
+                    <div className="audit-stat-label">Current ADA score</div>
                   </div>
-                  <div className="audit-stat-label">Current ADA score</div>
-                </div>
-                <div className="audit-stat">
-                  <div className="audit-stat-value">{deptDetail.current_round ?? '—'}</div>
-                  <div className="audit-stat-label">Audit round</div>
-                </div>
-                <div className="audit-meter">
-                  <div className="audit-meter-track">
-                    <div className="audit-meter-fill" style={{ width: `${Math.max(0, Math.min(100, deptDetail.ada_score ?? 0))}%`, background: (deptDetail.ada_score ?? 0) >= 80 ? '#16a34a' : (deptDetail.ada_score ?? 0) >= 60 ? '#F4C436' : '#dc2626' }} />
+                  <div className="audit-stat">
+                    <div className="audit-stat-value">{deptDetail.current_round ?? '—'}</div>
+                    <div className="audit-stat-label">Audit round</div>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-                    {deptDetail.audit_date ? `Last audited ${new Date(deptDetail.audit_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Not yet audited'}
-                    {deptDetail.audit_status ? ` · ${deptDetail.audit_status.replace('_', ' ')}` : ''}
+                  <div className="audit-stat">
+                    <div className="audit-stat-value" style={{ fontSize: 15 }}>
+                      {deptDetail.audit_date ? new Date(deptDetail.audit_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </div>
+                    <div className="audit-stat-label">Last audit date</div>
                   </div>
                 </div>
-              </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+                  <button className="btn-primary" onClick={() => onNavigate('department-audit')}>Submit page for review</button>
+                  <button className="btn-outline" onClick={() => onNavigate('department-audit')}>View full audit findings</button>
+                </div>
+              </>
             ) : (
               <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No audit on file yet for your department.</div>
             )}
