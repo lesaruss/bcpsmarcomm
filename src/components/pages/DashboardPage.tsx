@@ -1050,13 +1050,18 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
         </div>
       </div>
 
-      {/* Department Profile, per Sean 2026-08-27: what a member sees when
+      {/* Member Profile, per Sean 2026-08-27: what a member sees when
           they click their own name in the welcome banner - moved to the
-          bottom of the page, below the rest of the dashboard. */}
+          bottom of the page, below the rest of the dashboard. Renamed from
+          "Department Profile" and given a Name/Role header row + avatar to
+          match the approved brief's memberProfileCard(), which this is
+          modeled on (Sean, 2026-08-28) - Department/Division/WCM/Director/
+          Chief are kept alongside since they're real, useful context the
+          mockup's synthetic data didn't need to show. */}
       {myDeptSlug && (
         <div className="profile-section dash-panel" ref={profileRef} id="dashboard-profile-card">
           <div className="dash-panel-header">
-            <h3>Department Profile</h3>
+            <h3>Member Profile</h3>
             {deptDetail?.website_url && (
               <a className="link-btn" href={deptDetail.website_url.startsWith('http') ? deptDetail.website_url : `https://${deptDetail.website_url}`} target="_blank" rel="noopener noreferrer">
                 View live page &rarr;
@@ -1067,6 +1072,35 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
             <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
           ) : deptDetail ? (
             <>
+              {(() => {
+                const memberName = viewAsUserId ? MEMBERS.find(m => m.initials === viewAsUserId)?.name : userName
+                const memberRole = viewAsUserId
+                  ? MEMBERS.find(m => m.initials === viewAsUserId)?.role
+                  : teamMembers.find(m => m.user_id === meId)?.role
+                const initials = memberName ? memberName.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() : '—'
+                return (
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap' }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
+                      background: 'linear-gradient(135deg, var(--primary) 0 55%, #16750C 55% 100%)',
+                      color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 700, fontSize: 15,
+                    }}>
+                      {initials}
+                    </div>
+                    <div className="profile-row" style={{ flex: 1 }}>
+                      <div className="profile-block">
+                        <div className="pb-k">Name</div>
+                        <div className="pb-v">{memberName || 'Unknown'}</div>
+                      </div>
+                      <div className="profile-block">
+                        <div className="pb-k">Role</div>
+                        <div className={`pb-v${memberRole ? '' : ' muted'}`}>{memberRole || 'Not listed'}</div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
               <div className="profile-row">
                 <div className="profile-block">
                   <div className="pb-k">Department</div>
