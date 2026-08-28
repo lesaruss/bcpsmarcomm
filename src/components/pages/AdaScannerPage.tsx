@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
+import { lookupAxeEntry, lookupWaveEntry, type GlossaryOwner } from '@/lib/ada-glossary'
+import AdaGlossaryPanel from '@/components/AdaGlossaryPanel'
 
 interface Violation {
   id: string
@@ -56,6 +58,21 @@ const C = {
   input: { padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', width: '100%' } as React.CSSProperties,
   btnPrimary: { padding: '10px 18px', border: `1px solid ${BLUE}`, background: BLUE, color: '#fff', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap' } as React.CSSProperties,
   sublabel: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 8 } as React.CSSProperties,
+}
+
+const OWNER_META: Record<GlossaryOwner, { label: string; color: string; bg: string }> = {
+  wcm:       { label: 'You can fix this',        color: '#fff',    bg: '#16750C' },
+  finalsite: { label: 'FinalSite issue, escalate', color: '#fff',  bg: '#C55326' },
+  depends:   { label: 'Depends, see note',        color: '#2b2200', bg: '#D4B106' },
+}
+
+function OwnerPill({ owner }: { owner: GlossaryOwner }) {
+  const m = OWNER_META[owner]
+  return (
+    <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.02em', color: m.color, background: m.bg, whiteSpace: 'nowrap' }}>
+      {m.label}
+    </span>
+  )
 }
 
 function scoreColor(score: number | null): string {
@@ -199,15 +216,42 @@ export default function AdaScannerPage() {
                 })}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {result.ada_violations.map(v => (
-                  <div key={v.id} style={{ borderLeft: `3px solid ${SEVERITY_COLORS[v.impact ?? 'minor']}`, paddingLeft: 12, paddingTop: 2, paddingBottom: 2 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{v.help}</div>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{v.description}</div>
-                    {v.affected_elements != null && (
-                      <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{v.affected_elements} element(s) affected</div>
-                    )}
-                  </div>
-                ))}
+                {result.ada_violations.map(v => {
+                  const entry = lookupAxeEntry(v.id)
+                  return (
+                    <div key={v.id} style={{ borderLeft: `3px solid ${SEVERITY_COLORS[v.impact ?? 'minor']}`, paddingLeft: 12, paddingTop: 2, paddingBottom: 2 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{entry?.title ?? v.help}</div>
+                        {entry ? <OwnerPill owner={entry.owner} /> : (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', background: '#f3f4f6', borderRadius: 999, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+                            Not yet catalogued
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{entry?.definition ?? v.description}</div>
+                      {v.affected_elements != null && (
+                        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{v.affected_elements} element(s) affected</div>
+                      )}
+                      {entry ? (
+                        <div style={{ marginTop: 8, background: '#fafafa', border: '1px solid #f3f4f6', borderRadius: 6, padding: '8px 10px' }}>
+                          <div style={{ fontSize: 11.5, color: '#374151' }}>
+                            <b>{entry.owner === 'finalsite' ? 'Escalation: ' : entry.owner === 'depends' ? 'How to tell: ' : 'Fix: '}</b>
+                            {entry.ownerNote}
+                          </div>
+                          {entry.fixSteps && (
+                            <ol style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12, color: '#374151' }}>
+                              {entry.fixSteps.map((s, i) => <li key={i} style={{ marginBottom: 3 }}>{s}</li>)}
+                            </ol>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: 6, fontSize: 11, color: '#9ca3af' }}>
+                          <a href={v.helpUrl} target="_blank" rel="noreferrer" style={{ color: BLUE }}>axe-core reference for this rule</a> (glossary entry pending)
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </>
           )}
@@ -215,17 +259,51 @@ export default function AdaScannerPage() {
           {result.wave_violations && result.wave_violations.length > 0 && (
             <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #f3f4f6' }}>
               <div style={C.sublabel}>WAVE items ({result.wave_violations.length})</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {result.wave_violations.map(v => (
-                  <div key={v.id} style={{ fontSize: 12, color: '#374151' }}>
-                    <span style={{ fontWeight: 700, textTransform: 'capitalize' }}>{v.category}</span>: {v.description} ({v.count}x)
-                  </div>
-                ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {result.wave_violations.map(v => {
+                  const entry = lookupWaveEntry(v.id, v.description)
+                  return (
+                    <div key={v.id} style={{ fontSize: 12, color: '#374151' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <div>
+                          <span style={{ fontWeight: 700, textTransform: 'capitalize' }}>{v.category}</span>: {entry?.title ?? v.description} ({v.count}x)
+                        </div>
+                        {entry ? <OwnerPill owner={entry.owner} /> : (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', background: '#f3f4f6', borderRadius: 999, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+                            Not yet catalogued
+                          </span>
+                        )}
+                      </div>
+                      {entry && (
+                        <div style={{ marginTop: 6, background: '#fafafa', border: '1px solid #f3f4f6', borderRadius: 6, padding: '8px 10px' }}>
+                          <div style={{ fontSize: 11.5 }}>
+                            <b>{entry.owner === 'finalsite' ? 'Escalation: ' : entry.owner === 'depends' ? 'How to tell: ' : 'Fix: '}</b>
+                            {entry.ownerNote}
+                          </div>
+                          {entry.fixSteps && (
+                            <ol style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12 }}>
+                              {entry.fixSteps.map((s, i) => <li key={i} style={{ marginBottom: 3 }}>{s}</li>)}
+                            </ol>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
         </div>
       )}
+
+      <div style={C.card}>
+        <div style={C.sublabel}>Issue glossary</div>
+        <p style={{ fontSize: 13, color: '#4b5563', margin: '0 0 14px' }}>
+          Every finding the scanner can surface, defined once and vetted once. Search it directly if you
+          already know what the error is, no need to run a scan first.
+        </p>
+        <AdaGlossaryPanel />
+      </div>
 
       <div style={C.card}>
         <div style={C.sublabel}>Your recent scans</div>
