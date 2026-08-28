@@ -29,6 +29,7 @@ export type PageId =
   | 'requests'
   | 'ada-scanner'
   | 'schools'
+  | 'schools-ada'
 
 export interface BreadcrumbItem {
   label: string
