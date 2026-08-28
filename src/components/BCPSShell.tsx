@@ -49,6 +49,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'find-it-fast':           { title: 'Find It Fast',          sub: 'Back to School Widget Content' },
   'widgets':                { title: 'Widgets',               sub: 'Embeddable Modules' },
   'ada-scanner':            { title: 'ADA Scanner',           sub: 'Accessibility Compliance Check' },
+  'schools-ada':            { title: 'Schools ADA',           sub: 'Full-Site Accessibility Scores by School' },
   'schools':                { title: 'School ADA Accounts',   sub: 'School-Level WCM Portal Accounts' },
 }
 
