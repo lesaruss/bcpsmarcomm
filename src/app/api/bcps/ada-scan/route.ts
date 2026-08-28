@@ -109,6 +109,14 @@ export async function POST(req: NextRequest) {
   const rawUrl = (body.url || '').trim()
   if (!rawUrl) return NextResponse.json({ error: 'url required' }, { status: 400 })
 
+  // Optional: tag this scan as part of a school's full-site scan (Schools
+  // ADA page, added 2026-08-28). scan_batch_id groups every page scanned in
+  // one "Scan Full Site" run so the aggregate score can be computed per
+  // batch rather than per individual page. Both are ignored (left null) for
+  // an ordinary single-page scan from the ADA Scanner tool.
+  const schoolId = (body.school_id || '').trim() || null
+  const scanBatchId = (body.scan_batch_id || '').trim() || null
+
   let target: string
   try {
     const u = new URL(/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`)
@@ -167,6 +175,8 @@ export async function POST(req: NextRequest) {
     .from('bcps_audit_results')
     .insert({
       department_id: null,
+      school_id: schoolId,
+      scan_batch_id: scanBatchId,
       page_url: target,
       auditor: 'wcm-ada-scanner',
       scanned_by_user_id: user.id,
