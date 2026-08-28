@@ -1,6 +1,11 @@
 // src/app/briefs/[slug]/page.tsx
 // BCPS briefs route. Public by default.
 // If bcps_brief_recipients has rows for this slug, requires authenticated session with matching email.
+// Admin bypass (2026-08-28, Logan): wcm_cert_users.is_admin=true always passes, regardless of
+// whether that admin's email is on the slug's recipient list. This is the behavior the bcps-brief
+// skill has documented as Hard Rule 2 since it was written; the route code never implemented it,
+// which bounced an admin (Sean, contact@lesaruss.com) to /login on a brief he was never added to
+// as a named recipient. See error_registry BCPS-BRIEF-ADMIN-BYPASS-MISSING.
 
 import { createClient } from '@supabase/supabase-js'
 import { notFound, redirect } from 'next/navigation'
@@ -42,6 +47,23 @@ async function getSessionEmail(): Promise<string | null> {
   }
 }
 
+async function isAdminEmail(email: string | null): Promise<boolean> {
+  if (!email) return false
+  const db = serviceClient()
+  if (!db) return false
+  try {
+    const { data } = await db
+      .from('wcm_cert_users')
+      .select('is_admin')
+      .ilike('email', email)
+      .eq('is_admin', true)
+      .maybeSingle()
+    return !!data
+  } catch {
+    return false
+  }
+}
+
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
   return { title: `${slug} | BCPS Brief` }
@@ -65,7 +87,8 @@ export default async function BcpsPublicBriefPage({ params }: Props) {
   if (isRestricted) {
     const sessionEmail = await getSessionEmail()
     const allowed = recipients.map((r: { attendee_email: string }) => r.attendee_email.toLowerCase())
-    if (!sessionEmail || !allowed.includes(sessionEmail.toLowerCase())) {
+    const onList = !!sessionEmail && allowed.includes(sessionEmail.toLowerCase())
+    if (!onList && !(await isAdminEmail(sessionEmail))) {
       redirect(`/login?next=/briefs/${slug}`)
     }
   }
