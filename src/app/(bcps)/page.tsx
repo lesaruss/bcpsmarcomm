@@ -31,6 +31,7 @@ import FindItFastPage from '@/components/pages/FindItFastPage'
 import WidgetsPage from '@/components/pages/WidgetsPage'
 import RequestsPage from '@/components/pages/RequestsPage'
 import AdaScannerPage from '@/components/pages/AdaScannerPage'
+import SchoolsAdaPage from '@/components/pages/SchoolsAdaPage'
 import SchoolsAdminPage from '@/components/pages/SchoolsAdminPage'
 import RegistrationsPage from '@/components/pages/RegistrationsPage'
 import { SAMPLE_SUPERADMIN_ID, type UserRole } from '@/components/Sidebar'
@@ -109,6 +110,7 @@ function HomeInner() {
       {nav.page === 'widgets'                 && <WidgetsPage />}
       {nav.page === 'requests'                && <RequestsPage />}
       {nav.page === 'ada-scanner'              && <AdaScannerPage />}
+      {nav.page === 'schools-ada'              && <SchoolsAdaPage />}
       {nav.page === 'schools'                  && <SchoolsAdminPage />}
       {nav.page === 'registrations'            && effectiveRole === 'superadmin' && <RegistrationsPage />}
 
