@@ -5,7 +5,8 @@
 // <script> tags - and iframes this endpoint when the brief is interactive.
 // Access rules are identical to /briefs/[slug]: public unless
 // bcps_brief_recipients has rows for the slug, in which case the session
-// email must match a recipient.
+// email must match a recipient, or be a wcm_cert_users admin (2026-08-28,
+// see error_registry BCPS-BRIEF-ADMIN-BYPASS-MISSING).
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -41,6 +42,23 @@ async function getSessionEmail(): Promise<string | null> {
   }
 }
 
+async function isAdminEmail(email: string | null): Promise<boolean> {
+  if (!email) return false
+  const db = serviceClient()
+  if (!db) return false
+  try {
+    const { data } = await db
+      .from('wcm_cert_users')
+      .select('is_admin')
+      .ilike('email', email)
+      .eq('is_admin', true)
+      .maybeSingle()
+    return !!data
+  } catch {
+    return false
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -57,7 +75,8 @@ export async function GET(
   if (recipients && recipients.length > 0) {
     const sessionEmail = await getSessionEmail()
     const allowed = recipients.map((r: { attendee_email: string }) => r.attendee_email.toLowerCase())
-    if (!sessionEmail || !allowed.includes(sessionEmail.toLowerCase())) {
+    const onList = !!sessionEmail && allowed.includes(sessionEmail.toLowerCase())
+    if (!onList && !(await isAdminEmail(sessionEmail))) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
   }
