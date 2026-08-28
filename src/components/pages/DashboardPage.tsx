@@ -837,8 +837,14 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                   <span>{d.series_title || 'Meeting Notes'}</span>
                   {d.date && (<><span className="dot">&middot;</span><span>{d.date}</span></>)}
                 </div>
+                {d.description && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{d.description}</div>
+                )}
               </div>
             ))}
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <button className="btn-outline" onClick={() => onNavigate('notes')}>View all meeting notes</button>
           </div>
         </div>
 
@@ -858,14 +864,29 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                 {docMode === 'favorites' ? 'No favorited documents yet.' : 'No documents yet.'}
               </div>
             ) : documentsList.map(d => (
-              <div key={d.id} className="note-list-item">
-                <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
-                <div className="note-list-meta">
-                  {d.type && (<span>{d.type}</span>)}
-                  {d.date && (<><span className="dot">&middot;</span><span>{d.date}</span></>)}
+              <div key={d.id} className="note-list-item" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 7, background: 'var(--bg-page)', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 9.5, fontWeight: 700, color: 'var(--text-muted)',
+                }}>
+                  {(d.type || 'DOC').slice(0, 3).toUpperCase()}
                 </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
+                  <div className="note-list-meta">
+                    {d.type && (<span>{d.type}</span>)}
+                    {d.date && (<><span className="dot">&middot;</span><span>{d.date}</span></>)}
+                  </div>
+                </div>
+                {d.featured && (
+                  <span title="Favorited" style={{ color: '#C55326', fontSize: 14, flexShrink: 0 }}>&#9733;</span>
+                )}
               </div>
             ))}
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <button className="btn-outline" onClick={() => onNavigate('documents')}>Browse all documents</button>
           </div>
         </div>
       </div>
