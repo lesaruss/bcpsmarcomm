@@ -735,6 +735,24 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     }
   }
 
+  // Which widgets are eligible to render at all right now (independent of
+  // saved order/span) - the same conditions each section already gated on
+  // before this became a reorderable grid.
+  const dashWidgetVisible: Record<string, boolean> = {
+    cert: certProgress !== null,
+    stats: true,
+    messages: canManageMessages,
+    tools: true,
+    audit: !!myDeptSlug,
+    meetingnotes: true,
+    documents: true,
+    accessrequests: canManageMessages && accessRequests.length > 0,
+    recentnotes: true,
+    refgroup: true,
+    profile: !!myDeptSlug,
+  }
+  const visibleDashLayout = dashLayout.filter((w) => dashWidgetVisible[w.id])
+
   return (
     <div className="dashboard">
       {/* Welcome Banner */}
