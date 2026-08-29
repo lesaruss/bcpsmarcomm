@@ -712,6 +712,58 @@ body {
   margin-bottom: 14px;
 }
 .dash-panel-header h3 { font-size: 14px; font-weight: 800; }
+
+/* Draggable, resizable dashboard grid (Sean, 2026-08-29): every dashboard
+   widget lives in one continuous .dashboard-grid so cards can be dragged
+   into any position and set to half-width (1 column) or full-width (2
+   columns). Grid stretch (the CSS grid default) already equalizes card
+   heights within a row, so no extra rule is needed for that. */
+.dash-grid-toolbar {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 10px; margin-bottom: 14px;
+}
+.dash-cell { position: relative; grid-column: span 1; }
+.dash-cell.span-2 { grid-column: span 2; }
+.dash-cell.customizing { cursor: grab; }
+.dash-cell.customizing:active { cursor: grabbing; }
+.dash-cell.customizing > * {
+  outline: 1.5px dashed var(--border); outline-offset: 6px; border-radius: 14px;
+  transition: outline-color .12s ease;
+}
+.dash-cell.drag-over > * { outline-color: var(--primary); outline-style: solid; }
+.dash-cell.dragging { opacity: .4; }
+.dash-cell-controls {
+  position: absolute; top: -11px; right: 10px; z-index: 2;
+  display: flex; align-items: center; gap: 6px;
+}
+.dash-cell-grip {
+  width: 22px; height: 22px; border-radius: 6px; background: #fff;
+  border: 1px solid var(--border); color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; letter-spacing: 1px; cursor: grab; user-select: none;
+}
+.dash-span-toggle {
+  display: inline-flex; border: 1px solid var(--border); border-radius: 6px;
+  overflow: hidden; background: #fff;
+}
+.dash-span-toggle button {
+  font-family: inherit; font-size: 10px; font-weight: 800; letter-spacing: .03em;
+  color: var(--text-muted); background: #fff; border: none; padding: 3px 7px; cursor: pointer;
+}
+.dash-span-toggle button + button { border-left: 1px solid var(--border); }
+.dash-span-toggle button.active { background: var(--primary); color: #fff; }
+.locked-ref-group {
+  background: #fff; border-radius: 12px; border: 1.5px solid #b45309;
+  padding: 16px 20px 20px;
+}
+.locked-ref-group-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  font-size: 12px; font-weight: 800; color: #b45309; text-transform: uppercase; letter-spacing: .03em;
+}
+.locked-ref-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.locked-ref-grid.span-1 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 860px) { .locked-ref-grid, .locked-ref-grid.span-1 { grid-template-columns: 1fr; } }
+
 .note-list { display: flex; flex-direction: column; gap: 10px; }
 .note-list-item {
   padding: 10px 0;
