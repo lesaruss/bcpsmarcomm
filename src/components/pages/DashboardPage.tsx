@@ -160,6 +160,34 @@ const TOOL_TILES = [
   { key: 'wcmhub', name: 'WCM Hub', desc: 'Your home base on bcpsmarcomm.com', icon: 'WH', page: 'wcm' as PageId },
 ]
 
+// Draggable / resizable dashboard grid (Sean, 2026-08-29): every widget on
+// this page lives in one continuous grid, in an order and span (1 = half
+// width, 2 = full width) each signed-in member can rearrange to their own
+// liking via "Customize layout". Saved to localStorage per browser - a
+// lightweight, no-schema-change way to remember one person's layout
+// preference without a new database table or per-user architecture
+// decision. The reference-tile group (Team / My Department / Quick Actions
+// / Consoles) is a single locked unit per Sean's spec - it always moves and
+// resizes together, collapsing from a 2x2 grid to two stacked rows of 2
+// when placed in a half-width slot. Matches the approved mockup
+// (2026-08-29, "Flexible Dashboard Grid" artifact).
+type DashSpan = 1 | 2
+interface DashLayoutItem { id: string; span: DashSpan }
+const DASH_LAYOUT_STORAGE_KEY = 'bcps-dashboard-layout-v1'
+const DEFAULT_DASH_LAYOUT: DashLayoutItem[] = [
+  { id: 'cert', span: 2 },
+  { id: 'stats', span: 2 },
+  { id: 'messages', span: 2 },
+  { id: 'tools', span: 1 },
+  { id: 'audit', span: 1 },
+  { id: 'meetingnotes', span: 1 },
+  { id: 'documents', span: 1 },
+  { id: 'accessrequests', span: 2 },
+  { id: 'recentnotes', span: 1 },
+  { id: 'refgroup', span: 2 },
+  { id: 'profile', span: 2 },
+]
+
 // Fictitious "preview a role" identities (Sean, 2026-08-27): purely to let a
 // SuperAdmin confirm the new dashboard layout renders correctly for each
 // access tier, never tied to a real person's account. These ids never match
