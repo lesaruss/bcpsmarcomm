@@ -775,504 +775,545 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
         </button>
       </div>
 
-      {/* WCM Certification status banner - per the approved dashboard brief
-          (bcps-wcm-dashboard-preview-2026-08-27, certBanner()), this is a
-          full-width span-12 card immediately below the welcome header,
-          above everything else. Previously this was squeezed into the
-          left/right dashboard-grid next to Recent Messages, which visually
-          demoted it below the stat tiles - that did not match the approved
-          design and is the fix here (Sean, 2026-08-28). Covers all three
-          states (not started, in progress, complete). */}
-      {certProgress !== null && (
-        <div className="dash-panel" style={{ marginBottom: 24 }}>
-          <div className="dash-panel-header">
-            <h3>WCM Certification</h3>
-            <a href="/certification/departments" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>
-              {certProgress.allDone ? 'View certificate →' : 'Continue →'}
-            </a>
-          </div>
-          <div style={{ padding: '4px 0 8px', display: 'flex', alignItems: 'center', gap: 24 }}>
-            <div style={{ flexShrink: 0, minWidth: 90 }}>
-              <div style={{ fontSize: '28px', fontWeight: 900, color: certProgress.allDone ? '#16750C' : 'var(--primary)', lineHeight: 1 }}>{certProgress.pct}%</div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 3, whiteSpace: 'nowrap' }}>
-                {certProgress.allDone ? 'Complete' : `${certProgress.completed} of ${certProgress.total} pages`}
-              </div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ height: 8, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: certProgress.pct + '%', background: certProgress.allDone ? '#16750C' : 'var(--primary)', borderRadius: 8, transition: 'width 0.4s ease' }} />
-              </div>
-            </div>
-            {certProgress.allDone && (
-              <div style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>+</div>
-            )}
-            {!certProgress.allDone && certProgress.completed === 0 && !certProgress.hasAnyProgress && (
-              <a href="/certification/departments/welcome" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                Begin Certification
-              </a>
-            )}
-            {!certProgress.allDone && certProgress.hasAnyProgress && (
-              <a href="/certification/departments" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                Continue Certification
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="stats-grid">
-        {STAT_CARDS.map((card) => (
-          <div key={card.label} className="stat-card">
-            <div className="stat-value">{card.value}</div>
-            <div className="stat-label">{card.label}</div>
-            <div className={`stat-delta ${card.positive ? 'positive' : 'neutral'}`}>{card.delta}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Recent Messages - site reports from the SiteFeedback widget,
-          per Sean 2026-07-29: this is the bare-bones inbox. Was previously
-          paired with WCM Certification in a two-column grid; now its own
-          full-width row since Certification moved to the top (Sean,
-          2026-08-28). Gated on canManageMessages (bcps role admin or
-          superadmin - e.g. Sean and, as of 2026-07-29, Felicia Hicks), not
-          the Sidebar's binary superadmin/user role. Click a message to
-          read it (marks read) and reply inline - the reply emails the
-          reporter directly if we have their address. */}
-      {canManageMessages && (
-        <div className="dash-panel" id="dashboard-messages-panel" style={{ marginBottom: 24 }}>
-          <div className="dash-panel-header">
-            <h3>Recent Messages</h3>
-            {messages.length > 0 && (
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                {messages.filter(m => !m.read_at).length} unread
-              </span>
-            )}
-          </div>
-          <div className="note-list">
-            {messagesLoading ? (
-              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
-            ) : messages.length === 0 ? (
-              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No messages yet.</div>
-            ) : messages.slice(0, 6).map((m) => (
-              <button
-                key={m.id}
-                onClick={() => openAndMarkRead(m)}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left', background: 'none',
-                  border: 'none', borderBottom: '1px solid var(--border)', padding: '10px 0',
-                  cursor: 'pointer', font: 'inherit',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {!m.read_at && (
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
-                  )}
-                  <span style={{ fontWeight: m.read_at ? 600 : 800, color: 'var(--text)', fontSize: '13px' }}>
-                    {m.email || 'Not identified'}
-                  </span>
-                  <span className="dot">&middot;</span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{relativeTime(m.created_at)}</span>
-                  {m.status === 'replied' && (
-                    <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 800, color: '#16750C', textTransform: 'uppercase' }}>Replied</span>
-                  )}
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
-                  {m.page ? `${m.page} — ` : ''}{m.message.length > 110 ? m.message.slice(0, 107) + '...' : m.message}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Your Tools + My Page Audit, per Sean 2026-08-27: daily-use tool
-          launchers (not a passive status display) directly below WCM
-          Certification, with the page audit summary beside it. */}
-      <div className="dashboard-grid" style={{ marginBottom: 24 }}>
-        <div className="dash-panel">
-          <div className="dash-panel-header">
-            <h3>Your Tools</h3>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Daily use</span>
-          </div>
-          <div className="tool-tiles">
-            {TOOL_TILES.map(t => (
-              t.external ? (
-                <a key={t.key} className="tool-tile" href={t.href} target="_blank" rel="noopener noreferrer">
-                  <span className="tool-tile-icon">{t.icon}</span>
-                  <span className="tool-tile-name">{t.name}</span>
-                  <span className="tool-tile-desc">{t.desc}</span>
-                </a>
-              ) : (
-                <button key={t.key} type="button" className="tool-tile" onClick={() => onNavigate(t.page!)}>
-                  <span className="tool-tile-icon">{t.icon}</span>
-                  <span className="tool-tile-name">{t.name}</span>
-                  <span className="tool-tile-desc">{t.desc}</span>
-                </button>
-              )
-            ))}
-          </div>
-        </div>
-
-        {myDeptSlug && (
-          <div className="dash-panel">
-            <div className="dash-panel-header">
-              <h3>My Page Audit</h3>
-            </div>
-            {deptDetailLoading ? (
-              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
-            ) : deptDetail ? (
-              <>
-                <div className="audit-summary">
-                  <div className="audit-stat">
-                    <div className="audit-stat-value" style={{ color: deptDetail.ada_score == null ? 'var(--text-muted)' : deptDetail.ada_score >= 80 ? '#16a34a' : deptDetail.ada_score >= 60 ? '#b45309' : '#dc2626' }}>
-                      {deptDetail.ada_score != null ? Math.round(deptDetail.ada_score) : '—'}
-                    </div>
-                    <div className="audit-stat-label">Current ADA score</div>
-                  </div>
-                  <div className="audit-stat">
-                    <div className="audit-stat-value">{deptDetail.current_round ?? '—'}</div>
-                    <div className="audit-stat-label">Audit round</div>
-                  </div>
-                  <div className="audit-stat">
-                    <div className="audit-stat-value" style={{ fontSize: 15 }}>
-                      {deptDetail.audit_date ? new Date(deptDetail.audit_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                    </div>
-                    <div className="audit-stat-label">Last audit date</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-                  <button className="btn-primary" onClick={() => onNavigate('department-audit')}>Submit page for review</button>
-                  <button className="btn-outline" onClick={() => onNavigate('department-audit')}>View full audit findings</button>
-                </div>
-              </>
-            ) : (
-              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No audit on file yet for your department.</div>
-            )}
-          </div>
+      {/* Customize layout, per Sean 2026-08-29: off by default so the
+          dashboard looks and behaves exactly as before. Turning it on
+          reveals a drag handle + half/full-width toggle on every card
+          below, matching the approved "Flexible Dashboard Grid" mockup
+          (2026-08-29). Order and widths persist per browser
+          (localStorage) - no account-wide schema change. */}
+      <div className="dash-grid-toolbar">
+        {customizingLayout && (
+          <button className="btn-outline" type="button" onClick={resetDashLayout}>Reset layout</button>
         )}
+        <button
+          className={customizingLayout ? 'btn-primary' : 'btn-outline'}
+          type="button"
+          onClick={() => setCustomizingLayout(v => !v)}
+        >
+          {customizingLayout ? 'Done arranging' : 'Customize layout'}
+        </button>
       </div>
-
-      {/* Latest Meeting Notes + Documents, per Sean 2026-08-27: meeting
-          notes tile directly under My Page Audit, documents (5 newest or
-          up to 5 favorited) as the final tile. Both read the same
-          access-filtered catalog as the Meeting Notes/Documents pages. */}
-      <div className="dashboard-grid" style={{ marginBottom: 24 }}>
-        <div className="dash-panel">
-          <div className="dash-panel-header">
-            <h3>Latest Meeting Notes</h3>
-            <button className="link-btn" onClick={() => onNavigate('notes')}>View all &rarr;</button>
-          </div>
-          <div className="note-list">
-            {docsLoading ? (
-              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
-            ) : meetingNotes.length === 0 ? (
-              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No meeting notes yet.</div>
-            ) : meetingNotes.map(d => (
-              <div key={d.id} className="note-list-item">
-                <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
-                <div className="note-list-meta">
-                  <span>{d.series_title || 'Meeting Notes'}</span>
-                  {d.date && (<><span className="dot">&middot;</span><span>{d.date}</span></>)}
-                </div>
-                {d.description && (
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{d.description}</div>
-                )}
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 14 }}>
-            <button className="btn-outline" onClick={() => onNavigate('notes')}>View all meeting notes</button>
-          </div>
-        </div>
-
-        <div className="dash-panel">
-          <div className="dash-panel-header">
-            <h3>Documents</h3>
-            <div className="doc-toggle">
-              <button className={docMode === 'favorites' ? 'active' : ''} onClick={() => setDocMode('favorites')}>Favorites</button>
-              <button className={docMode === 'newest' ? 'active' : ''} onClick={() => setDocMode('newest')}>Newest</button>
-            </div>
-          </div>
-          <div className="note-list">
-            {docsLoading ? (
-              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
-            ) : documentsList.length === 0 ? (
-              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
-                {docMode === 'favorites' ? 'No favorited documents yet.' : 'No documents yet.'}
-              </div>
-            ) : documentsList.map(d => (
-              <div key={d.id} className="note-list-item" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: 7, background: 'var(--bg-page)', flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 9.5, fontWeight: 700, color: 'var(--text-muted)',
-                }}>
-                  {(d.type || 'DOC').slice(0, 3).toUpperCase()}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
-                  <div className="note-list-meta">
-                    {d.type && (<span>{d.type}</span>)}
-                    {d.date && (<><span className="dot">&middot;</span><span>{d.date}</span></>)}
-                  </div>
-                </div>
-                {d.featured && (
-                  <span title="Favorited" style={{ color: '#C55326', fontSize: 14, flexShrink: 0 }}>&#9733;</span>
-                )}
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 14 }}>
-            <button className="btn-outline" onClick={() => onNavigate('documents')}>Browse all documents</button>
-          </div>
-        </div>
-      </div>
-
-
-      {/* Access Requests - outstanding/active grants this admin has out,
-          per Sean 2026-07-29, so a pending or approved request doesn't
-          get lost once the email is sent. "Waiting" = they haven't
-          responded yet; "View" opens the read-only diagnostic page once
-          they approve. */}
-      {canManageMessages && accessRequests.length > 0 && (
-        <div className="dash-panel" style={{ marginBottom: 24 }}>
-          <div className="dash-panel-header">
-            <h3>Access Requests</h3>
-          </div>
-          <div className="note-list">
-            {accessRequests.map(ar => (
-              <div key={ar.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 13 }}>{ar.target_name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    {ar.status === 'approved' ? `Approved ${relativeTime(ar.approved_at || ar.requested_at)}` : `Requested ${relativeTime(ar.requested_at)} — waiting on them`}
-                  </div>
-                </div>
-                {ar.status === 'approved' ? (
-                  <a href={`/support-access/${ar.id}`} style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>View &rarr;</a>
-                ) : (
-                  <span style={{ fontSize: 10, fontWeight: 800, color: '#C55326', textTransform: 'uppercase' }}>Pending</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="dashboard-grid">
-        {/* Recent Assignment Notes - live from Supabase */}
-        <div className="dash-panel">
-          <div className="dash-panel-header">
-            <h3>Recent Notes</h3>
-            <button className="link-btn" onClick={() => onNavigate('bcps-assignments')}>View assignments &rarr;</button>
-          </div>
-          <div className="note-list">
-            {notesLoading ? (
-              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
-            ) : notes.length === 0 ? (
-              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No notes yet.</div>
-            ) : notes.map((note) => (
-              <div key={note.id} className="note-list-item">
-                <button className="note-list-title" onClick={() => setOpenNote(note)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit', fontWeight: 700, color: 'var(--primary)' }}>{slugToTitle(note.assignment_slug)}</button>
-                <div className="note-list-meta">
-                  <span>{note.author === 'June 10 Meeting' ? 'June 10 Meeting' : note.author}</span>
-                  <span className="dot">·</span>
-                  <span>{relativeTime(note.created_at)}</span>
+        {visibleDashLayout.map((w) => {
+          switch (w.id) {
+
+            // WCM Certification status banner - per the approved dashboard
+            // brief (bcps-wcm-dashboard-preview-2026-08-27, certBanner()).
+            // Covers all three states (not started, in progress, complete).
+            case 'cert':
+              if (certProgress === null) return null
+              return dashCell('cert', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>WCM Certification</h3>
+                    <a href="/certification/departments" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>
+                      {certProgress.allDone ? 'View certificate →' : 'Continue →'}
+                    </a>
+                  </div>
+                  <div style={{ padding: '4px 0 8px', display: 'flex', alignItems: 'center', gap: 24 }}>
+                    <div style={{ flexShrink: 0, minWidth: 90 }}>
+                      <div style={{ fontSize: '28px', fontWeight: 900, color: certProgress.allDone ? '#16750C' : 'var(--primary)', lineHeight: 1 }}>{certProgress.pct}%</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 3, whiteSpace: 'nowrap' }}>
+                        {certProgress.allDone ? 'Complete' : `${certProgress.completed} of ${certProgress.total} pages`}
+                      </div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ height: 8, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: certProgress.pct + '%', background: certProgress.allDone ? '#16750C' : 'var(--primary)', borderRadius: 8, transition: 'width 0.4s ease' }} />
+                      </div>
+                    </div>
+                    {certProgress.allDone && (
+                      <div style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>+</div>
+                    )}
+                    {!certProgress.allDone && certProgress.completed === 0 && !certProgress.hasAnyProgress && (
+                      <a href="/certification/departments/welcome" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        Begin Certification
+                      </a>
+                    )}
+                    {!certProgress.allDone && certProgress.hasAnyProgress && (
+                      <a href="/certification/departments" style={{ flexShrink: 0, display: 'inline-block', padding: '8px 16px', background: 'var(--primary)', color: '#fff', borderRadius: 6, fontSize: '12px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        Continue Certification
+                      </a>
+                    )}
+                  </div>
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.5 }}>
-                  {note.note_text.length > 120
-                    ? note.note_text.slice(0, 117) + '...'
-                    : note.note_text}
+              ))
+
+            case 'stats':
+              return dashCell('stats', (
+                <div className="stats-grid" style={{ marginBottom: 0 }}>
+                  {STAT_CARDS.map((card) => (
+                    <div key={card.label} className="stat-card">
+                      <div className="stat-value">{card.value}</div>
+                      <div className="stat-label">{card.label}</div>
+                      <div className={`stat-delta ${card.positive ? 'positive' : 'neutral'}`}>{card.delta}</div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
+              ))
 
-        {/* Team Members - live from the directory */}
-        <div className="dash-panel">
-          <div className="dash-panel-header">
-            <h3>Team</h3>
-            <button className="link-btn" onClick={() => onNavigate('members')}>View all &rarr;</button>
-          </div>
-          <div className="member-list">
-            {teamMembers.slice(0, 6).map((m) => (
-              <div key={m.user_id} className="member-row">
-                <div className="avatar avatar-sm" style={{ background: m.color }}>{m.initials}</div>
-                <div className="member-info">
-                  <strong>
-                    <button onClick={() => router.push(`/?page=members&member=${m.user_id}`, { scroll: false })}
-                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontWeight: 700, color: 'var(--primary)' }}>
-                      {m.name}
-                    </button>
-                  </strong>
-                  <span>{m.department?.name || (m.role === 'superadmin' ? 'Superadmin' : 'Team Member')}</span>
+            // Recent Messages - site reports from the SiteFeedback widget,
+            // per Sean 2026-07-29: the bare-bones inbox. Gated on
+            // canManageMessages (bcps role admin or superadmin), not the
+            // Sidebar's binary superadmin/user role. Click a message to
+            // read it (marks read) and reply inline - the reply emails the
+            // reporter directly if we have their address.
+            case 'messages':
+              return dashCell('messages', (
+                <div className="dash-panel" id="dashboard-messages-panel">
+                  <div className="dash-panel-header">
+                    <h3>Recent Messages</h3>
+                    {messages.length > 0 && (
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {messages.filter(m => !m.read_at).length} unread
+                      </span>
+                    )}
+                  </div>
+                  <div className="note-list">
+                    {messagesLoading ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+                    ) : messages.length === 0 ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No messages yet.</div>
+                    ) : messages.slice(0, 6).map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => openAndMarkRead(m)}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left', background: 'none',
+                          border: 'none', borderBottom: '1px solid var(--border)', padding: '10px 0',
+                          cursor: 'pointer', font: 'inherit',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {!m.read_at && (
+                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                          )}
+                          <span style={{ fontWeight: m.read_at ? 600 : 800, color: 'var(--text)', fontSize: '13px' }}>
+                            {m.email || 'Not identified'}
+                          </span>
+                          <span className="dot">&middot;</span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{relativeTime(m.created_at)}</span>
+                          {m.status === 'replied' && (
+                            <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 800, color: '#16750C', textTransform: 'uppercase' }}>Replied</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+                          {m.page ? `${m.page} — ` : ''}{m.message.length > 110 ? m.message.slice(0, 107) + '...' : m.message}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="member-status online" />
-              </div>
-            ))}
-          </div>
-        </div>
+              ))
 
-        {/* My Department */}
-        {(() => {
-          const myDept = teamMembers.find(m => m.user_id === meId)?.department
-          return (
-            <div className="dash-panel">
-              <div className="dash-panel-header">
-                <h3>My Department</h3>
-                {myDept && <button className="link-btn" onClick={() => router.push(`/?page=departments&dept=${myDept.slug}`, { scroll: false })}>Open profile &rarr;</button>}
-              </div>
-              <div style={{ padding: '4px 0' }}>
-                {myDept ? (
-                  <>
-                    <div style={{ fontSize: 16, fontWeight: 800 }}>{myDept.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{myDept.division || ''}</div>
-                  </>
-                ) : (
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No department assigned yet.</div>
-                )}
-              </div>
-            </div>
-          )
-        })()}
+            // Your Tools - daily-use tool launchers, per Sean 2026-08-27.
+            case 'tools':
+              return dashCell('tools', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>Your Tools</h3>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Daily use</span>
+                  </div>
+                  <div className="tool-tiles">
+                    {TOOL_TILES.map(t => (
+                      t.external ? (
+                        <a key={t.key} className="tool-tile" href={t.href} target="_blank" rel="noopener noreferrer">
+                          <span className="tool-tile-icon">{t.icon}</span>
+                          <span className="tool-tile-name">{t.name}</span>
+                          <span className="tool-tile-desc">{t.desc}</span>
+                        </a>
+                      ) : (
+                        <button key={t.key} type="button" className="tool-tile" onClick={() => onNavigate(t.page!)}>
+                          <span className="tool-tile-icon">{t.icon}</span>
+                          <span className="tool-tile-name">{t.name}</span>
+                          <span className="tool-tile-desc">{t.desc}</span>
+                        </button>
+                      )
+                    ))}
+                  </div>
+                </div>
+              ))
 
-        {/* Quick Actions */}
-        <div className="dash-panel">
-          <div className="dash-panel-header">
-            <h3>Quick Actions</h3>
-          </div>
-          <div className="quick-actions">
-            <button className="quick-action-btn" onClick={() => onNavigate('notes')}>
-              <span className="qa-icon">{FlatIcons.note}</span>
-              <span>Write a Note</span>
-            </button>
-            <button className="quick-action-btn" onClick={() => onNavigate('departments')}>
-              <span className="qa-icon">{FlatIcons.building}</span>
-              <span>Browse Departments</span>
-            </button>
-            <button className="quick-action-btn" onClick={() => onNavigate('analytics')}>
-              <span className="qa-icon">{FlatIcons.chart}</span>
-              <span>View Analytics</span>
-            </button>
-            <button className="quick-action-btn" onClick={() => onNavigate('superadmin')}>
-              <span className="qa-icon">{FlatIcons.shield}</span>
-              <span>SuperAdmin Panel</span>
-            </button>
-          </div>
-        </div>
+            // My Page Audit - only present once a department context
+            // resolves (myDeptSlug), per Sean 2026-08-27/28.
+            case 'audit':
+              return dashCell('audit', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>My Page Audit</h3>
+                  </div>
+                  {deptDetailLoading ? (
+                    <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+                  ) : deptDetail ? (
+                    <>
+                      <div className="audit-summary">
+                        <div className="audit-stat">
+                          <div className="audit-stat-value" style={{ color: deptDetail.ada_score == null ? 'var(--text-muted)' : deptDetail.ada_score >= 80 ? '#16a34a' : deptDetail.ada_score >= 60 ? '#b45309' : '#dc2626' }}>
+                            {deptDetail.ada_score != null ? Math.round(deptDetail.ada_score) : '—'}
+                          </div>
+                          <div className="audit-stat-label">Current ADA score</div>
+                        </div>
+                        <div className="audit-stat">
+                          <div className="audit-stat-value">{deptDetail.current_round ?? '—'}</div>
+                          <div className="audit-stat-label">Audit round</div>
+                        </div>
+                        <div className="audit-stat">
+                          <div className="audit-stat-value" style={{ fontSize: 15 }}>
+                            {deptDetail.audit_date ? new Date(deptDetail.audit_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                          </div>
+                          <div className="audit-stat-label">Last audit date</div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+                        <button className="btn-primary" onClick={() => onNavigate('department-audit')}>Submit page for review</button>
+                        <button className="btn-outline" onClick={() => onNavigate('department-audit')}>View full audit findings</button>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No audit on file yet for your department.</div>
+                  )}
+                </div>
+              ))
 
-        {/* Consoles */}
-        <div className="dash-panel">
-          <div className="dash-panel-header">
-            <h3>Your Consoles</h3>
-          </div>
-          <div className="console-grid">
-            <button className="console-card" onClick={() => onNavigate('marcomm')}>
-              <div className="console-icon">{FlatIcons.megaphone}</div>
-              <div className="console-name">MarComm</div>
-              <div className="console-desc">Marketing & Comms</div>
-            </button>
-            <button className="console-card" onClick={() => onNavigate('minutes')}>
-              <div className="console-icon">{FlatIcons.clock}</div>
-              <div className="console-name">Minutes</div>
-              <div className="console-desc">Meeting Records</div>
-            </button>
-            <button className="console-card" onClick={() => onNavigate('wcm')}>
-              <div className="console-icon">{FlatIcons.globe}</div>
-              <div className="console-name">WCM</div>
-              <div className="console-desc">Web Content</div>
-            </button>
-          </div>
-        </div>
+            // Latest Meeting Notes - directly under My Page Audit in the
+            // shipped default order, per Sean 2026-08-27.
+            case 'meetingnotes':
+              return dashCell('meetingnotes', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>Latest Meeting Notes</h3>
+                    <button className="link-btn" onClick={() => onNavigate('notes')}>View all &rarr;</button>
+                  </div>
+                  <div className="note-list">
+                    {docsLoading ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+                    ) : meetingNotes.length === 0 ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No meeting notes yet.</div>
+                    ) : meetingNotes.map(d => (
+                      <div key={d.id} className="note-list-item">
+                        <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
+                        <div className="note-list-meta">
+                          <span>{d.series_title || 'Meeting Notes'}</span>
+                          {d.date && (<><span className="dot">&middot;</span><span>{d.date}</span></>)}
+                        </div>
+                        {d.description && (
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{d.description}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <button className="btn-outline" onClick={() => onNavigate('notes')}>View all meeting notes</button>
+                  </div>
+                </div>
+              ))
+
+            // Documents - 5 newest or up to 5 favorited, per Sean
+            // 2026-08-27. Reads the same access-filtered catalog as the
+            // Documents page.
+            case 'documents':
+              return dashCell('documents', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>Documents</h3>
+                    <div className="doc-toggle">
+                      <button className={docMode === 'favorites' ? 'active' : ''} onClick={() => setDocMode('favorites')}>Favorites</button>
+                      <button className={docMode === 'newest' ? 'active' : ''} onClick={() => setDocMode('newest')}>Newest</button>
+                    </div>
+                  </div>
+                  <div className="note-list">
+                    {docsLoading ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+                    ) : documentsList.length === 0 ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
+                        {docMode === 'favorites' ? 'No favorited documents yet.' : 'No documents yet.'}
+                      </div>
+                    ) : documentsList.map(d => (
+                      <div key={d.id} className="note-list-item" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: 7, background: 'var(--bg-page)', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 9.5, fontWeight: 700, color: 'var(--text-muted)',
+                        }}>
+                          {(d.type || 'DOC').slice(0, 3).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
+                          <div className="note-list-meta">
+                            {d.type && (<span>{d.type}</span>)}
+                            {d.date && (<><span className="dot">&middot;</span><span>{d.date}</span></>)}
+                          </div>
+                        </div>
+                        {d.featured && (
+                          <span title="Favorited" style={{ color: '#C55326', fontSize: 14, flexShrink: 0 }}>&#9733;</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <button className="btn-outline" onClick={() => onNavigate('documents')}>Browse all documents</button>
+                  </div>
+                </div>
+              ))
+
+            // Access Requests - outstanding/active grants this admin has
+            // out, per Sean 2026-07-29, so a pending or approved request
+            // doesn't get lost once the email is sent.
+            case 'accessrequests':
+              return dashCell('accessrequests', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>Access Requests</h3>
+                  </div>
+                  <div className="note-list">
+                    {accessRequests.map(ar => (
+                      <div key={ar.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 13 }}>{ar.target_name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                            {ar.status === 'approved' ? `Approved ${relativeTime(ar.approved_at || ar.requested_at)}` : `Requested ${relativeTime(ar.requested_at)} — waiting on them`}
+                          </div>
+                        </div>
+                        {ar.status === 'approved' ? (
+                          <a href={`/support-access/${ar.id}`} style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', textDecoration: 'none' }}>View &rarr;</a>
+                        ) : (
+                          <span style={{ fontSize: 10, fontWeight: 800, color: '#C55326', textTransform: 'uppercase' }}>Pending</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+
+            // Recent Notes - live assignment notes from Supabase.
+            case 'recentnotes':
+              return dashCell('recentnotes', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>Recent Notes</h3>
+                    <button className="link-btn" onClick={() => onNavigate('bcps-assignments')}>View assignments &rarr;</button>
+                  </div>
+                  <div className="note-list">
+                    {notesLoading ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+                    ) : notes.length === 0 ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No notes yet.</div>
+                    ) : notes.map((note) => (
+                      <div key={note.id} className="note-list-item">
+                        <button className="note-list-title" onClick={() => setOpenNote(note)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit', fontWeight: 700, color: 'var(--primary)' }}>{slugToTitle(note.assignment_slug)}</button>
+                        <div className="note-list-meta">
+                          <span>{note.author === 'June 10 Meeting' ? 'June 10 Meeting' : note.author}</span>
+                          <span className="dot">·</span>
+                          <span>{relativeTime(note.created_at)}</span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.5 }}>
+                          {note.note_text.length > 120
+                            ? note.note_text.slice(0, 117) + '...'
+                            : note.note_text}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+
+            // Reference-tile group - Team / My Department / Quick Actions /
+            // Consoles. A single locked unit per Sean 2026-08-29: it always
+            // moves and resizes as one, collapsing from a 2x2 grid to two
+            // stacked rows of 2 when set to half-width.
+            case 'refgroup': {
+              const myDept = teamMembers.find(m => m.user_id === meId)?.department
+              const refSpan = spanOfDashCell('refgroup')
+              return dashCell('refgroup', (
+                <div className="locked-ref-group">
+                  <div className="locked-ref-group-head">
+                    <span aria-hidden="true">&#128274;</span> Team &middot; My Department &middot; Quick Actions &middot; Consoles
+                  </div>
+                  <div className={`locked-ref-grid${refSpan === 1 ? ' span-1' : ''}`}>
+                    <div className="dash-panel">
+                      <div className="dash-panel-header">
+                        <h3>Team</h3>
+                        <button className="link-btn" onClick={() => onNavigate('members')}>View all &rarr;</button>
+                      </div>
+                      <div className="member-list">
+                        {teamMembers.slice(0, 6).map((m) => (
+                          <div key={m.user_id} className="member-row">
+                            <div className="avatar avatar-sm" style={{ background: m.color }}>{m.initials}</div>
+                            <div className="member-info">
+                              <strong>
+                                <button onClick={() => router.push(`/?page=members&member=${m.user_id}`, { scroll: false })}
+                                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontWeight: 700, color: 'var(--primary)' }}>
+                                  {m.name}
+                                </button>
+                              </strong>
+                              <span>{m.department?.name || (m.role === 'superadmin' ? 'Superadmin' : 'Team Member')}</span>
+                            </div>
+                            <div className="member-status online" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="dash-panel">
+                      <div className="dash-panel-header">
+                        <h3>My Department</h3>
+                        {myDept && <button className="link-btn" onClick={() => router.push(`/?page=departments&dept=${myDept.slug}`, { scroll: false })}>Open profile &rarr;</button>}
+                      </div>
+                      <div style={{ padding: '4px 0' }}>
+                        {myDept ? (
+                          <>
+                            <div style={{ fontSize: 16, fontWeight: 800 }}>{myDept.name}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{myDept.division || ''}</div>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No department assigned yet.</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="dash-panel">
+                      <div className="dash-panel-header">
+                        <h3>Quick Actions</h3>
+                      </div>
+                      <div className="quick-actions">
+                        <button className="quick-action-btn" onClick={() => onNavigate('notes')}>
+                          <span className="qa-icon">{FlatIcons.note}</span>
+                          <span>Write a Note</span>
+                        </button>
+                        <button className="quick-action-btn" onClick={() => onNavigate('departments')}>
+                          <span className="qa-icon">{FlatIcons.building}</span>
+                          <span>Browse Departments</span>
+                        </button>
+                        <button className="quick-action-btn" onClick={() => onNavigate('analytics')}>
+                          <span className="qa-icon">{FlatIcons.chart}</span>
+                          <span>View Analytics</span>
+                        </button>
+                        <button className="quick-action-btn" onClick={() => onNavigate('superadmin')}>
+                          <span className="qa-icon">{FlatIcons.shield}</span>
+                          <span>SuperAdmin Panel</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="dash-panel">
+                      <div className="dash-panel-header">
+                        <h3>Your Consoles</h3>
+                      </div>
+                      <div className="console-grid">
+                        <button className="console-card" onClick={() => onNavigate('marcomm')}>
+                          <div className="console-icon">{FlatIcons.megaphone}</div>
+                          <div className="console-name">MarComm</div>
+                          <div className="console-desc">Marketing & Comms</div>
+                        </button>
+                        <button className="console-card" onClick={() => onNavigate('minutes')}>
+                          <div className="console-icon">{FlatIcons.clock}</div>
+                          <div className="console-name">Minutes</div>
+                          <div className="console-desc">Meeting Records</div>
+                        </button>
+                        <button className="console-card" onClick={() => onNavigate('wcm')}>
+                          <div className="console-icon">{FlatIcons.globe}</div>
+                          <div className="console-name">WCM</div>
+                          <div className="console-desc">Web Content</div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            }
+
+            // Member Profile, per Sean 2026-08-27: what a member sees when
+            // they click their own name in the welcome banner. Renamed
+            // from "Department Profile" and given a Name/Role header row +
+            // avatar to match the approved brief's memberProfileCard(),
+            // which this is modeled on (Sean, 2026-08-28) -
+            // Department/Division/WCM/Director/Chief are kept alongside
+            // since they're real, useful context the mockup's synthetic
+            // data didn't need to show.
+            case 'profile':
+              return dashCell('profile', (
+                <div className="profile-section dash-panel" ref={profileRef} id="dashboard-profile-card">
+                  <div className="dash-panel-header">
+                    <h3>Member Profile</h3>
+                    {deptDetail?.website_url && (
+                      <a className="link-btn" href={deptDetail.website_url.startsWith('http') ? deptDetail.website_url : `https://${deptDetail.website_url}`} target="_blank" rel="noopener noreferrer">
+                        View live page &rarr;
+                      </a>
+                    )}
+                  </div>
+                  {deptDetailLoading ? (
+                    <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+                  ) : deptDetail ? (
+                    <>
+                      {(() => {
+                        const memberName = viewAsUserId ? MEMBERS.find(m => m.initials === viewAsUserId)?.name : userName
+                        const memberRole = viewAsUserId
+                          ? MEMBERS.find(m => m.initials === viewAsUserId)?.role
+                          : teamMembers.find(m => m.user_id === meId)?.role
+                        const initials = memberName ? memberName.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() : '—'
+                        return (
+                          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap' }}>
+                            <div style={{
+                              width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
+                              background: 'linear-gradient(135deg, var(--primary) 0 55%, #16750C 55% 100%)',
+                              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontWeight: 700, fontSize: 15,
+                            }}>
+                              {initials}
+                            </div>
+                            <div className="profile-row" style={{ flex: 1 }}>
+                              <div className="profile-block">
+                                <div className="pb-k">Name</div>
+                                <div className="pb-v">{memberName || 'Unknown'}</div>
+                              </div>
+                              <div className="profile-block">
+                                <div className="pb-k">Role</div>
+                                <div className={`pb-v${memberRole ? '' : ' muted'}`}>{memberRole || 'Not listed'}</div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })()}
+                      <div className="profile-row">
+                        <div className="profile-block">
+                          <div className="pb-k">Department</div>
+                          <div className="pb-v">{deptDetail.name}</div>
+                        </div>
+                        <div className="profile-block">
+                          <div className="pb-k">Division</div>
+                          <div className={`pb-v${deptDetail.division ? '' : ' muted'}`}>{deptDetail.division || 'Not listed'}</div>
+                        </div>
+                        <div className="profile-block">
+                          <div className="pb-k">Web Content Manager</div>
+                          <div className={`pb-v${deptDetail.wcm_name ? '' : ' muted'}`}>{deptDetail.wcm_name || 'Unassigned'}</div>
+                        </div>
+                        <div className="profile-block">
+                          <div className="pb-k">Director</div>
+                          <div className={`pb-v${deptDetail.director_name ? '' : ' muted'}`}>{deptDetail.director_name || 'Not listed'}</div>
+                        </div>
+                        {deptDetail.chief_name && (
+                          <div className="profile-block">
+                            <div className="pb-k">{deptDetail.chief_title || 'Chief'}</div>
+                            <div className="pb-v">{deptDetail.chief_name}</div>
+                          </div>
+                        )}
+                      </div>
+                      {deptDetail.blurb && (
+                        <div className="profile-blurb">{deptDetail.blurb}</div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No department profile on file yet.</div>
+                  )}
+                </div>
+              ))
+
+            default:
+              return null
+          }
+        })}
       </div>
-
-      {/* Member Profile, per Sean 2026-08-27: what a member sees when
-          they click their own name in the welcome banner - moved to the
-          bottom of the page, below the rest of the dashboard. Renamed from
-          "Department Profile" and given a Name/Role header row + avatar to
-          match the approved brief's memberProfileCard(), which this is
-          modeled on (Sean, 2026-08-28) - Department/Division/WCM/Director/
-          Chief are kept alongside since they're real, useful context the
-          mockup's synthetic data didn't need to show. */}
-      {myDeptSlug && (
-        <div className="profile-section dash-panel" ref={profileRef} id="dashboard-profile-card">
-          <div className="dash-panel-header">
-            <h3>Member Profile</h3>
-            {deptDetail?.website_url && (
-              <a className="link-btn" href={deptDetail.website_url.startsWith('http') ? deptDetail.website_url : `https://${deptDetail.website_url}`} target="_blank" rel="noopener noreferrer">
-                View live page &rarr;
-              </a>
-            )}
-          </div>
-          {deptDetailLoading ? (
-            <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
-          ) : deptDetail ? (
-            <>
-              {(() => {
-                const memberName = viewAsUserId ? MEMBERS.find(m => m.initials === viewAsUserId)?.name : userName
-                const memberRole = viewAsUserId
-                  ? MEMBERS.find(m => m.initials === viewAsUserId)?.role
-                  : teamMembers.find(m => m.user_id === meId)?.role
-                const initials = memberName ? memberName.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() : '—'
-                return (
-                  <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap' }}>
-                    <div style={{
-                      width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
-                      background: 'linear-gradient(135deg, var(--primary) 0 55%, #16750C 55% 100%)',
-                      color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 700, fontSize: 15,
-                    }}>
-                      {initials}
-                    </div>
-                    <div className="profile-row" style={{ flex: 1 }}>
-                      <div className="profile-block">
-                        <div className="pb-k">Name</div>
-                        <div className="pb-v">{memberName || 'Unknown'}</div>
-                      </div>
-                      <div className="profile-block">
-                        <div className="pb-k">Role</div>
-                        <div className={`pb-v${memberRole ? '' : ' muted'}`}>{memberRole || 'Not listed'}</div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })()}
-              <div className="profile-row">
-                <div className="profile-block">
-                  <div className="pb-k">Department</div>
-                  <div className="pb-v">{deptDetail.name}</div>
-                </div>
-                <div className="profile-block">
-                  <div className="pb-k">Division</div>
-                  <div className={`pb-v${deptDetail.division ? '' : ' muted'}`}>{deptDetail.division || 'Not listed'}</div>
-                </div>
-                <div className="profile-block">
-                  <div className="pb-k">Web Content Manager</div>
-                  <div className={`pb-v${deptDetail.wcm_name ? '' : ' muted'}`}>{deptDetail.wcm_name || 'Unassigned'}</div>
-                </div>
-                <div className="profile-block">
-                  <div className="pb-k">Director</div>
-                  <div className={`pb-v${deptDetail.director_name ? '' : ' muted'}`}>{deptDetail.director_name || 'Not listed'}</div>
-                </div>
-                {deptDetail.chief_name && (
-                  <div className="profile-block">
-                    <div className="pb-k">{deptDetail.chief_title || 'Chief'}</div>
-                    <div className="pb-v">{deptDetail.chief_name}</div>
-                  </div>
-                )}
-              </div>
-              {deptDetail.blurb && (
-                <div className="profile-blurb">{deptDetail.blurb}</div>
-              )}
-            </>
-          ) : (
-            <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No department profile on file yet.</div>
-          )}
-        </div>
-      )}
 
       {openNote && (
         <div onClick={() => setOpenNote(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 1000 }}>
