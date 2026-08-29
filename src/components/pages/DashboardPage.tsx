@@ -292,6 +292,99 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   const [accessNotice, setAccessNotice] = useState<string | null>(null)
   const [accessRequests, setAccessRequests] = useState<Array<{ id: string; target_name: string; status: string; requested_at: string; approved_at: string | null }>>([])
 
+  // Dashboard grid layout (order + span per widget), per Sean 2026-08-29.
+  // Loaded from localStorage on mount; a device that never customized just
+  // keeps the shipped default order/spans.
+  const [dashLayout, setDashLayout] = useState<DashLayoutItem[]>(DEFAULT_DASH_LAYOUT)
+  const [customizingLayout, setCustomizingLayout] = useState(false)
+  const [dragCellId, setDragCellId] = useState<string | null>(null)
+  const [dragOverCellId, setDragOverCellId] = useState<string | null>(null)
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(DASH_LAYOUT_STORAGE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return
+      const knownIds = new Set(DEFAULT_DASH_LAYOUT.map(w => w.id))
+      const cleaned: DashLayoutItem[] = parsed.filter((w: any) => w && knownIds.has(w.id) && (w.span === 1 || w.span === 2))
+      // Any widget added to DEFAULT_DASH_LAYOUT after this browser last
+      // saved a layout (a future new tile) is appended at the end so it
+      // still shows up instead of silently disappearing.
+      const missing = DEFAULT_DASH_LAYOUT.filter(d => !cleaned.some(c => c.id === d.id))
+      setDashLayout([...cleaned, ...missing])
+    } catch {
+      // Best-effort only - a corrupt or blocked localStorage just falls
+      // back to the shipped default layout.
+    }
+  }, [])
+
+  function persistDashLayout(next: DashLayoutItem[]) {
+    setDashLayout(next)
+    try { window.localStorage.setItem(DASH_LAYOUT_STORAGE_KEY, JSON.stringify(next)) } catch {}
+  }
+
+  function moveDashCell(fromId: string, toId: string) {
+    if (fromId === toId) return
+    const arr = [...dashLayout]
+    const from = arr.findIndex(w => w.id === fromId)
+    const to = arr.findIndex(w => w.id === toId)
+    if (from < 0 || to < 0) return
+    const [moved] = arr.splice(from, 1)
+    arr.splice(to, 0, moved)
+    persistDashLayout(arr)
+  }
+
+  function setDashCellSpan(id: string, span: DashSpan) {
+    persistDashLayout(dashLayout.map(w => (w.id === id ? { ...w, span } : w)))
+  }
+
+  function resetDashLayout() {
+    persistDashLayout(DEFAULT_DASH_LAYOUT)
+  }
+
+  function spanOfDashCell(id: string): DashSpan {
+    return dashLayout.find(w => w.id === id)?.span ?? 1
+  }
+
+  // Wraps one widget's existing content in the draggable/resizable cell -
+  // only interactive (draggable, showing the grip + span toggle) while
+  // "Customize layout" is on, so normal day-to-day use of the dashboard
+  // stays exactly as before.
+  function dashCell(id: string, node: React.ReactNode) {
+    const span = spanOfDashCell(id)
+    const classes = [
+      'dash-cell',
+      span === 2 ? 'span-2' : '',
+      customizingLayout ? 'customizing' : '',
+      dragOverCellId === id ? 'drag-over' : '',
+      dragCellId === id ? 'dragging' : '',
+    ].filter(Boolean).join(' ')
+    return (
+      <div
+        key={id}
+        className={classes}
+        draggable={customizingLayout}
+        onDragStart={customizingLayout ? (e) => { setDragCellId(id); e.dataTransfer.effectAllowed = 'move' } : undefined}
+        onDragEnd={customizingLayout ? () => { setDragCellId(null); setDragOverCellId(null) } : undefined}
+        onDragOver={customizingLayout ? (e) => { if (dragCellId && dragCellId !== id) { e.preventDefault(); setDragOverCellId(id) } } : undefined}
+        onDragLeave={customizingLayout ? () => setDragOverCellId(prev => (prev === id ? null : prev)) : undefined}
+        onDrop={customizingLayout ? (e) => { e.preventDefault(); if (dragCellId) moveDashCell(dragCellId, id); setDragCellId(null); setDragOverCellId(null) } : undefined}
+      >
+        {customizingLayout && (
+          <div className="dash-cell-controls">
+            <span className="dash-cell-grip" title="Drag to reorder">&#8942;&#8942;</span>
+            <div className="dash-span-toggle">
+              <button type="button" className={span === 1 ? 'active' : ''} onClick={() => setDashCellSpan(id, 1)}>1</button>
+              <button type="button" className={span === 2 ? 'active' : ''} onClick={() => setDashCellSpan(id, 2)}>2</button>
+            </div>
+          </div>
+        )}
+        {node}
+      </div>
+    )
+  }
+
   // New dashboard tiles, per Sean 2026-08-27: department profile (bottom,
   // click name), daily-use tools, page audit, meeting notes, documents.
   const [deptDetail, setDeptDetail] = useState<DeptDetail | null>(null)
