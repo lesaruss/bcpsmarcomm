@@ -7,23 +7,39 @@ const supabase = createClient(
 )
 
 // Admin-only endpoint: force a password reset for a BCPS team member from
-// the Members directory profile view (Sean, 2026-09-01, wanted live on a
-// call with Alan). Sends the exact Supabase Auth recovery email a member
-// gets from their own "Forgot password?" link on /login
-// (supabase.auth.resetPasswordForEmail) - just triggered by an admin on the
-// member's behalf instead of the member typing their own email. Lands on
-// the already-live /set-password page, same as the self-service flow.
+// the Members directory profile view (Sean, 2026-09-01, live on a call with
+// Alan). Two things happen on every call, and neither depends on the other:
 //
-// Deliberately NOT admin.generateLink(type: recovery) - see error_registry
-// ADMIN-MAGICLINK-PKCE-MISMATCH: generateLink returns an implicit-flow
-// #access_token link that this app's PKCE-only /auth/callback route cannot
-// consume. resetPasswordForEmail is the same client-initiated recovery
-// call the login page already makes, which is why /set-password already
-// knows how to handle it (PASSWORD_RECOVERY auth event).
+// 1. A real, working reset link is minted with supabase.auth.admin.generateLink
+//    (type: recovery) and handed straight back in the response. This is the
+//    fail-safe Sean asked for: if the admin is in the room with a member who
+//    can't sign in, copy this link and send it to them directly (text,
+//    Slack, read it out loud) - no email involved, and the member never has
+//    to be given a temporary password. Opening it lands them on the
+//    already-live /set-password page to choose their own new password.
+//
+//    This is safe to do with generateLink here specifically because
+//    /set-password consumes the recovery tokens itself client-side
+//    (onAuthStateChange listening for the PASSWORD_RECOVERY event), not via
+//    the separate PKCE-only /auth/callback route. See error_registry
+//    ADMIN-MAGICLINK-PKCE-MISMATCH: that incident was about a DIFFERENT
+//    route (hq.lesaruss.ai /auth/callback) that only accepts a ?code= query
+//    param and chokes on the implicit-style link generateLink returns. That
+//    failure mode does not apply here because /set-password was never built
+//    to expect a ?code= param in the first place - see /login's own
+//    "Forgot password?" flow (resetPasswordForEmail -> redirectTo
+//    /set-password), which is the same link shape and already works.
+//
+// 2. The same branded recovery email a member gets from their own "Forgot
+//    password?" link is also sent (resetPasswordForEmail), so the normal
+//    case still "just works" with no extra click. This can legitimately
+//    fail on Supabase's per-email send cooldown even when the link above is
+//    completely valid, so its outcome is reported separately (email_sent /
+//    email_error) instead of blocking the fail-safe link on it.
 //
 // Same requireBcpsAdmin gate pattern as admin-set-department - server
 // enforced, not just hidden in the UI, since this touches another user's
-// account.
+// account and now also hands back a live sign-in-capable link.
 async function requireBcpsAdmin(req: NextRequest): Promise<{ ok: true } | { ok: false; status: number }> {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
   if (!token) return { ok: false, status: 401 }
@@ -54,13 +70,28 @@ export async function POST(req: NextRequest) {
     if (lookupError || !target?.user?.email) {
       return NextResponse.json({ error: 'Member not found' }, { status: 404 })
     }
+    const email = target.user.email
+    const redirectTo = `${req.nextUrl.origin}/set-password`
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(target.user.email, {
-      redirectTo: `${req.nextUrl.origin}/set-password`,
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo },
     })
-    if (resetError) return NextResponse.json({ error: resetError.message }, { status: 500 })
+    if (linkError || !linkData?.properties?.action_link) {
+      return NextResponse.json({ error: linkError?.message || 'Could not generate a reset link' }, { status: 500 })
+    }
+    const resetLink = linkData.properties.action_link
 
-    return NextResponse.json({ success: true, email: target.user.email })
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+
+    return NextResponse.json({
+      success: true,
+      email,
+      reset_link: resetLink,
+      email_sent: !resetError,
+      email_error: resetError?.message ?? null,
+    })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error'
     return NextResponse.json({ error: msg }, { status: 500 })
