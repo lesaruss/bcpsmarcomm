@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 import { MODULES, COURSE_ID, getTotalPages } from '@/lib/cert-data'
+import { createServiceClient } from '@/lib/supabase-admin'
 
 export default async function AdminDashboard() {
   const cookieStore = cookies()
@@ -20,7 +21,7 @@ export default async function AdminDashboard() {
 
   const [usersRes, progressRes, certsRes] = await Promise.all([
     supabase.from('wcm_cert_users').select('user_id,email,full_name,department,created_at').eq('is_admin', false).order('created_at', { ascending: false }),
-    supabase.from('wcm_cert_progress').select('user_id,module_id,page_id,completed,submission_text').eq('course_id', COURSE_ID),
+    supabase.from('wcm_cert_progress').select('user_id,module_id,page_id,completed,submission_text,submission_file_path,submission_file_name').eq('course_id', COURSE_ID),
     supabase.from('wcm_certifications').select('user_id,issued_at,expires_at').eq('course_id', COURSE_ID),
   ])
 
@@ -32,17 +33,33 @@ export default async function AdminDashboard() {
   // Assignment submissions (Module 9 PDF review, Final Assignment audit,
   // Submit Badge Evidence) so the Office of Communications has somewhere
   // to actually read what WCMs wrote - previously nothing captured this
-  // text at all (Kristin Kupetsky, 2026-08-20).
+  // text at all (Kristin Kupetsky, 2026-08-20). Attached files (added
+  // 2026-09-01, Sean live in Hot Lab: WCMs had no way to submit the PDF
+  // itself alongside their written review) live in the private
+  // bcps-client bucket, so each is read back here via a short-lived
+  // signed URL using the service role rather than making the bucket
+  // public.
+  const svc = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+  const withFiles = (allProgress || []).filter((p: { submission_file_path: string | null }) => p.submission_file_path)
+  const signedUrlByPath = new Map<string, string>()
+  await Promise.all(withFiles.map(async (p: { submission_file_path: string | null }) => {
+    if (!p.submission_file_path) return
+    const { data } = await svc.storage.from('bcps-client').createSignedUrl(p.submission_file_path, 3600)
+    if (data?.signedUrl) signedUrlByPath.set(p.submission_file_path, data.signedUrl)
+  }))
+
   const submissions = (allProgress || [])
-    .filter((p: { submission_text: string | null }) => p.submission_text && p.submission_text.trim().length > 0)
-    .map((p: { user_id: string; module_id: string; page_id: string; submission_text: string | null }) => {
+    .filter((p: { submission_text: string | null; submission_file_path: string | null }) => (p.submission_text && p.submission_text.trim().length > 0) || p.submission_file_path)
+    .map((p: { user_id: string; module_id: string; page_id: string; submission_text: string | null; submission_file_path: string | null; submission_file_name: string | null }) => {
       const u = users.find(usr => usr.user_id === p.user_id)
       const modu = MODULES.find(m => m.id === p.module_id)
       const pageTitle = modu?.pages.find(pg => pg.id === p.page_id)?.title || p.page_id
       return {
         userLabel: u?.full_name || u?.email || p.user_id,
         pageTitle,
-        text: p.submission_text as string,
+        text: p.submission_text as string | null,
+        fileName: p.submission_file_name,
+        fileUrl: p.submission_file_path ? signedUrlByPath.get(p.submission_file_path) || null : null,
       }
     })
 
@@ -164,7 +181,16 @@ export default async function AdminDashboard() {
               {submissions.map((s, i) => (
                 <div key={i} style={{ background: '#fff', borderRadius: 10, padding: '14px 18px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#0e4e73' }}>{s.userLabel} <span style={{ fontWeight: 400, color: '#888' }}>&mdash; {s.pageTitle}</span></div>
-                  <p style={{ fontSize: 13, color: '#333', margin: '6px 0 0', whiteSpace: 'pre-wrap' as const }}>{s.text}</p>
+                  {s.text && <p style={{ fontSize: 13, color: '#333', margin: '6px 0 0', whiteSpace: 'pre-wrap' as const }}>{s.text}</p>}
+                  {s.fileName && (
+                    s.fileUrl ? (
+                      <a href={s.fileUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 12.5, fontWeight: 700, color: '#1672A7', textDecoration: 'none' }}>
+                        &#128206; {s.fileName} (opens in a new tab, link valid for 1 hour)
+                      </a>
+                    ) : (
+                      <span style={{ display: 'inline-block', marginTop: 8, fontSize: 12.5, color: '#888' }}>&#128206; {s.fileName} (link unavailable - refresh this page)</span>
+                    )
+                  )}
                 </div>
               ))}
             </div>
