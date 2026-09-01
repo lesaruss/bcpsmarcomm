@@ -50,7 +50,10 @@ export default function MembersPage() {
 
   // ── Admin-forced password reset (from a member's profile) ──
   const [resettingPw, setResettingPw] = useState(false)
-  const [pwResetSentFor, setPwResetSentFor] = useState<string | null>(null)
+  const [pwResetResult, setPwResetResult] = useState<{
+    userId: string; email: string; link: string; emailSent: boolean
+  } | null>(null)
+  const [pwLinkCopied, setPwLinkCopied] = useState(false)
 
   // ── Directory view controls (search / division filter / sort / view toggle) ──
   const [search, setSearch] = useState('')
@@ -85,6 +88,11 @@ export default function MembersPage() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
+    // Leaving a profile (or landing on a new one) clears any reset-link
+    // panel from the last member - a leftover link for the wrong person is
+    // a real hazard here, not just stale UI.
+    setPwResetResult(null)
+    setPwLinkCopied(false)
     if (!memberId) { setDossier(null); return }
     let cancelled = false
     setDossierLoading(true)
@@ -120,23 +128,38 @@ export default function MembersPage() {
   }
 
   // Admin/superadmin can force a password reset from a member's profile.
-  // Sends the same Supabase Auth recovery email the member's own "Forgot
-  // password?" link on /login sends - enforced server-side in
-  // /api/bcps/admin-reset-password, this is just the affordance.
+  // Enforced server-side in /api/bcps/admin-reset-password, this is just
+  // the affordance. Every call both sends the member the same recovery
+  // email their own "Forgot password?" link sends AND hands back a real,
+  // working reset link the admin can copy and give them directly - the
+  // fail-safe for "I'm on the phone/in the room with them and the email
+  // isn't showing up."
   async function forcePasswordReset(userId: string) {
     setResettingPw(true)
+    setPwLinkCopied(false)
     const t = await token()
     const r = await fetch('/api/bcps/admin-reset-password', {
       method: 'POST',
       headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId }),
     })
+    const j = await r.json().catch(() => ({} as { error?: string }))
     setResettingPw(false)
     if (r.ok) {
-      setPwResetSentFor(userId)
+      setPwResetResult({ userId, email: j.email, link: j.reset_link, emailSent: !!j.email_sent })
     } else {
-      const j = await r.json().catch(() => ({} as { error?: string }))
-      alert(j.error || 'Could not send the reset email. Please try again.')
+      alert(j.error || 'Could not reset the password. Please try again.')
+    }
+  }
+
+  async function copyResetLink(link: string) {
+    try {
+      await navigator.clipboard.writeText(link)
+      setPwLinkCopied(true)
+    } catch {
+      // Clipboard API can be blocked (permissions, non-HTTPS iframe, etc.) -
+      // fall back to a prompt so the link is still copyable by hand.
+      window.prompt('Copy this reset link:', link)
     }
   }
 
@@ -193,11 +216,28 @@ export default function MembersPage() {
               <button onClick={() => { setForm({ title: m.title || '', bio: m.bio || '', photo_url: m.photo_url || '' }); setEditing(true) }} style={btn}>Edit profile</button>
             )}
             {isPrivileged && !isMe && (
-              pwResetSentFor === m.user_id
-                ? <span style={{ fontSize: 12, fontWeight: 700, color: '#1a7f37' }}>Reset email sent to {m.email}</span>
-                : <button onClick={() => forcePasswordReset(m.user_id)} disabled={resettingPw} style={btn}>{resettingPw ? 'Sending...' : 'Reset Password'}</button>
+              <button onClick={() => forcePasswordReset(m.user_id)} disabled={resettingPw} style={btn}>{resettingPw ? 'Resetting...' : 'Reset Password'}</button>
             )}
           </div>
+
+          {isPrivileged && !isMe && pwResetResult && pwResetResult.userId === m.user_id && (
+            <div style={{ marginTop: 16, padding: 16, borderRadius: 10, background: '#f6fafd', border: '1px solid #dde3ea' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: pwResetResult.emailSent ? '#1a7f37' : '#9a6700' }}>
+                {pwResetResult.emailSent
+                  ? `Reset email sent to ${pwResetResult.email}.`
+                  : `Reset started for ${pwResetResult.email}, but the email may not have gone out.`}
+              </div>
+              <div style={{ fontSize: 12, color: '#525252', marginTop: 6, marginBottom: 10 }}>
+                If they do not receive it, or you are with them now and need this to work immediately, copy this link and send it to them directly (text, chat, read it out). Opening it lets them set a new password right away, no email required.
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button onClick={() => copyResetLink(pwResetResult.link)} style={{ ...btn, borderColor: '#1672A7', color: '#fff', background: '#1672A7' }}>
+                  {pwLinkCopied ? 'Copied!' : 'Copy Reset Link'}
+                </button>
+                <span style={{ fontSize: 11, color: '#9ca3af' }}>Link is single use and expires shortly.</span>
+              </div>
+            </div>
+          )}
 
           {isMe && editing ? (
             <div style={{ marginTop: 22, display: 'grid', gap: 10 }}>
