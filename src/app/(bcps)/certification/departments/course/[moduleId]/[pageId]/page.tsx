@@ -21,6 +21,9 @@ export default function CoursePlayerPage({ params }: Props) {
   const [submissionSaved, setSubmissionSaved] = useState(false)
   const [submissionSaving, setSubmissionSaving] = useState(false)
   const [submissionError, setSubmissionError] = useState<string | null>(null)
+  const [submissionFiles, setSubmissionFiles] = useState<Record<string, { path: string; name: string }>>({})
+  const [fileUploading, setFileUploading] = useState(false)
+  const [fileError, setFileError] = useState<string | null>(null)
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({})
   const [quizSubmitted, setQuizSubmitted] = useState(false)
   const [quizScore, setQuizScore] = useState(0)
@@ -77,16 +80,19 @@ export default function CoursePlayerPage({ params }: Props) {
       const { data: profile } = await supabase.from('wcm_cert_users').select('is_admin').eq('user_id', user.id).maybeSingle()
       setIsAdmin(!!profile?.is_admin)
       const { data } = await supabase.from('wcm_cert_progress')
-        .select('module_id,page_id,completed,submission_text')
+        .select('module_id,page_id,completed,submission_text,submission_file_path,submission_file_name')
         .eq('user_id', user.id)
         .eq('course_id', COURSE_ID)
       if (data) {
         setCompletedPages(new Set(data.filter((r: { completed: boolean }) => r.completed).map((r: { module_id: string; page_id: string }) => `${r.module_id}::${r.page_id}`)))
         const subs: Record<string, string> = {}
-        data.forEach((r: { module_id: string; page_id: string; submission_text: string | null }) => {
+        const files: Record<string, { path: string; name: string }> = {}
+        data.forEach((r: { module_id: string; page_id: string; submission_text: string | null; submission_file_path: string | null; submission_file_name: string | null }) => {
           if (r.submission_text) subs[`${r.module_id}::${r.page_id}`] = r.submission_text
+          if (r.submission_file_path && r.submission_file_name) files[`${r.module_id}::${r.page_id}`] = { path: r.submission_file_path, name: r.submission_file_name }
         })
         setSubmissions(subs)
+        setSubmissionFiles(files)
       }
       setLoading(false)
     }
@@ -99,7 +105,70 @@ export default function CoursePlayerPage({ params }: Props) {
     setSubmissionDraft(submissions[pageKey] || '')
     setSubmissionSaved(false)
     setSubmissionError(null)
+    setFileError(null)
   }, [pageKey, submissions])
+
+  // Attaches the PDF a WCM reviewed for the accessibility assignment.
+  // Uploads through the server (service role) so no storage bucket RLS
+  // needs to open up to end users - see /api/cert/upload.
+  const uploadSubmissionFile = useCallback(async (file: File) => {
+    if (!userId) return
+    if (!/\.(pdf|docx?)$/i.test(file.name)) {
+      setFileError('Only PDF or Word (.docx) files can be attached here.')
+      return
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setFileError('That file is larger than 15MB. Please attach a smaller file.')
+      return
+    }
+    setFileUploading(true)
+    setFileError(null)
+    try {
+      const file_base64: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/cert/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, filename: file.name, file_base64 }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || `Server returned ${res.status}`)
+      setSubmissionFiles(prev => ({ ...prev, [pageKey]: { path: json.path, name: json.filename } }))
+    } catch (err) {
+      console.error('PDF attach failed:', err)
+      setFileError(err instanceof Error ? err.message : 'That upload did not go through. Please try again.')
+    } finally {
+      setFileUploading(false)
+    }
+  }, [userId, moduleId, pageId, pageKey])
+
+  const removeSubmissionFile = useCallback(async () => {
+    const existing = submissionFiles[pageKey]
+    if (!userId || !existing) return
+    setFileUploading(true)
+    setFileError(null)
+    try {
+      const res = await fetch('/api/cert/upload', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, path: existing.path }),
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json?.error || `Server returned ${res.status}`)
+      }
+      setSubmissionFiles(prev => { const next = { ...prev }; delete next[pageKey]; return next })
+    } catch (err) {
+      console.error('PDF remove failed:', err)
+      setFileError(err instanceof Error ? err.message : 'Could not remove that file. Please try again.')
+    } finally {
+      setFileUploading(false)
+    }
+  }, [userId, moduleId, pageId, pageKey, submissionFiles])
 
   const saveSubmission = useCallback(async (text: string) => {
     if (!userId) return
@@ -565,7 +634,45 @@ export default function CoursePlayerPage({ params }: Props) {
                   {submissionError && (
                     <p role="alert" style={{ margin: '10px 0 0', fontSize: 12.5, color: '#b3261e', fontWeight: 600 }}>{submissionError}</p>
                   )}
-                  <p style={{ margin: '10px 0 0', fontSize: 12, color: '#888' }}>Marking this assignment complete saves your submission and sends it to the Office of Communications for review. There is no file upload on this page - type your findings and plan into the box above.</p>
+
+                  <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #e0e8ef' }}>
+                    <label htmlFor="assignment-file" style={{ display: 'block', margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#0e4e73' }}>
+                      Attach a file (optional)
+                    </label>
+                    {submissionFiles[pageKey] ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
+                        <span style={{ fontSize: 13, color: '#333', background: '#fff', border: '1px solid #d0d9e3', borderRadius: 6, padding: '6px 10px' }}>
+                          {submissionFiles[pageKey].name}
+                        </span>
+                        <button
+                          type="button"
+                          style={{ ...S.saveExitBtn, opacity: fileUploading ? 0.6 : 1 }}
+                          disabled={fileUploading}
+                          onClick={removeSubmissionFile}
+                        >
+                          {fileUploading ? 'Removing...' : 'Remove'}
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          id="assignment-file"
+                          type="file"
+                          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                          disabled={fileUploading}
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSubmissionFile(f); e.target.value = '' }}
+                          style={{ fontSize: 13 }}
+                        />
+                        {fileUploading && <span style={{ marginLeft: 10, fontSize: 12, color: '#888' }}>Uploading...</span>}
+                      </>
+                    )}
+                    {fileError && (
+                      <p role="alert" style={{ margin: '8px 0 0', fontSize: 12.5, color: '#b3261e', fontWeight: 600 }}>{fileError}</p>
+                    )}
+                    <p style={{ margin: '8px 0 0', fontSize: 11.5, color: '#888' }}>PDF or Word, up to 15MB. Attaching a file is optional - your written summary above is still the required submission.</p>
+                  </div>
+
+                  <p style={{ margin: '14px 0 0', fontSize: 12, color: '#888' }}>Marking this assignment complete saves your submission and sends it to the Office of Communications for review.</p>
                 </div>
               )}
               {!isCurrentComplete && (
