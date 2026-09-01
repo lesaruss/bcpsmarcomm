@@ -73,6 +73,19 @@ export async function POST(req: NextRequest) {
     const email = target.user.email
     const redirectTo = `${req.nextUrl.origin}/set-password`
 
+    // Order matters here and is not arbitrary. GoTrue enforces its
+    // per-user "recovery" send cooldown (~60s) by stamping recovery_sent_at
+    // on ANY recovery-type call, admin.generateLink included - not just the
+    // client-initiated resetPasswordForEmail. Calling generateLink first (as
+    // this route originally did) stamps that cooldown, so the very next
+    // resetPasswordForEmail call always fails with "you can only request
+    // this after N seconds" - live-verified 2026-09-01: with generateLink
+    // first, email_sent was false on every single call. admin.generateLink
+    // itself is NOT subject to that cooldown (it's a service-role admin
+    // call), so calling resetPasswordForEmail FIRST, then generateLink,
+    // lets both succeed on every call.
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'recovery',
       email,
@@ -82,8 +95,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: linkError?.message || 'Could not generate a reset link' }, { status: 500 })
     }
     const resetLink = linkData.properties.action_link
-
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
 
     return NextResponse.json({
       success: true,
