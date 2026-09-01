@@ -19,6 +19,8 @@ export default function CoursePlayerPage({ params }: Props) {
   const [submissions, setSubmissions] = useState<Record<string, string>>({})
   const [submissionDraft, setSubmissionDraft] = useState('')
   const [submissionSaved, setSubmissionSaved] = useState(false)
+  const [submissionSaving, setSubmissionSaving] = useState(false)
+  const [submissionError, setSubmissionError] = useState<string | null>(null)
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({})
   const [quizSubmitted, setQuizSubmitted] = useState(false)
   const [quizScore, setQuizScore] = useState(0)
@@ -96,17 +98,33 @@ export default function CoursePlayerPage({ params }: Props) {
   useEffect(() => {
     setSubmissionDraft(submissions[pageKey] || '')
     setSubmissionSaved(false)
+    setSubmissionError(null)
   }, [pageKey, submissions])
 
   const saveSubmission = useCallback(async (text: string) => {
     if (!userId) return
-    await fetch('/api/cert/progress', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, submission_text: text }),
-    }).catch(console.error)
-    setSubmissions(prev => ({ ...prev, [pageKey]: text }))
-    setSubmissionSaved(true)
+    setSubmissionSaving(true)
+    setSubmissionError(null)
+    try {
+      const res = await fetch('/api/cert/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, submission_text: text }),
+      })
+      if (!res.ok) {
+        let detail = ''
+        try { detail = (await res.json())?.error || '' } catch { /* non-JSON error body */ }
+        throw new Error(detail || `Server returned ${res.status}`)
+      }
+      setSubmissions(prev => ({ ...prev, [pageKey]: text }))
+      setSubmissionSaved(true)
+    } catch (err) {
+      console.error('Save Draft failed:', err)
+      setSubmissionSaved(false)
+      setSubmissionError('Your draft did not save. Check your connection and try Save Draft again - your text is still in the box.')
+    } finally {
+      setSubmissionSaving(false)
+    }
   }, [userId, moduleId, pageId, pageKey])
 
   useEffect(() => {
@@ -145,28 +163,38 @@ export default function CoursePlayerPage({ params }: Props) {
   const markComplete = useCallback(async () => {
     if (!userId) return
     if (!completedPages.has(pageKey)) {
-      const res = await fetch('/api/cert/progress', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true,
-          ...(page?.type === 'assignment' ? { submission_text: submissionDraft } : {}),
-        }),
-      })
-      if (!res.ok) { console.error('Failed to save progress') }
-      else {
-        const newCompleted = new Set(Array.from(completedPages).concat(pageKey))
-        setCompletedPages(newCompleted)
-        const allKeys = MODULES.flatMap((m: CourseModule) => m.pages.map((p: CoursePage) => `${m.id}::${p.id}`))
-        if (allKeys.every((k: string) => newCompleted.has(k))) {
-          await fetch('/api/cert/complete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: userId, course_id: COURSE_ID }),
-          }).catch(console.error)
-          router.push('/certification/departments/complete')
-          return
-        }
+      let res: Response
+      try {
+        res = await fetch('/api/cert/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true,
+            ...(page?.type === 'assignment' ? { submission_text: submissionDraft } : {}),
+          }),
+        })
+      } catch (err) {
+        console.error('Failed to save progress:', err)
+        setSubmissionError('This did not save. Check your connection and press the button again - your text is still in the box, nothing has been lost.')
+        return
+      }
+      if (!res.ok) {
+        console.error('Failed to save progress:', res.status)
+        setSubmissionError('This did not save. Check your connection and press the button again - your text is still in the box, nothing has been lost.')
+        return
+      }
+      setSubmissionError(null)
+      const newCompleted = new Set(Array.from(completedPages).concat(pageKey))
+      setCompletedPages(newCompleted)
+      const allKeys = MODULES.flatMap((m: CourseModule) => m.pages.map((p: CoursePage) => `${m.id}::${p.id}`))
+      if (allKeys.every((k: string) => newCompleted.has(k))) {
+        await fetch('/api/cert/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, course_id: COURSE_ID }),
+        }).catch(console.error)
+        router.push('/certification/departments/complete')
+        return
       }
     }
     if (next) {
@@ -179,15 +207,27 @@ export default function CoursePlayerPage({ params }: Props) {
   // Marks page complete without navigating - activates the footer Continue button
   const markCompleteOnly = useCallback(async () => {
     if (!userId || completedPages.has(pageKey)) return
-    const res = await fetch('/api/cert/progress', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true,
-        ...(page?.type === 'assignment' ? { submission_text: submissionDraft } : {}),
-      }),
-    })
-    if (!res.ok) { console.error('Failed to save progress'); return }
+    let res: Response
+    try {
+      res = await fetch('/api/cert/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true,
+          ...(page?.type === 'assignment' ? { submission_text: submissionDraft } : {}),
+        }),
+      })
+    } catch (err) {
+      console.error('Failed to save progress:', err)
+      setSubmissionError('This did not save. Check your connection and press Mark Complete again - your text is still in the box, nothing has been lost.')
+      return
+    }
+    if (!res.ok) {
+      console.error('Failed to save progress:', res.status)
+      setSubmissionError('This did not save. Check your connection and press Mark Complete again - your text is still in the box, nothing has been lost.')
+      return
+    }
+    setSubmissionError(null)
     const newCompleted = new Set(Array.from(completedPages).concat(pageKey))
     setCompletedPages(newCompleted)
     const allKeys = MODULES.flatMap((m: CourseModule) => m.pages.map((p: CoursePage) => `${m.id}::${p.id}`))
@@ -506,7 +546,7 @@ export default function CoursePlayerPage({ params }: Props) {
                   <textarea
                     id="assignment-submission"
                     value={submissionDraft}
-                    onChange={(e) => { setSubmissionDraft(e.target.value); setSubmissionSaved(false) }}
+                    onChange={(e) => { setSubmissionDraft(e.target.value); setSubmissionSaved(false); setSubmissionError(null) }}
                     placeholder="Type your summary here..."
                     rows={6}
                     style={S.submissionTextarea}
@@ -514,30 +554,39 @@ export default function CoursePlayerPage({ params }: Props) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
                     <button
                       type="button"
-                      style={S.saveExitBtn}
+                      style={{ ...S.saveExitBtn, opacity: submissionSaving ? 0.6 : 1 }}
+                      disabled={submissionSaving}
                       onClick={() => saveSubmission(submissionDraft)}
                     >
-                      Save Draft
+                      {submissionSaving ? 'Saving...' : 'Save Draft'}
                     </button>
-                    {submissionSaved && <span style={{ fontSize: 12, color: '#16750C', fontWeight: 700 }}>Saved</span>}
+                    {submissionSaved && !submissionSaving && <span style={{ fontSize: 12, color: '#16750C', fontWeight: 700 }}>Saved</span>}
                   </div>
-                  <p style={{ margin: '10px 0 0', fontSize: 12, color: '#888' }}>Marking this assignment complete saves your submission and sends it to the Office of Communications for review.</p>
+                  {submissionError && (
+                    <p role="alert" style={{ margin: '10px 0 0', fontSize: 12.5, color: '#b3261e', fontWeight: 600 }}>{submissionError}</p>
+                  )}
+                  <p style={{ margin: '10px 0 0', fontSize: 12, color: '#888' }}>Marking this assignment complete saves your submission and sends it to the Office of Communications for review. There is no file upload on this page - type your findings and plan into the box above.</p>
                 </div>
               )}
               {!isCurrentComplete && (
-                <div className="course-actions-row" style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 28 }}>
-                  <button
-                    style={{ ...S.completeBtn, opacity: page.type === 'assignment' && submissionDraft.trim().length < 20 ? 0.5 : 1 }}
-                    disabled={page.type === 'assignment' && submissionDraft.trim().length < 20}
-                    onClick={markCompleteOnly}
-                  >
-                    Mark Complete
-                  </button>
-                  <button style={S.saveExitBtn} onClick={saveAndExit}>Save &amp; Exit</button>
-                  {page.type === 'assignment' && submissionDraft.trim().length < 20 && (
-                    <span style={{ fontSize: 12, color: '#888' }}>Write at least a few sentences before marking this complete.</span>
+                <>
+                  {page.type !== 'assignment' && submissionError && (
+                    <p role="alert" style={{ margin: '16px 0 0', fontSize: 12.5, color: '#b3261e', fontWeight: 600 }}>{submissionError}</p>
                   )}
-                </div>
+                  <div className="course-actions-row" style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 28 }}>
+                    <button
+                      style={{ ...S.completeBtn, opacity: page.type === 'assignment' && submissionDraft.trim().length < 20 ? 0.5 : 1 }}
+                      disabled={page.type === 'assignment' && submissionDraft.trim().length < 20}
+                      onClick={markCompleteOnly}
+                    >
+                      Mark Complete
+                    </button>
+                    <button style={S.saveExitBtn} onClick={saveAndExit}>Save &amp; Exit</button>
+                    {page.type === 'assignment' && submissionDraft.trim().length < 20 && (
+                      <span style={{ fontSize: 12, color: '#888' }}>Write at least a few sentences before marking this complete.</span>
+                    )}
+                  </div>
+                </>
               )}
               {isCurrentComplete && (
                 <div className="course-actions-row" style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 20 }}>
