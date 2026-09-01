@@ -36,6 +36,20 @@ export default function CoursePlayerPage({ params }: Props) {
   const [openModules, setOpenModules] = useState<Set<string>>(new Set())
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
 
+  // /api/cert/progress and /api/cert/upload verify the caller's Supabase
+  // session server-side rather than trusting a client-supplied user_id
+  // (fixed 2026-09-01, full-course audit follow-up). Every fetch to those
+  // routes needs this Authorization header - supabase-js keeps the access
+  // token refreshed in memory, so pulling it fresh from getSession() right
+  // before each request avoids sending a stale one on a long-open page.
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    }
+  }, [])
+
   const toggleModule = useCallback((modId: string) => {
     setOpenModules(prev => {
       const next = new Set(prev)
@@ -59,6 +73,13 @@ export default function CoursePlayerPage({ params }: Props) {
   const next = getNextPage(moduleId, pageId)
   const prev = getPrevPage(moduleId, pageId)
   const pageKey = `${moduleId}::${pageId}`
+  // The Submit Badge Evidence page (type: 'content', not 'assignment')
+  // asked WCMs for a screenshot or email confirmation with no upload
+  // control anywhere in the app - flagged in the full-course audit,
+  // fixed 2026-09-01 (Sean: "let's get that taken care of"). It reuses
+  // the same file-attach UI and /api/cert/upload route as assignments,
+  // just with image types allowed and no text submission box.
+  const isBadgeEvidencePage = moduleId === 'final' && pageId === 'badge'
   const pageIndex = mod ? mod.pages.findIndex((p: CoursePage) => p.id === pageId) : 0
   const totalPages = mod ? mod.pages.length : 0
   // Where-am-I overall progress (per Sean, Hot Lab 2026-07-28: WCMs need to
@@ -113,8 +134,11 @@ export default function CoursePlayerPage({ params }: Props) {
   // needs to open up to end users - see /api/cert/upload.
   const uploadSubmissionFile = useCallback(async (file: File) => {
     if (!userId) return
-    if (!/\.(pdf|docx?)$/i.test(file.name)) {
-      setFileError('Only PDF or Word (.docx) files can be attached here.')
+    const allowedPattern = isBadgeEvidencePage ? /\.(pdf|png|jpe?g)$/i : /\.(pdf|docx?)$/i
+    if (!allowedPattern.test(file.name)) {
+      setFileError(isBadgeEvidencePage
+        ? 'Only PDF, PNG, or JPG files can be attached here.'
+        : 'Only PDF or Word (.docx) files can be attached here.')
       return
     }
     if (file.size > 15 * 1024 * 1024) {
@@ -132,7 +156,7 @@ export default function CoursePlayerPage({ params }: Props) {
       })
       const res = await fetch('/api/cert/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, filename: file.name, file_base64 }),
       })
       const json = await res.json().catch(() => ({}))
@@ -144,7 +168,7 @@ export default function CoursePlayerPage({ params }: Props) {
     } finally {
       setFileUploading(false)
     }
-  }, [userId, moduleId, pageId, pageKey])
+  }, [userId, moduleId, pageId, pageKey, getAuthHeaders, isBadgeEvidencePage])
 
   const removeSubmissionFile = useCallback(async () => {
     const existing = submissionFiles[pageKey]
@@ -154,7 +178,7 @@ export default function CoursePlayerPage({ params }: Props) {
     try {
       const res = await fetch('/api/cert/upload', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, path: existing.path }),
       })
       if (!res.ok) {
@@ -168,7 +192,7 @@ export default function CoursePlayerPage({ params }: Props) {
     } finally {
       setFileUploading(false)
     }
-  }, [userId, moduleId, pageId, pageKey, submissionFiles])
+  }, [userId, moduleId, pageId, pageKey, submissionFiles, getAuthHeaders])
 
   const saveSubmission = useCallback(async (text: string) => {
     if (!userId) return
@@ -177,7 +201,7 @@ export default function CoursePlayerPage({ params }: Props) {
     try {
       const res = await fetch('/api/cert/progress', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, submission_text: text }),
       })
       if (!res.ok) {
@@ -194,40 +218,44 @@ export default function CoursePlayerPage({ params }: Props) {
     } finally {
       setSubmissionSaving(false)
     }
-  }, [userId, moduleId, pageId, pageKey])
+  }, [userId, moduleId, pageId, pageKey, getAuthHeaders])
 
   useEffect(() => {
     if (!userId || loading) return
-    fetch('/api/cert/progress', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId }),
-    }).catch(console.error)
-  }, [userId, moduleId, pageId, loading])
+    ;(async () => {
+      const headers = await getAuthHeaders()
+      fetch('/api/cert/progress', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId }),
+      }).catch(console.error)
+    })()
+  }, [userId, moduleId, pageId, loading, getAuthHeaders])
 
   useEffect(() => {
     if (!userId) return
     autoSaveRef.current = setInterval(async () => {
       setSaving(true)
+      const headers = await getAuthHeaders()
       await fetch('/api/cert/progress', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId }),
       })
       setTimeout(() => setSaving(false), 1200)
     }, 5 * 60 * 1000)
     return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current) }
-  }, [userId, moduleId, pageId])
+  }, [userId, moduleId, pageId, getAuthHeaders])
 
   const saveAndExit = useCallback(async () => {
     if (!userId) return
     await fetch('/api/cert/progress', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await getAuthHeaders(),
       body: JSON.stringify({ user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId }),
     }).catch(console.error)
     router.push('/')
-  }, [userId, moduleId, pageId])
+  }, [userId, moduleId, pageId, getAuthHeaders])
 
   const markComplete = useCallback(async () => {
     if (!userId) return
@@ -236,7 +264,7 @@ export default function CoursePlayerPage({ params }: Props) {
       try {
         res = await fetch('/api/cert/progress', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: await getAuthHeaders(),
           body: JSON.stringify({
             user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true,
             ...(page?.type === 'assignment' ? { submission_text: submissionDraft } : {}),
@@ -271,7 +299,7 @@ export default function CoursePlayerPage({ params }: Props) {
     } else {
       router.push('/certification/departments/complete')
     }
-  }, [userId, completedPages, pageKey, moduleId, pageId, next, page, submissionDraft])
+  }, [userId, completedPages, pageKey, moduleId, pageId, next, page, submissionDraft, getAuthHeaders])
 
   // Marks page complete without navigating - activates the footer Continue button
   const markCompleteOnly = useCallback(async () => {
@@ -280,7 +308,7 @@ export default function CoursePlayerPage({ params }: Props) {
     try {
       res = await fetch('/api/cert/progress', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true,
           ...(page?.type === 'assignment' ? { submission_text: submissionDraft } : {}),
@@ -308,7 +336,7 @@ export default function CoursePlayerPage({ params }: Props) {
       }).catch(console.error)
       router.push('/certification/departments/complete')
     }
-  }, [userId, completedPages, pageKey, moduleId, pageId, page, submissionDraft])
+  }, [userId, completedPages, pageKey, moduleId, pageId, page, submissionDraft, getAuthHeaders])
 
   async function handleQuizSubmit() {
     if (!page?.questions || !userId || !mod) return
@@ -341,11 +369,12 @@ export default function CoursePlayerPage({ params }: Props) {
         (p: CoursePage) => p.type !== 'assignment' && !(moduleId === 'final' && p.id === 'badge') && !completedPages.has(`${moduleId}::${p.id}`)
       )
       if (incompletePages.length > 0) {
+        const headers = await getAuthHeaders()
         await Promise.all(
           incompletePages.map((p: CoursePage) =>
             fetch('/api/cert/progress', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers,
               body: JSON.stringify({
                 user_id: userId, course_id: COURSE_ID,
                 module_id: moduleId, page_id: p.id, completed: true,
@@ -675,6 +704,44 @@ export default function CoursePlayerPage({ params }: Props) {
                   <p style={{ margin: '14px 0 0', fontSize: 12, color: '#888' }}>Marking this assignment complete saves your submission and sends it to the Office of Communications for review.</p>
                 </div>
               )}
+              {isBadgeEvidencePage && (
+                <div style={S.assignmentBox}>
+                  <label htmlFor="assignment-file" style={{ display: 'block', margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#0e4e73' }}>
+                    Attach your evidence (required)
+                  </label>
+                  {submissionFiles[pageKey] ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
+                      <span style={{ fontSize: 13, color: '#333', background: '#fff', border: '1px solid #d0d9e3', borderRadius: 6, padding: '6px 10px' }}>
+                        {submissionFiles[pageKey].name}
+                      </span>
+                      <button
+                        type="button"
+                        style={{ ...S.saveExitBtn, opacity: fileUploading ? 0.6 : 1 }}
+                        disabled={fileUploading}
+                        onClick={removeSubmissionFile}
+                      >
+                        {fileUploading ? 'Removing...' : 'Remove'}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        id="assignment-file"
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                        disabled={fileUploading}
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSubmissionFile(f); e.target.value = '' }}
+                        style={{ fontSize: 13 }}
+                      />
+                      {fileUploading && <span style={{ marginLeft: 10, fontSize: 12, color: '#888' }}>Uploading...</span>}
+                    </>
+                  )}
+                  {fileError && (
+                    <p role="alert" style={{ margin: '8px 0 0', fontSize: 12.5, color: '#b3261e', fontWeight: 600 }}>{fileError}</p>
+                  )}
+                  <p style={{ margin: '8px 0 0', fontSize: 11.5, color: '#888' }}>Screenshot (PNG/JPG) or email confirmation (PDF), up to 15MB. Required before this page can be marked complete.</p>
+                </div>
+              )}
               {!isCurrentComplete && (
                 <>
                   {page.type !== 'assignment' && submissionError && (
@@ -682,8 +749,8 @@ export default function CoursePlayerPage({ params }: Props) {
                   )}
                   <div className="course-actions-row" style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 28 }}>
                     <button
-                      style={{ ...S.completeBtn, opacity: page.type === 'assignment' && submissionDraft.trim().length < 20 ? 0.5 : 1 }}
-                      disabled={page.type === 'assignment' && submissionDraft.trim().length < 20}
+                      style={{ ...S.completeBtn, opacity: (page.type === 'assignment' && submissionDraft.trim().length < 20) || (isBadgeEvidencePage && !submissionFiles[pageKey]) ? 0.5 : 1 }}
+                      disabled={(page.type === 'assignment' && submissionDraft.trim().length < 20) || (isBadgeEvidencePage && !submissionFiles[pageKey])}
                       onClick={markCompleteOnly}
                     >
                       Mark Complete
@@ -691,6 +758,9 @@ export default function CoursePlayerPage({ params }: Props) {
                     <button style={S.saveExitBtn} onClick={saveAndExit}>Save &amp; Exit</button>
                     {page.type === 'assignment' && submissionDraft.trim().length < 20 && (
                       <span style={{ fontSize: 12, color: '#888' }}>Write at least a few sentences before marking this complete.</span>
+                    )}
+                    {isBadgeEvidencePage && !submissionFiles[pageKey] && (
+                      <span style={{ fontSize: 12, color: '#888' }}>Attach your evidence above before marking this complete.</span>
                     )}
                   </div>
                 </>
