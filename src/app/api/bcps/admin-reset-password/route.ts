@@ -1,1 +1,68 @@
-aW1wb3J0IHsgTmV4dFJlcXVlc3QsIE5leHRSZXNwb25zZSB9IGZyb20gJ25leHQvc2VydmVyJwppbXBvcnQgeyBjcmVhdGVDbGllbnQgfSBmcm9tICdAc3VwYWJhc2Uvc3VwYWJhc2UtanMnCgpjb25zdCBzdXBhYmFzZSA9IGNyZWF0ZUNsaWVudCgKICBwcm9jZXNzLmVudi5MRVNBUlVTU19TVVBBQkFTRV9VUkwhLAogIHByb2Nlc3MuZW52LkxFU0FSVVNTX1NVUEFCQVNFX1NFUlZJQ0VfS0VZIQopCgovLyBBZG1pbi1vbmx5IGVuZHBvaW50OiBmb3JjZSBhIHBhc3N3b3JkIHJlc2V0IGZvciBhIEJDUFMgdGVhbSBtZW1iZXIgZnJvbQovLyB0aGUgTWVtYmVycyBkaXJlY3RvcnkgcHJvZmlsZSB2aWV3IChTZWFuLCAyMDI2LTA5LTAxLCB3YW50ZWQgbGl2ZSBvbiBhCi8vIGNhbGwgd2l0aCBBbGFuKS4gU2VuZHMgdGhlIGV4YWN0IFN1cGFiYXNlIEF1dGggcmVjb3ZlcnkgZW1haWwgYSBtZW1iZXIKLy8gZ2V0cyBmcm9tIHRoZWlyIG93biAiRm9yZ290IHBhc3N3b3JkPyIgbGluayBvbiAvbG9naW4KLy8gKHN1cGFiYXNlLmF1dGgucmVzZXRQYXNzd29yZEZvckVtYWlsKSAtIGp1c3QgdHJpZ2dlcmVkIGJ5IGFuIGFkbWluIG9uIHRoZQovLyBtZW1iZXIncyBiZWhhbGYgaW5zdGVhZCBvZiB0aGUgbWVtYmVyIHR5cGluZyB0aGVpciBvd24gZW1haWwuIExhbmRzIG9uCi8vIHRoZSBhbHJlYWR5LWxpdmUgL3NldC1wYXNzd29yZCBwYWdlLCBzYW1lIGFzIHRoZSBzZWxmLXNlcnZpY2UgZmxvdy4KLy8KLy8gRGVsaWJlcmF0ZWx5IE5PVCBhZG1pbi5nZW5lcmF0ZUxpbmsodHlwZTogcmVjb3ZlcnkpIC0gc2VlIGVycm9yX3JlZ2lzdHJ5Ci8vIEFETUlOLU1BR0lDTElOSy1QS0NFLU1JU01BVENIOiBnZW5lcmF0ZUxpbmsgcmV0dXJucyBhbiBpbXBsaWNpdC1mbG93Ci8vICNhY2Nlc3NfdG9rZW4gbGluayB0aGF0IHRoaXMgYXBwJ3MgUEtDRS1vbmx5IC9hdXRoL2NhbGxiYWNrIHJvdXRlIGNhbm5vdAovLyBjb25zdW1lLiByZXNldFBhc3N3b3JkRm9yRW1haWwgaXMgdGhlIHNhbWUgY2xpZW50LWluaXRpYXRlZCByZWNvdmVyeQovLyBjYWxsIHRoZSBsb2dpbiBwYWdlIGFscmVhZHkgbWFrZXMsIHdoaWNoIGlzIHdoeSAvc2V0LXBhc3N3b3JkIGFscmVhZHkKLy8ga25vd3MgaG93IHRvIGhhbmRsZSBpdCAoUEFTU1dPUkRfUkVDT1ZFUlkgYXV0aCBldmVudCkuCi8vCi8vIFNhbWUgcmVxdWlyZUJjcHNBZG1pbiBnYXRlIHBhdHRlcm4gYXMgYWRtaW4tc2V0LWRlcGFydG1lbnQgLSBzZXJ2ZXIKLy8gZW5mb3JjZWQsIG5vdCBqdXN0IGhpZGRlbiBpbiB0aGUgVUksIHNpbmNlIHRoaXMgdG91Y2hlcyBhbm90aGVyIHVzZXIncwovLyBhY2NvdW50Lgphc3luYyBmdW5jdGlvbiByZXF1aXJlQmNwc0FkbWluKHJlcTogTmV4dFJlcXVlc3QpOiBQcm9taXNlPHsgb2s6IHRydWUgfSB8IHsgb2s6IGZhbHNlOyBzdGF0dXM6IG51bWJlciB9PiB7CiAgY29uc3QgdG9rZW4gPSAocmVxLmhlYWRlcnMuZ2V0KCdhdXRob3JpemF0aW9uJykgfHwgJycpLnJlcGxhY2UoL15CZWFyZXJccysvaSwgJycpCiAgaWYgKCF0b2tlbikgcmV0dXJuIHsgb2s6IGZhbHNlLCBzdGF0dXM6IDQwMSB9CiAgY29uc3QgeyBjcmVhdGVDbGllbnQ6IGNyZWF0ZUFub25DbGllbnQgfSA9IGF3YWl0IGltcG9ydCgnQHN1cGFiYXNlL3N1cGFiYXNlLWpzJykKICBjb25zdCBhc1VzZXIgPSBjcmVhdGVBbm9uQ2xpZW50KAogICAgcHJvY2Vzcy5lbnYuTkVYVF9QVUJMSUNfU1VQQUJBU0VfVVJMISwKICAgIHByb2Nlc3MuZW52Lk5FWFRfUFVCTElDX1NVUEFCQVNFX0FOT05fS0VZISwKICAgIHsgZ2xvYmFsOiB7IGhlYWRlcnM6IHsgQXV0aG9yaXphdGlvbjogYEJlYXJlciAke3Rva2VufWAgfSB9LCBhdXRoOiB7IHBlcnNpc3RTZXNzaW9uOiBmYWxzZSB9IH0KICApCiAgY29uc3QgeyBkYXRhOiB7IHVzZXIgfSB9ID0gYXdhaXQgYXNVc2VyLmF1dGguZ2V0VXNlcigpCiAgaWYgKCF1c2VyKSByZXR1cm4geyBvazogZmFsc2UsIHN0YXR1czogNDAxIH0KICBjb25zdCB7IGRhdGE6IHJvbGVSb3cgfSA9IGF3YWl0IHN1cGFiYXNlLmZyb20oJ2FjbF9tZW1iZXJfcm9sZXMnKQogICAgLnNlbGVjdCgncm9sZScpLmVxKCd1c2VyX2lkJywgdXNlci5pZCkuZXEoJ2JyYW5kJywgJ2JjcHMnKS5tYXliZVNpbmdsZSgpCiAgY29uc3Qgcm9sZSA9IHJvbGVSb3c/LnJvbGUgfHwgJ3VzZXInCiAgaWYgKHJvbGUgIT09ICdhZG1pbicgJiYgcm9sZSAhPT0gJ3N1cGVyYWRtaW4nKSByZXR1cm4geyBvazogZmFsc2UsIHN0YXR1czogNDAzIH0KICByZXR1cm4geyBvazogdHJ1ZSB9Cn0KCmV4cG9ydCBhc3luYyBmdW5jdGlvbiBQT1NUKHJlcTogTmV4dFJlcXVlc3QpIHsKICB0cnkgewogICAgY29uc3QgYXV0aCA9IGF3YWl0IHJlcXVpcmVCY3BzQWRtaW4ocmVxKQogICAgaWYgKCFhdXRoLm9rKSByZXR1cm4gTmV4dFJlc3BvbnNlLmpzb24oeyBlcnJvcjogJ0ZvcmJpZGRlbiAtIGFkbWluIGFjY2VzcyByZXF1aXJlZCcgfSwgeyBzdGF0dXM6IGF1dGguc3RhdHVzIH0pCgogICAgY29uc3QgeyB1c2VyX2lkIH0gPSBhd2FpdCByZXEuanNvbigpIGFzIHsgdXNlcl9pZDogc3RyaW5nIH0KICAgIGlmICghdXNlcl9pZCkgcmV0dXJuIE5leHRSZXNwb25zZS5qc29uKHsgZXJyb3I6ICd1c2VyX2lkIHJlcXVpcmVkJyB9LCB7IHN0YXR1czogNDAwIH0pCgogICAgY29uc3QgeyBkYXRhOiB0YXJnZXQsIGVycm9yOiBsb29rdXBFcnJvciB9ID0gYXdhaXQgc3VwYWJhc2UuYXV0aC5hZG1pbi5nZXRVc2VyQnlJZCh1c2VyX2lkKQogICAgaWYgKGxvb2t1cEVycm9yIHx8ICF0YXJnZXQ/LnVzZXI/LmVtYWlsKSB7CiAgICAgIHJldHVybiBOZXh0UmVzcG9uc2UuanNvbih7IGVycm9yOiAnTWVtYmVyIG5vdCBmb3VuZCcgfSwgeyBzdGF0dXM6IDQwNCB9KQogICAgfQoKICAgIGNvbnN0IHsgZXJyb3I6IHJlc2V0RXJyb3IgfSA9IGF3YWl0IHN1cGFiYXNlLmF1dGgucmVzZXRQYXNzd29yZEZvckVtYWlsKHRhcmdldC51c2VyLmVtYWlsLCB7CiAgICAgIHJlZGlyZWN0VG86IGAke3JlcS5uZXh0VXJsLm9yaWdpbn0vc2V0LXBhc3N3b3JkYCwKICAgIH0pCiAgICBpZiAocmVzZXRFcnJvcikgcmV0dXJuIE5leHRSZXNwb25zZS5qc29uKHsgZXJyb3I6IHJlc2V0RXJyb3IubWVzc2FnZSB9LCB7IHN0YXR1czogNTAwIH0pCgogICAgcmV0dXJuIE5leHRSZXNwb25zZS5qc29uKHsgc3VjY2VzczogdHJ1ZSwgZW1haWw6IHRhcmdldC51c2VyLmVtYWlsIH0pCiAgfSBjYXRjaCAoZTogdW5rbm93bikgewogICAgY29uc3QgbXNnID0gZSBpbnN0YW5jZW9mIEVycm9yID8gZS5tZXNzYWdlIDogJ1Vua25vd24gZXJyb3InCiAgICByZXR1cm4gTmV4dFJlc3BvbnNlLmpzb24oeyBlcnJvcjogbXNnIH0sIHsgc3RhdHVzOiA1MDAgfSkKICB9Cn0K
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.LESARUSS_SUPABASE_URL!,
+  process.env.LESARUSS_SUPABASE_SERVICE_KEY!
+)
+
+// Admin-only endpoint: force a password reset for a BCPS team member from
+// the Members directory profile view (Sean, 2026-09-01, wanted live on a
+// call with Alan). Sends the exact Supabase Auth recovery email a member
+// gets from their own "Forgot password?" link on /login
+// (supabase.auth.resetPasswordForEmail) - just triggered by an admin on the
+// member's behalf instead of the member typing their own email. Lands on
+// the already-live /set-password page, same as the self-service flow.
+//
+// Deliberately NOT admin.generateLink(type: recovery) - see error_registry
+// ADMIN-MAGICLINK-PKCE-MISMATCH: generateLink returns an implicit-flow
+// #access_token link that this app's PKCE-only /auth/callback route cannot
+// consume. resetPasswordForEmail is the same client-initiated recovery
+// call the login page already makes, which is why /set-password already
+// knows how to handle it (PASSWORD_RECOVERY auth event).
+//
+// Same requireBcpsAdmin gate pattern as admin-set-department - server
+// enforced, not just hidden in the UI, since this touches another user's
+// account.
+async function requireBcpsAdmin(req: NextRequest): Promise<{ ok: true } | { ok: false; status: number }> {
+  const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
+  if (!token) return { ok: false, status: 401 }
+  const { createClient: createAnonClient } = await import('@supabase/supabase-js')
+  const asUser = createAnonClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } }
+  )
+  const { data: { user } } = await asUser.auth.getUser()
+  if (!user) return { ok: false, status: 401 }
+  const { data: roleRow } = await supabase.from('acl_member_roles')
+    .select('role').eq('user_id', user.id).eq('brand', 'bcps').maybeSingle()
+  const role = roleRow?.role || 'user'
+  if (role !== 'admin' && role !== 'superadmin') return { ok: false, status: 403 }
+  return { ok: true }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const auth = await requireBcpsAdmin(req)
+    if (!auth.ok) return NextResponse.json({ error: 'Forbidden - admin access required' }, { status: auth.status })
+
+    const { user_id } = await req.json() as { user_id: string }
+    if (!user_id) return NextResponse.json({ error: 'user_id required' }, { status: 400 })
+
+    const { data: target, error: lookupError } = await supabase.auth.admin.getUserById(user_id)
+    if (lookupError || !target?.user?.email) {
+      return NextResponse.json({ error: 'Member not found' }, { status: 404 })
+    }
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(target.user.email, {
+      redirectTo: `${req.nextUrl.origin}/set-password`,
+    })
+    if (resetError) return NextResponse.json({ error: resetError.message }, { status: 500 })
+
+    return NextResponse.json({ success: true, email: target.user.email })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}
