@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase-admin'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const svc = createServiceClient(URL, SERVICE)
 
 // Stores the file a WCM attaches to a certification assignment (the
-// Module 9 Accessible PDF Review, and the Final Assignment which already
+// Module 9 Accessible PDF Review, the Final Assignment, which already
 // told learners to "submit your report as a Word document or PDF" with
-// no actual way to do so - Sean, live Hot Lab 2026-09-01). Uploads go
-// through this server route with the service role rather than a direct
+// no actual way to do so - Sean, live Hot Lab 2026-09-01) - and, as of
+// this fix, the Submit Badge Evidence page's screenshot/email upload
+// (Sean, 2026-09-01: "let's get that taken care of"). Uploads go through
+// this server route with the service role rather than a direct
 // client-to-storage upload so there is no need to open bucket RLS to end
 // users - the same pattern used by /api/bcps/messages for voice-note
 // replies (Sean, 2026-08-19).
@@ -18,33 +22,57 @@ const svc = createServiceClient(URL, SERVICE)
 // cert-submissions/<user_id>/... so they are not publicly reachable;
 // admins read them back via a short-lived signed URL (see the
 // admin dashboard, which calls storage.createSignedUrl at render time).
-const MAX_BYTES = 15 * 1024 * 1024 // 15MB - plenty for a department PDF/Word doc, small enough to stay well under serverless body limits
-const ALLOWED_EXT = /\.(pdf|docx?)$/i
+const MAX_BYTES = 15 * 1024 * 1024 // 15MB - plenty for a department PDF/Word doc or a screenshot, small enough to stay well under serverless body limits
+const ALLOWED_EXT = /\.(pdf|docx?|png|jpe?g)$/i
 const ALLOWED_MIME: Record<string, string> = {
   'application/pdf': 'pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
   'application/msword': 'doc',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+}
+
+// Verifies the caller against their own Supabase session before touching
+// storage or progress rows under their user_id. Before this fix, both
+// handlers below trusted whatever user_id the client sent with no check
+// that it belonged to the caller (found during the full-course audit,
+// Sean 2026-09-01) - same gap and same fix as /api/cert/progress.
+async function verifyCaller(req: NextRequest, token: string) {
+  if (!token) return null
+  const asUser = createClient(URL, ANON, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false },
+  })
+  const { data: { user } } = await asUser.auth.getUser()
+  return user
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
+    const user = await verifyCaller(req, token)
+    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
     const body = await req.json().catch(() => ({}))
     const { user_id, course_id, module_id, page_id, filename, file_base64 } = body as {
       user_id?: string; course_id?: string; module_id?: string; page_id?: string
       filename?: string; file_base64?: string
     }
 
-    if (!user_id || !course_id || !module_id || !page_id || !filename || !file_base64) {
+    if (!course_id || !module_id || !page_id || !filename || !file_base64) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
+    if (user_id && user_id !== user.id) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
     if (!ALLOWED_EXT.test(filename)) {
-      return NextResponse.json({ error: 'Only PDF or Word (.docx) files can be attached to this assignment.' }, { status: 400 })
+      return NextResponse.json({ error: 'Only PDF, Word (.docx), or PNG/JPG files can be attached to this assignment.' }, { status: 400 })
     }
 
     const match = file_base64.match(/^data:([^;]+);base64,(.+)$/)
     const mime = match?.[1] || ''
     if (!match || !ALLOWED_MIME[mime]) {
-      return NextResponse.json({ error: 'That file did not look like a PDF or Word document. Please attach a .pdf or .docx file.' }, { status: 400 })
+      return NextResponse.json({ error: 'That file did not look like a PDF, Word document, or image. Please attach a .pdf, .docx, .png, or .jpg file.' }, { status: 400 })
     }
     const buffer = Buffer.from(match[2], 'base64')
     if (buffer.byteLength > MAX_BYTES) {
@@ -52,7 +80,7 @@ export async function POST(req: NextRequest) {
     }
 
     const safeName = filename.replace(/[^a-zA-Z0-9_.-]/g, '_').slice(-120)
-    const path = `cert-submissions/${user_id}/${module_id}-${page_id}-${Date.now()}-${safeName}`
+    const path = `cert-submissions/${user.id}/${module_id}-${page_id}-${Date.now()}-${safeName}`
 
     const { error: uploadErr } = await svc.storage.from('bcps-client').upload(path, buffer, {
       contentType: mime,
@@ -64,7 +92,7 @@ export async function POST(req: NextRequest) {
     }
 
     const record: Record<string, unknown> = {
-      user_id, course_id, module_id, page_id,
+      user_id: user.id, course_id, module_id, page_id,
       submission_file_path: path,
       submission_file_name: filename,
       last_visited_at: new Date().toISOString(),
@@ -87,24 +115,31 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE: remove a previously attached PDF (the WCM chose to replace it).
+// DELETE: remove a previously attached file (the WCM chose to replace it).
 export async function DELETE(req: NextRequest) {
   try {
+    const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
+    const user = await verifyCaller(req, token)
+    if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
     const body = await req.json().catch(() => ({}))
     const { user_id, course_id, module_id, page_id, path } = body as {
       user_id?: string; course_id?: string; module_id?: string; page_id?: string; path?: string
     }
-    if (!user_id || !course_id || !module_id || !page_id || !path) {
+    if (!course_id || !module_id || !page_id || !path) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
+    if (user_id && user_id !== user.id) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
     // Only ever remove a file under this exact user's own folder.
-    if (!path.startsWith(`cert-submissions/${user_id}/`)) {
+    if (!path.startsWith(`cert-submissions/${user.id}/`)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     await svc.storage.from('bcps-client').remove([path]).catch(() => {})
     const { error } = await svc.from('wcm_cert_progress')
       .update({ submission_file_path: null, submission_file_name: null })
-      .eq('user_id', user_id).eq('course_id', course_id).eq('module_id', module_id).eq('page_id', page_id)
+      .eq('user_id', user.id).eq('course_id', course_id).eq('module_id', module_id).eq('page_id', page_id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ ok: true })
   } catch (err) {
