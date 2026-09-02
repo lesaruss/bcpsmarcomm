@@ -114,6 +114,16 @@ type Bucketed = {
   fixSteps?: string[]
   escalationNote?: string
   sourceUrl?: string
+  rank: number
+}
+
+// Lower is more urgent - critical/serious surface first within each tab.
+// Sean, BOSS gut-check 2026-09-02, per Siteimprove's severity-sort pattern.
+// WAVE findings carry no severity signal, so they sort after every ranked
+// axe finding rather than being guessed at.
+const IMPACT_RANK: Record<string, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 }
+function impactRank(impact: string | null | undefined): number {
+  return impact != null && impact in IMPACT_RANK ? IMPACT_RANK[impact] : 4
 }
 
 function bucketResult(result: ScanResult, overrides: OwnerOverrideMap): Record<GlossaryOwner, Bucketed[]> {
@@ -127,6 +137,7 @@ function bucketResult(result: ScanResult, overrides: OwnerOverrideMap): Record<G
       title: entry?.title ?? v.help, definition: entry?.definition ?? v.description,
       helpUrl: v.helpUrl, affectedElements: v.affected_elements, glossaryKey: entry?.key,
       fixSteps: entry?.fixSteps, escalationNote: entry?.escalationNote, sourceUrl: entry?.sourceUrl,
+      rank: impactRank(v.impact),
     })
   })
 
@@ -139,8 +150,13 @@ function bucketResult(result: ScanResult, overrides: OwnerOverrideMap): Record<G
       definition: `${v.category[0].toUpperCase()}${v.category.slice(1)} finding`,
       countSuffix: ` (${v.count}x)`, glossaryKey: entry?.key,
       fixSteps: entry?.fixSteps, escalationNote: entry?.escalationNote, sourceUrl: entry?.sourceUrl,
+      rank: 4,
     })
   })
+
+  for (const owner of Object.keys(buckets) as GlossaryOwner[]) {
+    buckets[owner].sort((a, b) => a.rank - b.rank)
+  }
 
   return buckets
 }
