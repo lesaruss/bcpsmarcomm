@@ -23,6 +23,7 @@ import { createClient } from '@/lib/supabase'
 import AdaGlossaryPanel from '@/components/AdaGlossaryPanel'
 import { lookupAxeEntry, lookupWaveEntry } from '@/lib/ada-glossary'
 import { resolveOwner, fetchOwnerOverrides, type OwnerOverrideMap } from '@/lib/ada-owner-overrides'
+import FixWalkthrough from '@/components/ada/FixWalkthrough'
 
 interface Violation {
   id: string
@@ -70,6 +71,43 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   needs_work:  { label: 'Needs Work',      color: '#D97706', bg: '#FFFBEB' },
   critical:    { label: 'Critical Issues', color: '#DC2626', bg: '#FEF2F2' },
   unknown:     { label: 'Unscored',        color: '#6B7280', bg: '#F3F4F6' },
+}
+
+// One WCM-fixable finding. Sean, direct instruction, 2026-09-02: a plain
+// list of fixSteps read as a wall of text to a WCM who "just got started" -
+// he wants the walkthrough experience itself visible here, not just a
+// glossary definition. Keeps the short step list inline for scanning, adds
+// a lightbox walkthrough (components/ada/FixWalkthrough.tsx) for the
+// step-by-step version.
+function FixableFindingCard({ f }: {
+  f: { key: string; title: string; definition: string; fixSteps?: string[]; sourceUrl?: string; affectedElements?: number | null; countSuffix?: string }
+}) {
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false)
+  return (
+    <div style={{ borderLeft: '3px solid #16750C', paddingLeft: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{f.title}{f.countSuffix}</div>
+      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{f.definition}</div>
+      {f.affectedElements != null && (
+        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{f.affectedElements} element(s) affected</div>
+      )}
+      {f.fixSteps && f.fixSteps.length > 0 && (
+        <>
+          <ol style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12, color: '#374151' }}>
+            {f.fixSteps.map((s, si) => <li key={si} style={{ marginBottom: 3 }}>{s}</li>)}
+          </ol>
+          <button
+            onClick={() => setWalkthroughOpen(true)}
+            style={{ marginTop: 8, fontSize: 11.5, fontWeight: 700, padding: '5px 11px', borderRadius: 6, border: '1px solid #2B5F8F', background: '#fff', color: '#2B5F8F', cursor: 'pointer' }}
+          >
+            Walk me through it →
+          </button>
+        </>
+      )}
+      {walkthroughOpen && f.fixSteps && (
+        <FixWalkthrough title={f.title} steps={f.fixSteps} sourceUrl={f.sourceUrl} onClose={() => setWalkthroughOpen(false)} />
+      )}
+    </div>
+  )
 }
 
 function scoreColor(score: number | null): string {
@@ -309,7 +347,7 @@ export default function SchoolPortalPage() {
                     // issues and "depends" items are a district-team concern
                     // (see ADA Manager / AdaScannerPage), not something a
                     // school WCM needs to see or act on here.
-                    type Fixable = { key: string; title: string; definition: string; fixSteps?: string[]; affectedElements?: number | null; countSuffix?: string }
+                    type Fixable = { key: string; title: string; definition: string; fixSteps?: string[]; sourceUrl?: string; affectedElements?: number | null; countSuffix?: string }
                     const fixable: Fixable[] = []
                     result.ada_violations.forEach((v, i) => {
                       const entry = lookupAxeEntry(v.id)
@@ -319,6 +357,7 @@ export default function SchoolPortalPage() {
                         title: entry?.title ?? v.help,
                         definition: entry?.definition ?? v.description,
                         fixSteps: entry?.fixSteps,
+                        sourceUrl: entry?.sourceUrl,
                         affectedElements: v.affected_elements,
                       })
                     })
@@ -330,6 +369,7 @@ export default function SchoolPortalPage() {
                         title: entry?.title ?? v.description,
                         definition: `${v.category[0].toUpperCase()}${v.category.slice(1)} finding`,
                         fixSteps: entry?.fixSteps,
+                        sourceUrl: entry?.sourceUrl,
                         countSuffix: ` (${v.count}x)`,
                       })
                     })
@@ -339,20 +379,7 @@ export default function SchoolPortalPage() {
                     }
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {fixable.map(f => (
-                          <div key={f.key} style={{ borderLeft: '3px solid #16750C', paddingLeft: 12 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{f.title}{f.countSuffix}</div>
-                            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{f.definition}</div>
-                            {f.affectedElements != null && (
-                              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{f.affectedElements} element(s) affected</div>
-                            )}
-                            {f.fixSteps && (
-                              <ol style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12, color: '#374151' }}>
-                                {f.fixSteps.map((s, si) => <li key={si} style={{ marginBottom: 3 }}>{s}</li>)}
-                              </ol>
-                            )}
-                          </div>
-                        ))}
+                        {fixable.map(f => <FixableFindingCard key={f.key} f={f} />)}
                       </div>
                     )
                   })()}
