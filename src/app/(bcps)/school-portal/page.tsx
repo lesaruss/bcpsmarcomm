@@ -7,13 +7,20 @@
 // BCPSShell chrome at all - it is a school WCM's entire experience of this
 // system. They're never routed here automatically; they're handed this
 // URL directly once their account and school row exist (see
-// /api/bcps/schools). Everything on this page is scoped to the signed-in
-// user's own school via /api/bcps/school-scan, which matches by email
-// against bcps_schools.wcm_email - completely separate from the district
-// ACL system used everywhere else in this app.
+// /api/bcps/schools). Everything scoped to the scanner tab is scoped to
+// the signed-in user's own school via /api/bcps/school-scan, which
+// matches by email against bcps_schools.wcm_email - completely separate
+// from the district ACL system used everywhere else in this app.
+//
+// Left-hand "ADA Management" zone added 2026-09-02 per Sean: a school WCM's
+// only job here is ADA, so their nav should say that plainly - ADA Scanner
+// (run a real scan, see history) and ADA Glossary (look up what a finding
+// means and how to fix it), the same glossary the district team sees,
+// reused as-is (components/AdaGlossaryPanel.tsx).
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
+import AdaGlossaryPanel from '@/components/AdaGlossaryPanel'
 
 interface Violation {
   id: string
@@ -54,6 +61,8 @@ interface School {
   wcm_email: string | null
 }
 
+type Tab = 'scanner' | 'glossary'
+
 const SEVERITY_COLORS: Record<string, string> = {
   critical: '#DC2626',
   serious:  '#EA580C',
@@ -75,9 +84,21 @@ function scoreColor(score: number | null): string {
   return '#DC2626'
 }
 
+const NAV_ICON = (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/>
+  </svg>
+)
+const GLOSSARY_ICON = (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+)
+
 export default function SchoolPortalPage() {
   const supabase = createClient()
 
+  const [tab, setTab]             = useState<Tab>('scanner')
   const [loading, setLoading]     = useState(true)
   const [school, setSchool]       = useState<School | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -164,6 +185,14 @@ export default function SchoolPortalPage() {
     )
   }
 
+  const navBtnStyle = (active: boolean): React.CSSProperties => ({
+    width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+    padding: '9px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+    fontFamily: 'Montserrat, sans-serif', fontSize: 13.5, fontWeight: 700, textAlign: 'left',
+    background: active ? 'rgba(43,95,143,0.1)' : 'transparent',
+    color: active ? '#2B5F8F' : '#475569',
+  })
+
   return (
     <div style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'Montserrat, sans-serif' }}>
 
@@ -173,7 +202,7 @@ export default function SchoolPortalPage() {
           <div style={{ width: 32, height: 32, background: '#F4A300', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 16, color: '#2B5F8F' }}>K</div>
           <div>
             <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>Broward County Public Schools</div>
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>School ADA Scan Portal</div>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>School ADA Portal</div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -187,109 +216,150 @@ export default function SchoolPortalPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ display: 'flex', maxWidth: 1100, margin: '0 auto' }}>
 
-        {/* School header */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>ADA Website Accessibility Scan</div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', margin: '0 0 8px' }}>{school?.name}</h1>
-          {school?.site_url && (
-            <a href={school.site_url} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#2B5F8F', textDecoration: 'none', fontWeight: 600, wordBreak: 'break-all' }}>
-              {school.site_url}
-            </a>
-          )}
-        </div>
-
-        {/* Scan trigger */}
-        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: 24, marginBottom: 24 }}>
-          <p style={{ fontSize: 13, color: '#4b5563', margin: '0 0 14px' }}>
-            Run a real accessibility check on your school&apos;s website - Lighthouse, a real axe-core scan, and WAVE
-            (WebAIM), the same combination used by the district. No guessing, no placeholder data.
-          </p>
-          <button
-            onClick={runScan}
-            disabled={scanning || !school?.site_url}
-            style={{
-              padding: '12px 24px',
-              background: scanning || !school?.site_url ? '#E2E8F0' : '#2B5F8F',
-              color: scanning || !school?.site_url ? '#94A3B8' : '#fff',
-              border: 'none', borderRadius: 10, cursor: scanning ? 'default' : 'pointer',
-              fontWeight: 800, fontSize: 14, fontFamily: 'Montserrat, sans-serif',
-            }}
-          >
-            {scanning ? 'Scanning…' : 'Run ADA Scan'}
-          </button>
-          {scanError && <div style={{ marginTop: 10, fontSize: 13, color: '#DC2626', fontWeight: 600 }}>{scanError}</div>}
-        </div>
-
-        {/* Latest result */}
-        {result && (
-          <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: 24, marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
-              <div style={{ fontSize: 12, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Latest Result</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: scoreColor(result.ada_score), lineHeight: 1 }}>{result.ada_score ?? '—'}</div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>ADA Score</div>
-                </div>
-                {result.wave_score != null && (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: scoreColor(result.wave_score), lineHeight: 1 }}>{result.wave_score}</div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>WAVE Score</div>
-                  </div>
-                )}
-                {result.lighthouse_a11y_score != null && (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: scoreColor(result.lighthouse_a11y_score), lineHeight: 1 }}>{result.lighthouse_a11y_score}</div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>Lighthouse</div>
-                  </div>
-                )}
-                {(() => {
-                  const s = STATUS_CONFIG[result.status] ?? STATUS_CONFIG.unknown
-                  return <span style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, color: s.color, background: s.bg }}>{s.label}</span>
-                })()}
-              </div>
-            </div>
-
-            {result.ada_violations.length === 0 ? (
-              <div style={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>No failing axe-core accessibility checks found. 🎉</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {result.ada_violations.map(v => (
-                  <div key={v.id} style={{ borderLeft: `3px solid ${SEVERITY_COLORS[v.impact ?? 'minor']}`, paddingLeft: 12 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{v.help}</div>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{v.description}</div>
-                    {v.affected_elements != null && (
-                      <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{v.affected_elements} element(s) affected</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Left zone nav */}
+        <aside style={{ width: 220, flexShrink: 0, padding: '32px 16px 24px' }}>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94A3B8', padding: '0 12px', marginBottom: 8 }}>
+            ADA Management
           </div>
-        )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <button style={navBtnStyle(tab === 'scanner')} onClick={() => setTab('scanner')}>
+              <span style={{ display: 'flex', color: tab === 'scanner' ? '#2B5F8F' : '#94A3B8' }}>{NAV_ICON}</span>
+              ADA Scanner
+            </button>
+            <button style={navBtnStyle(tab === 'glossary')} onClick={() => setTab('glossary')}>
+              <span style={{ display: 'flex', color: tab === 'glossary' ? '#2B5F8F' : '#94A3B8' }}>{GLOSSARY_ICON}</span>
+              ADA Glossary
+            </button>
+          </div>
+        </aside>
 
-        {/* History */}
-        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: 24 }}>
-          <div style={{ fontSize: 12, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: 12 }}>Your Scan History</div>
-          {history.length === 0 ? (
-            <div style={{ fontSize: 13, color: '#9ca3af' }}>No scans yet. Run your first one above.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {history.map(h => (
-                <div key={h.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f3f4f6', gap: 10 }}>
-                  <div style={{ fontSize: 12, color: '#9ca3af' }}>{new Date(h.audited_at).toLocaleString()}</div>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: scoreColor(h.ada_score) }}>{h.ada_score ?? '—'}</span>
-                    {h.wave_score != null && <span style={{ fontSize: 13, color: '#9ca3af' }}>WAVE {h.wave_score}</span>}
+        {/* Main content */}
+        <main style={{ flex: 1, minWidth: 0, padding: '32px 24px 32px 0' }}>
+
+          {tab === 'scanner' && (
+            <>
+              {/* School header */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>ADA Website Accessibility Scan</div>
+                <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', margin: '0 0 8px' }}>{school?.name}</h1>
+                {school?.site_url && (
+                  <a href={school.site_url} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#2B5F8F', textDecoration: 'none', fontWeight: 600, wordBreak: 'break-all' }}>
+                    {school.site_url}
+                  </a>
+                )}
+              </div>
+
+              {/* Scan trigger */}
+              <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: 24, marginBottom: 24 }}>
+                <p style={{ fontSize: 13, color: '#4b5563', margin: '0 0 14px' }}>
+                  Run a real accessibility check on your school&apos;s website - Lighthouse, a real axe-core scan, and WAVE
+                  (WebAIM), the same combination used by the district. No guessing, no placeholder data.
+                </p>
+                <button
+                  onClick={runScan}
+                  disabled={scanning || !school?.site_url}
+                  style={{
+                    padding: '12px 24px',
+                    background: scanning || !school?.site_url ? '#E2E8F0' : '#2B5F8F',
+                    color: scanning || !school?.site_url ? '#94A3B8' : '#fff',
+                    border: 'none', borderRadius: 10, cursor: scanning ? 'default' : 'pointer',
+                    fontWeight: 800, fontSize: 14, fontFamily: 'Montserrat, sans-serif',
+                  }}
+                >
+                  {scanning ? 'Scanning…' : 'Run ADA Scan'}
+                </button>
+                {scanError && <div style={{ marginTop: 10, fontSize: 13, color: '#DC2626', fontWeight: 600 }}>{scanError}</div>}
+              </div>
+
+              {/* Latest result */}
+              {result && (
+                <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: 24, marginBottom: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Latest Result</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: scoreColor(result.ada_score), lineHeight: 1 }}>{result.ada_score ?? '—'}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>ADA Score</div>
+                      </div>
+                      {result.wave_score != null && (
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 28, fontWeight: 800, color: scoreColor(result.wave_score), lineHeight: 1 }}>{result.wave_score}</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>WAVE Score</div>
+                        </div>
+                      )}
+                      {result.lighthouse_a11y_score != null && (
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 28, fontWeight: 800, color: scoreColor(result.lighthouse_a11y_score), lineHeight: 1 }}>{result.lighthouse_a11y_score}</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>Lighthouse</div>
+                        </div>
+                      )}
+                      {(() => {
+                        const s = STATUS_CONFIG[result.status] ?? STATUS_CONFIG.unknown
+                        return <span style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, color: s.color, background: s.bg }}>{s.label}</span>
+                      })()}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-      </main>
+                  {result.ada_violations.length === 0 ? (
+                    <div style={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>No failing axe-core accessibility checks found. 🎉</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {result.ada_violations.map(v => (
+                        <div key={v.id} style={{ borderLeft: `3px solid ${SEVERITY_COLORS[v.impact ?? 'minor']}`, paddingLeft: 12 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{v.help}</div>
+                          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{v.description}</div>
+                          {v.affected_elements != null && (
+                            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{v.affected_elements} element(s) affected</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* History */}
+              <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: 24 }}>
+                <div style={{ fontSize: 12, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: 12 }}>Your Scan History</div>
+                {history.length === 0 ? (
+                  <div style={{ fontSize: 13, color: '#9ca3af' }}>No scans yet. Run your first one above.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {history.map(h => (
+                      <div key={h.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f3f4f6', gap: 10 }}>
+                        <div style={{ fontSize: 12, color: '#9ca3af' }}>{new Date(h.audited_at).toLocaleString()}</div>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <span style={{ fontSize: 15, fontWeight: 800, color: scoreColor(h.ada_score) }}>{h.ada_score ?? '—'}</span>
+                          {h.wave_score != null && <span style={{ fontSize: 13, color: '#9ca3af' }}>WAVE {h.wave_score}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {tab === 'glossary' && (
+            <>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>ADA Management</div>
+                <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', margin: '0 0 8px' }}>ADA Glossary</h1>
+                <p style={{ fontSize: 13, color: '#64748B', margin: 0, maxWidth: 640 }}>
+                  Look up what a scan finding means and how to fix it, even when you&apos;re not looking at a scan
+                  result. Same glossary the district web team uses.
+                </p>
+              </div>
+              <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: 24 }}>
+                <AdaGlossaryPanel />
+              </div>
+            </>
+          )}
+
+        </main>
+      </div>
     </div>
   )
 }
