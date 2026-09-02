@@ -4904,6 +4904,34 @@
     window.closeEfEditor();
   };
 
+  window.openTitleEditor = function(el){
+    window.closeEfEditor();
+    var slug = el.getAttribute('data-slug');
+    var ef = efCache[slug] || {};
+    var currentTitle = ef.title_override || el.textContent;
+    var rect = el.getBoundingClientRect();
+    var backdrop = document.createElement('div');
+    backdrop.className = 'ef-backdrop';
+    backdrop.onclick = window.closeEfEditor;
+    var box = document.createElement('div');
+    box.className = 'ef-editor';
+    positionBox(box, rect, 120);
+    box.innerHTML =
+      '<label>Title</label><input type="text" id="ef-title" value="' + currentTitle.replace(/"/g,'&quot;') + '">' +
+      '<div class="ef-actions"><button onclick="closeEfEditor()">Cancel</button><button class="ef-save" onclick="saveTitleEditor('' + slug + '')">Save</button></div>';
+    document.body.appendChild(backdrop);
+    document.body.appendChild(box);
+  };
+
+  window.saveTitleEditor = function(slug){
+    var input = document.getElementById('ef-title');
+    var title = input ? input.value.trim() : '';
+    efCache[slug] = Object.assign({}, efCache[slug], { title_override: title || null });
+    efUpsert(slug, { title_override: title || null });
+    renderRowTitle(slug);
+    window.closeEfEditor();
+  };
+
   window.dismissOverdue = function(evt, el){
     evt.stopPropagation();
     var slug = el.getAttribute('data-slug');
