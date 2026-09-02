@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
     school_id: string
     scan_batch_id: string
     page_count: number
-    avg_ada_score: nuler | null
+    avg_ada_score: number | null
     critical_count: number
     serious_count: number
     last_audited_at: string
