@@ -39,6 +39,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { lookupAxeEntry, lookupWaveEntry, type GlossaryOwner } from '@/lib/ada-glossary'
 import { resolveOwner, fetchOwnerOverrides, setOwnerOverride, type OwnerOverrideMap } from '@/lib/ada-owner-overrides'
+import FixWalkthrough from '@/components/ada/FixWalkthrough'
 
 interface School {
   id: string
@@ -144,7 +145,7 @@ function ScoreRing({ score }: { score: number | null | undefined }) {
 // shapes, so the caller passes in the already-looked-up entry + owner).
 function FindingCard({
   title, definition, helpUrl, ownerLabel, owner, entryFound, affectedElements, countSuffix,
-  onReclassify,
+  fixSteps, escalationNote, sourceUrl, onReclassify,
 }: {
   title: string
   definition: string
@@ -154,8 +155,12 @@ function FindingCard({
   entryFound: boolean
   affectedElements?: number | null
   countSuffix?: string
+  fixSteps?: string[]
+  escalationNote?: string
+  sourceUrl?: string
   onReclassify?: (owner: GlossaryOwner) => void
 }) {
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false)
   return (
     <div style={{ borderLeft: `3px solid ${owner === 'wcm' ? '#16750C' : owner === 'finalsite' ? '#C55326' : '#D4B106'}`, paddingLeft: 10, paddingTop: 1, paddingBottom: 1 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
@@ -169,6 +174,19 @@ function FindingCard({
       {!entryFound && helpUrl && (
         <div style={{ marginTop: 4, fontSize: 10.5, color: '#9ca3af' }}>
           <a href={helpUrl} target="_blank" rel="noreferrer" style={{ color: BLUE }}>axe-core reference for this rule</a> (glossary entry pending)
+        </div>
+      )}
+      {owner === 'wcm' && fixSteps && fixSteps.length > 0 && (
+        <button
+          onClick={() => setWalkthroughOpen(true)}
+          style={{ marginTop: 6, fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: `1px solid ${BLUE}`, background: '#fff', color: BLUE, cursor: 'pointer' }}
+        >
+          Walk me through it →
+        </button>
+      )}
+      {(owner === 'finalsite' || owner === 'depends') && escalationNote && (
+        <div style={{ marginTop: 6, fontSize: 11, color: '#9a6700', background: '#fff8e6', border: '1px solid #f5deb0', borderRadius: 6, padding: '6px 9px' }}>
+          {escalationNote}
         </div>
       )}
       {onReclassify && (
@@ -186,6 +204,9 @@ function FindingCard({
             Mark: FinalSite
           </button>
         </div>
+      )}
+      {walkthroughOpen && fixSteps && (
+        <FixWalkthrough title={title} steps={fixSteps} sourceUrl={sourceUrl} onClose={() => setWalkthroughOpen(false)} />
       )}
     </div>
   )
@@ -221,6 +242,9 @@ type Bucketed = {
   affectedElements?: number | null
   countSuffix?: string
   glossaryKey?: string
+  fixSteps?: string[]
+  escalationNote?: string
+  sourceUrl?: string
 }
 
 function bucketPage(page: SchoolPage, overrides: OwnerOverrideMap): Record<GlossaryOwner, Bucketed[]> {
@@ -238,6 +262,9 @@ function bucketPage(page: SchoolPage, overrides: OwnerOverrideMap): Record<Gloss
       helpUrl: v.helpUrl,
       affectedElements: v.affected_elements,
       glossaryKey: entry?.key,
+      fixSteps: entry?.fixSteps,
+      escalationNote: entry?.escalationNote,
+      sourceUrl: entry?.sourceUrl,
     })
   })
 
@@ -252,6 +279,9 @@ function bucketPage(page: SchoolPage, overrides: OwnerOverrideMap): Record<Gloss
       definition: `${v.category[0].toUpperCase()}${v.category.slice(1)} finding`,
       countSuffix: ` (${v.count}x)`,
       glossaryKey: entry?.key,
+      fixSteps: entry?.fixSteps,
+      escalationNote: entry?.escalationNote,
+      sourceUrl: entry?.sourceUrl,
     })
   })
 
@@ -302,6 +332,9 @@ function PageIssueDetail({ page, overrides, onReclassify }: {
               countSuffix={f.countSuffix}
               owner={f.owner}
               entryFound={f.entryFound}
+              fixSteps={f.fixSteps}
+              escalationNote={f.escalationNote}
+              sourceUrl={f.sourceUrl}
               ownerLabel={<OwnerBadge owner={f.owner} entryFound={f.entryFound} />}
               onReclassify={tab === 'depends' && f.glossaryKey ? (o) => onReclassify(f.glossaryKey!, o) : undefined}
             />
