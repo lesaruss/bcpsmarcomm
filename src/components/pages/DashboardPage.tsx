@@ -183,7 +183,6 @@ const DEFAULT_DASH_LAYOUT: DashLayoutItem[] = [
   { id: 'meetingnotes', span: 1 },
   { id: 'documents', span: 1 },
   { id: 'accessrequests', span: 2 },
-  { id: 'banner', span: 2 },
   { id: 'recentnotes', span: 1 },
   { id: 'refgroup', span: 2 },
   { id: 'profile', span: 2 },
