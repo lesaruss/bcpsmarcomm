@@ -24,6 +24,13 @@ export default function CoursePlayerPage({ params }: Props) {
   const [submissionFiles, setSubmissionFiles] = useState<Record<string, { path: string; name: string }>>({})
   const [fileUploading, setFileUploading] = useState(false)
   const [fileError, setFileError] = useState<string | null>(null)
+  // "Request Composer Access" (Sean, 2026-09-02): shown on pages flagged
+  // composerAccessGate in cert-data.ts. idle -> checking (GET on load) ->
+  // either 'available' (no request on file, show the button) or 'requested'
+  // (already on file, show the confirmation instead).
+  const [accessRequestState, setAccessRequestState] = useState<'idle' | 'checking' | 'available' | 'requesting' | 'requested'>('idle')
+  const [accessRequestedAt, setAccessRequestedAt] = useState<string | null>(null)
+  const [accessRequestError, setAccessRequestError] = useState<string | null>(null)
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({})
   const [quizSubmitted, setQuizSubmitted] = useState(false)
   const [quizScore, setQuizScore] = useState(0)
@@ -219,6 +226,54 @@ export default function CoursePlayerPage({ params }: Props) {
       setSubmissionSaving(false)
     }
   }, [userId, moduleId, pageId, pageKey, getAuthHeaders])
+
+  // "Request Composer Access" (Sean, 2026-09-02): on load, check whether this
+  // learner already has a pending access request on file for this course, so
+  // we show the confirmation instead of the button after a refresh.
+  useEffect(() => {
+    if (!userId || !page?.composerAccessGate) return
+    let cancelled = false
+    setAccessRequestState('checking')
+    ;(async () => {
+      try {
+        const headers = await getAuthHeaders()
+        const res = await fetch(`/api/cert/request-access?course_id=${COURSE_ID}`, { headers })
+        const json = await res.json().catch(() => ({}))
+        if (cancelled) return
+        if (res.ok && json?.request?.status === 'pending') {
+          setAccessRequestState('requested')
+          setAccessRequestedAt(json.request.requested_at || null)
+        } else {
+          setAccessRequestState('available')
+        }
+      } catch (err) {
+        console.error('Access-request status check failed:', err)
+        if (!cancelled) setAccessRequestState('available')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [userId, page?.composerAccessGate, getAuthHeaders])
+
+  const requestComposerAccess = useCallback(async () => {
+    if (!userId) return
+    setAccessRequestState('requesting')
+    setAccessRequestError(null)
+    try {
+      const res = await fetch('/api/cert/request-access', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ course_id: COURSE_ID, module_id: moduleId, page_id: pageId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || `Server returned ${res.status}`)
+      setAccessRequestState('requested')
+      setAccessRequestedAt(json.requested_at || new Date().toISOString())
+    } catch (err) {
+      console.error('Request Composer Access failed:', err)
+      setAccessRequestState('available')
+      setAccessRequestError('That did not go through. Check your connection and try again.')
+    }
+  }, [userId, moduleId, pageId, getAuthHeaders])
 
   useEffect(() => {
     if (!userId || loading) return
@@ -636,6 +691,33 @@ export default function CoursePlayerPage({ params }: Props) {
           {isContentPage && (
             <>
               {page.content && <div className="cert-content" style={S.content} dangerouslySetInnerHTML={{ __html: page.content }} />}
+              {page.composerAccessGate && accessRequestState !== 'checking' && (
+                <div style={S.accessRequestBox}>
+                  {accessRequestState === 'requested' ? (
+                    <p style={{ margin: 0, fontSize: 14, color: '#1a1a1a' }}>
+                      <strong>Request sent.</strong> Sean and Felicia have been notified that you need a Composer account
+                      {accessRequestedAt ? ` (requested ${new Date(accessRequestedAt).toLocaleDateString('en-US')})` : ''}.
+                      Once your account is created, come back and continue with this step.
+                    </p>
+                  ) : (
+                    <>
+                      <p style={{ margin: 0, fontSize: 14, color: '#1a1a1a' }}>
+                        Don&apos;t have a Finalsite Composer login yet? Click below to notify Sean and Felicia so they can set one up for you.
+                      </p>
+                      <button
+                        style={{ ...S.accessRequestBtn, opacity: accessRequestState === 'requesting' ? 0.6 : 1 }}
+                        onClick={requestComposerAccess}
+                        disabled={accessRequestState === 'requesting'}
+                      >
+                        {accessRequestState === 'requesting' ? 'Sending...' : 'Request Composer Access'}
+                      </button>
+                      {accessRequestError && (
+                        <p style={{ margin: '8px 0 0', fontSize: 13, color: '#b3261e' }}>{accessRequestError}</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
               {page.type === 'assignment' && (
                 <div style={S.assignmentBox}>
                   <label htmlFor="assignment-submission" style={{ display: 'block', margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#0e4e73' }}>
@@ -916,6 +998,8 @@ const S: Record<string, React.CSSProperties> = {
   completeBtn: { padding: '13px 30px', background: '#1672A7', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const },
   completedNote: { color: '#16750C', fontWeight: 700, fontSize: 14 },
   assignmentBox: { background: '#f8fafb', border: '1px solid #e0e8ef', borderRadius: 8, padding: '14px 18px', marginTop: 24 },
+  accessRequestBox: { background: '#eef7fc', border: '1.5px solid #1672A7', borderRadius: 8, padding: '16px 18px', marginTop: 20, marginBottom: 4 },
+  accessRequestBtn: { padding: '11px 20px', background: '#1672A7', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 },
   submissionTextarea: { width: '100%', boxSizing: 'border-box' as const, fontFamily: 'inherit', fontSize: 14, color: '#222', border: '1px solid #d0d9e3', borderRadius: 8, padding: '10px 12px', resize: 'vertical' as const, lineHeight: 1.5 },
   question: { marginBottom: 24 },
   questionText: { fontSize: 15, fontWeight: 600, color: '#222', margin: '0 0 10px', lineHeight: 1.5 },
