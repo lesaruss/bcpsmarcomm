@@ -21,6 +21,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import AdaGlossaryPanel from '@/components/AdaGlossaryPanel'
+import { lookupAxeEntry, lookupWaveEntry } from '@/lib/ada-glossary'
+import { resolveOwner, fetchOwnerOverrides, type OwnerOverrideMap } from '@/lib/ada-owner-overrides'
 
 interface Violation {
   id: string
@@ -63,13 +65,6 @@ interface School {
 
 type Tab = 'scanner' | 'glossary'
 
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: '#DC2626',
-  serious:  '#EA580C',
-  moderate: '#D97706',
-  minor:    '#6B7280',
-}
-
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   pass:        { label: 'Passing',         color: '#059669', bg: '#ECFDF5' },
   needs_work:  { label: 'Needs Work',      color: '#D97706', bg: '#FFFBEB' },
@@ -107,6 +102,7 @@ export default function SchoolPortalPage() {
   const [scanError, setScanError] = useState('')
   const [result, setResult]       = useState<ScanResult | null>(null)
   const [history, setHistory]     = useState<ScanResult[]>([])
+  const [overrides, setOverrides] = useState<OwnerOverrideMap>({})
 
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
 
@@ -118,7 +114,11 @@ export default function SchoolPortalPage() {
       if (!user?.email) { setError('Not signed in.'); setLoading(false); return }
       setUserEmail(user.email)
 
-      const r = await fetch('/api/bcps/school-scan', { headers: { Authorization: `Bearer ${await token()}` } })
+      const t = await token()
+      const [r, overridesMap] = await Promise.all([
+        fetch('/api/bcps/school-scan', { headers: { Authorization: `Bearer ${t}` } }),
+        fetchOwnerOverrides(t),
+      ])
       const j = await r.json()
       if (!r.ok) {
         setError(j.error || "We couldn't find a school account for your email. Contact the District Web Team if this is a mistake.")
@@ -127,6 +127,7 @@ export default function SchoolPortalPage() {
       }
       setSchool(j.school)
       setHistory(j.scans ?? [])
+      setOverrides(overridesMap)
     } catch {
       setError('Failed to load your portal. Please refresh.')
     } finally {
@@ -302,21 +303,59 @@ export default function SchoolPortalPage() {
                     </div>
                   </div>
 
-                  {result.ada_violations.length === 0 ? (
-                    <div style={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>No failing axe-core accessibility checks found. 🎉</div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {result.ada_violations.map(v => (
-                        <div key={v.id} style={{ borderLeft: `3px solid ${SEVERITY_COLORS[v.impact ?? 'minor']}`, paddingLeft: 12 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{v.help}</div>
-                          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{v.description}</div>
-                          {v.affected_elements != null && (
-                            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{v.affected_elements} element(s) affected</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    // WCMs only ever see the things they themselves can fix -
+                    // per Sean, direct instruction, 2026-09-02: FinalSite
+                    // issues and "depends" items are a district-team concern
+                    // (see ADA Manager / AdaScannerPage), not something a
+                    // school WCM needs to see or act on here.
+                    type Fixable = { key: string; title: string; definition: string; fixSteps?: string[]; affectedElements?: number | null; countSuffix?: string }
+                    const fixable: Fixable[] = []
+                    result.ada_violations.forEach((v, i) => {
+                      const entry = lookupAxeEntry(v.id)
+                      if (resolveOwner(entry, overrides) !== 'wcm') return
+                      fixable.push({
+                        key: `axe-${v.id}-${i}`,
+                        title: entry?.title ?? v.help,
+                        definition: entry?.definition ?? v.description,
+                        fixSteps: entry?.fixSteps,
+                        affectedElements: v.affected_elements,
+                      })
+                    })
+                    ;(result.wave_violations ?? []).forEach((v, i) => {
+                      const entry = lookupWaveEntry(v.id, v.description)
+                      if (resolveOwner(entry, overrides) !== 'wcm') return
+                      fixable.push({
+                        key: `wave-${v.id}-${i}`,
+                        title: entry?.title ?? v.description,
+                        definition: `${v.category[0].toUpperCase()}${v.category.slice(1)} finding`,
+                        fixSteps: entry?.fixSteps,
+                        countSuffix: ` (${v.count}x)`,
+                      })
+                    })
+
+                    if (fixable.length === 0) {
+                      return <div style={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>Nothing on your plate here. 🎉</div>
+                    }
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {fixable.map(f => (
+                          <div key={f.key} style={{ borderLeft: '3px solid #16750C', paddingLeft: 12 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{f.title}{f.countSuffix}</div>
+                            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{f.definition}</div>
+                            {f.affectedElements != null && (
+                              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{f.affectedElements} element(s) affected</div>
+                            )}
+                            {f.fixSteps && (
+                              <ol style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12, color: '#374151' }}>
+                                {f.fixSteps.map((s, si) => <li key={si} style={{ marginBottom: 3 }}>{s}</li>)}
+                              </ol>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
 
