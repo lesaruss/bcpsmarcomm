@@ -20,7 +20,7 @@
 // Admin/Manager permissions for this feature are self-contained
 // (bcps_banner_admins) - Vanessa is the seeded Admin.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
 type SubmissionType = 'upload' | 'removal'
@@ -66,7 +66,7 @@ const CHECKLIST = [
   {
     key: 'media_release' as const,
     section: 'Approvals & Permissions',
-    text: 'If this banner includes photos or videos of any identifiable student, I confirm a signed media release is on file for that student. This does not apply if no students appear in the submission.',
+    text: 'I confirm that all students appearing in submitted photos or videos have a signed media release on file.',
   },
   {
     key: 'no_overlays' as const,
@@ -103,6 +103,10 @@ function statusBadge(status: SubmissionStatus) {
 
 export default function BannerWidget() {
   const [tab, setTab] = useState<Tab>('upload')
+  const previewFrameRef = useRef<HTMLDivElement | null>(null)
+  const setPreviewFrameWidth = (px: number) => {
+    if (previewFrameRef.current) previewFrameRef.current.style.width = `${px}px`
+  }
   const [myRole, setMyRole] = useState<'admin' | 'manager' | null>(null)
 
   // ---- New Upload state ----
@@ -390,36 +394,136 @@ export default function BannerWidget() {
               </div>
             </div>
 
-            {/* Live preview: composites the file into the actual banner display,
-                including the right-nav overlay, so a WCM can self-check quality,
-                pixelation, absence of text/logos, and whether the nav blocks
-                faces - per Vanessa Deslandes, 2026-08-24. */}
+            {/* Live preview: mocks the actual school-site header + homepage
+                banner + right-nav (a generic logo/title stand in for the real
+                school chrome, since this tool serves every school), with the
+                file composited into the hero, so a WCM can self-check
+                quality, pixelation, absence of text/logos, and whether the
+                nav blocks faces - per Vanessa Deslandes, 2026-08-24. Reflows
+                at container width the same way the real school sites do
+                (header chrome and hero overlay drop away below ~480px, nav
+                items become full-width stacked rows) - per Sean, 2026-09-02:
+                "the same page resizing functionality ... so they can see
+                what happens when they resize their screen." Drag the
+                bottom-right corner of the frame, or use the width presets,
+                to test narrower widths. */}
             {previewUrl && (
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Live preview</label>
-                <div style={{
-                  position: 'relative', width: '100%', maxWidth: 640, aspectRatio: '2880 / 1600',
-                  background: '#000', overflow: 'hidden', borderRadius: 6, border: '1px solid var(--border)',
-                }}>
-                  {fileKind === 'video' ? (
-                    <video src={previewUrl} muted autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <img src={previewUrl} alt="Banner preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  )}
-                  <div style={{
-                    position: 'absolute', top: 0, right: 0, bottom: 0, width: '22%', minWidth: 120,
-                    background: 'rgba(20,20,20,0.72)', display: 'flex', flexDirection: 'column',
-                    justifyContent: 'center', gap: '6%', padding: '4% 5%',
+
+                <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                  {[{ label: 'Desktop', px: 640 }, { label: 'Tablet', px: 420 }, { label: 'Mobile', px: 300 }].map(p => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => setPreviewFrameWidth(p.px)}
+                      className="btn-outline"
+                      style={{ fontSize: 11, padding: '4px 10px' }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                <style>{`
+                  .bwp-frame { container-type: inline-size; container-name: bwp; }
+                  .bwp-wide-only { display: flex; }
+                  .bwp-narrow-only { display: none; }
+                  @container bwp (max-width: 480px) {
+                    .bwp-wide-only { display: none !important; }
+                    .bwp-narrow-only { display: block !important; }
+                  }
+                `}</style>
+
+                <div
+                  ref={previewFrameRef}
+                  className="bwp-frame"
+                  style={{
+                    width: '100%', maxWidth: 640, minWidth: 260, resize: 'horizontal', overflow: 'hidden',
+                    borderRadius: 6, border: '1px solid var(--border)', background: '#fff',
+                  }}
+                >
+                  {/* Mocked site header - generic placeholder logo/title, not the real
+                      school's, since one widget serves every BCPS school. */}
+                  <div className="bwp-wide-only" style={{
+                    background: '#0a3764', color: '#fff', alignItems: 'center', gap: '3cqw',
+                    padding: '2.2cqw 3cqw',
                   }}>
+                    <div style={{
+                      width: '9cqw', height: '9cqw', minWidth: 30, minHeight: 30, maxWidth: 46, maxHeight: 46,
+                      background: '#fff', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      <svg viewBox="0 0 24 24" width="65%" height="65%" fill="none" stroke="#0a3764" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 3 2 8l10 5 10-5-10-5Z" />
+                        <path d="M6 10.5V16c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-5.5" />
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '3.4cqw', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Your School Name</div>
+                      <div style={{ fontSize: '2cqw', fontStyle: 'italic', opacity: 0.85, whiteSpace: 'nowrap' }}>Broward County Public Schools</div>
+                    </div>
+                    <div style={{ fontSize: '1.9cqw', fontWeight: 600, whiteSpace: 'nowrap', opacity: 0.9 }}>Parent Resources ▾</div>
+                    <div style={{ fontSize: '1.9cqw', fontWeight: 600, whiteSpace: 'nowrap', opacity: 0.9 }}>District Resources ▾</div>
+                    <div style={{ border: '1px solid #fff', borderRadius: 3, padding: '0.8cqw 1.6cqw', fontSize: '1.7cqw', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                      SPECIALIZED PROGRAMS
+                    </div>
+                    <div style={{ fontSize: '4cqw', lineHeight: 1 }}>☰</div>
+                  </div>
+                  <div className="bwp-narrow-only" style={{ background: '#0a3764', color: '#fff', padding: '10px 14px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>Your School Name</div>
+                    <div style={{ fontSize: 11, fontStyle: 'italic', opacity: 0.85 }}>Broward County Public Schools</div>
+                  </div>
+
+                  {/* Hero: the actual uploaded file, wide-container variant overlays
+                      the nav + welcome text on the image like the real sites do;
+                      narrow-container variant matches the real sites' mobile
+                      layout, where the overlay drops and both move below the image. */}
+                  <div style={{ position: 'relative', width: '100%', aspectRatio: '2880 / 1600', background: '#000', overflow: 'hidden' }}>
+                    {fileKind === 'video' ? (
+                      <video src={previewUrl} muted autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <img src={previewUrl} alt="Banner preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    )}
+                    <div className="bwp-wide-only" style={{
+                      position: 'absolute', top: 0, right: 0, bottom: 0, width: '22%', minWidth: 120,
+                      background: 'rgba(20,20,20,0.72)', flexDirection: 'column',
+                      justifyContent: 'center', gap: '6%', padding: '4% 5%',
+                    }}>
+                      {RIGHT_NAV_ITEMS.map(item => (
+                        <div key={item} style={{ color: '#fff', fontSize: '2.6cqw', fontWeight: 600, lineHeight: 1.15, textAlign: 'right' }}>
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="bwp-wide-only" style={{
+                      position: 'absolute', left: '3cqw', bottom: '4cqw', color: '#fff',
+                      fontSize: '4.2cqw', fontWeight: 800, textShadow: '0 1px 6px rgba(0,0,0,0.5)',
+                    }}>
+                      Welcome to Your School!
+                    </div>
+                  </div>
+
+                  {/* Narrow-container variant: welcome text + full-width stacked nav
+                      rows below the image, matching the real sites' mobile layout. */}
+                  <div className="bwp-narrow-only">
+                    <div style={{ background: '#0a3764', color: '#fff', textAlign: 'center', fontWeight: 800, fontSize: 18, padding: '16px 10px' }}>
+                      Welcome to Your School!
+                    </div>
                     {RIGHT_NAV_ITEMS.map(item => (
-                      <div key={item} style={{ color: '#fff', fontSize: '2.6cqw', fontWeight: 600, lineHeight: 1.15, textAlign: 'right' }}>
-                        {item}
+                      <div key={item} style={{
+                        background: '#fff', color: '#0a3764', fontWeight: 700, fontSize: 13,
+                        textAlign: 'center', padding: '14px 10px', borderBottom: '1px solid #0a3764',
+                      }}>
+                        {item.toUpperCase()}
                       </div>
                     ))}
                   </div>
                 </div>
+
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                  This preview mirrors the real homepage banner and right-side navigation. Make sure faces and important subjects stay clear of the right-hand nav.
+                  This preview mirrors the real school-site header, homepage banner, and navigation, including how they reflow on a
+                  smaller screen. Drag the frame&apos;s bottom-right corner (or use the width buttons above) to check narrower widths.
+                  Make sure faces and important subjects stay clear of the right-hand nav.
                 </div>
               </div>
             )}
