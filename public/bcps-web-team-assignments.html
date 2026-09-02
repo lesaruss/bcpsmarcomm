@@ -4960,6 +4960,10 @@
       if (lastUpdatedEl) lastUpdatedEl.textContent = text;
       var meetingDateEl = document.getElementById('meeting-update-date');
       if (meetingDateEl) meetingDateEl.textContent = text;
+      var pillEl = document.getElementById('current-version-pill');
+      if (pillEl) pillEl.textContent = pillEl.textContent.replace(/-\s*[A-Za-z]+ \d{1,2}, \d{4}\s*$/, '- ' + text);
+      var metaVEl = document.getElementById('meta-version');
+      if (metaVEl) metaVEl.textContent = metaVEl.textContent.replace(/-\s*[A-Za-z]+ \d{1,2}, \d{4}\s*$/, '- ' + text);
     }).catch(function(){});
   }
 
