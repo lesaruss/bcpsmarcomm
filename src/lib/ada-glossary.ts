@@ -12,6 +12,25 @@
 // scan of https://silverridge.browardschools.com/ - the 7 findings from
 // that scan are marked below.
 //
+// v2, 2026-09-02, per Sean direct instruction: the v1 fixSteps and
+// escalationNote fields were too thin for a WCM who "just got started" -
+// wcm fixSteps are now sourced from FinalSite's own Composer support
+// documentation (finalsitesupport.com), not guessed. Two real FinalSite
+// sources back most of the wcm-owned steps below: "The Accessibility
+// Checker" (Composer's built-in toolbar tool - flags alt text, link text,
+// heading hierarchy, table headers, and manually-formatted lists, with a
+// one-click Quick Fix for many of them) and "Best Practice: Heading
+// structure" (exact click path for setting H1-H6). Where FinalSite
+// publishes no specific guidance (color contrast, layout tables), that's
+// noted rather than invented.
+//
+// escalationNote on every finalsite-owned entry now reflects the real
+// escalation path Sean specified: these aren't ad-hoc "escalate and wait"
+// tickets, they're tracked here and rolled into a monthly accessibility
+// report BCPS sends to FinalSite. A WCM sees a plain "this isn't yours"
+// note; the district team's copy names the report + FinalSite's support
+// contact.
+//
 // Owner classification is a starting default, not a guarantee: a small
 // number of rules (marked "depends") can fire from either FinalSite's
 // shared template chrome or a WCM's own Composer content, depending on the
@@ -59,7 +78,20 @@ export interface GlossaryEntry {
   escalationNote?: string
   /** True for the 7 findings actually observed on the Silver Ridge pilot scan. */
   seenOnPilot?: boolean
+  /** Source citation for fixSteps/escalationNote content pulled from FinalSite's own docs, shown as a small reference link. */
+  sourceUrl?: string
 }
+
+// Reused verbatim across every finalsite-owned entry so the message is
+// consistent everywhere it appears, per Sean: FinalSite issues aren't
+// escalated one at a time, they accumulate into a monthly report BCPS
+// sends to FinalSite.
+const MONTHLY_REPORT_NOTE =
+  "This isn't something Composer lets a WCM edit. It's tracked automatically here and rolled into BCPS's monthly accessibility report sent to FinalSite (accessibility@finalsite.com handles both compliance questions and VPAT requests on their end) - nothing further is needed from you."
+
+const ACCESSIBILITY_CHECKER_URL = 'https://www.finalsitesupport.com/hc/en-us/articles/360014461631-The-Accessibility-Checker'
+const HEADING_STRUCTURE_URL = 'https://www.finalsitesupport.com/hc/en-us/articles/115000309212-Best-Practice-Heading-structure'
+const PAGE_SETTINGS_URL = 'https://www.finalsitesupport.com/hc/en-us/articles/115000857528-Page-settings'
 
 export const ADA_GLOSSARY: GlossaryEntry[] = [
   // ---- Images & media ----
@@ -74,10 +106,12 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     owner: 'wcm',
     ownerNote: 'Lives inside a Composer content block, set per image.',
     fixSteps: [
-      'Click the image in Composer and open its properties.',
+      "Open Composer's Accessibility Checker (toolbar icon) first - it flags every image missing alt text on the page in one pass and can auto-generate a suggested description for you to review.",
+      'Or fix it directly: click the image in Composer to open its Image Properties panel.',
       "Fill in the Alt Text field with a short, specific description (skip \"image of\" or \"picture of\").",
-      'If the image is purely decorative, mark it decorative instead of leaving alt text blank.',
+      'If the image is purely decorative (a divider, a background flourish), check the "Decorative image" option instead of leaving Alt Text blank or guessing at a description.',
     ],
+    sourceUrl: ACCESSIBILITY_CHECKER_URL,
   },
   {
     key: 'wave-alt-redundant',
@@ -89,8 +123,9 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     owner: 'wcm',
     ownerNote: 'Set per image inside Composer.',
     fixSteps: [
-      'Rewrite the Alt Text field to describe what the image actually shows.',
-      'If it only repeats adjacent text, clear it and mark the image decorative instead.',
+      'Click the image in Composer to open its Image Properties panel.',
+      'Rewrite the Alt Text field to describe what the image actually shows, not the filename and not "image of...".',
+      'If the alt text only repeats text already sitting right next to the image, clear it and mark the image decorative instead.',
     ],
   },
   {
@@ -103,9 +138,9 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     owner: 'depends',
     ownerNote: 'WCM if the video was embedded through Composer\'s video app: source a captioned version of the same video. FinalSite if the video comes from a template-level widget the WCM can\'t edit.',
     fixSteps: [
-      'Replace the embedded video with a captioned version of the same video (auto-captions should be reviewed for accuracy, not trusted as-is).',
+      'Replace the embedded video with a captioned version of the same video (auto-captions from YouTube/Vimeo should be reviewed for accuracy, not trusted as-is - fix obvious transcription errors before publishing).',
     ],
-    escalationNote: 'If the video is part of a template widget with no Composer video field, escalate rather than trying to edit the embed code directly.',
+    escalationNote: `If the video is part of a template widget with no Composer video field to swap in a captioned version, it gets marked FinalSite instead of you having to edit embed code directly. ${MONTHLY_REPORT_NOTE}`,
   },
   {
     key: 'object-alt',
@@ -116,7 +151,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'A PDF viewer, embedded document, or similar <object> element has no accessible fallback text.',
     owner: 'finalsite',
     ownerNote: 'Almost always rendered by a template-level embed widget, not something Composer exposes an alt-text field for.',
-    escalationNote: 'Escalate: this is not editable through page content.',
+    escalationNote: MONTHLY_REPORT_NOTE,
   },
 
   // ---- Headings & structure ----
@@ -131,10 +166,13 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     owner: 'wcm',
     ownerNote: 'Heading structure is set per page inside Composer content.',
     fixSteps: [
-      'Select the heading text.',
-      'Use the Composer paragraph style dropdown to set the correct Heading level, in order (H1, then H2, then H3).',
-      "Never skip a level just to get a certain visual size, style the correct heading tag with CSS instead.",
+      'Highlight the heading text inside your content block.',
+      'Click the Formatting icon (the pilcrow symbol, ¶) in the Composer toolbar.',
+      'Choose the correct heading level from the dropdown - work in order down the page: one H1, then H2s under it, then H3s under those. Never skip from H2 straight to H4.',
+      'Setting a heading on an element title instead (a Feed, Accordion, or similar app)? Use the H1-H6 dropdown next to the title field in that element\'s own settings, not the content toolbar.',
+      'Never pick a heading level just to get a certain font size - if the size is wrong, style the correct heading tag with CSS instead of changing the tag.',
     ],
+    sourceUrl: HEADING_STRUCTURE_URL,
   },
   {
     key: 'empty-heading',
@@ -146,7 +184,11 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'A heading style is applied to a line with no visible text, or only an image with no alt text inside it.',
     owner: 'wcm',
     ownerNote: 'A leftover formatting artifact inside a Composer content block.',
-    fixSteps: ['Delete the empty heading block, or add real text (or image alt text) to it.'],
+    fixSteps: [
+      'Find the empty heading line in your content block (Composer\'s Accessibility Checker will flag it for you).',
+      'Delete the empty heading block entirely, or add real text to it.',
+      'If it wraps an image instead of text, add alt text to that image rather than leaving the heading empty.',
+    ],
   },
 
   // ---- Links ----
@@ -160,7 +202,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     owner: 'depends',
     ownerNote: 'FinalSite by default: confirmed on Silver Ridge to come from the district News widget repeating "headline + Read More" per article (74 instances), entirely template-generated. WCM only if hand-built inside a Composer text block.',
     fixSteps: ['If typed by hand in Composer, combine the two links into one, or make the duplicate a plain, non-linked mention.'],
-    escalationNote: 'If it repeats across many items on the page (a news feed, a directory), it is almost certainly the widget template, escalate rather than trying to edit per item.',
+    escalationNote: `If it repeats across many items on the page (a news feed, a directory), it is almost certainly the widget template, not something to fix per item. ${MONTHLY_REPORT_NOTE}`,
     seenOnPilot: true,
   },
   {
@@ -173,7 +215,12 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'Link text like "click here," "read more," or a bare URL that doesn\'t tell a screen reader user where the link goes out of context.',
     owner: 'wcm',
     ownerNote: 'The visible link text is set per link inside Composer content.',
-    fixSteps: ['Rewrite the visible link text to describe the destination, for example "View the 2026/27 meal benefits application" instead of "click here."'],
+    fixSteps: [
+      "Run Composer's Accessibility Checker to see every non-descriptive link flagged across the page at once.",
+      'Select the link text and edit it directly (no need to touch the underlying URL).',
+      'Rewrite it to describe the destination, for example "View the 2026/27 meal benefits application" instead of "click here" or "read more."',
+    ],
+    sourceUrl: ACCESSIBILITY_CHECKER_URL,
   },
   {
     key: 'wave-empty-link',
@@ -184,8 +231,8 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'A link has no text, label, or alt text at all, so it announces as just "link" with no destination.',
     owner: 'depends',
     ownerNote: 'WCM if it\'s a text or image link inside a Composer content block. FinalSite if it\'s an icon-only link in the navigation or a social icon in the template footer.',
-    fixSteps: ['Add link text, or add alt text to the linked image.'],
-    escalationNote: 'Icon-only nav or footer links are template markup, escalate instead.',
+    fixSteps: ['Add link text, or add alt text to the linked image, inside that content block\'s Image Properties or text editor.'],
+    escalationNote: `Icon-only nav or footer links are template markup a WCM can't reach in Composer. ${MONTHLY_REPORT_NOTE}`,
   },
   {
     key: 'skip-link',
@@ -196,7 +243,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'The "skip to main content" link that should appear for keyboard users at the top of the page is missing or doesn\'t jump anywhere.',
     owner: 'finalsite',
     ownerNote: "Skip links are part of the site template's header markup, not page content.",
-    escalationNote: 'Escalate.',
+    escalationNote: MONTHLY_REPORT_NOTE,
   },
 
   // ---- Lists & tables ----
@@ -210,10 +257,12 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     owner: 'wcm',
     ownerNote: 'Confirmed on Silver Ridge: lives inside a Composer content block, not the template.',
     fixSteps: [
-      'Select the affected lines.',
+      'This exact pattern is what FinalSite calls a "manually formatted list" - Composer\'s Accessibility Checker flags it directly and can often fix it with one click.',
+      'To fix it by hand: select the affected lines.',
       'Click Clear Formatting.',
-      "Reapply the list using Composer's Bulleted List or Numbered List button.",
+      "Reapply the list using Composer's Bulleted List or Numbered List toolbar button, not typed dashes or numbers.",
     ],
+    sourceUrl: ACCESSIBILITY_CHECKER_URL,
     seenOnPilot: true,
   },
   {
@@ -225,7 +274,10 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'A table was inserted just to line things up side by side, which screen readers announce as a data table with rows and columns that don\'t mean anything.',
     owner: 'wcm',
     ownerNote: 'Set per page inside Composer.',
-    fixSteps: ["Rebuild the layout using Composer's columns or layout tool instead of a table.", 'Reserve the Table tool for actual tabular data.'],
+    fixSteps: [
+      "Rebuild the layout using Composer's Columns element instead of a table - FinalSite doesn't publish a table-specific fix here, but this is the standard swap: Columns for layout, Table only for real data.",
+      'Reserve the Table tool strictly for actual tabular data (a bell schedule, a staff list) going forward.',
+    ],
   },
   {
     key: 'th-has-data-cells',
@@ -236,7 +288,11 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: "A real data table (a bell schedule, a staff list) doesn't mark its first row or column as headers, so screen readers can't announce what each cell means.",
     owner: 'wcm',
     ownerNote: "Set at table-insertion time inside Composer's table tool.",
-    fixSteps: ['When inserting the table, check the "first row is a header" (or column) option in the table tool, don\'t just bold the top row manually.'],
+    fixSteps: [
+      "Composer's Accessibility Checker flags tables missing header cells - open it before publishing a new table.",
+      'When inserting or editing the table, check the "First row is a header" (or "First column") option in the table tool itself, rather than just bolding the top row by hand - bold text alone doesn\'t register as a header to a screen reader.',
+    ],
+    sourceUrl: ACCESSIBILITY_CHECKER_URL,
   },
 
   // ---- Forms ----
@@ -250,8 +306,8 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: "A text field, checkbox, or dropdown has no associated label, so a screen reader user can't tell what it's asking for.",
     owner: 'depends',
     ownerNote: "WCM if built with FinalSite's Forms app. FinalSite if it's a template-level form widget the WCM didn't build.",
-    fixSteps: ["Add a label to every field in the Forms app builder, don't rely on placeholder text alone."],
-    escalationNote: 'Escalate a template-level form (a global "Contact Us" block) rather than trying to edit it in Composer.',
+    fixSteps: ["Open the form in the Forms app builder and add a visible Label to every field - don't rely on placeholder text alone, placeholder text disappears once someone starts typing and isn't reliably read by screen readers."],
+    escalationNote: `A template-level form (a global "Contact Us" block that isn't built through your own Forms app) isn't editable in Composer. ${MONTHLY_REPORT_NOTE}`,
   },
 
   // ---- Contrast ----
@@ -264,13 +320,12 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     title: 'Very low text contrast',
     definition: 'Text color against its background falls under the 4.5:1 minimum (3:1 for large text, 24px and up).',
     owner: 'wcm',
-    ownerNote: 'Confirmed pattern: set with Composer\'s text color tool on a content block, not a template style.',
+    ownerNote: 'Confirmed pattern: set with Composer\'s text color tool on a content block, not a template style. FinalSite doesn\'t publish its own contrast-checking tool, so this fix leans on the BCPS palette + an external checker.',
     fixSteps: [
-      "Click Clear Formatting to return to the template's default (already ADA-checked) text color.",
+      "Click Clear Formatting to return to the template's default text color (already ADA-checked) - this alone resolves most cases.",
       'If a custom color is genuinely needed, pick from the BCPS ADA-compliant secondary palette, matched to the background it sits on.',
-      'If unsure, check the pairing at webaim.org/resources/contrastchecker before publishing, it needs to clear 4.5:1.',
+      'Before publishing, verify the exact pairing at webaim.org/resources/contrastchecker - it needs to clear 4.5:1 for normal text, 3:1 for large text.',
     ],
-    seenOnPilot: true,
   },
   {
     key: 'wave-contrast-ui',
@@ -281,7 +336,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'A custom-colored button or highlighted box inserted through Composer falls below the 3:1 minimum for graphical UI components.',
     owner: 'wcm',
     ownerNote: 'Custom color choice made inside Composer.',
-    fixSteps: ['Pick a background/text combination from the BCPS ADA-compliant secondary palette rather than a freehand color choice.'],
+    fixSteps: ['Pick a background/text combination from the BCPS ADA-compliant secondary palette rather than a freehand color choice, then verify it at webaim.org/resources/contrastchecker before publishing.'],
   },
 
   // ---- Page-level & language ----
@@ -294,7 +349,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: "The page's <html> tag has no lang attribute, so screen readers can't pick the right pronunciation rules.",
     owner: 'finalsite',
     ownerNote: 'A site-wide template setting, not something set per page.',
-    escalationNote: 'Escalate.',
+    escalationNote: MONTHLY_REPORT_NOTE,
   },
   {
     key: 'html-lang-valid',
@@ -305,7 +360,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: "The page's <html> lang attribute is set, but to a value that isn't a valid language code.",
     owner: 'finalsite',
     ownerNote: 'A site-wide template setting.',
-    escalationNote: 'Escalate.',
+    escalationNote: MONTHLY_REPORT_NOTE,
   },
   {
     key: 'wave-title-missing',
@@ -316,7 +371,13 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: "The browser tab title is blank, generic, or identical to another page, so screen reader and tab users can't tell pages apart.",
     owner: 'wcm',
     ownerNote: 'Set per page in Composer.',
-    fixSteps: ['Set a specific, unique title in the page\'s SEO/Title field when creating or editing the page.'],
+    fixSteps: [
+      'Open the page and click the gear icon in the bottom toolbar to open Page Settings.',
+      'Go to the SEO tab.',
+      'Check the "Custom" box next to SEO Title if it isn\'t already, then enter a specific title unique to this page - keep it under 50-60 characters so it doesn\'t get cut off in search results and browser tabs.',
+      "While you're there, fill in the SEO Description too (a short summary of what's on the page) - it's a different field, but empty descriptions get flagged just as often as missing titles.",
+    ],
+    sourceUrl: PAGE_SETTINGS_URL,
   },
 
   // ---- ARIA & landmarks ----
@@ -329,7 +390,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'An element with a role like "menu" or "list" is missing the specific child roles ARIA requires it to contain.',
     owner: 'finalsite',
     ownerNote: 'Confirmed on Silver Ridge: traces to the global navigation / quick-links menu markup, part of the shared template.',
-    escalationNote: 'Escalate.',
+    escalationNote: MONTHLY_REPORT_NOTE,
     seenOnPilot: true,
   },
   {
@@ -341,7 +402,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'An element with a child ARIA role (like "menuitem") isn\'t wrapped in the parent role it requires (like "menu").',
     owner: 'finalsite',
     ownerNote: 'Confirmed on Silver Ridge: same template navigation system as aria-required-children.',
-    escalationNote: 'Escalate.',
+    escalationNote: MONTHLY_REPORT_NOTE,
     seenOnPilot: true,
   },
   {
@@ -353,7 +414,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'Two regions on the page (often two <nav> elements) have the same role with no distinguishing accessible name.',
     owner: 'finalsite',
     ownerNote: 'Confirmed on Silver Ridge: the header menu and the sidebar quick-links both render as unlabeled nav regions in the template.',
-    escalationNote: 'Escalate.',
+    escalationNote: MONTHLY_REPORT_NOTE,
     seenOnPilot: true,
   },
   {
@@ -365,7 +426,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: "An aria-labelledby or aria-describedby attribute points to an element ID that doesn't exist on the page.",
     owner: 'finalsite',
     ownerNote: 'Code-level wiring inside a template component, not editable through Composer.',
-    escalationNote: 'Escalate.',
+    escalationNote: MONTHLY_REPORT_NOTE,
   },
 
   // ---- Scripts & embeds ----
@@ -378,7 +439,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'A <noscript> fallback block is present on the page, usually paired with an embedded script.',
     owner: 'finalsite',
     ownerNote: 'Confirmed on Silver Ridge: output of a template-embedded script (analytics, chat widget), not page content.',
-    escalationNote: 'Escalate.',
+    escalationNote: MONTHLY_REPORT_NOTE,
     seenOnPilot: true,
   },
   {
@@ -390,7 +451,7 @@ export const ADA_GLOSSARY: GlossaryEntry[] = [
     definition: 'An interactive element (often a dropdown menu) only responds to mouse events, not keyboard.',
     owner: 'finalsite',
     ownerNote: 'Template JavaScript behavior driving the navigation, not page content.',
-    escalationNote: 'Escalate.',
+    escalationNote: MONTHLY_REPORT_NOTE,
   },
 ]
 
