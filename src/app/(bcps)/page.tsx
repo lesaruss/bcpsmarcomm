@@ -112,6 +112,7 @@ function HomeInner() {
       {nav.page === 'ada-scanner'              && <AdaScannerPage />}
       {nav.page === 'ada-manager'              && <ADAManagerPage />}
       {nav.page === 'registrations'            && effectiveRole === 'superadmin' && <RegistrationsPage />}
+      {nav.page === 'banner-submissions'       && <BannerSubmissionsPage />}
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>
