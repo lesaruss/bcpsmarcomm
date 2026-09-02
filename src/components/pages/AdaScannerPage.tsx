@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase'
 import { lookupAxeEntry, lookupWaveEntry, type GlossaryOwner } from '@/lib/ada-glossary'
 import { resolveOwner, fetchOwnerOverrides, setOwnerOverride, type OwnerOverrideMap } from '@/lib/ada-owner-overrides'
 import AdaGlossaryPanel from '@/components/AdaGlossaryPanel'
+import FixWalkthrough from '@/components/ada/FixWalkthrough'
 
 interface Violation {
   id: string
@@ -110,6 +111,9 @@ type Bucketed = {
   affectedElements?: number | null
   countSuffix?: string
   glossaryKey?: string
+  fixSteps?: string[]
+  escalationNote?: string
+  sourceUrl?: string
 }
 
 function bucketResult(result: ScanResult, overrides: OwnerOverrideMap): Record<GlossaryOwner, Bucketed[]> {
@@ -122,6 +126,7 @@ function bucketResult(result: ScanResult, overrides: OwnerOverrideMap): Record<G
       key: `axe-${v.id}-${i}`, owner, entryFound: !!entry,
       title: entry?.title ?? v.help, definition: entry?.definition ?? v.description,
       helpUrl: v.helpUrl, affectedElements: v.affected_elements, glossaryKey: entry?.key,
+      fixSteps: entry?.fixSteps, escalationNote: entry?.escalationNote, sourceUrl: entry?.sourceUrl,
     })
   })
 
@@ -133,6 +138,7 @@ function bucketResult(result: ScanResult, overrides: OwnerOverrideMap): Record<G
       title: entry?.title ?? v.description,
       definition: `${v.category[0].toUpperCase()}${v.category.slice(1)} finding`,
       countSuffix: ` (${v.count}x)`, glossaryKey: entry?.key,
+      fixSteps: entry?.fixSteps, escalationNote: entry?.escalationNote, sourceUrl: entry?.sourceUrl,
     })
   })
 
@@ -140,6 +146,7 @@ function bucketResult(result: ScanResult, overrides: OwnerOverrideMap): Record<G
 }
 
 function FindingCard({ f, onReclassify }: { f: Bucketed; onReclassify?: (owner: GlossaryOwner) => void }) {
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false)
   return (
     <div style={{ borderLeft: `3px solid ${f.owner === 'wcm' ? '#16750C' : f.owner === 'finalsite' ? '#C55326' : '#D4B106'}`, paddingLeft: 12, paddingTop: 2, paddingBottom: 2 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
@@ -155,6 +162,19 @@ function FindingCard({ f, onReclassify }: { f: Bucketed; onReclassify?: (owner: 
           <a href={f.helpUrl} target="_blank" rel="noreferrer" style={{ color: BLUE }}>axe-core reference for this rule</a> (glossary entry pending)
         </div>
       )}
+      {f.owner === 'wcm' && f.fixSteps && f.fixSteps.length > 0 && (
+        <button
+          onClick={() => setWalkthroughOpen(true)}
+          style={{ marginTop: 8, fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: `1px solid ${BLUE}`, background: '#fff', color: BLUE, cursor: 'pointer' }}
+        >
+          Walk me through it →
+        </button>
+      )}
+      {(f.owner === 'finalsite' || f.owner === 'depends') && f.escalationNote && (
+        <div style={{ marginTop: 8, fontSize: 11, color: '#9a6700', background: '#fff8e6', border: '1px solid #f5deb0', borderRadius: 6, padding: '6px 9px' }}>
+          {f.escalationNote}
+        </div>
+      )}
       {onReclassify && (
         <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
           <button onClick={() => onReclassify('wcm')} style={{ fontSize: 11, fontWeight: 700, padding: '4px 9px', borderRadius: 6, border: '1px solid #16750C', background: '#fff', color: '#16750C', cursor: 'pointer' }}>
@@ -164,6 +184,9 @@ function FindingCard({ f, onReclassify }: { f: Bucketed; onReclassify?: (owner: 
             Mark: FinalSite
           </button>
         </div>
+      )}
+      {walkthroughOpen && f.fixSteps && (
+        <FixWalkthrough title={f.title} steps={f.fixSteps} sourceUrl={f.sourceUrl} onClose={() => setWalkthroughOpen(false)} />
       )}
     </div>
   )
