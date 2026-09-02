@@ -25,12 +25,20 @@
 // 2026-09-02, same day: added real per-page issue detail under "View
 // pages" - each finding is resolved against the same glossary the
 // standalone ADA Scanner uses (lib/ada-glossary.ts), not just a raw
-// score. Reuses the exact rendering pattern from AdaScannerPage.tsx so
-// the two surfaces read consistently.
+// score.
+//
+// 2026-09-02, same day, second pass: findings are now grouped into three
+// tabs by who owns the fix - "You Can Fix", "FinalSite", "Depends" - per
+// Sean, direct instruction. This is the district view, so all three tabs
+// show (the school-portal WCM view only ever shows the "You Can Fix"
+// bucket - see AdaScannerPage.tsx's WCM-mode rendering). A "Depends"
+// finding can be reclassified here by an admin (lib/ada-owner-overrides.ts)
+// - until it is, it counts as not the school's responsibility.
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { lookupAxeEntry, lookupWaveEntry, type GlossaryOwner } from '@/lib/ada-glossary'
+import { resolveOwner, fetchOwnerOverrides, setOwnerOverride, type OwnerOverrideMap } from '@/lib/ada-owner-overrides'
 
 interface School {
   id: string
@@ -90,20 +98,11 @@ const SEVERITY_COLORS: Record<string, string> = {
   minor:    '#6B7280',
 }
 
-const OWNER_META: Record<GlossaryOwner, { label: string; color: string; bg: string }> = {
-  wcm:       { label: 'You can fix this',        color: '#fff',    bg: '#16750C' },
-  finalsite: { label: 'FinalSite issue, escalate', color: '#fff',  bg: '#C55326' },
-  depends:   { label: 'Depends, see note',        color: '#2b2200', bg: '#D4B106' },
-}
-
-function OwnerPill({ owner }: { owner: GlossaryOwner }) {
-  const m = OWNER_META[owner]
-  return (
-    <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.02em', color: m.color, background: m.bg, whiteSpace: 'nowrap' }}>
-      {m.label}
-    </span>
-  )
-}
+const OWNER_TABS: { owner: GlossaryOwner; label: string }[] = [
+  { owner: 'wcm', label: 'You Can Fix' },
+  { owner: 'finalsite', label: 'FinalSite' },
+  { owner: 'depends', label: 'Depends' },
+]
 
 const C = {
   card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 20, marginBottom: 16 } as React.CSSProperties,
@@ -140,98 +139,174 @@ function ScoreRing({ score }: { score: number | null | undefined }) {
   )
 }
 
-// Same detail rendering AdaScannerPage uses for a single scan result,
-// scoped down to one page's worth of findings inside a school card.
-function PageIssueDetail({ page }: { page: SchoolPage }) {
+// One finding, resolved against the glossary + any admin override. Shared
+// by the axe and WAVE branches below (they carry slightly different raw
+// shapes, so the caller passes in the already-looked-up entry + owner).
+function FindingCard({
+  title, definition, helpUrl, ownerLabel, owner, entryFound, affectedElements, countSuffix,
+  onReclassify,
+}: {
+  title: string
+  definition: string
+  helpUrl?: string
+  ownerLabel: React.ReactNode
+  owner: GlossaryOwner
+  entryFound: boolean
+  affectedElements?: number | null
+  countSuffix?: string
+  onReclassify?: (owner: GlossaryOwner) => void
+}) {
+  return (
+    <div style={{ borderLeft: `3px solid ${owner === 'wcm' ? '#16750C' : owner === 'finalsite' ? '#C55326' : '#D4B106'}`, paddingLeft: 10, paddingTop: 1, paddingBottom: 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#111827' }}>{title}{countSuffix}</div>
+        {ownerLabel}
+      </div>
+      <div style={{ fontSize: 11.5, color: '#6b7280', marginTop: 2 }}>{definition}</div>
+      {affectedElements != null && (
+        <div style={{ fontSize: 10.5, color: '#9ca3af', marginTop: 2 }}>{affectedElements} element(s) affected</div>
+      )}
+      {!entryFound && helpUrl && (
+        <div style={{ marginTop: 4, fontSize: 10.5, color: '#9ca3af' }}>
+          <a href={helpUrl} target="_blank" rel="noreferrer" style={{ color: BLUE }}>axe-core reference for this rule</a> (glossary entry pending)
+        </div>
+      )}
+      {onReclassify && (
+        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+          <button
+            onClick={() => onReclassify('wcm')}
+            style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 6, border: '1px solid #16750C', background: '#fff', color: '#16750C', cursor: 'pointer' }}
+          >
+            Mark: WCM can fix
+          </button>
+          <button
+            onClick={() => onReclassify('finalsite')}
+            style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 6, border: '1px solid #C55326', background: '#fff', color: '#C55326', cursor: 'pointer' }}
+          >
+            Mark: FinalSite
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function OwnerBadge({ owner, entryFound }: { owner: GlossaryOwner; entryFound: boolean }) {
+  if (!entryFound) {
+    return (
+      <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', background: '#f3f4f6', borderRadius: 999, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+        Not yet catalogued
+      </span>
+    )
+  }
+  const meta = owner === 'wcm'
+    ? { label: 'You can fix this', color: '#fff', bg: '#16750C' }
+    : owner === 'finalsite'
+      ? { label: 'FinalSite issue, escalate', color: '#fff', bg: '#C55326' }
+      : { label: 'Depends, see note', color: '#2b2200', bg: '#D4B106' }
+  return (
+    <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.02em', color: meta.color, background: meta.bg, whiteSpace: 'nowrap' }}>
+      {meta.label}
+    </span>
+  )
+}
+
+type Bucketed = {
+  key: string
+  owner: GlossaryOwner
+  entryFound: boolean
+  title: string
+  definition: string
+  helpUrl?: string
+  affectedElements?: number | null
+  countSuffix?: string
+  glossaryKey?: string
+}
+
+function bucketPage(page: SchoolPage, overrides: OwnerOverrideMap): Record<GlossaryOwner, Bucketed[]> {
+  const buckets: Record<GlossaryOwner, Bucketed[]> = { wcm: [], finalsite: [], depends: [] }
+
+  page.ada_violations.forEach((v, i) => {
+    const entry = lookupAxeEntry(v.id)
+    const owner = resolveOwner(entry, overrides)
+    buckets[owner].push({
+      key: `axe-${v.id}-${i}`,
+      owner,
+      entryFound: !!entry,
+      title: entry?.title ?? v.help,
+      definition: entry?.definition ?? v.description,
+      helpUrl: v.helpUrl,
+      affectedElements: v.affected_elements,
+      glossaryKey: entry?.key,
+    })
+  })
+
+  ;(page.wave_violations ?? []).forEach((v, i) => {
+    const entry = lookupWaveEntry(v.id, v.description)
+    const owner = resolveOwner(entry, overrides)
+    buckets[owner].push({
+      key: `wave-${v.id}-${i}`,
+      owner,
+      entryFound: !!entry,
+      title: entry?.title ?? v.description,
+      definition: `${v.category[0].toUpperCase()}${v.category.slice(1)} finding`,
+      countSuffix: ` (${v.count}x)`,
+      glossaryKey: entry?.key,
+    })
+  })
+
+  return buckets
+}
+
+function PageIssueDetail({ page, overrides, onReclassify }: {
+  page: SchoolPage
+  overrides: OwnerOverrideMap
+  onReclassify: (glossaryKey: string, owner: GlossaryOwner) => void
+}) {
+  const [tab, setTab] = useState<GlossaryOwner>('wcm')
+  const buckets = bucketPage(page, overrides)
+  const active = buckets[tab]
+
   return (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #e5e7eb' }}>
-      {page.ada_violations.length === 0 && (!page.wave_violations || page.wave_violations.length === 0) ? (
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+        {OWNER_TABS.map(t => (
+          <button
+            key={t.owner}
+            onClick={() => setTab(t.owner)}
+            style={{
+              fontSize: 11, fontWeight: 700, padding: '5px 10px', borderRadius: 999, cursor: 'pointer',
+              border: `1px solid ${tab === t.owner ? BLUE : '#d1d5db'}`,
+              background: tab === t.owner ? BLUE : '#fff',
+              color: tab === t.owner ? '#fff' : '#374151',
+            }}
+          >
+            {t.label} ({buckets[t.owner].length})
+          </button>
+        ))}
+      </div>
+
+      {active.length === 0 ? (
         <div style={{ fontSize: 12.5, color: '#059669', fontWeight: 600 }}>
-          No failing axe-core or WAVE checks found on this page. 🎉
+          {tab === 'wcm' ? 'No fixable-by-WCM findings in this bucket. 🎉' : `No ${tab === 'finalsite' ? 'FinalSite' : 'depends'} findings on this page.`}
         </div>
       ) : (
-        <>
-          {page.ada_violations.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: page.wave_violations?.length ? 12 : 0 }}>
-              {page.ada_violations.map((v, i) => {
-                const entry = lookupAxeEntry(v.id)
-                return (
-                  <div key={`${v.id}-${i}`} style={{ borderLeft: `3px solid ${SEVERITY_COLORS[v.impact ?? 'minor']}`, paddingLeft: 10, paddingTop: 1, paddingBottom: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#111827' }}>{entry?.title ?? v.help}</div>
-                      {entry ? <OwnerPill owner={entry.owner} /> : (
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', background: '#f3f4f6', borderRadius: 999, padding: '3px 9px', whiteSpace: 'nowrap' }}>
-                          Not yet catalogued
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 11.5, color: '#6b7280', marginTop: 2 }}>{entry?.definition ?? v.description}</div>
-                    {v.affected_elements != null && (
-                      <div style={{ fontSize: 10.5, color: '#9ca3af', marginTop: 2 }}>{v.affected_elements} element(s) affected</div>
-                    )}
-                    {entry ? (
-                      <div style={{ marginTop: 6, background: '#fafafa', border: '1px solid #f3f4f6', borderRadius: 6, padding: '7px 9px' }}>
-                        <div style={{ fontSize: 11, color: '#374151' }}>
-                          <b>{entry.owner === 'finalsite' ? 'Escalation: ' : entry.owner === 'depends' ? 'How to tell: ' : 'Fix: '}</b>
-                          {entry.ownerNote}
-                        </div>
-                        {entry.fixSteps && (
-                          <ol style={{ margin: '5px 0 0', paddingLeft: 16, fontSize: 11, color: '#374151' }}>
-                            {entry.fixSteps.map((s, si) => <li key={si} style={{ marginBottom: 2 }}>{s}</li>)}
-                          </ol>
-                        )}
-                      </div>
-                    ) : (
-                      <div style={{ marginTop: 4, fontSize: 10.5, color: '#9ca3af' }}>
-                        <a href={v.helpUrl} target="_blank" rel="noreferrer" style={{ color: BLUE }}>axe-core reference for this rule</a> (glossary entry pending)
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {page.wave_violations && page.wave_violations.length > 0 && (
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af', marginBottom: 6 }}>
-                WAVE items ({page.wave_violations.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {page.wave_violations.map((v, i) => {
-                  const entry = lookupWaveEntry(v.id, v.description)
-                  return (
-                    <div key={`${v.id}-${i}`} style={{ fontSize: 11.5, color: '#374151' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <div>
-                          <span style={{ fontWeight: 700, textTransform: 'capitalize' }}>{v.category}</span>: {entry?.title ?? v.description} ({v.count}x)
-                        </div>
-                        {entry ? <OwnerPill owner={entry.owner} /> : (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', background: '#f3f4f6', borderRadius: 999, padding: '3px 9px', whiteSpace: 'nowrap' }}>
-                            Not yet catalogued
-                          </span>
-                        )}
-                      </div>
-                      {entry && (
-                        <div style={{ marginTop: 4, background: '#fafafa', border: '1px solid #f3f4f6', borderRadius: 6, padding: '7px 9px' }}>
-                          <div style={{ fontSize: 11 }}>
-                            <b>{entry.owner === 'finalsite' ? 'Escalation: ' : entry.owner === 'depends' ? 'How to tell: ' : 'Fix: '}</b>
-                            {entry.ownerNote}
-                          </div>
-                          {entry.fixSteps && (
-                            <ol style={{ margin: '5px 0 0', paddingLeft: 16, fontSize: 11 }}>
-                              {entry.fixSteps.map((s, si) => <li key={si} style={{ marginBottom: 2 }}>{s}</li>)}
-                            </ol>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {active.map(f => (
+            <FindingCard
+              key={f.key}
+              title={f.title}
+              definition={f.definition}
+              helpUrl={f.helpUrl}
+              affectedElements={f.affectedElements}
+              countSuffix={f.countSuffix}
+              owner={f.owner}
+              entryFound={f.entryFound}
+              ownerLabel={<OwnerBadge owner={f.owner} entryFound={f.entryFound} />}
+              onReclassify={tab === 'depends' && f.glossaryKey ? (o) => onReclassify(f.glossaryKey!, o) : undefined}
+            />
+          ))}
+        </div>
       )}
     </div>
   )
@@ -243,6 +318,7 @@ export default function ADAManagerPage() {
   const supabase = createClient()
   const [schools, setSchools] = useState<School[]>([])
   const [scores, setScores] = useState<Record<string, SchoolScore>>({})
+  const [overrides, setOverrides] = useState<OwnerOverrideMap>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState<ScanProgress>(null)
@@ -260,14 +336,16 @@ export default function ADAManagerPage() {
     setError('')
     try {
       const t = await token()
-      const [schoolsRes, scoresRes] = await Promise.all([
+      const [schoolsRes, scoresRes, overridesMap] = await Promise.all([
         fetch('/api/bcps/schools', { headers: { Authorization: `Bearer ${t}` } }),
         fetch('/api/bcps/school-scores', { headers: { Authorization: `Bearer ${t}` } }),
+        fetchOwnerOverrides(t),
       ])
       const schoolsJson = await schoolsRes.json()
       const scoresJson = await scoresRes.json()
       if (!schoolsRes.ok) throw new Error(schoolsJson.error || 'Failed to load schools.')
       setSchools(schoolsJson.schools ?? [])
+      setOverrides(overridesMap)
       if (scoresRes.ok) {
         const map: Record<string, SchoolScore> = {}
         for (const s of (scoresJson.scores ?? []) as SchoolScore[]) map[s.school_id] = s
@@ -281,6 +359,16 @@ export default function ADAManagerPage() {
   }, [token])
 
   useEffect(() => { loadAll() }, [loadAll])
+
+  const reclassify = useCallback(async (glossaryKey: string, owner: GlossaryOwner) => {
+    try {
+      const t = await token()
+      const map = await setOwnerOverride(t, glossaryKey, owner)
+      setOverrides(map)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save reclassification.')
+    }
+  }, [token])
 
   const addSchool = async () => {
     if (!form.name.trim()) { setError('School name is required.'); return }
@@ -464,26 +552,29 @@ export default function ADAManagerPage() {
                 {isExpanded && score && (
                   <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {score.pages.map(p => {
-                      const totalIssues = p.ada_violations_critical + p.ada_violations_serious + p.ada_violations_moderate + p.ada_violations_minor
+                      // Every page is listed, even ones with zero findings -
+                      // Sean, direct instruction: show all pages, a clean
+                      // page just shows zero.
+                      const totalIssues = p.ada_violations_critical + p.ada_violations_serious + p.ada_violations_moderate + p.ada_violations_minor + (p.wave_violations?.length ?? 0)
                       const isPageOpen = expandedPage === p.page_url
                       return (
                         <div key={p.page_url} style={{ padding: '4px 0' }}>
                           <div
-                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 12, cursor: totalIssues > 0 ? 'pointer' : 'default' }}
-                            onClick={() => { if (totalIssues > 0) setExpandedPage(isPageOpen ? null : p.page_url) }}
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 12, cursor: 'pointer' }}
+                            onClick={() => setExpandedPage(isPageOpen ? null : p.page_url)}
                           >
                             <span style={{ color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
-                              {totalIssues > 0 && <span style={{ fontSize: 10, color: '#9ca3af', transform: isPageOpen ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▸</span>}
+                              <span style={{ fontSize: 10, color: '#9ca3af', transform: isPageOpen ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▸</span>
                               {p.page_url}
                             </span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                              {totalIssues > 0 && (
-                                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#6b7280' }}>{totalIssues} issue{totalIssues === 1 ? '' : 's'}</span>
-                              )}
+                              <span style={{ fontSize: 10.5, fontWeight: 700, color: totalIssues > 0 ? '#6b7280' : '#16a34a' }}>
+                                {totalIssues} issue{totalIssues === 1 ? '' : 's'}
+                              </span>
                               <span style={{ fontWeight: 800, color: scoreColor(p.ada_score) }}>{p.ada_score ?? '—'}</span>
                             </span>
                           </div>
-                          {isPageOpen && <PageIssueDetail page={p} />}
+                          {isPageOpen && <PageIssueDetail page={p} overrides={overrides} onReclassify={reclassify} />}
                         </div>
                       )
                     })}
