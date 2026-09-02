@@ -426,15 +426,15 @@ export default function BannerWidget() {
 
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner type / title *</label>
-              <input type="text" value={bannerTitle} onChange={e => setBannerTitle(e.target.value)} className="input" style={{ width: '100%' }} />
+              <input type="text" value={bannerTitle} onChange={e => setBannerTitle(e.target.value)} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
             </div>
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner caption (optional)</label>
-              <input type="text" value={bannerCaption} onChange={e => setBannerCaption(e.target.value)} className="input" style={{ width: '100%' }} />
+              <input type="text" value={bannerCaption} onChange={e => setBannerCaption(e.target.value)} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
             </div>
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Alternative text *</label>
-              <input type="text" value={altText} onChange={e => setAltText(e.target.value)} className="input" style={{ width: '100%' }} />
+              <input type="text" value={altText} onChange={e => setAltText(e.target.value)} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ background: 'var(--bg-page)', borderRadius: 6, padding: 12 }}>
@@ -472,7 +472,7 @@ export default function BannerWidget() {
         <div style={{ display: 'grid', gap: 12 }}>
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Which submission should be removed? *</label>
-            <select value={removalTargetId} onChange={e => setRemovalTargetId(e.target.value)} className="input" style={{ width: '100%' }}>
+            <select value={removalTargetId} onChange={e => setRemovalTargetId(e.target.value)} className="form-select" style={{ width: '100%', boxSizing: 'border-box' }}>
               <option value="">Select a prior submission...</option>
               {myUploads.map(u => (
                 <option key={u.id} value={u.id}>{u.banner_title || u.file_name} ({u.status})</option>
@@ -482,11 +482,11 @@ export default function BannerWidget() {
           </div>
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Target removal date</label>
-            <input type="date" value={removalDate} onChange={e => setRemovalDate(e.target.value)} className="input" />
+            <input type="date" value={removalDate} onChange={e => setRemovalDate(e.target.value)} className="form-input" />
           </div>
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Description identifying the file *</label>
-            <textarea value={removalDesc} onChange={e => setRemovalDesc(e.target.value)} className="input" style={{ width: '100%', minHeight: 70 }} />
+            <textarea value={removalDesc} onChange={e => setRemovalDesc(e.target.value)} className="form-input" style={{ width: '100%', minHeight: 70, boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical' }} />
           </div>
           {removalNotice && <div style={{ fontSize: 12.5, color: removalNotice.startsWith('Removal request sent') ? '#1e6b3a' : '#a13a2f' }}>{removalNotice}</div>}
           <div>
@@ -561,7 +561,7 @@ export default function BannerWidget() {
                         <input
                           type="text" placeholder="Rejection reason (sent to WCM by email)"
                           value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                          className="input" style={{ flex: 1, fontSize: 12 }}
+                          className="form-input" style={{ flex: 1, fontSize: 12, boxSizing: 'border-box' }}
                         />
                         <button className="btn-outline" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => handleReviewAction(r.id, 'reject')}>Send</button>
                       </div>
@@ -601,9 +601,9 @@ export default function BannerWidget() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <input
               type="email" placeholder="email@browardschools.com" value={newAdminEmail}
-              onChange={e => setNewAdminEmail(e.target.value)} className="input" style={{ flex: 1, minWidth: 200 }}
+              onChange={e => setNewAdminEmail(e.target.value)} className="form-input" style={{ flex: 1, minWidth: 200, boxSizing: 'border-box' }}
             />
-            <select value={newAdminRole} onChange={e => setNewAdminRole(e.target.value as 'admin' | 'manager')} className="input">
+            <select value={newAdminRole} onChange={e => setNewAdminRole(e.target.value as 'admin' | 'manager')} className="form-select">
               <option value="manager">Manager</option>
               <option value="admin">Admin</option>
             </select>
