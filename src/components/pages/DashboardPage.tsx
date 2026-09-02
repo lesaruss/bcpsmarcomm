@@ -8,7 +8,6 @@ import { MEMBERS } from '@/lib/data'
 import { useBCPSShell } from '@/components/BCPSShell'
 import { getTotalPages } from '@/lib/cert-data'
 import { SAMPLE_ROLE_MEMBERS } from '@/components/Sidebar'
-import BannerWidget from '@/components/bcps/BannerWidget'
 
 interface DashboardPageProps {
   onNavigate: (page: PageId) => void
