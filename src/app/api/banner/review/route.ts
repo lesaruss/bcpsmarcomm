@@ -87,13 +87,14 @@ export async function POST(req: NextRequest) {
   let emailWarning: string | undefined
 
   if (action === 'reject') {
-    update.rejection_reason = rejection_reason!.trim()
+    const trimmedReason = rejection_reason!.trim()
+    update.rejection_reason = trimmedReason
 
     if (submission.wcm_email) {
       const label = submission.type === 'upload'
         ? (submission.banner_title || submission.file_name || 'your banner submission')
         : (submission.removal_description || 'your removal request')
-      const safeReason = update.rejection_reason.toString().replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      const safeReason = trimmedReason.replace(/</g, '&lt;').replace(/>/g, '&gt;')
       const result = await sendEmail({
         to: submission.wcm_email,
         subject: `BCPS Banner Submission: "${label}" was not approved`,
