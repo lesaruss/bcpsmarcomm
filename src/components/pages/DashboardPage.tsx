@@ -1011,6 +1011,14 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                 </div>
               ))
 
+            // Banner Submissions - WCM Banner Submission App, built
+            // 2026-09-02 for Vanessa Deslandes / District Web Team on our
+            // own stack (replacing the Power Apps mockup). Self-contained
+            // widget: it does its own data fetching via /api/banner/*, so
+            // this case only needs to mount it.
+            case 'banner':
+              return dashCell('banner', <BannerWidget />)
+
             // Documents - 5 newest or up to 5 favorited, per Sean
             // 2026-08-27. Reads the same access-filtered catalog as the
             // Documents page.
