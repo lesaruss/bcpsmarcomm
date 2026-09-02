@@ -4949,21 +4949,33 @@
   function updateLastUpdatedFromData(){
     var tagsReq = fetch(SUPABASE_URL + '/rest/v1/bcps_assignment_tags?select=updated_at&order=updated_at.desc&limit=1', { headers: efHeaders() }).then(function(r){ return r.json(); }).catch(function(){ return []; });
     var notesReq = fetch(SUPABASE_URL + '/rest/v1/bcps_assignment_notes?select=created_at&order=created_at.desc&limit=1', { headers: efHeaders() }).then(function(r){ return r.json(); }).catch(function(){ return []; });
-    Promise.all([tagsReq, notesReq]).then(function(results){
+    var metaReq = fetch(SUPABASE_URL + '/rest/v1/bcps_tracker_meta?select=version_number,meeting_update_summary&limit=1', { headers: efHeaders() }).then(function(r){ return r.json(); }).catch(function(){ return []; });
+    Promise.all([tagsReq, notesReq, metaReq]).then(function(results){
       var dates = [];
       (results[0] || []).forEach(function(r){ if (r.updated_at) dates.push(new Date(r.updated_at)); });
       (results[1] || []).forEach(function(r){ if (r.created_at) dates.push(new Date(r.created_at)); });
-      if (!dates.length) return;
-      var latest = new Date(Math.max.apply(null, dates));
-      var text = fmtDate(latest);
-      var lastUpdatedEl = document.getElementById('meta-last-updated');
-      if (lastUpdatedEl) lastUpdatedEl.textContent = text;
-      var meetingDateEl = document.getElementById('meeting-update-date');
-      if (meetingDateEl) meetingDateEl.textContent = text;
+      var text = dates.length ? fmtDate(new Date(Math.max.apply(null, dates))) : null;
+      if (text) {
+        var lastUpdatedEl = document.getElementById('meta-last-updated');
+        if (lastUpdatedEl) lastUpdatedEl.textContent = text;
+        var meetingDateEl = document.getElementById('meeting-update-date');
+        if (meetingDateEl) meetingDateEl.textContent = text;
+      }
+      var meta = (results[2] || [])[0];
+      var versionNum = (meta && meta.version_number) ? meta.version_number : 8;
+      var versionLabel = 'Version ' + versionNum + (text ? ' - ' + text : '');
+      var metaLabel = 'v' + versionNum + (text ? ' - ' + text : '');
       var pillEl = document.getElementById('current-version-pill');
-      if (pillEl) pillEl.textContent = pillEl.textContent.replace(/-\s*[A-Za-z]+ \d{1,2}, \d{4}\s*$/, '- ' + text);
+      if (pillEl) pillEl.textContent = versionLabel;
       var metaVEl = document.getElementById('meta-version');
-      if (metaVEl) metaVEl.textContent = metaVEl.textContent.replace(/-\s*[A-Za-z]+ \d{1,2}, \d{4}\s*$/, '- ' + text);
+      if (metaVEl) metaVEl.textContent = metaLabel;
+      var optionEl = document.getElementById('v8-option');
+      if (optionEl && text) optionEl.textContent = text;
+      if (typeof VERSION_LABELS !== 'undefined') { VERSION_LABELS['v8'] = versionLabel; }
+      if (meta && meta.meeting_update_summary) {
+        var summaryEl = document.getElementById('meeting-update-summary');
+        if (summaryEl) summaryEl.textContent = meta.meeting_update_summary;
+      }
     }).catch(function(){});
   }
 
