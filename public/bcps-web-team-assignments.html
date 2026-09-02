@@ -4661,6 +4661,29 @@
     });
   }
 
+  function renderRowTitle(slug){
+    var ef = efCache[slug];
+    if (!ef || !ef.title_override) return;
+    document.querySelectorAll('.assignment-name[data-slug="' + slug + '"]').forEach(function(nameDiv){
+      nameDiv.textContent = ef.title_override;
+    });
+  }
+
+  function initTitleClickHandlers(){
+    document.querySelectorAll('.assignment-row[data-slug]').forEach(function(row){
+      var slug = row.getAttribute('data-slug');
+      var nameDiv = row.querySelector('.assignment-name');
+      if (!nameDiv || nameDiv.getAttribute('data-title-init')) return;
+      nameDiv.setAttribute('data-title-init', '1');
+      nameDiv.setAttribute('data-slug', slug);
+      nameDiv.style.cursor = 'pointer';
+      nameDiv.title = 'Click to edit title';
+      nameDiv.setAttribute('tabindex', '0');
+      nameDiv.setAttribute('role', 'button');
+      nameDiv.addEventListener('click', function(e){ e.stopPropagation(); window.openTitleEditor(nameDiv); });
+    });
+  }
+
   function getEffectiveDeadlineDate(slug, span){
     var ef = efCache[slug];
     if (ef && ef.is_ongoing) return null;
