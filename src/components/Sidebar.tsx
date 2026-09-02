@@ -271,8 +271,7 @@ const SECTIONS: NavSection[] = [
     { id: 'wcm', label: 'WCM Hub' },
     { id: 'department-audit', label: 'Department Name Audit' },
     { id: 'ada-scanner', label: 'ADA Scanner' },
-    { id: 'schools-ada', label: 'Schools ADA' },
-    { id: 'schools', label: 'School ADA Accounts' },
+    { id: 'ada-manager', label: 'ADA Manager' },
   ] },
   { label: 'SuperAdmin', items: [
     { id: 'superadmin', label: 'Platform Management' },
