@@ -20,7 +20,11 @@ const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const supabase = createClient(URL, SERVICE, { auth: { persistSession: false } })
 
-const ACCESS_REQUEST_RECIPIENTS = ['contact@lesaruss.com', 'felicia.hicks@browardschools.com']
+// Sent to both Sean's LESARUSS inbox and his BCPS/Outlook address (Sean,
+// 2026-09-02): he wants this landing in the mailbox he actually checks for
+// district business, not only the LESARUSS one. Felicia's BCPS/Outlook
+// address was already covered.
+const ACCESS_REQUEST_RECIPIENTS = ['contact@lesaruss.com', 'sean.russell@browardschools.com', 'felicia.hicks@browardschools.com']
 
 async function verifyCaller(req: NextRequest) {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
