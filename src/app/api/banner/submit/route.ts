@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase-admin'
+import { sendEmail } from '@/lib/resend'
 
 // WCM Banner Submission App - New Upload.
 // Mirrors the src/app/api/cert/upload/route.ts pattern: caller verified via
@@ -21,6 +22,14 @@ import { createServiceClient } from '@/lib/supabase-admin'
 // - checklist_ack: the 4 required acknowledgement checkboxes, verbatim from
 //   the source mockup, must all be true or the submission is rejected here
 //   too (defense in depth - the widget already blocks submit client-side).
+//
+// Submission-received notification, per Sean, 2026-09-02: "Can I send
+// Vanessa an email notification that it's been submitted or whoever she
+// designates?" - notifies every current row in bcps_banner_admins (the same
+// list Vanessa, as Admin, already manages herself via the widget's Manage
+// Admins tab), so the recipient list is hers to control without a code
+// change. Mirrors the rejection-email pattern in /api/banner/review: best
+// effort, never blocks the submission itself, outcome logged onto the row.
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -44,6 +53,37 @@ async function verifyCaller(token: string) {
   })
   const { data: { user } } = await asUser.auth.getUser()
   return user
+}
+
+async function notifySubmissionReceived(row: {
+  id: string
+  banner_title: string | null
+  file_name: string | null
+  wcm_email: string | null
+}) {
+  const { data: admins } = await svc.from('bcps_banner_admins').select('email')
+  const recipients = (admins ?? []).map(a => a.email).filter((e): e is string => !!e)
+  if (recipients.length === 0) return
+
+  const label = row.banner_title || row.file_name || 'a new banner'
+  const result = await sendEmail({
+    to: recipients,
+    subject: `New BCPS banner submission: "${label}"`,
+    html: `
+      <p>Hi,</p>
+      <p>${row.wcm_email ? `<strong>${row.wcm_email}</strong>` : 'A WCM'} just submitted a new banner for review:
+      <strong>"${label}"</strong>.</p>
+      <p><a href="https://bcpsmarcomm.com/?page=banner-submissions">Review it in the Banner Submissions queue</a>.</p>
+      <p style="color:#888;font-size:12px">This is an automated message from the BCPS WCM Banner Submission App. You're
+      receiving it because you're listed as an Admin or Manager for this tool - manage that list from the Manage Admins
+      tab on the Banner Submissions page.</p>
+    `,
+  })
+
+  await svc.from('bcps_banner_submissions').update({
+    notify_email_sent_at: result.ok ? new Date().toISOString() : null,
+    notify_email_error: result.ok ? null : (result.error || 'Unknown send error'),
+  }).eq('id', row.id)
 }
 
 export async function POST(req: NextRequest) {
@@ -104,9 +144,11 @@ export async function POST(req: NextRequest) {
     banner_caption: banner_caption?.trim() || null,
     alt_text: alt_text.trim(),
     checklist_ack: { ...checklist_ack, acked_at: new Date().toISOString() },
-  }).select('id').single()
+  }).select('id, banner_title, file_name, wcm_email').single()
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
+
+  await notifySubmissionReceived(row).catch(() => {})
 
   return NextResponse.json({ ok: true, id: row.id })
 }
