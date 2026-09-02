@@ -33,6 +33,7 @@ import RequestsPage from '@/components/pages/RequestsPage'
 import AdaScannerPage from '@/components/pages/AdaScannerPage'
 import ADAManagerPage from '@/components/pages/ADAManagerPage'
 import RegistrationsPage from '@/components/pages/RegistrationsPage'
+import BannerSubmissionsPage from '@/components/pages/BannerSubmissionsPage'
 import { SAMPLE_SUPERADMIN_ID, type UserRole } from '@/components/Sidebar'
 
 const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations'])
