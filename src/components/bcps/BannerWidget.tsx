@@ -459,15 +459,10 @@ export default function BannerWidget() {
                       </svg>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '3.4cqw', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Your School Name</div>
-                      <div style={{ fontSize: '2cqw', fontStyle: 'italic', opacity: 0.85, whiteSpace: 'nowrap' }}>Broward County Public Schools</div>
+                      <div style={{ fontSize: '4.2cqw', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Your School Name</div>
+                      <div style={{ fontSize: '2.4cqw', fontStyle: 'italic', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Broward County Public Schools</div>
                     </div>
-                    <div style={{ fontSize: '1.9cqw', fontWeight: 600, whiteSpace: 'nowrap', opacity: 0.9 }}>Parent Resources ▾</div>
-                    <div style={{ fontSize: '1.9cqw', fontWeight: 600, whiteSpace: 'nowrap', opacity: 0.9 }}>District Resources ▾</div>
-                    <div style={{ border: '1px solid #fff', borderRadius: 3, padding: '0.8cqw 1.6cqw', fontSize: '1.7cqw', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                      SPECIALIZED PROGRAMS
-                    </div>
-                    <div style={{ fontSize: '4cqw', lineHeight: 1 }}>☰</div>
+                    <div style={{ fontSize: '5cqw', lineHeight: 1, flexShrink: 0 }}>☰</div>
                   </div>
                   <div className="bwp-narrow-only" style={{ background: '#0a3764', color: '#fff', padding: '10px 14px', textAlign: 'center' }}>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>Your School Name</div>
