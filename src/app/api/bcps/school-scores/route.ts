@@ -7,6 +7,10 @@
 // yet simply has no aggregate - single-page scans (scan_batch_id null,
 // e.g. a WCM using the standalone ADA Scanner tool) are not counted here,
 // they're a different measurement (one page vs. the whole site).
+//
+// 2026-09-02: now also returns each page's ada_violations/wave_violations
+// so ADA Manager can render real per-issue detail (glossary-mapped, same
+// as the standalone ADA Scanner) instead of just a page_url + score row.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -32,6 +36,22 @@ async function requireAuth(req: NextRequest): Promise<{ ok: true } | { ok: false
   return { ok: true }
 }
 
+type ViolationRow = {
+  id: string
+  impact: 'critical' | 'serious' | 'moderate' | 'minor' | null
+  description: string
+  help: string
+  helpUrl: string
+  affected_elements: number | null
+}
+
+type WaveViolationRow = {
+  category: 'error' | 'contrast' | 'alert'
+  id: string
+  description: string
+  count: number
+}
+
 type Row = {
   school_id: string
   scan_batch_id: string | null
@@ -40,6 +60,8 @@ type Row = {
   ada_violations_serious: number | null
   ada_violations_moderate: number | null
   ada_violations_minor: number | null
+  ada_violations: ViolationRow[] | null
+  wave_violations: WaveViolationRow[] | null
   page_url: string
   audited_at: string
 }
@@ -50,7 +72,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await svc
     .from('bcps_audit_results')
-    .select('school_id, scan_batch_id, ada_score, ada_violations_critical, ada_violations_serious, ada_violations_moderate, ada_violations_minor, page_url, audited_at')
+    .select('school_id, scan_batch_id, ada_score, ada_violations_critical, ada_violations_serious, ada_violations_moderate, ada_violations_minor, ada_violations, wave_violations, page_url, audited_at')
     .eq('auditor', 'wcm-ada-scanner')
     .not('school_id', 'is', null)
     .not('scan_batch_id', 'is', null)
@@ -69,15 +91,25 @@ export async function GET(req: NextRequest) {
     if (!latestBatchBySchool.has(r.school_id)) latestBatchBySchool.set(r.school_id, r.scan_batch_id)
   }
 
+  type Page = {
+    page_url: string
+    ada_score: number | null
+    ada_violations: ViolationRow[]
+    wave_violations: WaveViolationRow[]
+    ada_violations_critical: number
+    ada_violations_serious: number
+    ada_violations_moderate: number
+    ada_violations_minor: number
+  }
   type Agg = {
     school_id: string
     scan_batch_id: string
     page_count: number
-    avg_ada_score: number | null
+    avg_ada_score: nuler | null
     critical_count: number
     serious_count: number
     last_audited_at: string
-    pages: { page_url: string; ada_score: number | null }[]
+    pages: Page[]
   }
   const aggBySchool = new Map<string, Agg>()
 
@@ -101,7 +133,16 @@ export async function GET(req: NextRequest) {
     agg.critical_count += r.ada_violations_critical ?? 0
     agg.serious_count += r.ada_violations_serious ?? 0
     if (r.audited_at > agg.last_audited_at) agg.last_audited_at = r.audited_at
-    agg.pages.push({ page_url: r.page_url, ada_score: r.ada_score })
+    agg.pages.push({
+      page_url: r.page_url,
+      ada_score: r.ada_score,
+      ada_violations: r.ada_violations ?? [],
+      wave_violations: r.wave_violations ?? [],
+      ada_violations_critical: r.ada_violations_critical ?? 0,
+      ada_violations_serious: r.ada_violations_serious ?? 0,
+      ada_violations_moderate: r.ada_violations_moderate ?? 0,
+      ada_violations_minor: r.ada_violations_minor ?? 0,
+    })
   }
 
   for (const agg of Array.from(aggBySchool.values())) {
