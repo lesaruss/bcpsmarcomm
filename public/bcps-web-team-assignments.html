@@ -4575,10 +4575,12 @@
       .then(function(res){ return res.json(); })
       .then(function(rows){
         (rows || []).forEach(function(r){ efCache[r.assignment_slug] = r; });
+        initTitleClickHandlers();
         document.querySelectorAll('.assignment-row[data-slug]').forEach(function(row){
           var slug = row.getAttribute('data-slug');
           renderRowDeadline(slug);
           renderRowLead(slug);
+          renderRowTitle(slug);
           renderOverdue(slug);
           renderPlaybookButton(slug);
         });
