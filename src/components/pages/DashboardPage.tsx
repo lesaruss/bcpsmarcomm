@@ -749,6 +749,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     meetingnotes: true,
     documents: true,
     accessrequests: canManageMessages && accessRequests.length > 0,
+    banner: true,
     recentnotes: true,
     refgroup: true,
     profile: !!myDeptSlug,
