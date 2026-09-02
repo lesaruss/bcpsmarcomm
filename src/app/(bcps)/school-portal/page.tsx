@@ -110,6 +110,14 @@ function FixableFindingCard({ f }: {
   )
 }
 
+// Lower is more urgent - Sean, BOSS gut-check 2026-09-02: a WCM should see
+// critical/serious findings first, same pattern applied district-side in
+// ADAManagerPage/AdaScannerPage.
+const IMPACT_RANK: Record<string, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 }
+function impactRank(impact: string | null | undefined): number {
+  return impact != null && impact in IMPACT_RANK ? IMPACT_RANK[impact] : 4
+}
+
 function scoreColor(score: number | null): string {
   if (score == null) return '#6B7280'
   if (score >= 90) return '#059669'
@@ -347,7 +355,7 @@ export default function SchoolPortalPage() {
                     // issues and "depends" items are a district-team concern
                     // (see ADA Manager / AdaScannerPage), not something a
                     // school WCM needs to see or act on here.
-                    type Fixable = { key: string; title: string; definition: string; fixSteps?: string[]; sourceUrl?: string; affectedElements?: number | null; countSuffix?: string }
+                    type Fixable = { key: string; title: string; definition: string; fixSteps?: string[]; sourceUrl?: string; affectedElements?: number | null; countSuffix?: string; rank: number }
                     const fixable: Fixable[] = []
                     result.ada_violations.forEach((v, i) => {
                       const entry = lookupAxeEntry(v.id)
@@ -359,6 +367,7 @@ export default function SchoolPortalPage() {
                         fixSteps: entry?.fixSteps,
                         sourceUrl: entry?.sourceUrl,
                         affectedElements: v.affected_elements,
+                        rank: impactRank(v.impact),
                       })
                     })
                     ;(result.wave_violations ?? []).forEach((v, i) => {
@@ -371,8 +380,10 @@ export default function SchoolPortalPage() {
                         fixSteps: entry?.fixSteps,
                         sourceUrl: entry?.sourceUrl,
                         countSuffix: ` (${v.count}x)`,
+                        rank: 4,
                       })
                     })
+                    fixable.sort((a, b) => a.rank - b.rank)
 
                     if (fixable.length === 0) {
                       return <div style={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>Nothing on your plate here. 🎉</div>
