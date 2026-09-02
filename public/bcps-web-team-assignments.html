@@ -4946,7 +4946,25 @@
       setTimeout(window.refreshOverdueBadges, 60);
     }
   });
+  function updateLastUpdatedFromData(){
+    var tagsReq = fetch(SUPABASE_URL + '/rest/v1/bcps_assignment_tags?select=updated_at&order=updated_at.desc&limit=1', { headers: efHeaders() }).then(function(r){ return r.json(); }).catch(function(){ return []; });
+    var notesReq = fetch(SUPABASE_URL + '/rest/v1/bcps_assignment_notes?select=created_at&order=created_at.desc&limit=1', { headers: efHeaders() }).then(function(r){ return r.json(); }).catch(function(){ return []; });
+    Promise.all([tagsReq, notesReq]).then(function(results){
+      var dates = [];
+      (results[0] || []).forEach(function(r){ if (r.updated_at) dates.push(new Date(r.updated_at)); });
+      (results[1] || []).forEach(function(r){ if (r.created_at) dates.push(new Date(r.created_at)); });
+      if (!dates.length) return;
+      var latest = new Date(Math.max.apply(null, dates));
+      var text = fmtDate(latest);
+      var lastUpdatedEl = document.getElementById('meta-last-updated');
+      if (lastUpdatedEl) lastUpdatedEl.textContent = text;
+      var meetingDateEl = document.getElementById('meeting-update-date');
+      if (meetingDateEl) meetingDateEl.textContent = text;
+    }).catch(function(){});
+  }
+
   document.addEventListener('DOMContentLoaded', loadEditableFields);
+  document.addEventListener('DOMContentLoaded', updateLastUpdatedFromData);
 })();
 </script>
 
