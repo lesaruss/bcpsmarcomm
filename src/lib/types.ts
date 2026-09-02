@@ -28,8 +28,7 @@ export type PageId =
   | 'widgets'
   | 'requests'
   | 'ada-scanner'
-  | 'schools'
-  | 'schools-ada'
+  | 'ada-manager'
 
 export interface BreadcrumbItem {
   label: string
@@ -95,4 +94,3 @@ export interface DomainRule {
   domain: string
   enabled: boolean
 }
-
