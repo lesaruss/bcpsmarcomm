@@ -4918,7 +4918,7 @@
     positionBox(box, rect, 120);
     box.innerHTML =
       '<label>Title</label><input type="text" id="ef-title" value="' + currentTitle.replace(/"/g,'&quot;') + '">' +
-      '<div class="ef-actions"><button onclick="closeEfEditor()">Cancel</button><button class="ef-save" onclick="saveTitleEditor('' + slug + '')">Save</button></div>';
+      '<div class="ef-actions"><button onclick="closeEfEditor()">Cancel</button><button class="ef-save" onclick="saveTitleEditor(\'' + slug + '\')">Save</button></div>';
     document.body.appendChild(backdrop);
     document.body.appendChild(box);
   };
