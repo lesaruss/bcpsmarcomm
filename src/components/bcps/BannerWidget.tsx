@@ -66,7 +66,7 @@ const CHECKLIST = [
   {
     key: 'media_release' as const,
     section: 'Approvals & Permissions',
-    text: 'I confirm that all students appearing in submitted photos or videos have a signed media release on file.',
+    text: 'If this banner includes photos or videos of any identifiable student, I confirm a signed media release is on file for that student. This does not apply if no students appear in the submission.',
   },
   {
     key: 'no_overlays' as const,
