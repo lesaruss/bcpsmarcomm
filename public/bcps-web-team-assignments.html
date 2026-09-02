@@ -4571,7 +4571,7 @@
   }
 
   function loadEditableFields(){
-    fetch(EF_TABLE + '?select=assignment_slug,lead_override,support_override,start_date,deadline_date,is_ongoing,overdue_dismissed,playbook_url', { headers: efHeaders() })
+    fetch(EF_TABLE + '?select=assignment_slug,lead_override,support_override,start_date,deadline_date,is_ongoing,overdue_dismissed,playbook_url,title_override', { headers: efHeaders() })
       .then(function(res){ return res.json(); })
       .then(function(rows){
         (rows || []).forEach(function(r){ efCache[r.assignment_slug] = r; });
