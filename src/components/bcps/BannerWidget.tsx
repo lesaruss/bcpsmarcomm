@@ -412,7 +412,7 @@ export default function BannerWidget() {
                 <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Live preview</label>
 
                 <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                  {[{ label: 'Desktop', px: 640 }, { label: 'Tablet', px: 420 }, { label: 'Mobile', px: 300 }].map(p => (
+                  {[{ label: 'Desktop', px: 640 }, { label: 'Tablet', px: 560 }, { label: 'Mobile', px: 300 }].map(p => (
                     <button
                       key={p.label}
                       type="button"
