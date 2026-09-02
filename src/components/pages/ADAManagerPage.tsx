@@ -21,9 +21,16 @@
 // /api/bcps/ada-scan pipeline (axe-core + WAVE + Lighthouse, no LLM
 // involved), tagging every page with a shared scan_batch_id so
 // /api/bcps/school-scores can average them into one school-level score.
+//
+// 2026-09-02, same day: added real per-page issue detail under "View
+// pages" - each finding is resolved against the same glossary the
+// standalone ADA Scanner uses (lib/ada-glossary.ts), not just a raw
+// score. Reuses the exact rendering pattern from AdaScannerPage.tsx so
+// the two surfaces read consistently.
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
+import { lookupAxeEntry, lookupWaveEntry, type GlossaryOwner } from '@/lib/ada-glossary'
 
 interface School {
   id: string
@@ -36,6 +43,33 @@ interface School {
   created_at: string
 }
 
+interface Violation {
+  id: string
+  impact: 'critical' | 'serious' | 'moderate' | 'minor' | null
+  description: string
+  help: string
+  helpUrl: string
+  affected_elements: number | null
+}
+
+interface WaveViolation {
+  category: 'error' | 'contrast' | 'alert'
+  id: string
+  description: string
+  count: number
+}
+
+interface SchoolPage {
+  page_url: string
+  ada_score: number | null
+  ada_violations: Violation[]
+  wave_violations: WaveViolation[]
+  ada_violations_critical: number
+  ada_violations_serious: number
+  ada_violations_moderate: number
+  ada_violations_minor: number
+}
+
 interface SchoolScore {
   school_id: string
   scan_batch_id: string
@@ -44,10 +78,32 @@ interface SchoolScore {
   critical_count: number
   serious_count: number
   last_audited_at: string
-  pages: { page_url: string; ada_score: number | null }[]
+  pages: SchoolPage[]
 }
 
 const BLUE = '#1672A7'
+
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: '#DC2626',
+  serious:  '#EA580C',
+  moderate: '#D97706',
+  minor:    '#6B7280',
+}
+
+const OWNER_META: Record<GlossaryOwner, { label: string; color: string; bg: string }> = {
+  wcm:       { label: 'You can fix this',        color: '#fff',    bg: '#16750C' },
+  finalsite: { label: 'FinalSite issue, escalate', color: '#fff',  bg: '#C55326' },
+  depends:   { label: 'Depends, see note',        color: '#2b2200', bg: '#D4B106' },
+}
+
+function OwnerPill({ owner }: { owner: GlossaryOwner }) {
+  const m = OWNER_META[owner]
+  return (
+    <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.02em', color: m.color, background: m.bg, whiteSpace: 'nowrap' }}>
+      {m.label}
+    </span>
+  )
+}
 
 const C = {
   card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 20, marginBottom: 16 } as React.CSSProperties,
@@ -84,6 +140,103 @@ function ScoreRing({ score }: { score: number | null | undefined }) {
   )
 }
 
+// Same detail rendering AdaScannerPage uses for a single scan result,
+// scoped down to one page's worth of findings inside a school card.
+function PageIssueDetail({ page }: { page: SchoolPage }) {
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #e5e7eb' }}>
+      {page.ada_violations.length === 0 && (!page.wave_violations || page.wave_violations.length === 0) ? (
+        <div style={{ fontSize: 12.5, color: '#059669', fontWeight: 600 }}>
+          No failing axe-core or WAVE checks found on this page. 🎉
+        </div>
+      ) : (
+        <>
+          {page.ada_violations.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: page.wave_violations?.length ? 12 : 0 }}>
+              {page.ada_violations.map((v, i) => {
+                const entry = lookupAxeEntry(v.id)
+                return (
+                  <div key={`${v.id}-${i}`} style={{ borderLeft: `3px solid ${SEVERITY_COLORS[v.impact ?? 'minor']}`, paddingLeft: 10, paddingTop: 1, paddingBottom: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#111827' }}>{entry?.title ?? v.help}</div>
+                      {entry ? <OwnerPill owner={entry.owner} /> : (
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', background: '#f3f4f6', borderRadius: 999, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+                          Not yet catalogued
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: '#6b7280', marginTop: 2 }}>{entry?.definition ?? v.description}</div>
+                    {v.affected_elements != null && (
+                      <div style={{ fontSize: 10.5, color: '#9ca3af', marginTop: 2 }}>{v.affected_elements} element(s) affected</div>
+                    )}
+                    {entry ? (
+                      <div style={{ marginTop: 6, background: '#fafafa', border: '1px solid #f3f4f6', borderRadius: 6, padding: '7px 9px' }}>
+                        <div style={{ fontSize: 11, color: '#374151' }}>
+                          <b>{entry.owner === 'finalsite' ? 'Escalation: ' : entry.owner === 'depends' ? 'How to tell: ' : 'Fix: '}</b>
+                          {entry.ownerNote}
+                        </div>
+                        {entry.fixSteps && (
+                          <ol style={{ margin: '5px 0 0', paddingLeft: 16, fontSize: 11, color: '#374151' }}>
+                            {entry.fixSteps.map((s, si) => <li key={si} style={{ marginBottom: 2 }}>{s}</li>)}
+                          </ol>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: 4, fontSize: 10.5, color: '#9ca3af' }}>
+                        <a href={v.helpUrl} target="_blank" rel="noreferrer" style={{ color: BLUE }}>axe-core reference for this rule</a> (glossary entry pending)
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {page.wave_violations && page.wave_violations.length > 0 && (
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af', marginBottom: 6 }}>
+                WAVE items ({page.wave_violations.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {page.wave_violations.map((v, i) => {
+                  const entry = lookupWaveEntry(v.id, v.description)
+                  return (
+                    <div key={`${v.id}-${i}`} style={{ fontSize: 11.5, color: '#374151' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <div>
+                          <span style={{ fontWeight: 700, textTransform: 'capitalize' }}>{v.category}</span>: {entry?.title ?? v.description} ({v.count}x)
+                        </div>
+                        {entry ? <OwnerPill owner={entry.owner} /> : (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', background: '#f3f4f6', borderRadius: 999, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+                            Not yet catalogued
+                          </span>
+                        )}
+                      </div>
+                      {entry && (
+                        <div style={{ marginTop: 4, background: '#fafafa', border: '1px solid #f3f4f6', borderRadius: 6, padding: '7px 9px' }}>
+                          <div style={{ fontSize: 11 }}>
+                            <b>{entry.owner === 'finalsite' ? 'Escalation: ' : entry.owner === 'depends' ? 'How to tell: ' : 'Fix: '}</b>
+                            {entry.ownerNote}
+                          </div>
+                          {entry.fixSteps && (
+                            <ol style={{ margin: '5px 0 0', paddingLeft: 16, fontSize: 11 }}>
+                              {entry.fixSteps.map((s, si) => <li key={si} style={{ marginBottom: 2 }}>{s}</li>)}
+                            </ol>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 type ScanProgress = { schoolId: string; current: number; total: number; url: string } | null
 
 export default function ADAManagerPage() {
@@ -94,6 +247,7 @@ export default function ADAManagerPage() {
   const [error, setError] = useState('')
   const [progress, setProgress] = useState<ScanProgress>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [expandedPage, setExpandedPage] = useState<string | null>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -288,7 +442,7 @@ export default function ADAManagerPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {score && (
-                      <button style={C.btnSecondary} onClick={() => setExpanded(isExpanded ? null : school.id)}>
+                      <button style={C.btnSecondary} onClick={() => { setExpanded(isExpanded ? null : school.id); setExpandedPage(null) }}>
                         {isExpanded ? 'Hide pages' : 'View pages'}
                       </button>
                     )}
@@ -309,12 +463,30 @@ export default function ADAManagerPage() {
 
                 {isExpanded && score && (
                   <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {score.pages.map(p => (
-                      <div key={p.page_url} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12 }}>
-                        <span style={{ color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.page_url}</span>
-                        <span style={{ fontWeight: 800, color: scoreColor(p.ada_score), flexShrink: 0 }}>{p.ada_score ?? '—'}</span>
-                      </div>
-                    ))}
+                    {score.pages.map(p => {
+                      const totalIssues = p.ada_violations_critical + p.ada_violations_serious + p.ada_violations_moderate + p.ada_violations_minor
+                      const isPageOpen = expandedPage === p.page_url
+                      return (
+                        <div key={p.page_url} style={{ padding: '4px 0' }}>
+                          <div
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 12, cursor: totalIssues > 0 ? 'pointer' : 'default' }}
+                            onClick={() => { if (totalIssues > 0) setExpandedPage(isPageOpen ? null : p.page_url) }}
+                          >
+                            <span style={{ color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {totalIssues > 0 && <span style={{ fontSize: 10, color: '#9ca3af', transform: isPageOpen ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▸</span>}
+                              {p.page_url}
+                            </span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                              {totalIssues > 0 && (
+                                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#6b7280' }}>{totalIssues} issue{totalIssues === 1 ? '' : 's'}</span>
+                              )}
+                              <span style={{ fontWeight: 800, color: scoreColor(p.ada_score) }}>{p.ada_score ?? '—'}</span>
+                            </span>
+                          </div>
+                          {isPageOpen && <PageIssueDetail page={p} />}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
