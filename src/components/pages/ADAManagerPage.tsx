@@ -245,6 +245,18 @@ type Bucketed = {
   fixSteps?: string[]
   escalationNote?: string
   sourceUrl?: string
+  rank: number
+}
+
+// Lower is more urgent. Sean, direct instruction (BOSS gut-check,
+// 2026-09-02, per Siteimprove's difficulty/severity sort pattern): a WCM
+// should see critical/serious findings first, not glossary order.
+// axe-core's impact scale is the only real severity signal we have; WAVE
+// findings don't carry one, so they sort after every ranked axe finding
+// rather than being guessed at.
+const IMPACT_RANK: Record<string, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 }
+function impactRank(impact: string | null | undefined): number {
+  return impact != null && impact in IMPACT_RANK ? IMPACT_RANK[impact] : 4
 }
 
 function bucketPage(page: SchoolPage, overrides: OwnerOverrideMap): Record<GlossaryOwner, Bucketed[]> {
@@ -265,6 +277,7 @@ function bucketPage(page: SchoolPage, overrides: OwnerOverrideMap): Record<Gloss
       fixSteps: entry?.fixSteps,
       escalationNote: entry?.escalationNote,
       sourceUrl: entry?.sourceUrl,
+      rank: impactRank(v.impact),
     })
   })
 
@@ -282,16 +295,23 @@ function bucketPage(page: SchoolPage, overrides: OwnerOverrideMap): Record<Gloss
       fixSteps: entry?.fixSteps,
       escalationNote: entry?.escalationNote,
       sourceUrl: entry?.sourceUrl,
+      rank: 4,
     })
   })
+
+  for (const owner of Object.keys(buckets) as GlossaryOwner[]) {
+    buckets[owner].sort((a, b) => a.rank - b.rank)
+  }
 
   return buckets
 }
 
-function PageIssueDetail({ page, overrides, onReclassify }: {
+function PageIssueDetail({ page, overrides, onReclassify, onRescan, rescanning }: {
   page: SchoolPage
   overrides: OwnerOverrideMap
   onReclassify: (glossaryKey: string, owner: GlossaryOwner) => void
+  onRescan: () => void
+  rescanning: boolean
 }) {
   const [tab, setTab] = useState<GlossaryOwner>('wcm')
   const buckets = bucketPage(page, overrides)
@@ -299,6 +319,21 @@ function PageIssueDetail({ page, overrides, onReclassify }: {
 
   return (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #e5e7eb' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+        <a href={page.page_url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>
+          Open the live page ↗
+        </a>
+        <button
+          onClick={onRescan}
+          disabled={rescanning}
+          style={{
+            fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db',
+            background: '#fff', color: rescanning ? '#9ca3af' : '#374151', cursor: rescanning ? 'default' : 'pointer',
+          }}
+        >
+          {rescanning ? 'Re-scanning…' : 'Re-scan this page'}
+        </button>
+      </div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         {OWNER_TABS.map(t => (
           <button
@@ -357,6 +392,7 @@ export default function ADAManagerPage() {
   const [progress, setProgress] = useState<ScanProgress>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [expandedPage, setExpandedPage] = useState<string | null>(null)
+  const [rescanningPages, setRescanningPages] = useState<Set<string>>(new Set())
 
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -402,6 +438,28 @@ export default function ADAManagerPage() {
       setError(e instanceof Error ? e.message : 'Could not save reclassification.')
     }
   }, [token])
+
+  // Re-scan a single page in place, so a WCM (or the district team, walking
+  // a fix live with a WCM) can confirm a fix worked without kicking off a
+  // full-site scan. Per Sean, BOSS gut-check 2026-09-02: this only ever
+  // reads the live page and re-runs our own scan against it - it never
+  // writes to the school's site.
+  const rescanPage = async (school: School, score: SchoolScore, pageUrl: string) => {
+    setRescanningPages(prev => new Set(prev).add(pageUrl))
+    try {
+      const t = await token()
+      await fetch('/api/bcps/ada-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+        body: JSON.stringify({ url: pageUrl, school_id: school.id, scan_batch_id: score.scan_batch_id }),
+      })
+      await loadAll()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not re-scan this page.')
+    } finally {
+      setRescanningPages(prev => { const next = new Set(prev); next.delete(pageUrl); return next })
+    }
+  }
 
   const addSchool = async () => {
     if (!form.name.trim()) { setError('School name is required.'); return }
@@ -607,7 +665,15 @@ export default function ADAManagerPage() {
                               <span style={{ fontWeight: 800, color: scoreColor(p.ada_score) }}>{p.ada_score ?? '—'}</span>
                             </span>
                           </div>
-                          {isPageOpen && <PageIssueDetail page={p} overrides={overrides} onReclassify={reclassify} />}
+                          {isPageOpen && (
+                            <PageIssueDetail
+                              page={p}
+                              overrides={overrides}
+                              onReclassify={reclassify}
+                              onRescan={() => rescanPage(school, score, p.page_url)}
+                              rescanning={rescanningPages.has(p.page_url)}
+                            />
+                          )}
                         </div>
                       )
                     })}
