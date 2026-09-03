@@ -131,7 +131,7 @@ const VALIDATION_CHECKLIST = [
   { key: 'files', label: 'Up to three files' },
   { key: 'dims', label: 'Media meets 2000 × 800 px minimum requirements' },
   { key: 'no_overlays', label: 'Image is free of graphics, borders, text overlays' },
-  { key: 'nav_clearance', label: 'Homepage navigation face-clearance' },
+  { key: 'nav_clearance', label: 'Homepage navigation face-clearance (flagged for manual review)' },
   { key: 'title', label: 'Banner title provided' },
   { key: 'alt', label: 'Required alternative text provided' },
   { key: 'approvals', label: 'Approvals and permissions acknowledged' },
@@ -185,7 +185,7 @@ export default function BannerWidget() {
   // no_overlays/nav_clearance rows in validationStatus below - there is no
   // manual checkbox for these anymore, per Sean, 2026-09-03.
   const [scanState, setScanState] = useState<'idle' | 'scanning' | 'done' | 'degraded' | 'error'>('idle')
-  const [scanResult, setScanResult] = useState<{ no_overlays_pass: boolean; nav_clearance_pass: boolean; reasons: string[] } | null>(null)
+  const [scanResult, setScanResult] = useState<{ no_overlays_pass: boolean; nav_clearance_pass: boolean; nav_clearance_note?: string; reasons: string[] } | null>(null)
   const [scanError, setScanError] = useState<string | null>(null)
   const [bannerTitle, setBannerTitle] = useState('')
   const [bannerCaption, setBannerCaption] = useState('')
@@ -300,7 +300,7 @@ export default function BannerWidget() {
     ;(async () => {
       try {
         if (kind === 'video') {
-          if (!cancelled) { setScanResult({ no_overlays_pass: true, nav_clearance_pass: true, reasons: [] }); setScanState('done') }
+          if (!cancelled) { setScanResult({ no_overlays_pass: true, nav_clearance_pass: true, reasons: [] }); setScanState('degraded') }
           return
         }
         const b64 = await fileToBase64(file)
@@ -322,7 +322,12 @@ export default function BannerWidget() {
           setScanError(data.error)
           setScanState('degraded')
         } else {
-          setScanResult({ no_overlays_pass: !!data.no_overlays_pass, nav_clearance_pass: !!data.nav_clearance_pass, reasons: data.reasons || [] })
+          setScanResult({
+            no_overlays_pass: !!data.no_overlays_pass,
+            nav_clearance_pass: !!data.nav_clearance_pass,
+            nav_clearance_note: data.nav_clearance_note,
+            reasons: data.reasons || [],
+          })
           setScanState('done')
         }
       } catch {
@@ -751,6 +756,9 @@ export default function BannerWidget() {
                       <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
                         {scanResult.reasons.map((r, i) => <li key={i}>{r}</li>)}
                       </ul>
+                    )}
+                    {scanState === 'done' && scanResult?.nav_clearance_note && (
+                      <div style={{ marginTop: 6, fontWeight: 400, color: '#8a5a00' }}>{scanResult.nav_clearance_note}</div>
                     )}
                   </div>
                 )}
