@@ -196,7 +196,7 @@ export async function analyzeBannerImage(opts: {
     // and Sean can see automation was skipped for this one. Logged (not
     // just swallowed into the row) so a failure is visible in Vercel
     // runtime logs, not only discoverable by reading old submissions.
-    console.error('[bannerVision] scan failed, failing open:', e?.message || e)
+    console.error('[bannerVision] scan failed, failing open:', e?.message || e, e?.stack)
     return {
       no_overlays_pass: true,
       nav_clearance_pass: true,
