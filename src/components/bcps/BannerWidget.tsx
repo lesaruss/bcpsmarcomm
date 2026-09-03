@@ -161,8 +161,13 @@ function statusBadge(status: SubmissionStatus) {
 export default function BannerWidget() {
   const [tab, setTab] = useState<Tab>('upload')
   const previewFrameRef = useRef<HTMLDivElement | null>(null)
-  const setPreviewFrameWidth = (px: number) => {
-    if (previewFrameRef.current) previewFrameRef.current.style.width = `${px}px`
+  // null resets to fluid (100% of the column, grows/shrinks with the page -
+  // per Sean, 2026-09-03, so the preview always matches the width of the
+  // school dropdown and fields above it instead of sitting in a capped box).
+  // A pixel value is a manual override for testing a narrower breakpoint;
+  // maxWidth: '100%' on the frame keeps it from ever exceeding the column.
+  const setPreviewFrameWidth = (px: number | null) => {
+    if (previewFrameRef.current) previewFrameRef.current.style.width = px === null ? '100%' : `${px}px`
   }
   const [myRole, setMyRole] = useState<'admin' | 'manager' | null>(null)
 
@@ -550,7 +555,7 @@ export default function BannerWidget() {
                 <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Live preview</label>
 
                 <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                  {[{ label: 'Desktop', px: 640 }, { label: 'Tablet', px: 560 }, { label: 'Mobile', px: 300 }].map(p => (
+                  {[{ label: 'Desktop', px: null as number | null }, { label: 'Tablet', px: 768 }, { label: 'Mobile', px: 375 }].map(p => (
                     <button
                       key={p.label}
                       type="button"
@@ -577,7 +582,7 @@ export default function BannerWidget() {
                   ref={previewFrameRef}
                   className="bwp-frame"
                   style={{
-                    width: '100%', maxWidth: 640, minWidth: 260, resize: 'horizontal', overflow: 'hidden',
+                    width: '100%', maxWidth: '100%', minWidth: 260, resize: 'horizontal', overflow: 'hidden',
                     borderRadius: 6, border: '1px solid var(--border)', background: '#fff',
                   }}
                 >
