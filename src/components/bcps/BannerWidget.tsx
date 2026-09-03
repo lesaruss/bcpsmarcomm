@@ -184,7 +184,7 @@ export default function BannerWidget() {
   // flight, 'done' once a result (pass or fail) is in. Drives the
   // no_overlays/nav_clearance rows in validationStatus below - there is no
   // manual checkbox for these anymore, per Sean, 2026-09-03.
-  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'done' | 'error'>('idle')
+  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'done' | 'degraded' | 'error'>('idle')
   const [scanResult, setScanResult] = useState<{ no_overlays_pass: boolean; nav_clearance_pass: boolean; reasons: string[] } | null>(null)
   const [scanError, setScanError] = useState<string | null>(null)
   const [bannerTitle, setBannerTitle] = useState('')
@@ -310,8 +310,17 @@ export default function BannerWidget() {
         })
         const data = await res.json()
         if (cancelled) return
-        if (!res.ok || data.error) {
+        if (!res.ok) {
+          // Hard failure (auth, network, etc.) - genuinely blocks, unlike
+          // the fail-open case below.
           setScanError(data.error || 'Automated scan failed.'); setScanState('error')
+        } else if (data.skipped && data.error) {
+          // Fail-open: the scanner itself is unavailable (e.g. API outage),
+          // not a content violation - submission is allowed to proceed
+          // flagged for manual review, matching /api/banner/submit's policy.
+          setScanResult({ no_overlays_pass: true, nav_clearance_pass: true, reasons: [] })
+          setScanError(data.error)
+          setScanState('degraded')
         } else {
           setScanResult({ no_overlays_pass: !!data.no_overlays_pass, nav_clearance_pass: !!data.nav_clearance_pass, reasons: data.reasons || [] })
           setScanState('done')
@@ -723,14 +732,17 @@ export default function BannerWidget() {
                     marginTop: 10, borderRadius: 6, padding: '10px 12px', fontSize: 12.5,
                     background: scanState === 'scanning' ? '#f3f4f6'
                       : scanState === 'error' ? '#fbe9e7'
+                      : scanState === 'degraded' ? '#fdf3e0'
                       : (scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass) ? '#e6f4ea' : '#fbe9e7',
                     color: scanState === 'scanning' ? '#4b5563'
                       : scanState === 'error' ? '#a13a2f'
+                      : scanState === 'degraded' ? '#8a5a00'
                       : (scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass) ? '#1e6b3a' : '#a13a2f',
                   }}>
                     <div style={{ fontWeight: 700, marginBottom: scanResult?.reasons?.length ? 4 : 0 }}>
                       {scanState === 'scanning' && 'Scanning image for graphics, text overlays, and nav clearance...'}
                       {scanState === 'error' && `Automated scan failed: ${scanError}`}
+                      {scanState === 'degraded' && 'Automated scan unavailable right now - this submission will be flagged for the District Web Team to review manually.'}
                       {scanState === 'done' && (scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass
                         ? 'Automated content scan passed.'
                         : 'Automated content scan flagged this image - it cannot be submitted as-is.')}
