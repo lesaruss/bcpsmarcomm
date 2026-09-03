@@ -3,11 +3,12 @@ import { createClient } from '@supabase/supabase-js'
 import { analyzeBannerImage } from '@/lib/bannerVision'
 
 // Client-side pre-flight for the automated Photo Content Requirements check
-// (see lib/bannerVision.ts for the why/what). Called from BannerWidget the
-// instant a WCM picks an image, so they see Pass/needs-attention before they
-// even reach the submit button. /api/banner/submit re-runs the same check
-// server-side before accepting - this route is for fast feedback only and is
-// never itself trusted as the final gate.
+// (see lib/bannerVision.ts for the why/what - runs entirely locally now, no
+// API key or per-scan cost). Called from BannerWidget the instant a WCM
+// picks an image, so they see Pass/needs-attention before they even reach
+// the submit button. /api/banner/submit re-runs the same check server-side
+// before accepting - this route is for fast feedback only and is never
+// itself trusted as the final gate.
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
