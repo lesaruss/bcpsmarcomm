@@ -148,9 +148,17 @@ export async function POST(req: NextRequest) {
   if (spec.kind === 'image') {
     contentScan = await analyzeBannerImage({ base64: raw, mediaType: mime_type })
     if (contentScan.error) {
-      return NextResponse.json({ error: `Could not complete the automated content scan (${contentScan.error}). Please try submitting again.` }, { status: 502 })
-    }
-    if (!contentScan.no_overlays_pass || !contentScan.nav_clearance_pass) {
+      // Fail OPEN, not closed: an infrastructure failure (API down, account
+      // out of credit, etc.) is not the same thing as a content violation,
+      // and hard-blocking every image submission because the scanner itself
+      // is unavailable would take down the whole tool for every WCM. Instead
+      // this submission goes through flagged for manual review, same
+      // exemption already given to video (no automated check available) -
+      // content_scan.error stays on the row so reviewers and Sean can see
+      // exactly why automation was skipped for this one. A scan that
+      // actually RAN and found a violation still hard-blocks below.
+      contentScan = { no_overlays_pass: true, nav_clearance_pass: true, reasons: [], skipped: true, error: contentScan.error }
+    } else if (!contentScan.no_overlays_pass || !contentScan.nav_clearance_pass) {
       return NextResponse.json({
         error: 'This image did not pass the automated content scan.',
         reasons: contentScan.reasons,
