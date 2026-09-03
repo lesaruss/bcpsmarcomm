@@ -270,6 +270,7 @@ const SECTIONS: NavSection[] = [
     { id: 'bcps-google-governance', label: 'Google Governance' },
     { id: 'wcm', label: 'WCM Hub' },
     { id: 'banner-submissions', label: 'Banner Submissions' },
+    { id: 'school-profiles', label: 'School Profiles' },
     { id: 'department-audit', label: 'Department Name Audit' },
     { id: 'ada-scanner', label: 'ADA Scanner' },
     { id: 'ada-manager', label: 'ADA Manager' },
