@@ -642,7 +642,6 @@ export default function BannerWidget() {
                 ))}
               </div>
             </div>
-            </div>
 
             {uploadNotice && <div style={{ fontSize: 12.5, color: uploadNotice.startsWith('Submitted') ? '#1e6b3a' : '#a13a2f' }}>{uploadNotice}</div>}
 
