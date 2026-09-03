@@ -39,5 +39,11 @@ export async function POST(req: NextRequest) {
   const match = file_base64.match(/^data:([a-zA-Z0-9/.+-]+);base64,(.+)$/)
   const raw = match ? match[2] : file_base64
   const result = await analyzeBannerImage({ base64: raw, mediaType: mime_type })
+  if (result.error) {
+    // Same fail-open policy as /api/banner/submit: a scanner outage doesn't
+    // block the WCM, it flags for manual review. Client shows a distinct
+    // "couldn't verify automatically" notice rather than "scan passed".
+    return NextResponse.json({ no_overlays_pass: true, nav_clearance_pass: true, reasons: [], skipped: true, error: result.error })
+  }
   return NextResponse.json(result)
 }
