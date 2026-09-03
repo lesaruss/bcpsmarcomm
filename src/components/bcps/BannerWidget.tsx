@@ -622,13 +622,21 @@ export default function BannerWidget() {
                     ) : (
                       <img src={displayUrl} alt={previewUrl ? 'Banner preview' : 'Sample banner placeholder'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     )}
+                    {/* Matches the real school sites' actual nav treatment (checked
+                        against a live BCPS school site, 2026-09-03) - a stack of
+                        solid white button rows, not a tinted overlay bar: navy
+                        bold uppercase text, thin navy divider between rows. */}
                     <div className="bwp-wide-only" style={{
                       position: 'absolute', top: 0, right: 0, bottom: 0, width: '22%', minWidth: 120,
-                      background: 'rgba(20,20,20,0.72)', flexDirection: 'column',
-                      justifyContent: 'center', gap: '6%', padding: '4% 5%',
+                      flexDirection: 'column',
                     }}>
-                      {RIGHT_NAV_ITEMS.map(item => (
-                        <div key={item} style={{ color: '#fff', fontSize: '2.6cqw', fontWeight: 600, lineHeight: 1.15, textAlign: 'right' }}>
+                      {RIGHT_NAV_ITEMS.map((item, i) => (
+                        <div key={item} style={{
+                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+                          background: '#fff', color: '#0a3764', fontSize: '2.1cqw', fontWeight: 800,
+                          textTransform: 'uppercase', letterSpacing: '0.01em', lineHeight: 1.15, padding: '2% 8%',
+                          borderBottom: i < RIGHT_NAV_ITEMS.length - 1 ? '2px solid #0a3764' : 'none',
+                        }}>
                           {item}
                         </div>
                       ))}
