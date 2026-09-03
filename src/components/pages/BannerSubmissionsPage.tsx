@@ -14,7 +14,7 @@ import BannerWidget from '@/components/bcps/BannerWidget'
 
 export default function BannerSubmissionsPage() {
   return (
-    <div style={{ padding: 32, maxWidth: 900, fontFamily: 'inherit' }}>
+    <div style={{ padding: 32, width: '100%', fontFamily: 'inherit' }}>
       <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>
         Banner Submissions
       </h1>
