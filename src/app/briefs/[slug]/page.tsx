@@ -101,7 +101,28 @@ export default async function BcpsPublicBriefPage({ params }: Props) {
     .eq('slug', slug)
     .single()
 
-  if (error || !data) notFound()
+  if (error || !data) {
+    // Slug-resolving redirect (canon-bcps-doc-url-standard, 2026-09-03): a brief that has
+    // been migrated into the Playbook/doc model lives in briefings (brand_slug='bcps'). Its
+    // old /briefs/ link must keep working forever, so 301 to the canonical
+    // /playbooks/[parent]/[slug] location. Access is re-checked there with the same rules.
+    const { data: migrated } = await db
+      .from('briefings')
+      .select('slug, type, metadata')
+      .eq('brand_slug', 'bcps')
+      .eq('slug', slug)
+      .in('type', ['playbook', 'record'])
+      .maybeSingle()
+    if (migrated) {
+      const parent = (migrated.metadata as Record<string, unknown> | null)?.parent_playbook_slug
+      permanentRedirect(
+        migrated.type === 'playbook'
+          ? `/playbooks/${migrated.slug}`
+          : `/playbooks/${typeof parent === 'string' ? parent : 'unfiled'}/${migrated.slug}`
+      )
+    }
+    notFound()
+  }
 
   // Interactive briefs (inline <script>) can't render via dangerouslySetInnerHTML -
   // React never executes injected script tags, so the page would load but its
