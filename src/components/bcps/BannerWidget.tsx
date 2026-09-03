@@ -66,6 +66,32 @@ const RIGHT_NAV_ITEMS = [
   'School Counseling', 'Contact', 'Schedule a Tour',
 ]
 
+// Default placeholder shown in the live preview before a WCM has chosen a
+// file, so the preview (and its Desktop/Tablet/Mobile width controls) is
+// visible and useful from the moment the tab opens - per Sean, 2026-09-03:
+// show the composited preview by default with a stand-in image, then swap
+// in the real upload the instant one is chosen. Flat icon, neutral gray,
+// matches the rest of this widget's UI-chrome palette (no new brand color
+// introduced) so it doesn't get mistaken for on-brand content.
+const PLACEHOLDER_IMAGE =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="2880" height="1600" viewBox="0 0 2880 1600">
+      <rect width="2880" height="1600" fill="#e4e4e4"/>
+      <g transform="translate(1440,720)" fill="none" stroke="#8a8f98" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="-220" y="-150" width="440" height="300" rx="24" fill="#eeeeee"/>
+        <circle cx="-110" cy="-70" r="34" fill="#eeeeee"/>
+        <path d="M-220 90 L-70 -30 L40 60 L120 -10 L220 90 Z" fill="#eeeeee"/>
+      </g>
+      <text x="1440" y="1020" font-family="Arial, sans-serif" font-size="56" font-weight="700" fill="#6b7280" text-anchor="middle">
+        Sample banner image
+      </text>
+      <text x="1440" y="1090" font-family="Arial, sans-serif" font-size="38" fill="#8a8f98" text-anchor="middle">
+        Upload your photo or video below to see it here
+      </text>
+    </svg>
+  `)
+
 // Checklist, verbatim from Vanessa Deslandes's source Power Apps mockup - 3
 // grouped sections, 4 manual checkboxes, exactly as she built it. Restored
 // 2026-09-03 after an earlier pass that night wrongly collapsed these into
@@ -516,7 +542,10 @@ export default function BannerWidget() {
                 what happens when they resize their screen." Drag the
                 bottom-right corner of the frame, or use the width presets,
                 to test narrower widths. */}
-            {previewUrl && (
+            {(() => {
+              const displayUrl = previewUrl || PLACEHOLDER_IMAGE
+              const displayKind = previewUrl ? fileKind : 'image'
+              return (
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Live preview</label>
 
@@ -583,10 +612,10 @@ export default function BannerWidget() {
                       narrow-container variant matches the real sites' mobile
                       layout, where the overlay drops and both move below the image. */}
                   <div style={{ position: 'relative', width: '100%', aspectRatio: '2880 / 1600', background: '#000', overflow: 'hidden' }}>
-                    {fileKind === 'video' ? (
-                      <video src={previewUrl} muted autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {displayKind === 'video' ? (
+                      <video src={displayUrl} muted autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      <img src={previewUrl} alt="Banner preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={displayUrl} alt={previewUrl ? 'Banner preview' : 'Sample banner placeholder'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     )}
                     <div className="bwp-wide-only" style={{
                       position: 'absolute', top: 0, right: 0, bottom: 0, width: '22%', minWidth: 120,
@@ -625,12 +654,13 @@ export default function BannerWidget() {
                 </div>
 
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                  This preview mirrors the real school-site header, homepage banner, and navigation, including how they reflow on a
-                  smaller screen. Drag the frame&apos;s bottom-right corner (or use the width buttons above) to check narrower widths.
-                  Make sure faces and important subjects stay clear of the right-hand nav.
+                  {previewUrl
+                    ? 'This preview mirrors the real school-site header, homepage banner, and navigation, including how they reflow on a smaller screen. Drag the frame’s bottom-right corner (or use the width buttons above) to check narrower widths. Make sure faces and important subjects stay clear of the right-hand nav.'
+                    : 'This is a sample image showing how your upload will look on the homepage. Choose a photo or video above and it will replace this placeholder automatically.'}
                 </div>
               </div>
-            )}
+              )
+            })()}
 
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner type / title *</label>
