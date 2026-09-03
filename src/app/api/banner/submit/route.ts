@@ -60,18 +60,20 @@ async function notifySubmissionReceived(row: {
   banner_title: string | null
   file_name: string | null
   wcm_email: string | null
+  school_name: string | null
 }) {
   const { data: admins } = await svc.from('bcps_banner_admins').select('email')
   const recipients = (admins ?? []).map(a => a.email).filter((e): e is string => !!e)
   if (recipients.length === 0) return
 
   const label = row.banner_title || row.file_name || 'a new banner'
+  const schoolLine = row.school_name ? ` for <strong>${row.school_name}</strong>` : ''
   const result = await sendEmail({
     to: recipients,
-    subject: `New BCPS banner submission: "${label}"`,
+    subject: `New BCPS banner submission: "${label}"${row.school_name ? ` (${row.school_name})` : ''}`,
     html: `
       <p>Hi,</p>
-      <p>${row.wcm_email ? `<strong>${row.wcm_email}</strong>` : 'A WCM'} just submitted a new banner for review:
+      <p>${row.wcm_email ? `<strong>${row.wcm_email}</strong>` : 'A WCM'} just submitted a new banner${schoolLine} for review:
       <strong>"${label}"</strong>.</p>
       <p><a href="https://bcpsmarcomm.com/?page=banner-submissions">Review it in the Banner Submissions queue</a>.</p>
       <p style="color:#888;font-size:12px">This is an automated message from the BCPS WCM Banner Submission App. You're
@@ -96,17 +98,30 @@ export async function POST(req: NextRequest) {
     file_base64, file_name, mime_type,
     banner_title, banner_caption, alt_text,
     checklist_ack,
+    school_location_nbr,
   } = body as {
     file_base64?: string; file_name?: string; mime_type?: string
     banner_title?: string; banner_caption?: string; alt_text?: string
     checklist_ack?: Record<string, boolean>
+    school_location_nbr?: string
   }
 
   if (!file_base64 || !file_name || !mime_type) {
     return NextResponse.json({ error: 'file_base64, file_name, and mime_type are required' }, { status: 400 })
   }
+  if (!school_location_nbr?.trim()) return NextResponse.json({ error: 'School is required' }, { status: 400 })
   if (!banner_title?.trim()) return NextResponse.json({ error: 'Banner title is required' }, { status: 400 })
   if (!alt_text?.trim()) return NextResponse.json({ error: 'Alternative text is required' }, { status: 400 })
+
+  const { data: schoolRow, error: schoolErr } = await svc
+    .from('bcps_school_directory')
+    .select('loc_no, school_name')
+    .eq('loc_no', school_location_nbr.trim())
+    .eq('is_archived', false)
+    .maybeSingle()
+  if (schoolErr || !schoolRow) {
+    return NextResponse.json({ error: 'Selected school was not recognized. Please choose again from the list.' }, { status: 400 })
+  }
 
   const missingAck = REQUIRED_ACK_KEYS.filter(k => checklist_ack?.[k] !== true)
   if (missingAck.length > 0) {
@@ -144,7 +159,9 @@ export async function POST(req: NextRequest) {
     banner_caption: banner_caption?.trim() || null,
     alt_text: alt_text.trim(),
     checklist_ack: { ...checklist_ack, acked_at: new Date().toISOString() },
-  }).select('id, banner_title, file_name, wcm_email').single()
+    school_location_nbr: schoolRow.loc_no,
+    school_name: schoolRow.school_name,
+  }).select('id, banner_title, file_name, wcm_email, school_name').single()
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
