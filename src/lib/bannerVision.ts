@@ -169,13 +169,19 @@ export async function analyzeBannerImage(opts: {
     const buffer = Buffer.from(opts.base64, 'base64')
     const reasons: string[] = []
 
+    // Deliberately NOT caught per-check here: an OCR/sharp failure must not
+    // read as "no violation found" (that produced a false Pass in live
+    // testing 2026-09-03 - the exact silent-auto-pass failure mode Sean
+    // originally flagged, just relocated). A genuine failure propagates to
+    // the outer catch below, which fails OPEN with the real error attached,
+    // not a silent clean bill of health.
     const [ocr, border] = await Promise.all([
-      detectTextOverlay(buffer).catch(e => ({ hit: false, error: e?.message })),
-      detectBorderOverlay(buffer).catch(e => ({ hit: false, error: e?.message })),
+      detectTextOverlay(buffer),
+      detectBorderOverlay(buffer),
     ])
 
-    if ('reason' in ocr && ocr.hit && ocr.reason) reasons.push(ocr.reason)
-    if ('reason' in border && border.hit && border.reason) reasons.push(border.reason)
+    if (ocr.hit && ocr.reason) reasons.push(ocr.reason)
+    if (border.hit && border.reason) reasons.push(border.reason)
 
     return {
       no_overlays_pass: reasons.length === 0,
@@ -187,7 +193,10 @@ export async function analyzeBannerImage(opts: {
     // Genuine infra failure (e.g. couldn't fetch the OCR language file, bad
     // image buffer) - fail OPEN, not closed: flagged for manual review,
     // never a hard block. content_scan.error stays on the row so reviewers
-    // and Sean can see automation was skipped for this one.
+    // and Sean can see automation was skipped for this one. Logged (not
+    // just swallowed into the row) so a failure is visible in Vercel
+    // runtime logs, not only discoverable by reading old submissions.
+    console.error('[bannerVision] scan failed, failing open:', e?.message || e)
     return {
       no_overlays_pass: true,
       nav_clearance_pass: true,
