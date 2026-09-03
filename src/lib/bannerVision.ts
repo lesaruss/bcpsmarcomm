@@ -52,6 +52,7 @@
 // /api/banner/submit right before accepting the row, so a submission can't
 // be forced through by skipping or tampering with the client-side call.
 
+import path from 'path'
 import sharp from 'sharp'
 import { createWorker } from 'tesseract.js'
 
@@ -85,12 +86,21 @@ const TESSDATA_ORIGIN =
 // path.join(__dirname, ...) - invisible to Next.js's static bundler, so on
 // Vercel the worker thread can't find its own script (found live 2026-09-03:
 // "Cannot find module '/var/task/.next/worker-script/node/index.js'", the
-// request just hung until Vercel's function timeout). require.resolve() with
-// a literal string IS statically analyzable, so it gets traced into the
-// serverless function bundle - passing these explicitly is required for this
-// to work on Vercel, not optional.
-const WORKER_PATH = require.resolve('tesseract.js/src/worker-script/node/index.js')
-const CORE_PATH = require.resolve('tesseract.js-core/tesseract-core.wasm.js')
+// request just hung until Vercel's function timeout). outputFileTracingIncludes
+// in next.config.js ships the real files into the Lambda at
+// /var/task/node_modules/... (confirmed via a live stack trace), but
+// require.resolve('literal/path') does NOT give a usable path here: this
+// file is webpack-bundled app code, and webpack rewrites require.resolve of
+// a literal string to its own internal numeric MODULE ID, not a filesystem
+// path - passing that number straight to `new Worker()` produced a second
+// live bug ("filename argument must be of type string... Received type
+// number (4537)"). tesseract.js/tesseract.js-core are excluded from the
+// webpack bundle (serverComponentsExternalPackages in next.config.js) and
+// land as real files under process.cwd()/node_modules at runtime, so building
+// the path with plain path.join against process.cwd() - never
+// require.resolve - is what actually works on Vercel.
+const WORKER_PATH = path.join(process.cwd(), 'node_modules/tesseract.js/src/worker-script/node/index.js')
+const CORE_PATH = path.join(process.cwd(), 'node_modules/tesseract.js-core/tesseract-core.wasm.js')
 
 async function detectTextOverlay(buffer: Buffer): Promise<{ hit: boolean; reason?: string }> {
   const worker = await createWorker('eng', 1, {
