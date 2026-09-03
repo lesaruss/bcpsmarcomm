@@ -8,7 +8,7 @@
 // as a named recipient. See error_registry BCPS-BRIEF-ADMIN-BYPASS-MISSING.
 
 import { createClient } from '@supabase/supabase-js'
-import { notFound, redirect } from 'next/navigation'
+import { notFound, redirect, permanentRedirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 
