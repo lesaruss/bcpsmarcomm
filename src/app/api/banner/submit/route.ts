@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/resend'
+import { analyzeBannerImage } from '@/lib/bannerVision'
 
 // WCM Banner Submission App - New Upload.
 // Mirrors the src/app/api/cert/upload/route.ts pattern: caller verified via
@@ -19,9 +20,14 @@ import { sendEmail } from '@/lib/resend'
 //   MIME/extension only.
 // - up to 3 submissions per request (the widget calls this route up to 3x)
 // - each submission requires banner_title, alt_text; banner_caption optional
-// - checklist_ack: the 4 required acknowledgement checkboxes, verbatim from
-//   the source mockup, must all be true or the submission is rejected here
-//   too (defense in depth - the widget already blocks submit client-side).
+// - checklist_ack: media_release and final_ack must be true or the
+//   submission is rejected here too (defense in depth - the widget already
+//   blocks submit client-side).
+// - Photo Content Requirements (no overlays/graphics/text, nav clearance) is
+//   no longer a self-cert checkbox - per Sean, 2026-09-03, it's an automated
+//   scan (lib/bannerVision.ts) re-run here server-side as the real gate, not
+//   just trusted from the client's earlier /api/banner/scan call. A failing
+//   scan blocks the submission the same way a missing checkbox used to.
 //
 // Submission-received notification, per Sean, 2026-09-02: "Can I send
 // Vanessa an email notification that it's been submitted or whoever she
@@ -43,7 +49,7 @@ const ALLOWED_MIME: Record<string, { ext: string; kind: 'image' | 'video' }> = {
   'video/mp4': { ext: 'mp4', kind: 'video' },
 }
 
-const REQUIRED_ACK_KEYS = ['media_release', 'no_overlays', 'nav_visibility', 'final_ack'] as const
+const REQUIRED_ACK_KEYS = ['media_release', 'final_ack'] as const
 
 async function verifyCaller(token: string) {
   if (!token) return null
@@ -138,6 +144,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `File too large (max ${Math.round(MAX_BYTES / 1024 / 1024)}MB).` }, { status: 400 })
   }
 
+  let contentScan: Awaited<ReturnType<typeof analyzeBannerImage>> | null = null
+  if (spec.kind === 'image') {
+    contentScan = await analyzeBannerImage({ base64: raw, mediaType: mime_type })
+    if (contentScan.error) {
+      return NextResponse.json({ error: `Could not complete the automated content scan (${contentScan.error}). Please try submitting again.` }, { status: 502 })
+    }
+    if (!contentScan.no_overlays_pass || !contentScan.nav_clearance_pass) {
+      return NextResponse.json({
+        error: 'This image did not pass the automated content scan.',
+        reasons: contentScan.reasons,
+      }, { status: 400 })
+    }
+  } else {
+    // Video: no frame-analysis pipeline yet, same exemption as the
+    // client-side dimension check - flagged for human review same as before.
+    contentScan = { no_overlays_pass: true, nav_clearance_pass: true, reasons: [], skipped: true }
+  }
+
   const safeName = file_name.replace(/[^a-zA-Z0-9._-]/g, '_')
   const path = `banner-submissions/${user.id}/${Date.now()}-${safeName}`
 
@@ -159,6 +183,7 @@ export async function POST(req: NextRequest) {
     banner_caption: banner_caption?.trim() || null,
     alt_text: alt_text.trim(),
     checklist_ack: { ...checklist_ack, acked_at: new Date().toISOString() },
+    content_scan: contentScan,
     school_location_nbr: schoolRow.loc_no,
     school_name: schoolRow.school_name,
   }).select('id, banner_title, file_name, wcm_email, school_name').single()
