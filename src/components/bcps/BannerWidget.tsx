@@ -13,8 +13,8 @@
 // submit banner photos/videos to a review queue (never auto-published); a
 // live preview shows the file composited into the actual banner + right-nav
 // display so the WCM can self-check quality and whether the nav blocks
-// faces; a 4-item requirement checklist (verbatim from the source mockup,
-// see CHECKLIST comment) must be acknowledged before submit, alongside a
+// faces; a 2-item requirement checklist (media release, final acknowledgment
+// - see CHECKLIST comment) must be acknowledged before submit, alongside a
 // live right-hand Validation checklist status panel (see
 // VALIDATION_CHECKLIST comment) mirroring Vanessa's mockup; up to 3
 // submissions per request; a separate Request Removal flow lets a WCM ask
@@ -92,31 +92,25 @@ const PLACEHOLDER_IMAGE =
     </svg>
   `)
 
-// Checklist, verbatim from Vanessa Deslandes's source Power Apps mockup - 3
-// grouped sections, 4 manual checkboxes, exactly as she built it. Restored
+// Checklist, adapted from Vanessa Deslandes's source Power Apps mockup - it
+// originally had 3 grouped sections, 4 manual checkboxes. Restored verbatim
 // 2026-09-03 after an earlier pass that night wrongly collapsed these into
 // one panel and turned 3 of the 4 into auto-passed non-checkboxes - Sean
-// caught it against the actual mockup screenshot: she never removed the
-// checkboxes, she added a live per-criterion status column next to them
-// (see VALIDATION_CHECKLIST below). Automated content detection (an actual
-// vision-model pass replacing self-cert) is still a real future upgrade,
-// but it layers under these same checkboxes later - it does not replace
-// them, and nothing about that upgrade is live tonight.
+// caught it against the actual mockup screenshot.
+//
+// Then, later the same day, Sean asked for exactly that: the Photo Content
+// Requirements pair (no_overlays, nav_visibility) came OUT as self-cert
+// checkboxes, replaced by a real automated scan (lib/bannerVision.ts, called
+// from the useEffect below and re-checked server-side in
+// /api/banner/submit) - not the earlier mistake, because this time there IS
+// a real vision-model pass behind it instead of an auto-passed no-op. Only
+// media_release and final_ack remain as manual checkboxes; nothing here
+// self-certifies content the tool can actually check itself.
 const CHECKLIST = [
   {
     key: 'media_release' as const,
     section: 'Approvals & Permissions',
     text: 'I confirm that all students appearing in submitted photos or videos have a signed media release on file.',
-  },
-  {
-    key: 'no_overlays' as const,
-    section: 'Photo Content Requirements',
-    text: 'I understand that images cannot include graphics, borders, text overlays, logos, watermarks, or embedded announcements.',
-  },
-  {
-    key: 'nav_visibility' as const,
-    section: 'Photo Content Requirements',
-    text: 'I understand that photos in which the homepage header or right-side navigation blocks faces will not be approved. I will ensure there is sufficient space on the right side of the image so that important subjects remain visible.',
   },
   {
     key: 'final_ack' as const,
@@ -126,19 +120,21 @@ const CHECKLIST = [
 ]
 
 // Validation checklist (right-hand status panel), verbatim labels + order
-// from Vanessa's mockup. Each row is live-derived from current form state -
-// no vision model, just the same signals the form already has (file
-// presence/dimensions, required fields, checkbox states) - and flips to
-// Pass the instant its condition is met, same as her Power Apps version.
+// from Vanessa's mockup, reordered 2026-09-03 per Sean: whatever the tool
+// itself scans/derives goes first ("upfront"), whatever requires the WCM to
+// fill something in goes last ("at the bottom"). files/dims/no_overlays/
+// nav_clearance are populated the instant a file is chosen (automated);
+// title/alt/approvals/final_ack only become true once the WCM types or
+// checks something. Submit stays disabled until every row here is true -
+// see allValidationPassed below.
 const VALIDATION_CHECKLIST = [
   { key: 'files', label: 'Up to three files' },
   { key: 'dims', label: 'Media meets 2000 × 800 px minimum requirements' },
+  { key: 'no_overlays', label: 'Image is free of graphics, borders, text overlays' },
+  { key: 'nav_clearance', label: 'Homepage navigation face-clearance' },
   { key: 'title', label: 'Banner title provided' },
   { key: 'alt', label: 'Required alternative text provided' },
   { key: 'approvals', label: 'Approvals and permissions acknowledged' },
-  { key: 'photo_req', label: 'Photo content requirements acknowledged' },
-  { key: 'no_overlays', label: 'Image is free of graphics, borders, text overlays' },
-  { key: 'nav_clearance', label: 'Homepage navigation face-clearance acknowledged' },
   { key: 'final_ack', label: 'Final acknowledgment completed' },
 ] as const
 
@@ -182,6 +178,15 @@ export default function BannerWidget() {
   // meeting the requirement rather than blocking the WCM on an unverifiable
   // check - flagged for review same as before.
   const [fileDims, setFileDims] = useState<{ width: number; height: number } | null>(null)
+  // Automated Photo Content Requirements scan (lib/bannerVision.ts via
+  // /api/banner/scan) - runs the instant a file is chosen, see the useEffect
+  // below. 'idle' before any file, 'scanning' while the request is in
+  // flight, 'done' once a result (pass or fail) is in. Drives the
+  // no_overlays/nav_clearance rows in validationStatus below - there is no
+  // manual checkbox for these anymore, per Sean, 2026-09-03.
+  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'done' | 'error'>('idle')
+  const [scanResult, setScanResult] = useState<{ no_overlays_pass: boolean; nav_clearance_pass: boolean; reasons: string[] } | null>(null)
+  const [scanError, setScanError] = useState<string | null>(null)
   const [bannerTitle, setBannerTitle] = useState('')
   const [bannerCaption, setBannerCaption] = useState('')
   const [altText, setAltText] = useState('')
@@ -270,7 +275,11 @@ export default function BannerWidget() {
   }, [tab])
 
   useEffect(() => {
-    if (!file) { setPreviewUrl(null); setFileKind(null); setFileDims(null); return }
+    if (!file) {
+      setPreviewUrl(null); setFileKind(null); setFileDims(null)
+      setScanState('idle'); setScanResult(null); setScanError(null)
+      return
+    }
     const url = URL.createObjectURL(file)
     setPreviewUrl(url)
     const kind = file.type.startsWith('video') ? 'video' : 'image'
@@ -281,7 +290,38 @@ export default function BannerWidget() {
       img.onload = () => setFileDims({ width: img.naturalWidth, height: img.naturalHeight })
       img.src = url
     }
-    return () => URL.revokeObjectURL(url)
+
+    // Automated Photo Content Requirements scan - fires the instant a file
+    // is chosen, "upfront" per Sean, before the WCM has typed anything else.
+    // /api/banner/submit re-runs this same check server-side as the real
+    // gate; this call is for fast in-form feedback.
+    let cancelled = false
+    setScanState('scanning'); setScanResult(null); setScanError(null)
+    ;(async () => {
+      try {
+        if (kind === 'video') {
+          if (!cancelled) { setScanResult({ no_overlays_pass: true, nav_clearance_pass: true, reasons: [] }); setScanState('done') }
+          return
+        }
+        const b64 = await fileToBase64(file)
+        const res = await authedFetch('/api/banner/scan', {
+          method: 'POST',
+          body: JSON.stringify({ file_base64: b64, mime_type: file.type }),
+        })
+        const data = await res.json()
+        if (cancelled) return
+        if (!res.ok || data.error) {
+          setScanError(data.error || 'Automated scan failed.'); setScanState('error')
+        } else {
+          setScanResult({ no_overlays_pass: !!data.no_overlays_pass, nav_clearance_pass: !!data.nav_clearance_pass, reasons: data.reasons || [] })
+          setScanState('done')
+        }
+      } catch {
+        if (!cancelled) { setScanError('Automated scan failed - please try re-selecting the file.'); setScanState('error') }
+      }
+    })()
+
+    return () => { cancelled = true; URL.revokeObjectURL(url) }
   }, [file])
 
   const allChecked = CHECKLIST.every(c => checks[c.key])
@@ -291,12 +331,11 @@ export default function BannerWidget() {
   const validationStatus: Record<string, boolean> = {
     files: !!file,
     dims: fileKind === 'video' ? true : !!(fileDims && fileDims.width >= 2000 && fileDims.height >= 800),
+    no_overlays: !!scanResult?.no_overlays_pass,
+    nav_clearance: !!scanResult?.nav_clearance_pass,
     title: bannerTitle.trim() !== '',
     alt: altText.trim() !== '',
     approvals: !!checks.media_release,
-    photo_req: !!checks.no_overlays && !!checks.nav_visibility,
-    no_overlays: !!checks.no_overlays,
-    nav_clearance: !!checks.nav_visibility,
     final_ack: !!checks.final_ack,
   }
   const allValidationPassed = VALIDATION_CHECKLIST.every(v => validationStatus[v.key])
@@ -340,7 +379,10 @@ export default function BannerWidget() {
     if (!file) { setUploadNotice('Choose a photo or video first.'); return }
     if (!bannerTitle.trim()) { setUploadNotice('Banner type/title is required.'); return }
     if (!altText.trim()) { setUploadNotice('Alternative text is required.'); return }
-    if (!allChecked) { setUploadNotice('All four requirement checkboxes must be checked before submitting.'); return }
+    if (!allChecked) { setUploadNotice('Both requirement checkboxes must be checked before submitting.'); return }
+    if (scanState === 'scanning') { setUploadNotice('Still running the automated content scan - one moment.'); return }
+    if (scanState === 'error') { setUploadNotice(scanError || 'The automated content scan failed - please try re-selecting the file.'); return }
+    if (!scanResult?.no_overlays_pass || !scanResult?.nav_clearance_pass) { setUploadNotice('This image needs to pass the automated content scan before it can be submitted.'); return }
 
     setSubmitting(true)
     try {
@@ -671,6 +713,35 @@ export default function BannerWidget() {
                     ? 'This preview mirrors the real school-site header, homepage banner, and navigation, including how they reflow on a smaller screen. Drag the frame’s bottom-right corner (or use the width buttons above) to check narrower widths. Make sure faces and important subjects stay clear of the right-hand nav.'
                     : 'This is a sample image showing how your upload will look on the homepage. Choose a photo or video above and it will replace this placeholder automatically.'}
                 </div>
+
+                {/* Automated Photo Content Requirements scan - shown "upfront"
+                    right where it runs, per Sean 2026-09-03, not buried only
+                    in the right-hand Validation checklist. Only appears once
+                    a real file is selected (not for the placeholder). */}
+                {file && (
+                  <div style={{
+                    marginTop: 10, borderRadius: 6, padding: '10px 12px', fontSize: 12.5,
+                    background: scanState === 'scanning' ? '#f3f4f6'
+                      : scanState === 'error' ? '#fbe9e7'
+                      : (scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass) ? '#e6f4ea' : '#fbe9e7',
+                    color: scanState === 'scanning' ? '#4b5563'
+                      : scanState === 'error' ? '#a13a2f'
+                      : (scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass) ? '#1e6b3a' : '#a13a2f',
+                  }}>
+                    <div style={{ fontWeight: 700, marginBottom: scanResult?.reasons?.length ? 4 : 0 }}>
+                      {scanState === 'scanning' && 'Scanning image for graphics, text overlays, and nav clearance...'}
+                      {scanState === 'error' && `Automated scan failed: ${scanError}`}
+                      {scanState === 'done' && (scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass
+                        ? 'Automated content scan passed.'
+                        : 'Automated content scan flagged this image - it cannot be submitted as-is.')}
+                    </div>
+                    {scanResult?.reasons && scanResult.reasons.length > 0 && (
+                      <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                        {scanResult.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
               )
             })()}
@@ -688,15 +759,17 @@ export default function BannerWidget() {
               <input type="text" value={altText} onChange={e => setAltText(e.target.value)} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
             </div>
 
-            {/* Submission requirement acknowledgements - verbatim grouping from
-                Vanessa's mockup, 3 boxes, 4 checkboxes total. See CHECKLIST
-                comment above for why these stayed exactly as she built them. */}
+            {/* Submission requirement acknowledgements - the two items the
+                tool cannot check for itself (media release on file, final
+                sign-off). Photo Content Requirements used to be a third box
+                here; it's now the automated scan shown above instead of a
+                self-cert checkbox. See CHECKLIST comment above. */}
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Submission requirement acknowledgements</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
                 Review and confirm each required item before submitting for approval.
               </div>
-              {['Approvals & Permissions', 'Photo Content Requirements', 'Final Acknowledgment'].map(section => (
+              {['Approvals & Permissions', 'Final Acknowledgment'].map(section => (
                 <div key={section} style={{ border: '1px solid var(--border)', borderRadius: 6, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>{section}</div>
                   {CHECKLIST.filter(c => c.section === section).map(c => (
