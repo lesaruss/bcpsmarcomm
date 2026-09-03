@@ -13,13 +13,15 @@
 // submit banner photos/videos to a review queue (never auto-published); a
 // live preview shows the file composited into the actual banner + right-nav
 // display so the WCM can self-check quality and whether the nav blocks
-// faces; a single combined Compliance Check panel (see CHECKLIST comment
-// below) must be acknowledged before submit; up to 3 submissions per
-// request; a separate Request Removal flow lets a WCM ask to take down one
-// of their own prior uploads; the District Web Team reviews everything
-// (uploads + removals) in an internal queue, approves or rejects with a
-// reason, and a rejection fires an automated templated email to the WCM.
-// Admin/Manager permissions for this feature are self-contained
+// faces; a 4-item requirement checklist (verbatim from the source mockup,
+// see CHECKLIST comment) must be acknowledged before submit, alongside a
+// live right-hand Validation checklist status panel (see
+// VALIDATION_CHECKLIST comment) mirroring Vanessa's mockup; up to 3
+// submissions per request; a separate Request Removal flow lets a WCM ask
+// to take down one of their own prior uploads; the District Web Team
+// reviews everything (uploads + removals) in an internal queue, approves or
+// rejects with a reason, and a rejection fires an automated templated email
+// to the WCM. Admin/Manager permissions for this feature are self-contained
 // (bcps_banner_admins) - Vanessa is the seeded Admin.
 
 import { useEffect, useRef, useState } from 'react'
@@ -64,51 +66,55 @@ const RIGHT_NAV_ITEMS = [
   'School Counseling', 'Contact', 'Schedule a Tour',
 ]
 
-// Compliance Check panel, per Sean, 2026-09-02: combine the three prior
-// sections (Approvals & Permissions / Photo Content Requirements / Final
-// Acknowledgment) into one panel, and move as much as possible from
-// self-certification (WCM checks a box) to system verification (the tool
-// inspects the upload itself and flags it) - "like an ADA checker... so the
-// admin doesn't have to." BOSS pass run the same night landed on a
-// two-tier split:
-//   - media_release cannot be verified from the file itself (it's an
-//     attestation about paperwork on file elsewhere), so it stays a manual
-//     checkbox permanently.
-//   - no_overlays and nav_visibility are genuinely image-content questions
-//     an automated check should answer, and final_ack is redundant once
-//     those two are automated. All three are wired here as `automatable:
-//     true` and rendered as system-checked status rows rather than
-//     checkboxes, but the detection engine itself (a vision-model pass
-//     against the uploaded file) is a separate build - the Vercel project
-//     has no confirmed ANTHROPIC_API_KEY/vision integration wired yet, and
-//     shipping that unverified tonight risked a broken submit path on the
-//     night this goes to Vanessa. Until that engine lands, these two show
-//     as "Reviewed by the District Web Team" rather than a live pass/fail,
-//     which is honest about current behavior: a human still checks them
-//     during review, same as before, just no longer as a WCM self-cert
-//     checkbox.
+// Checklist, verbatim from Vanessa Deslandes's source Power Apps mockup - 3
+// grouped sections, 4 manual checkboxes, exactly as she built it. Restored
+// 2026-09-03 after an earlier pass that night wrongly collapsed these into
+// one panel and turned 3 of the 4 into auto-passed non-checkboxes - Sean
+// caught it against the actual mockup screenshot: she never removed the
+// checkboxes, she added a live per-criterion status column next to them
+// (see VALIDATION_CHECKLIST below). Automated content detection (an actual
+// vision-model pass replacing self-cert) is still a real future upgrade,
+// but it layers under these same checkboxes later - it does not replace
+// them, and nothing about that upgrade is live tonight.
 const CHECKLIST = [
   {
     key: 'media_release' as const,
-    automatable: false,
+    section: 'Approvals & Permissions',
     text: 'I confirm that all students appearing in submitted photos or videos have a signed media release on file.',
   },
   {
     key: 'no_overlays' as const,
-    automatable: true,
-    text: 'No added graphics, borders, text overlays, logos, watermarks, or embedded announcements.',
+    section: 'Photo Content Requirements',
+    text: 'I understand that images cannot include graphics, borders, text overlays, logos, watermarks, or embedded announcements.',
   },
   {
     key: 'nav_visibility' as const,
-    automatable: true,
-    text: 'Faces and important subjects stay clear of the homepage header and right-side navigation.',
+    section: 'Photo Content Requirements',
+    text: 'I understand that photos in which the homepage header or right-side navigation blocks faces will not be approved. I will ensure there is sufficient space on the right side of the image so that important subjects remain visible.',
   },
   {
     key: 'final_ack' as const,
-    automatable: true,
-    text: 'Meets all other Banner Submission requirements.',
+    section: 'Final Acknowledgment',
+    text: 'I have reviewed and understand all requirements. I acknowledge that submissions that do not meet these requirements will not be published.',
   },
 ]
+
+// Validation checklist (right-hand status panel), verbatim labels + order
+// from Vanessa's mockup. Each row is live-derived from current form state -
+// no vision model, just the same signals the form already has (file
+// presence/dimensions, required fields, checkbox states) - and flips to
+// Pass the instant its condition is met, same as her Power Apps version.
+const VALIDATION_CHECKLIST = [
+  { key: 'files', label: 'Up to three files' },
+  { key: 'dims', label: 'Media meets 2000 × 800 px minimum requirements' },
+  { key: 'title', label: 'Banner title provided' },
+  { key: 'alt', label: 'Required alternative text provided' },
+  { key: 'approvals', label: 'Approvals and permissions acknowledged' },
+  { key: 'photo_req', label: 'Photo content requirements acknowledged' },
+  { key: 'no_overlays', label: 'Image is free of graphics, borders, text overlays' },
+  { key: 'nav_clearance', label: 'Homepage navigation face-clearance acknowledged' },
+  { key: 'final_ack', label: 'Final acknowledgment completed' },
+] as const
 
 type Tab = 'upload' | 'removal' | 'mine' | 'review' | 'admins'
 
@@ -138,6 +144,13 @@ export default function BannerWidget() {
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [fileKind, setFileKind] = useState<'image' | 'video' | null>(null)
+  // Natural pixel dimensions of the current file, for the "Media meets 2000
+  // x 800 px minimum requirements" validation row. Images are measured via
+  // a throwaway <img> load; video dimension checks aren't wired yet (no
+  // metadata probe on the file itself today), so a video is treated as
+  // meeting the requirement rather than blocking the WCM on an unverifiable
+  // check - flagged for review same as before.
+  const [fileDims, setFileDims] = useState<{ width: number; height: number } | null>(null)
   const [bannerTitle, setBannerTitle] = useState('')
   const [bannerCaption, setBannerCaption] = useState('')
   const [altText, setAltText] = useState('')
@@ -226,19 +239,36 @@ export default function BannerWidget() {
   }, [tab])
 
   useEffect(() => {
-    if (!file) { setPreviewUrl(null); setFileKind(null); return }
+    if (!file) { setPreviewUrl(null); setFileKind(null); setFileDims(null); return }
     const url = URL.createObjectURL(file)
     setPreviewUrl(url)
-    setFileKind(file.type.startsWith('video') ? 'video' : 'image')
+    const kind = file.type.startsWith('video') ? 'video' : 'image'
+    setFileKind(kind)
+    setFileDims(null)
+    if (kind === 'image') {
+      const img = new Image()
+      img.onload = () => setFileDims({ width: img.naturalWidth, height: img.naturalHeight })
+      img.src = url
+    }
     return () => URL.revokeObjectURL(url)
   }, [file])
 
-  // Only the non-automatable item (media_release) is a real WCM self-cert
-  // checkbox now. The automatable items are recorded true at submit time -
-  // they're system-scope, not something the WCM attests to - see the
-  // CHECKLIST comment above for why they aren't yet a live automated check.
-  const manualItems = CHECKLIST.filter(c => !c.automatable)
-  const allChecked = manualItems.every(c => checks[c.key])
+  const allChecked = CHECKLIST.every(c => checks[c.key])
+  // Live Validation checklist status (right-hand panel) - each row derived
+  // from current form state, matching Vanessa's mockup's per-item Pass
+  // display. See VALIDATION_CHECKLIST comment.
+  const validationStatus: Record<string, boolean> = {
+    files: !!file,
+    dims: fileKind === 'video' ? true : !!(fileDims && fileDims.width >= 2000 && fileDims.height >= 800),
+    title: bannerTitle.trim() !== '',
+    alt: altText.trim() !== '',
+    approvals: !!checks.media_release,
+    photo_req: !!checks.no_overlays && !!checks.nav_visibility,
+    no_overlays: !!checks.no_overlays,
+    nav_clearance: !!checks.nav_visibility,
+    final_ack: !!checks.final_ack,
+  }
+  const allValidationPassed = VALIDATION_CHECKLIST.every(v => validationStatus[v.key])
   const canReview = myRole === 'admin' || myRole === 'manager'
   const isAdmin = myRole === 'admin'
   const myUploads = mine.filter(m => m.type === 'upload')
@@ -279,15 +309,11 @@ export default function BannerWidget() {
     if (!file) { setUploadNotice('Choose a photo or video first.'); return }
     if (!bannerTitle.trim()) { setUploadNotice('Banner type/title is required.'); return }
     if (!altText.trim()) { setUploadNotice('Alternative text is required.'); return }
-    if (!allChecked) { setUploadNotice('The media release acknowledgment must be checked before submitting.'); return }
+    if (!allChecked) { setUploadNotice('All four requirement checkboxes must be checked before submitting.'); return }
 
     setSubmitting(true)
     try {
       const base64 = await fileToBase64(file)
-      // Automatable checklist items (no_overlays, nav_visibility, final_ack)
-      // aren't WCM self-cert anymore - see CHECKLIST comment - so they're
-      // recorded true here rather than surfaced as checkboxes.
-      const fullAck = { ...checks, ...Object.fromEntries(CHECKLIST.filter(c => c.automatable).map(c => [c.key, true])) }
       const res = await authedFetch('/api/banner/submit', {
         method: 'POST',
         body: JSON.stringify({
@@ -297,7 +323,7 @@ export default function BannerWidget() {
           banner_title: bannerTitle,
           banner_caption: bannerCaption,
           alt_text: altText,
-          checklist_ack: fullAck,
+          checklist_ack: checks,
           school_location_nbr: selectedSchool,
         }),
       })
@@ -438,6 +464,13 @@ export default function BannerWidget() {
 
       {tab === 'upload' && (
         <div>
+          <style>{`
+            .bwp-layout { display: grid; grid-template-columns: 1fr; gap: 16px; }
+            @media (min-width: 760px) {
+              .bwp-layout { grid-template-columns: 1fr 300px; align-items: start; }
+            }
+          `}</style>
+          <div className="bwp-layout">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>School *</label>
@@ -612,45 +645,71 @@ export default function BannerWidget() {
               <input type="text" value={altText} onChange={e => setAltText(e.target.value)} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
             </div>
 
-            {/* Compliance Check - combined per Sean, 2026-09-02, and split into
-                what the tool checks vs. what only the WCM can attest to
-                (see CHECKLIST comment). */}
-            <div style={{ background: 'var(--bg-page)', borderRadius: 6, padding: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10 }}>Compliance Check</div>
-
-              {manualItems.map(c => (
-                <label key={c.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, marginBottom: 10, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!checks[c.key]}
-                    onChange={e => setChecks(prev => ({ ...prev, [c.key]: e.target.checked }))}
-                    style={{ marginTop: 2 }}
-                  />
-                  <span>{c.text}</span>
-                </label>
-              ))}
-
-              <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 10 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
-                  The District Web Team also checks every submission against:
-                </div>
-                {CHECKLIST.filter(c => c.automatable).map(c => (
-                  <div key={c.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, marginBottom: 8, color: 'var(--text-muted)' }}>
-                    <span style={{ marginTop: 1 }}>&#10003;</span>
-                    <span>{c.text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {uploadNotice && <div style={{ fontSize: 12.5, color: uploadNotice.startsWith('Submitted') ? '#1e6b3a' : '#a13a2f' }}>{uploadNotice}</div>}
-
+            {/* Submission requirement acknowledgements - verbatim grouping from
+                Vanessa's mockup, 3 boxes, 4 checkboxes total. See CHECKLIST
+                comment above for why these stayed exactly as she built them. */}
             <div>
-              <button className="btn-primary" disabled={submitting} onClick={handleSubmitUpload}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Submission requirement acknowledgements</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
+                Review and confirm each required item before submitting for approval.
+              </div>
+              {['Approvals & Permissions', 'Photo Content Requirements', 'Final Acknowledgment'].map(section => (
+                <div key={section} style={{ border: '1px solid var(--border)', borderRadius: 6, padding: 12, marginBottom: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>{section}</div>
+                  {CHECKLIST.filter(c => c.section === section).map(c => (
+                    <label key={c.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, marginBottom: 8, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={!!checks[c.key]}
+                        onChange={e => setChecks(prev => ({ ...prev, [c.key]: e.target.checked }))}
+                        style={{ marginTop: 2 }}
+                      />
+                      <span>{c.text}</span>
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Validation checklist - live per-item status, matching Vanessa's
+              mockup exactly (label, order, one row per criterion, updates the
+              instant its condition is met). See VALIDATION_CHECKLIST comment. */}
+          <div>
+            <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, padding: 16, position: 'sticky', top: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Validation checklist</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>All items must pass before review.</div>
+              {VALIDATION_CHECKLIST.map(v => {
+                const pass = validationStatus[v.key]
+                return (
+                  <div key={v.key} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                    background: pass ? '#1e6b3a' : '#e4e4e4', color: pass ? '#fff' : '#666',
+                    borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: 12.5, fontWeight: 600,
+                  }}>
+                    <span>{v.label}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{pass ? 'Pass' : 'Pending'}</span>
+                  </div>
+                )
+              })}
+              <button
+                className="btn-primary"
+                disabled={submitting || !allValidationPassed || !selectedSchool}
+                onClick={handleSubmitUpload}
+                style={{ width: '100%', marginTop: 4 }}
+              >
                 {submitting ? 'Submitting...' : 'Submit for review'}
               </button>
+              {uploadNotice && (
+                <div style={{ fontSize: 12, marginTop: 8, color: uploadNotice.startsWith('Submitted') ? '#1e6b3a' : '#a13a2f' }}>
+                  {uploadNotice}
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+                Up to 3 submissions per request - submit this form again for additional banners.
+              </div>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Up to 3 submissions per request - submit this form again for additional banners.</div>
+          </div>
           </div>
         </div>
       )}
