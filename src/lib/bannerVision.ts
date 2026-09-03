@@ -81,11 +81,24 @@ const TESSDATA_ORIGIN =
   process.env.BANNER_OCR_LANGPATH ||
   'https://fwbhwfxpncrsfhttimna.supabase.co/storage/v1/object/public/bcps-public/tessdata'
 
+// tesseract.js resolves its worker/core scripts with a runtime-computed
+// path.join(__dirname, ...) - invisible to Next.js's static bundler, so on
+// Vercel the worker thread can't find its own script (found live 2026-09-03:
+// "Cannot find module '/var/task/.next/worker-script/node/index.js'", the
+// request just hung until Vercel's function timeout). require.resolve() with
+// a literal string IS statically analyzable, so it gets traced into the
+// serverless function bundle - passing these explicitly is required for this
+// to work on Vercel, not optional.
+const WORKER_PATH = require.resolve('tesseract.js/src/worker-script/node/index.js')
+const CORE_PATH = require.resolve('tesseract.js-core/tesseract-core.wasm.js')
+
 async function detectTextOverlay(buffer: Buffer): Promise<{ hit: boolean; reason?: string }> {
   const worker = await createWorker('eng', 1, {
     langPath: TESSDATA_ORIGIN,
     cachePath: '/tmp/tessdata-cache',
     gzip: true,
+    workerPath: WORKER_PATH,
+    corePath: CORE_PATH,
     logger: () => {},
   })
   try {
