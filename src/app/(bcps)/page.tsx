@@ -34,6 +34,7 @@ import AdaScannerPage from '@/components/pages/AdaScannerPage'
 import ADAManagerPage from '@/components/pages/ADAManagerPage'
 import RegistrationsPage from '@/components/pages/RegistrationsPage'
 import BannerSubmissionsPage from '@/components/pages/BannerSubmissionsPage'
+import SchoolProfilesPage from '@/components/pages/SchoolProfilesPage'
 import { SAMPLE_SUPERADMIN_ID, type UserRole } from '@/components/Sidebar'
 
 const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations'])
@@ -113,6 +114,7 @@ function HomeInner() {
       {nav.page === 'ada-manager'              && <ADAManagerPage />}
       {nav.page === 'registrations'            && effectiveRole === 'superadmin' && <RegistrationsPage />}
       {nav.page === 'banner-submissions'       && <BannerSubmissionsPage />}
+      {nav.page === 'school-profiles'          && <SchoolProfilesPage />}
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>
