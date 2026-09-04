@@ -7,6 +7,15 @@
 // Schools ADA): onboarding a school and tracking its accessibility score
 // are one job, not two pages, so they're one page now.
 //
+// School picker updated 2026-09-04: this is the live "Add School" form
+// (POST /api/bcps/schools) - a hotfix, caught during School Profiles step 2
+// live verification, after the API route itself was tightened same-day to
+// require school_location_nbr from the district roster instead of a
+// free-text name. This form still posted the old free-text shape and would
+// have failed every submission had it shipped unpatched - fixed in the same
+// pass, before announcing step 2 done. See /api/bcps/schools's header for
+// the full why.
+//
 // Built 2026-09-02 per Sean, direct instruction: schools are provisioned
 // by the district team here, never self-service - a school WCM never
 // creates their own school record, they just get handed a login once the
@@ -49,7 +58,13 @@ interface School {
   wcm_email: string | null
   wcm_user_id: string | null
   notes: string | null
+  school_location_nbr: string | null
   created_at: string
+}
+
+interface DirectorySchool {
+  loc_no: string
+  school_name: string
 }
 
 interface Violation {
@@ -396,9 +411,30 @@ export default function ADAManagerPage() {
 
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', site_url: '', wcm_name: '', wcm_email: '', temp_password: '', notes: '' })
+  const [form, setForm] = useState({ school_location_nbr: '', site_url: '', wcm_name: '', wcm_email: '', temp_password: '', notes: '' })
+  const [directory, setDirectory] = useState<DirectorySchool[]>([])
+  const [directoryLoading, setDirectoryLoading] = useState(true)
 
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
+
+  // District roster for the school picker, added 2026-09-04 alongside
+  // school_location_nbr on bcps_schools/bcps_audit_results (School Profiles
+  // step 2): a school added here used to be free-text with no reliable join
+  // to the district roster the banner tool already keys everything to -
+  // this is the same /api/banner/schools -> bcps_school_directory source the
+  // Explicit banner school selector uses, open to any signed-in account.
+  useEffect(() => {
+    (async () => {
+      try {
+        const t = await token()
+        const r = await fetch('/api/banner/schools', { headers: { Authorization: `Bearer ${t}` } })
+        const j = await r.json()
+        if (r.ok) setDirectory(j.schools || [])
+      } finally {
+        setDirectoryLoading(false)
+      }
+    })()
+  }, [token])
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -461,8 +497,10 @@ export default function ADAManagerPage() {
     }
   }
 
+  const alreadyOnboarded = new Set(schools.map(s => s.school_location_nbr).filter(Boolean))
+
   const addSchool = async () => {
-    if (!form.name.trim()) { setError('School name is required.'); return }
+    if (!form.school_location_nbr) { setError('Select a school from the district directory.'); return }
     setSaving(true)
     setError('')
     try {
@@ -474,7 +512,7 @@ export default function ADAManagerPage() {
       })
       const j = await r.json()
       if (!r.ok) { setError(j.error || 'Could not add school.'); return }
-      setForm({ name: '', site_url: '', wcm_name: '', wcm_email: '', temp_password: '', notes: '' })
+      setForm({ school_location_nbr: '', site_url: '', wcm_name: '', wcm_email: '', temp_password: '', notes: '' })
       setShowForm(false)
       loadAll()
     } finally {
@@ -533,8 +571,20 @@ export default function ADAManagerPage() {
           <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 16, display: 'grid', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <label>
-                <span style={C.label}>School Name *</span>
-                <input style={C.input} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Silver Ridge Elementary" />
+                <span style={C.label}>School *</span>
+                <select
+                  style={C.input}
+                  value={form.school_location_nbr}
+                  onChange={e => setForm(f => ({ ...f, school_location_nbr: e.target.value }))}
+                  disabled={directoryLoading}
+                >
+                  <option value="">{directoryLoading ? 'Loading district roster...' : 'Select a school...'}</option>
+                  {directory.map(s => (
+                    <option key={s.loc_no} value={s.loc_no} disabled={alreadyOnboarded.has(s.loc_no)}>
+                      {s.school_name}{alreadyOnboarded.has(s.loc_no) ? ' (already onboarded)' : ''}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
                 <span style={C.label}>Website URL</span>
