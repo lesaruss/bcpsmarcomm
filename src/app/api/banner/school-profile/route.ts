@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase-admin'
 
-// School Profile - step one of the per-school profile model Sean asked for
-// 2026-09-03 ("similar to departments... only tracking the banner for now,
-// then the ADA can get a slot"). Banners-only for now; ADA joins later once
-// bcps_audit_results is backfilled with school_location_nbr (it's keyed to
-// the small bcps_schools pilot table today, not the 227-school
-// bcps_school_directory this route uses - see BannerWidget.tsx history for
-// why those are two different tables).
+// School Profile - the per-school profile model Sean asked for 2026-09-03
+// ("similar to departments... only tracking the banner for now, then the ADA
+// can get a slot"). Step one (2026-09-03) shipped banners only. Step two
+// (2026-09-04) adds the ADA module: bcps_audit_results now carries
+// school_location_nbr (backfilled, and stamped on every new school-portal
+// scan going forward - see /api/bcps/school-scan and /api/bcps/schools),
+// so ADA history joins in by the same loc_no key banners already use.
 //
 // Access: District Web Team only (same bcps_banner_admins admin/manager
 // gate as the Review Queue). Per-school access for individual WCMs is a
@@ -86,7 +86,15 @@ export async function GET(req: NextRequest) {
     test_runs: active.filter(s => s.is_test).length,
   }
 
-  return NextResponse.json({ school, submissions, summary, my_role: auth.role })
+  const { data: adaScans, error: adaErr } = await svc
+    .from('bcps_audit_results')
+    .select('id, page_url, ada_score, wave_score, lighthouse_a11y_score, status, ada_violations_critical, ada_violations_serious, ada_violations_moderate, ada_violations_minor, audited_at')
+    .eq('school_location_nbr', locNo)
+    .order('audited_at', { ascending: false })
+    .limit(20)
+  if (adaErr) return NextResponse.json({ error: adaErr.message }, { status: 500 })
+
+  return NextResponse.json({ school, submissions, summary, ada_scans: adaScans ?? [], my_role: auth.role })
 }
 
 // POST /api/banner/school-profile
