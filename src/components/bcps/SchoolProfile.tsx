@@ -1,11 +1,14 @@
 'use client'
 
-// School Profile - step one, built 2026-09-03 per Sean: a per-school page,
-// modeled on the department profile pattern, that will eventually collect
-// every automated module (banners, ADA, and whatever comes after) into one
-// place per school. Banners is the only module wired up today. ADA gets a
-// reserved slot below it - empty until bcps_audit_results is backfilled with
-// school_location_nbr so it can be joined the same way banners already are.
+// School Profile - built 2026-09-03 per Sean: a per-school page, modeled on
+// the department profile pattern, collecting every automated module
+// (banners, ADA, and whatever comes after) into one place per school.
+// Step one (2026-09-03) shipped Banners only. Step two (2026-09-04) wires up
+// ADA: bcps_audit_results now carries school_location_nbr, backfilled for
+// the one existing school-portal account and stamped on every new scan going
+// forward, so it joins in by the same loc_no key Banners already uses. ADA
+// history is read-only here (archive/test-flag controls are a banner-only
+// concept for now - ADA scans aren't submissions awaiting review).
 //
 // Access: District Web Team only (bcps_banner_admins admin/manager), same
 // gate as the Review Queue - enforced server-side in
@@ -48,6 +51,29 @@ interface School {
   region: string | null
 }
 
+interface AdaScan {
+  id: string
+  page_url: string
+  ada_score: number | null
+  wave_score: number | null
+  lighthouse_a11y_score: number | null
+  status: string
+  ada_violations_critical: number
+  ada_violations_serious: number
+  ada_violations_moderate: number
+  ada_violations_minor: number
+  audited_at: string
+}
+
+// Same status palette as /school-portal's ADA tile (STATUS_CONFIG there) -
+// kept in sync deliberately so a score reads the same color everywhere.
+const ADA_STATUS: Record<string, { label: string; color: string; bg: string }> = {
+  pass:       { label: 'Passing',         color: '#059669', bg: '#ECFDF5' },
+  needs_work: { label: 'Needs Work',      color: '#D97706', bg: '#FFFBEB' },
+  critical:   { label: 'Critical Issues', color: '#DC2626', bg: '#FEF2F2' },
+  unknown:    { label: 'Unscored',        color: '#6B7280', bg: '#F3F4F6' },
+}
+
 function statusBadge(status: SubmissionStatus) {
   const map: Record<SubmissionStatus, { bg: string; fg: string; label: string }> = {
     pending: { bg: '#fdf3e0', fg: '#8a5a00', label: 'Pending' },
@@ -80,6 +106,7 @@ export default function SchoolProfile() {
 
   const [school, setSchool] = useState<School | null>(null)
   const [submissions, setSubmissions] = useState<ProfileSubmission[]>([])
+  const [adaScans, setAdaScans] = useState<AdaScan[]>([])
   const [summary, setSummary] = useState<{ total: number; pending: number; approved: number; rejected: number; test_runs: number } | null>(null)
   const [includeArchived, setIncludeArchived] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -130,9 +157,10 @@ export default function SchoolProfile() {
     try {
       const res = await authedFetch(`/api/banner/school-profile?loc_no=${encodeURIComponent(locNo)}${withArchived ? '&include_archived=1' : ''}`)
       const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Could not load this school.'); setSchool(null); setSubmissions([]); setSummary(null); return }
+      if (!res.ok) { setError(data.error || 'Could not load this school.'); setSchool(null); setSubmissions([]); setAdaScans([]); setSummary(null); return }
       setSchool(data.school)
       setSubmissions(data.submissions || [])
+      setAdaScans(data.ada_scans || [])
       setSummary(data.summary || null)
     } catch {
       setError('Could not load this school.')
@@ -299,12 +327,43 @@ export default function SchoolProfile() {
           </div>
 
           <div>
-            <div style={{ fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#9ca3af', marginBottom: 10 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', color: '#374151', marginBottom: 10 }}>
               ADA
             </div>
-            <div style={{ fontSize: 13, color: '#9ca3af', fontStyle: 'italic' }}>
-              Not connected to school profiles yet. This slot will show this school&apos;s ADA scan history once that data is linked here.
-            </div>
+            {adaScans.length === 0 ? (
+              <div style={{ fontSize: 13, color: '#6b7280' }}>
+                No ADA scan on record for this school yet. This school needs a school-portal account (Schools admin)
+                and a scan run from there before history appears here.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {adaScans.map(scan => {
+                  const s = ADA_STATUS[scan.status] || ADA_STATUS.unknown
+                  const totalViolations = scan.ada_violations_critical + scan.ada_violations_serious + scan.ada_violations_moderate + scan.ada_violations_minor
+                  return (
+                    <div key={scan.id} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, wordBreak: 'break-all' }}>{scan.page_url}</div>
+                          <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 2 }}>{new Date(scan.audited_at).toLocaleString()}</div>
+                        </div>
+                        <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+                          {s.label}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12, color: '#374151', flexWrap: 'wrap' }}>
+                        {scan.ada_score != null && <span>axe-core: {scan.ada_score}</span>}
+                        {scan.wave_score != null && <span>WAVE: {scan.wave_score}</span>}
+                        {scan.lighthouse_a11y_score != null && <span>Lighthouse: {scan.lighthouse_a11y_score}</span>}
+                        <span>{totalViolations} violation{totalViolations === 1 ? '' : 's'}
+                          {scan.ada_violations_critical > 0 && ` (${scan.ada_violations_critical} critical)`}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </>
       )}
