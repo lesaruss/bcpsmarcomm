@@ -31,6 +31,17 @@
 // same call, exactly like an admin creating any other WCM account -
 // must_change_password is set so they're forced to pick their own password
 // on first login, mirroring the existing /set-password flow.
+//
+// school_location_nbr added 2026-09-04 (School Profiles step 2, Sean): a
+// school onboarded here used to only get a free-text name, with no link to
+// bcps_school_directory (the 227-school district roster the banner tool
+// already keys everything to by loc_no). That meant ADA scan history for a
+// school-portal account had no reliable join to the School Profile page -
+// the one row that existed before this had to be backfilled by hand-matching
+// "Silver Ridge Elementary" to loc_no 3081. Fixed at the root: a school is
+// now selected from bcps_school_directory (loc_no is the real key), not
+// typed freehand, so every school onboarded from here on already has the
+// join key it needs.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -66,7 +77,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await svc
     .from('bcps_schools')
-    .select('id, name, site_url, wcm_name, wcm_email, wcm_user_id, notes, created_at')
+    .select('id, name, site_url, wcm_name, wcm_email, wcm_user_id, notes, school_location_nbr, created_at')
     .order('name', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -78,14 +89,27 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const body = await req.json().catch(() => ({}))
-  const name = (body.name || '').trim()
+  const schoolLocationNbr = (body.school_location_nbr || '').trim() || null
   const siteUrl = (body.site_url || '').trim() || null
   const wcmName = (body.wcm_name || '').trim() || null
   const wcmEmail = (body.wcm_email || '').trim().toLowerCase() || null
   const tempPassword = (body.temp_password || '').trim() || null
   const notes = (body.notes || '').trim() || null
 
-  if (!name) return NextResponse.json({ error: 'School name is required.' }, { status: 400 })
+  if (!schoolLocationNbr) return NextResponse.json({ error: 'Select a school from the district directory.' }, { status: 400 })
+
+  const { data: directoryRow, error: dirErr } = await svc
+    .from('bcps_school_directory')
+    .select('loc_no, school_name')
+    .eq('loc_no', schoolLocationNbr)
+    .eq('is_archived', false)
+    .maybeSingle()
+  if (dirErr) return NextResponse.json({ error: dirErr.message }, { status: 500 })
+  if (!directoryRow) return NextResponse.json({ error: 'Selected school was not recognized. Please choose again from the list.' }, { status: 400 })
+  const name = directoryRow.school_name
+
+  const { data: already } = await svc.from('bcps_schools').select('id').eq('school_location_nbr', schoolLocationNbr).maybeSingle()
+  if (already) return NextResponse.json({ error: `${name} already has a school-portal account.` }, { status: 400 })
 
   let wcmUserId: string | null = null
 
@@ -119,8 +143,9 @@ export async function POST(req: NextRequest) {
       wcm_email: wcmEmail,
       wcm_user_id: wcmUserId,
       notes,
+      school_location_nbr: schoolLocationNbr,
     })
-    .select('id, name, site_url, wcm_name, wcm_email, wcm_user_id, notes, created_at')
+    .select('id, name, site_url, wcm_name, wcm_email, wcm_user_id, notes, school_location_nbr, created_at')
     .single()
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
