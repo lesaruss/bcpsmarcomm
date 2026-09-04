@@ -12,6 +12,12 @@
 //
 // The scan target is always the school's own registered site_url - unlike
 // the DWT tool, a school WCM cannot type in an arbitrary URL to scan.
+//
+// school_location_nbr stamped onto every inserted row as of 2026-09-04
+// (School Profiles step 2) so this school's ADA history joins into the
+// School Profile page the same way bcps_banner_submissions already does,
+// by loc_no against bcps_school_directory - see bcps_schools.school_location_nbr
+// for where it comes from.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -28,7 +34,7 @@ const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const noStoreFetch: typeof fetch = (input, init) => fetch(input, { ...(init ?? {}), cache: 'no-store' })
 const svc = createClient(SUPA_URL, SERVICE, { auth: { persistSession: false }, global: { fetch: noStoreFetch } })
 
-type SchoolRow = { id: string; name: string; site_url: string | null; wcm_email: string | null }
+type SchoolRow = { id: string; name: string; site_url: string | null; wcm_email: string | null; school_location_nbr: string | null }
 
 async function authedSchool(req: NextRequest): Promise<{ userId: string; school: SchoolRow } | null> {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
@@ -42,7 +48,7 @@ async function authedSchool(req: NextRequest): Promise<{ userId: string; school:
 
   const { data: school } = await svc
     .from('bcps_schools')
-    .select('id, name, site_url, wcm_email')
+    .select('id, name, site_url, wcm_email, school_location_nbr')
     .ilike('wcm_email', user.email)
     .maybeSingle()
   if (!school) return null
@@ -126,6 +132,7 @@ export async function POST(req: NextRequest) {
     .insert({
       department_id: null,
       school_id: ctx.school.id,
+      school_location_nbr: ctx.school.school_location_nbr,
       page_url: target,
       auditor: 'school-wcm-ada-scanner',
       scanned_by_user_id: ctx.userId,
