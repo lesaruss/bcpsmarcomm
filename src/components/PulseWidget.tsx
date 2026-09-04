@@ -14,10 +14,39 @@ interface PulseStats {
   recentBriefs: number
 }
 
+// Ticker messages - Sean 2026-09-04: turn the Pulse bar into more than a
+// stat strip by rotating district announcements through it, like a news
+// ticker. Hardcoded for this first pass (see message to Sean about wiring
+// this to a real announcements table so DWT/MarComm can edit these without
+// a code push). linkHref is null where a real destination doesn't exist
+// yet - those spans render as plain text, not a link, so nothing points
+// to a dead page.
+interface TickerMessage { text: string; linkText: string | null; linkHref: string | null }
+
+const TICKER_MESSAGES: TickerMessage[] = [
+  {
+    text: 'Reminder: Department WCM certification course must be completed by October 30.',
+    linkText: null,
+    linkHref: '?page=bcps-certification',
+  },
+  {
+    text: 'District Web Team kickoff is September 10.',
+    linkText: 'Register today',
+    linkHref: null, // TODO(Sean): no registration page/form exists yet
+  },
+  {
+    text: 'See the full rollout timeline.',
+    linkText: 'View the Playbook',
+    linkHref: null, // TODO(Sean): no kickoff/rollout Playbook exists yet
+  },
+]
+
 export default function PulseWidget({ role }: PulseWidgetProps) {
   const [stats, setStats] = useState<PulseStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [collapsed, setCollapsed] = useState(false)
+  const [msgIndex, setMsgIndex] = useState(0)
+  const [msgVisible, setMsgVisible] = useState(true)
 
   useEffect(() => {
     if (role !== 'superadmin') return
@@ -28,6 +57,19 @@ export default function PulseWidget({ role }: PulseWidgetProps) {
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [role])
+
+  // Rotate the ticker every 5s with a quick crossfade.
+  useEffect(() => {
+    if (role !== 'superadmin' || collapsed || TICKER_MESSAGES.length < 2) return
+    const interval = setInterval(() => {
+      setMsgVisible(false)
+      setTimeout(() => {
+        setMsgIndex(i => (i + 1) % TICKER_MESSAGES.length)
+        setMsgVisible(true)
+      }, 300)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [role, collapsed])
 
   if (role !== 'superadmin') return null
 
@@ -113,12 +155,46 @@ export default function PulseWidget({ role }: PulseWidgetProps) {
         ))
       )}
 
+      {/* Ticker - rotating district announcements */}
+      {!loading && (
+        <div style={{
+          flex: 1, minWidth: 160, overflow: 'hidden',
+          borderLeft: '1px solid rgba(255,255,255,0.15)',
+          paddingLeft: '16px', display: 'flex', alignItems: 'center',
+        }}>
+          <span style={{
+            fontSize: '11px', fontWeight: 700, color: 'white',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            opacity: msgVisible ? 1 : 0, transition: 'opacity 300ms ease',
+          }}>
+            {(() => {
+              const m = TICKER_MESSAGES[msgIndex]
+              // No separate link phrase - the whole message links (or doesn't) as one unit.
+              if (!m.linkText) {
+                return m.linkHref ? <a href={m.linkHref} style={{ color: 'white', textDecoration: 'none' }}>{m.text}</a> : m.text
+              }
+              // Separate link phrase appended after the message text.
+              return (
+                <>
+                  {m.text}{' '}
+                  {m.linkHref ? (
+                    <a href={m.linkHref} style={{ color: '#a5f3fc', textDecoration: 'underline', fontWeight: 800 }}>{m.linkText}</a>
+                  ) : (
+                    <span style={{ color: '#a5f3fc', fontWeight: 800 }}>{m.linkText}</span>
+                  )}
+                </>
+              )
+            })()}
+          </span>
+        </div>
+      )}
+
       {/* Collapse button */}
       <button
         onClick={() => setCollapsed(true)}
         title="Collapse Pulse"
         style={{
-          marginLeft: 'auto', background: 'none', border: 'none',
+          background: 'none', border: 'none',
           cursor: 'pointer', color: 'rgba(255,255,255,0.45)',
           padding: '2px', display: 'flex', alignItems: 'center',
           flexShrink: 0,
