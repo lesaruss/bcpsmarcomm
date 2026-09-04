@@ -267,8 +267,14 @@ const SECTIONS: NavSection[] = [
   ] },
   { label: 'Web Content Managers', items: [
     { id: 'bcps-certification', label: 'Department Certification' },
-    { id: 'bcps-google-governance', label: 'Google Governance' },
     { id: 'wcm', label: 'WCM Hub' },
+  ] },
+  // District Web Team - 2026-09-04, Sean: these are the DWT-facing tools
+  // still being tested (banners, school profiles, ADA, Google governance),
+  // split out from Web Content Managers into their own segment so testing
+  // work doesn't sit mixed in with the stable WCM tools.
+  { label: 'District Web Team', items: [
+    { id: 'bcps-google-governance', label: 'Google Governance' },
     { id: 'banner-submissions', label: 'Banner Submissions' },
     { id: 'school-profiles', label: 'School Profiles' },
     { id: 'department-audit', label: 'Department Name Audit' },
