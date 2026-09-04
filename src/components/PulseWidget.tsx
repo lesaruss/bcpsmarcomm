@@ -41,12 +41,19 @@ const TICKER_MESSAGES: TickerMessage[] = [
   },
 ]
 
+// Sean 2026-09-04 (revised from the first pass): the whole bar rotates now,
+// not just a ticker alongside fixed stats. Slide 0 is the stats line, every
+// slide after it is one ticker message. Each slide holds for 10s with a
+// crossfade. Only the "BCPS Pulse" label + dot stay put on the left.
+const SLIDE_HOLD_MS = 10000
+const SLIDE_FADE_MS = 300
+
 export default function PulseWidget({ role }: PulseWidgetProps) {
   const [stats, setStats] = useState<PulseStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [collapsed, setCollapsed] = useState(false)
-  const [msgIndex, setMsgIndex] = useState(0)
-  const [msgVisible, setMsgVisible] = useState(true)
+  const [slideIndex, setSlideIndex] = useState(0)
+  const [slideVisible, setSlideVisible] = useState(true)
 
   useEffect(() => {
     if (role !== 'superadmin') return
@@ -58,18 +65,21 @@ export default function PulseWidget({ role }: PulseWidgetProps) {
       .finally(() => setLoading(false))
   }, [role])
 
-  // Rotate the ticker every 5s with a quick crossfade.
+  // Slide 0 = stats, slides 1..n = ticker messages.
+  const slideCount = 1 + TICKER_MESSAGES.length
+
+  // Rotate through slides every 10s with a quick crossfade.
   useEffect(() => {
-    if (role !== 'superadmin' || collapsed || TICKER_MESSAGES.length < 2) return
+    if (role !== 'superadmin' || collapsed || loading || slideCount < 2) return
     const interval = setInterval(() => {
-      setMsgVisible(false)
+      setSlideVisible(false)
       setTimeout(() => {
-        setMsgIndex(i => (i + 1) % TICKER_MESSAGES.length)
-        setMsgVisible(true)
-      }, 300)
-    }, 5000)
+        setSlideIndex(i => (i + 1) % slideCount)
+        setSlideVisible(true)
+      }, SLIDE_FADE_MS)
+    }, SLIDE_HOLD_MS)
     return () => clearInterval(interval)
-  }, [role, collapsed])
+  }, [role, collapsed, loading, slideCount])
 
   if (role !== 'superadmin') return null
 
@@ -114,6 +124,24 @@ export default function PulseWidget({ role }: PulseWidgetProps) {
       ]
     : []
 
+  const renderMessage = (m: TickerMessage) => {
+    // No separate link phrase - the whole message links (or doesn't) as one unit.
+    if (!m.linkText) {
+      return m.linkHref ? <a href={m.linkHref} style={{ color: 'white', textDecoration: 'none' }}>{m.text}</a> : m.text
+    }
+    // Separate link phrase appended after the message text.
+    return (
+      <>
+        {m.text}{' '}
+        {m.linkHref ? (
+          <a href={m.linkHref} style={{ color: '#a5f3fc', textDecoration: 'underline', fontWeight: 800 }}>{m.linkText}</a>
+        ) : (
+          <span style={{ color: '#a5f3fc', fontWeight: 800 }}>{m.linkText}</span>
+        )}
+      </>
+    )
+  }
+
   return (
     <div style={{
       background: '#1672A7',
@@ -121,7 +149,7 @@ export default function PulseWidget({ role }: PulseWidgetProps) {
       padding: '7px 20px',
       display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap',
     }}>
-      {/* Label */}
+      {/* Label - stays fixed while the rest of the bar rotates */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
         <span style={{
           display: 'inline-block', width: '7px', height: '7px',
@@ -136,56 +164,39 @@ export default function PulseWidget({ role }: PulseWidgetProps) {
         </span>
       </div>
 
-      {/* Stats */}
+      {/* Rotating slide: stats line, then each ticker message, 10s apiece */}
       {loading ? (
         <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Loading...</span>
       ) : (
-        TILES.map(tile => (
-          <div key={tile.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '16px', fontWeight: 800, color: tile.color, lineHeight: 1 }}>
-              {tile.val}
-            </span>
-            <span style={{
-              fontSize: '10px', color: 'rgba(255,255,255,0.5)',
-              textTransform: 'uppercase', letterSpacing: '0.1em',
-            }}>
-              {tile.label}
-            </span>
-          </div>
-        ))
-      )}
-
-      {/* Ticker - rotating district announcements */}
-      {!loading && (
         <div style={{
           flex: 1, minWidth: 160, overflow: 'hidden',
-          borderLeft: '1px solid rgba(255,255,255,0.15)',
-          paddingLeft: '16px', display: 'flex', alignItems: 'center',
+          display: 'flex', alignItems: 'center',
+          opacity: slideVisible ? 1 : 0, transition: `opacity ${SLIDE_FADE_MS}ms ease`,
         }}>
-          <span style={{
-            fontSize: '11px', fontWeight: 700, color: 'white',
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            opacity: msgVisible ? 1 : 0, transition: 'opacity 300ms ease',
-          }}>
-            {(() => {
-              const m = TICKER_MESSAGES[msgIndex]
-              // No separate link phrase - the whole message links (or doesn't) as one unit.
-              if (!m.linkText) {
-                return m.linkHref ? <a href={m.linkHref} style={{ color: 'white', textDecoration: 'none' }}>{m.text}</a> : m.text
-              }
-              // Separate link phrase appended after the message text.
-              return (
-                <>
-                  {m.text}{' '}
-                  {m.linkHref ? (
-                    <a href={m.linkHref} style={{ color: '#a5f3fc', textDecoration: 'underline', fontWeight: 800 }}>{m.linkText}</a>
-                  ) : (
-                    <span style={{ color: '#a5f3fc', fontWeight: 800 }}>{m.linkText}</span>
-                  )}
-                </>
-              )
-            })()}
-          </span>
+          {slideIndex === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+              {TILES.map(tile => (
+                <div key={tile.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '16px', fontWeight: 800, color: tile.color, lineHeight: 1 }}>
+                    {tile.val}
+                  </span>
+                  <span style={{
+                    fontSize: '10px', color: 'rgba(255,255,255,0.5)',
+                    textTransform: 'uppercase', letterSpacing: '0.1em',
+                  }}>
+                    {tile.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <span style={{
+              fontSize: '11px', fontWeight: 700, color: 'white',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {renderMessage(TICKER_MESSAGES[slideIndex - 1])}
+            </span>
+          )}
         </div>
       )}
 
