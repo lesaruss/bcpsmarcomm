@@ -6,6 +6,12 @@
 // /school-portal, a standalone page showing just their school's info and
 // ADA scan results. Starts empty; schools are added one at a time as
 // they're onboarded (no existing consolidated roster to import).
+//
+// School is picked from bcps_school_directory (the same 227-school roster
+// the banner tool's Explicit selector uses), not typed freehand, as of
+// 2026-09-04 - see /api/bcps/schools's header comment for why: a free-text
+// name had no reliable join to School Profiles, and the one account that
+// existed before this had to be backfilled by hand.
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
@@ -18,7 +24,13 @@ interface School {
   wcm_email: string | null
   wcm_user_id: string | null
   notes: string | null
+  school_location_nbr: string | null
   created_at: string
+}
+
+interface DirectorySchool {
+  loc_no: string
+  school_name: string
 }
 
 const BLUE = '#1672A7'
@@ -38,7 +50,9 @@ export default function SchoolsAdminPage() {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', site_url: '', wcm_name: '', wcm_email: '', temp_password: '', notes: '' })
+  const [form, setForm] = useState({ school_location_nbr: '', site_url: '', wcm_name: '', wcm_email: '', temp_password: '', notes: '' })
+  const [directory, setDirectory] = useState<DirectorySchool[]>([])
+  const [directoryLoading, setDirectoryLoading] = useState(true)
 
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
 
@@ -54,8 +68,26 @@ export default function SchoolsAdminPage() {
 
   useEffect(() => { load() }, [load])
 
+  // District roster for the school picker - same source and endpoint the
+  // banner tool's Explicit selector already reads (/api/banner/schools ->
+  // bcps_school_directory), open to any signed-in BCPS Marcomm account.
+  useEffect(() => {
+    (async () => {
+      try {
+        const t = await token()
+        const r = await fetch('/api/banner/schools', { headers: { Authorization: `Bearer ${t}` } })
+        const j = await r.json()
+        if (r.ok) setDirectory(j.schools || [])
+      } finally {
+        setDirectoryLoading(false)
+      }
+    })()
+  }, [token])
+
+  const alreadyOnboarded = new Set(schools.map(s => s.school_location_nbr).filter(Boolean))
+
   const addSchool = async () => {
-    if (!form.name.trim()) { setError('School name is required.'); return }
+    if (!form.school_location_nbr) { setError('Select a school from the district directory.'); return }
     setSaving(true)
     setError('')
     try {
@@ -67,7 +99,7 @@ export default function SchoolsAdminPage() {
       })
       const j = await r.json()
       if (!r.ok) { setError(j.error || 'Could not add school.'); return }
-      setForm({ name: '', site_url: '', wcm_name: '', wcm_email: '', temp_password: '', notes: '' })
+      setForm({ school_location_nbr: '', site_url: '', wcm_name: '', wcm_email: '', temp_password: '', notes: '' })
       setShowForm(false)
       load()
     } finally {
@@ -96,8 +128,20 @@ export default function SchoolsAdminPage() {
           <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 16, display: 'grid', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <label>
-                <span style={C.label}>School Name *</span>
-                <input style={C.input} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Coral Springs High School" />
+                <span style={C.label}>School *</span>
+                <select
+                  style={C.input}
+                  value={form.school_location_nbr}
+                  onChange={e => setForm(f => ({ ...f, school_location_nbr: e.target.value }))}
+                  disabled={directoryLoading}
+                >
+                  <option value="">{directoryLoading ? 'Loading district roster...' : 'Select a school...'}</option>
+                  {directory.map(s => (
+                    <option key={s.loc_no} value={s.loc_no} disabled={alreadyOnboarded.has(s.loc_no)}>
+                      {s.school_name}{alreadyOnboarded.has(s.loc_no) ? ' (already onboarded)' : ''}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
                 <span style={C.label}>Website URL</span>
