@@ -257,13 +257,11 @@ const SECTIONS: NavSection[] = [
     { id: 'minibase', label: 'Minibase' },
     { id: 'requests', label: 'Requests' },
   ] },
-  { label: 'District Community Relations', items: [
-    { id: 'community-relations', label: 'Task Tracker' },
-  ] },
   { label: 'MarComm', items: [
     { id: 'marcomm', label: 'Newsroom' },
     { id: 'graphics', label: 'Graphics & Printing' },
     { id: 'widgets', label: 'Widgets' },
+    { id: 'community-relations', label: 'Task Tracker' },
   ] },
   { label: 'Web Content Managers', items: [
     { id: 'bcps-certification', label: 'Department Certification' },
