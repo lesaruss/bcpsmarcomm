@@ -98,7 +98,15 @@ export async function middleware(request: NextRequest) {
     // anonymous visitors get bounced to /login before seeing it.
     pathname.startsWith('/wcm-registration') ||
     pathname.startsWith('/briefs/') ||
-    pathname.startsWith('/embeds/')
+    pathname.startsWith('/embeds/') ||
+    // BCPS Playbooks/Docs (canon-bcps-doc-url-standard, Sean 2026-09-03): per-slug
+    // access (public unless bcps_brief_recipients has rows) is enforced in
+    // checkDocAccess (src/lib/bcps-doc-access.ts). This entry only stops the
+    // middleware from bouncing every /playbooks/ request to /login before that
+    // check ever runs -- added 2026-09-08 after live verification showed every
+    // /playbooks/ URL, including intentionally public ones, hit the login wall
+    // unconditionally.
+    pathname.startsWith('/playbooks/')
 
   if (isPublic) return supabaseResponse
 
