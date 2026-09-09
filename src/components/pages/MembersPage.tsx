@@ -258,6 +258,9 @@ export default function MembersPage() {
             {isPrivileged && !isMe && (
               <button onClick={() => forcePasswordReset(m.user_id)} disabled={resettingPw} style={btn}>{resettingPw ? 'Resetting...' : 'Reset Password'}</button>
             )}
+            {isPrivileged && !isMe && (
+              <button onClick={() => setTempPassword(m.user_id)} disabled={settingTempPw} style={btn}>{settingTempPw ? 'Setting...' : 'Set Temp Password'}</button>
+            )}
           </div>
 
           {isPrivileged && !isMe && pwResetResult && pwResetResult.userId === m.user_id && (
