@@ -270,9 +270,11 @@ export default function WCMRosterSignupPage() {
             Department Web Content Managers Roster 2026/27
           </h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7, margin: 0 }}>
-            Directors: pick your department below to see who&apos;s currently on file. Confirm, remove, or add
-            Web Content Managers (WCMs) as needed. Every change is reviewed by the District Web Team before
-            it&apos;s locked in, so if something here is wrong or out of date, just fix it.
+            This form confirms who is approved to make updates for your department, so it needs to be completed
+            by you, the director, not by someone filling it out on your behalf. Pick your department below to
+            see who&apos;s currently on file, then confirm, remove, or add Web Content Managers (WCMs) as needed.
+            Every change is reviewed by the District Web Team before it&apos;s locked in, so if something here is
+            wrong or out of date, just fix it.
           </p>
         </div>
 
