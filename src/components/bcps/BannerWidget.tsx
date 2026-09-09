@@ -138,6 +138,28 @@ const VALIDATION_CHECKLIST = [
   { key: 'final_ack', label: 'Final acknowledgment completed' },
 ] as const
 
+// Validation checklist chip states. THREE states, not two: before this the
+// chip was a straight pass/pending ternary, so a check that had genuinely
+// FAILED (the content scan came back with a real negative verdict, or a
+// chosen image is under the pixel minimum) rendered as the same plain gray
+// "Pending" chip as a check that simply had not run yet. The only signal of
+// a hard failure was the separate red banner under the preview, which is
+// easy to miss and does not tell you WHICH row is blocking.
+//
+// Fail reuses the softer pink/red already in this file for the rejected
+// badge and the content-scan banner (#fbe9e7 / #a13a2f), not a hard red,
+// per the Vanessa Deslandes walkthrough (2026-09-08): a failed check is
+// blocking, but it should not feel punitive - the WCM is being told what to
+// re-shoot, not told off. The inset ring separates it from the gray Pending
+// chip at a glance without adding a border (no row-height shift).
+type ValidationState = 'pass' | 'fail' | 'pending'
+
+const VALIDATION_CHIP: Record<ValidationState, { bg: string; fg: string; ring: string; label: string }> = {
+  pass:    { bg: '#1e6b3a', fg: '#fff',    ring: 'none',                       label: 'Pass' },
+  fail:    { bg: '#fbe9e7', fg: '#a13a2f', ring: 'inset 0 0 0 1px #f0c4bd',    label: 'Fail' },
+  pending: { bg: '#e4e4e4', fg: '#666',    ring: 'none',                       label: 'Pending' },
+}
+
 type Tab = 'upload' | 'removal' | 'mine' | 'review' | 'admins'
 
 // Fixed rejection-reason categories, per the Vanessa Deslandes walkthrough
@@ -367,6 +389,31 @@ export default function BannerWidget() {
     final_ack: !!checks.final_ack,
   }
   const allValidationPassed = VALIDATION_CHECKLIST.every(v => validationStatus[v.key])
+
+  // Display-only companion to validationStatus above: which rows have
+  // actually FAILED versus which are merely not done yet. The gate itself is
+  // allValidationPassed (unchanged, and deliberately untouched - it is
+  // correct); this map only decides which chip a row draws.
+  //
+  // Only the rows the tool itself adjudicates can reach 'fail'. The four
+  // WCM-entered rows (title/alt/approvals/final_ack) and 'files' are either
+  // done or not yet done, so they stay pass/pending - an empty field the WCM
+  // has not typed in yet has not "failed". An inconclusive scan (scanState
+  // 'error', or 'scanning' still in flight) also stays 'pending': it has no
+  // verdict to report, and the scan banner already explains that case.
+  const scanVerdictIn = scanState === 'done' && !!scanResult
+  const validationState: Record<string, ValidationState> = {
+    files: validationStatus.files ? 'pass' : 'pending',
+    // A video is exempt from the pixel minimum (see validationStatus), so
+    // only a measured still image can fail this row.
+    dims: validationStatus.dims ? 'pass' : (fileKind === 'image' && fileDims ? 'fail' : 'pending'),
+    no_overlays: validationStatus.no_overlays ? 'pass' : (scanVerdictIn ? 'fail' : 'pending'),
+    nav_clearance: validationStatus.nav_clearance ? 'pass' : (scanVerdictIn ? 'fail' : 'pending'),
+    title: validationStatus.title ? 'pass' : 'pending',
+    alt: validationStatus.alt ? 'pass' : 'pending',
+    approvals: validationStatus.approvals ? 'pass' : 'pending',
+    final_ack: validationStatus.final_ack ? 'pass' : 'pending',
+  }
   const canReview = myRole === 'admin' || myRole === 'manager'
   const isAdmin = myRole === 'admin'
   const myUploads = mine.filter(m => m.type === 'upload')
@@ -838,15 +885,15 @@ export default function BannerWidget() {
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Validation checklist</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>All items must pass before review.</div>
               {VALIDATION_CHECKLIST.map(v => {
-                const pass = validationStatus[v.key]
+                const chip = VALIDATION_CHIP[validationState[v.key]]
                 return (
                   <div key={v.key} style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
-                    background: pass ? '#1e6b3a' : '#e4e4e4', color: pass ? '#fff' : '#666',
+                    background: chip.bg, color: chip.fg, boxShadow: chip.ring,
                     borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: 12.5, fontWeight: 600,
                   }}>
                     <span>{v.label}</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{pass ? 'Pass' : 'Pending'}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{chip.label}</span>
                   </div>
                 )
               })}

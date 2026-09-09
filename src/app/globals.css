@@ -93,6 +93,22 @@ body {
 .notif-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 999px; background: #ef4444; border: 2px solid #fff; }
 .btn-primary { background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background .15s; }
 .btn-primary:hover { background: var(--blue-dark); }
+
+/* Disabled state, added 2026-09-09. .btn-primary had a base rule and a
+   :hover rule and no :disabled rule anywhere in this stylesheet, so a
+   genuinely disabled button rendered identically to a clickable one:
+   full-opacity brand blue, white text, cursor: pointer. Found live on the
+   Banner Submission App's "Submit for review" button, where the gate
+   itself is correct (the disabled attribute is present and blocks the
+   click until all 8 validation rows pass) but was invisible to the WCM.
+   Existing tokens only, no new colors: --border for the inactive fill,
+   --text-muted for the label (3.5:1, readable while clearly inactive).
+   The :disabled:hover rule pins the fill so hovering a blocked button no
+   longer flashes brand blue and reads as clickable. Applies app-wide, so
+   every other disabled .btn-primary (Add admin, Submit removal, Approve)
+   picks up the same affordance. */
+.btn-primary:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
+.btn-primary:disabled:hover { background: var(--border); }
 .btn-secondary { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background .15s; text-decoration: none; }
 .btn-secondary:hover { background: #f3f6f9; }
 .content { padding: 28px; flex: 1; }
