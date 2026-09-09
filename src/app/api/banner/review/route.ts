@@ -19,6 +19,23 @@ const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const svc = createServiceClient(URL, SERVICE)
 
+// Fixed rejection-reason categories, per the Vanessa Deslandes walkthrough
+// (2026-09-08). Kept in sync with BannerWidget.tsx's REJECT_REASON_CATEGORIES.
+// The widget only ever sends one of the three fixed labels verbatim, or
+// "Other: <comment>" - validated here too so the category list is a real
+// server-side rule, not just a client-side convenience.
+const FIXED_REJECT_REASONS = [
+  'Wrong photo dimensions or orientation',
+  'Image quality too low',
+  'Embedded text or logos',
+]
+
+function isValidRejectionReason(reason: string): boolean {
+  if (FIXED_REJECT_REASONS.includes(reason)) return true
+  const otherMatch = reason.match(/^Other:\s*([\s\S]+)$/)
+  return !!otherMatch && otherMatch[1].trim().length > 0
+}
+
 async function requireBannerReviewer(req: NextRequest) {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
   if (!token) return { ok: false as const, status: 401 }
@@ -67,8 +84,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const { id, action, rejection_reason } = body as { id?: string; action?: 'approve' | 'reject'; rejection_reason?: string }
   if (!id || !action) return NextResponse.json({ error: 'id and action are required' }, { status: 400 })
-  if (action === 'reject' && !rejection_reason?.trim()) {
-    return NextResponse.json({ error: 'A rejection reason is required.' }, { status: 400 })
+  if (action === 'reject') {
+    if (!rejection_reason?.trim()) {
+      return NextResponse.json({ error: 'A rejection reason is required.' }, { status: 400 })
+    }
+    if (!isValidRejectionReason(rejection_reason.trim())) {
+      return NextResponse.json({ error: 'Rejection reason must be one of the fixed categories, or "Other" with a comment.' }, { status: 400 })
+    }
   }
 
   const { data: submission } = await svc.from('bcps_banner_submissions').select('*').eq('id', id).maybeSingle()
