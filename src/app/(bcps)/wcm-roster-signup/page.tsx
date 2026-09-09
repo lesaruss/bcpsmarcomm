@@ -390,46 +390,6 @@ export default function WCMRosterSignupPage() {
               </p>
             </div>
 
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={notDirector}
-                  onChange={e => setNotDirector(e.target.checked)}
-                  style={{ marginTop: 2 }}
-                />
-                {originalDirectorName && originalDirectorName.trim().toUpperCase() !== 'TBD'
-                  ? `I'm not ${originalDirectorName} — someone else is completing this form.`
-                  : `I'm completing this on behalf of the director, not the director myself.`}
-              </label>
-              {notDirector && (
-                <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10,
-                  padding: '12px 14px', borderRadius: 8, background: '#FFFBEB', border: '1px solid rgba(217,119,6,0.25)',
-                }}>
-                  <div style={{ gridColumn: '1 / -1', fontSize: 11.5, color: '#92400E', marginBottom: 2 }}>
-                    This flags the submission for the District Web Team to confirm before it&apos;s approved.
-                  </div>
-                  <input
-                    className="form-input"
-                    style={{ boxSizing: 'border-box' }}
-                    value={submitterName}
-                    onChange={e => setSubmitterName(e.target.value)}
-                    placeholder="Your name"
-                    required
-                  />
-                  <input
-                    className="form-input"
-                    style={{ boxSizing: 'border-box' }}
-                    value={submitterRole}
-                    onChange={e => setSubmitterRole(e.target.value)}
-                    placeholder="Your role (e.g. Chief, Office Manager)"
-                    required
-                  />
-                </div>
-              )}
-            </div>
-
             {selectedDept && (
               <div style={{ marginBottom: 20 }}>
                 <label className="form-label" style={{ display: 'block', marginBottom: 8 }}>
