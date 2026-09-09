@@ -649,7 +649,6 @@ export default function MembersPage() {
   return (
     <div className="mp-root">
       <style>{`
-        .mp-root{max-width:1120px}
         .mp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
         .mp-card{background:#fff;border:1px solid #dde3ea;border-radius:12px;padding:20px;display:flex;flex-direction:column;transition:box-shadow .15s,border-color .15s;min-height:190px;text-align:left}
         .mp-card:hover{box-shadow:0 4px 20px rgba(22,114,167,.13);border-color:#1672A7}
