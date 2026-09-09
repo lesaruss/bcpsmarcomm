@@ -662,7 +662,6 @@ export default function MembersPage() {
         .mp-row b{color:#1a1a1a;font-weight:700}
         .mp-tags{display:flex;flex-wrap:wrap;gap:5px}
         .mp-tag{font-size:10px;font-weight:700;background:#e8f1f8;color:#0e4e73;padding:2px 8px;border-radius:20px}
-        @media(max-width:900px){.mp-grid{grid-template-columns:repeat(2,1fr)}}
         @media(max-width:600px){.mp-grid{grid-template-columns:1fr}}
 
         .mp-div-header{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#0e4e73;padding:14px 2px 2px;border-top:1px solid #dde3ea;margin-top:4px}
