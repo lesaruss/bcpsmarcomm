@@ -282,6 +282,25 @@ export default function MembersPage() {
             </div>
           )}
 
+          {isPrivileged && !isMe && tempPwResult && tempPwResult.userId === m.user_id && (
+            <div style={{ marginTop: 16, padding: 16, borderRadius: 10, background: '#fff8ec', border: '1px solid #f3d9a4' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#9a6700' }}>
+                Temporary password set for {tempPwResult.email}.
+              </div>
+              <div style={{ fontSize: 12, color: '#525252', marginTop: 6, marginBottom: 10 }}>
+                Give this to them directly (read it out, text it) - no email involved. They will be required to set their own password immediately after signing in with it. This is shown once and not stored anywhere retrievable.
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <code style={{ background: '#fff', border: '1px solid #f3d9a4', borderRadius: 6, padding: '8px 12px', fontSize: 15, fontWeight: 700, letterSpacing: '0.05em' }}>
+                  {tempPwResult.tempPassword}
+                </code>
+                <button onClick={() => copyTempPassword(tempPwResult.tempPassword)} style={{ ...btn, borderColor: '#9a6700', color: '#fff', background: '#9a6700' }}>
+                  {tempPwCopied ? 'Copied!' : 'Copy Password'}
+                </button>
+              </div>
+            </div>
+          )}
+
           {isMe && editing ? (
             <div style={{ marginTop: 22, display: 'grid', gap: 10 }}>
               <label style={lbl}>Title<input style={inp} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Web Content Manager" /></label>
