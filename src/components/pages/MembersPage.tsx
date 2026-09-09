@@ -55,6 +55,13 @@ export default function MembersPage() {
   } | null>(null)
   const [pwLinkCopied, setPwLinkCopied] = useState(false)
 
+  // ── Admin-set temporary password (forced change on next login) ──
+  const [settingTempPw, setSettingTempPw] = useState(false)
+  const [tempPwResult, setTempPwResult] = useState<{
+    userId: string; email: string; tempPassword: string
+  } | null>(null)
+  const [tempPwCopied, setTempPwCopied] = useState(false)
+
   // ── Directory view controls (search / division filter / sort / view toggle) ──
   const [search, setSearch] = useState('')
   const [divisionFilter, setDivisionFilter] = useState('')
