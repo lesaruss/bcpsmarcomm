@@ -170,6 +170,39 @@ export default function MembersPage() {
     }
   }
 
+  // Admin/superadmin can set a temporary password from a member's profile,
+  // as a second fail-safe alongside the reset link above. Enforced
+  // server-side in /api/bcps/admin-set-temp-password. The member is forced
+  // to choose their own password on next sign-in (must_change_password),
+  // using the same /set-password flow the reset link already lands on.
+  async function setTempPassword(userId: string) {
+    if (!window.confirm('Set a new temporary password for this member? Their current password will stop working immediately.')) return
+    setSettingTempPw(true)
+    setTempPwCopied(false)
+    const t = await token()
+    const r = await fetch('/api/bcps/admin-set-temp-password', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId }),
+    })
+    const j = await r.json().catch(() => ({} as { error?: string }))
+    setSettingTempPw(false)
+    if (r.ok) {
+      setTempPwResult({ userId, email: j.email, tempPassword: j.temp_password })
+    } else {
+      alert(j.error || 'Could not set a temporary password. Please try again.')
+    }
+  }
+
+  async function copyTempPassword(pw: string) {
+    try {
+      await navigator.clipboard.writeText(pw)
+      setTempPwCopied(true)
+    } catch {
+      window.prompt('Copy this temporary password:', pw)
+    }
+  }
+
   // Reassign a member's department from the directory. Admin/superadmin only -
   // enforced server-side in /api/bcps/admin-set-department, this is just the
   // affordance. Optimistic update with rollback on failure.
