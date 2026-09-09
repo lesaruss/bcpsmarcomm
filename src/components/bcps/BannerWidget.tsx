@@ -140,6 +140,19 @@ const VALIDATION_CHECKLIST = [
 
 type Tab = 'upload' | 'removal' | 'mine' | 'review' | 'admins'
 
+// Fixed rejection-reason categories, per the Vanessa Deslandes walkthrough
+// (2026-09-08): reject is a category pick, not free text, so every WCM sees
+// a consistent reason and Sentinel/analytics can group by cause later.
+// "Other" is the only category that takes a free-text comment, and that
+// comment is required. Keep this list and REVIEW's server-side validation
+// in sync (src/app/api/banner/review/route.ts).
+const REJECT_REASON_CATEGORIES = [
+  'Wrong photo dimensions or orientation',
+  'Image quality too low',
+  'Embedded text or logos',
+  'Other',
+] as const
+
 function statusBadge(status: SubmissionStatus) {
   const map: Record<SubmissionStatus, { bg: string; fg: string; label: string }> = {
     pending: { bg: '#fdf3e0', fg: '#8a5a00', label: 'Pending' },
@@ -209,7 +222,8 @@ export default function BannerWidget() {
   const [reviewItems, setReviewItems] = useState<ReviewSubmission[]>([])
   const [reviewLoading, setReviewLoading] = useState(false)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
-  const [rejectReason, setRejectReason] = useState('')
+  const [rejectCategory, setRejectCategory] = useState('')
+  const [rejectOtherComment, setRejectOtherComment] = useState('')
   const [reviewNotice, setReviewNotice] = useState<string | null>(null)
 
   // ---- Admin management (admin only) ----
@@ -457,17 +471,24 @@ export default function BannerWidget() {
     setReviewNotice(null)
     if (action === 'reject' && rejectingId !== id) {
       setRejectingId(id)
-      setRejectReason('')
+      setRejectCategory('')
+      setRejectOtherComment('')
       return
     }
-    if (action === 'reject' && !rejectReason.trim()) {
-      setReviewNotice('A rejection reason is required.')
-      return
+    let rejectionReason = ''
+    if (action === 'reject') {
+      if (!rejectCategory) { setReviewNotice('A rejection reason is required.'); return }
+      if (rejectCategory === 'Other') {
+        if (!rejectOtherComment.trim()) { setReviewNotice('A comment is required when reason is "Other".'); return }
+        rejectionReason = `Other: ${rejectOtherComment.trim()}`
+      } else {
+        rejectionReason = rejectCategory
+      }
     }
     try {
       const res = await authedFetch('/api/banner/review', {
         method: 'POST',
-        body: JSON.stringify({ id, action, rejection_reason: action === 'reject' ? rejectReason : undefined }),
+        body: JSON.stringify({ id, action, rejection_reason: action === 'reject' ? rejectionReason : undefined }),
       })
       const data = await res.json()
       if (!res.ok) { setReviewNotice(data.error || 'Action failed.'); return }
@@ -477,7 +498,8 @@ export default function BannerWidget() {
         setReviewNotice('Approved.')
       }
       setRejectingId(null)
-      setRejectReason('')
+      setRejectCategory('')
+      setRejectOtherComment('')
       loadReviewQueue()
     } catch {
       setReviewNotice('Action failed - please try again.')
@@ -939,13 +961,26 @@ export default function BannerWidget() {
                   <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     <button className="btn-primary" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => handleReviewAction(r.id, 'approve')}>Approve</button>
                     {rejectingId === r.id ? (
-                      <div style={{ display: 'flex', gap: 6, flex: 1, minWidth: 200 }}>
-                        <input
-                          type="text" placeholder="Rejection reason (sent to WCM by email)"
-                          value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                          className="form-input" style={{ flex: 1, fontSize: 12, boxSizing: 'border-box' }}
-                        />
-                        <button className="btn-outline" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => handleReviewAction(r.id, 'reject')}>Send</button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 220 }}>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <select
+                            value={rejectCategory} onChange={e => setRejectCategory(e.target.value)}
+                            className="form-select" style={{ flex: 1, fontSize: 12, boxSizing: 'border-box' }}
+                          >
+                            <option value="">Select a reason...</option>
+                            {REJECT_REASON_CATEGORIES.map(c => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                          <button className="btn-outline" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => handleReviewAction(r.id, 'reject')}>Send</button>
+                        </div>
+                        {rejectCategory === 'Other' && (
+                          <input
+                            type="text" placeholder="Comment (required, sent to WCM by email)"
+                            value={rejectOtherComment} onChange={e => setRejectOtherComment(e.target.value)}
+                            className="form-input" style={{ fontSize: 12, boxSizing: 'border-box' }}
+                          />
+                        )}
                       </div>
                     ) : (
                       <button className="btn-outline" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => handleReviewAction(r.id, 'reject')}>Reject...</button>
