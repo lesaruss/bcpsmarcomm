@@ -143,8 +143,94 @@ export async function GET(req: NextRequest) {
       visibility: eff.visibility, sensitive: eff.sensitive, doc_url: d.doc_url,
       is_dynamic: isDynamic(d.doc_url), can_edit, featured: !!d.featured,
       series_id: d.series_id || null, series_title: eff.seriesTitle, effective_object_id: eff.objectId,
+      content_text: '',
     }
   })
+
+  // Meeting Notes search only ever matched title/series_title (Sean,
+  // 2026-09-10: "the search option doesn't filter for the members" - typing
+  // an attendee's name like "Ronnie" found nothing, even though every Hot
+  // Lab note has an Attendees section in its body). Attendee names aren't a
+  // separate structured column, they're inside each note's own HTML - so
+  // for meeting-notes docs only, pull the underlying content (briefings for
+  // migrated /playbooks/ docs, mock_pages for un-migrated /briefs/ docs),
+  // strip it to plain text, and hand it back as content_text for the
+  // frontend to search against alongside title. Static-file notes (no DB
+  // body) are left out; their title/description still match as before.
+  const meetingNoteDocs = result.filter(d => d.section === 'meeting-notes')
+  if (meetingNoteDocs.length) {
+    // The catalog's own gate (acl_objects visibility + acl_grants, above) is
+    // NOT the gate that protects a note's BODY. The page routes
+    // (/playbooks/[playbook]/[doc], /briefs/[slug]) and /api/bcps/doc-raw
+    // enforce a second, independent one: checkDocAccess in
+    // src/lib/bcps-doc-access.ts - a note is public unless
+    // bcps_brief_recipients has rows for its slug, in which case the reader
+    // must be a listed attendee or a wcm_cert_users admin.
+    //
+    // The catalog gate is much wider. Measured 2026-09-10 against live data
+    // for bcps-hot-lab-dept-wcms-2026-06-02: 64 users hold a grant on the
+    // Hot Lab series (via group), only 13 are recipients of that note. So
+    // returning content_text on the catalog gate alone would hand the note's
+    // text to 53 people the page itself blocks - a title they can already
+    // see, but body text they cannot. Seven Hot Lab notes are restricted
+    // this way today.
+    //
+    // Content is therefore fetched ONLY for notes this caller may actually
+    // read, mirroring checkDocAccess exactly (same recipient list, same
+    // wcm_cert_users admin check) so search visibility can never exceed
+    // page visibility.
+    const noteSlugs = meetingNoteDocs.map(d => d.slug)
+    const { data: recipientRows } = await svc.from('bcps_brief_recipients')
+      .select('brief_slug, attendee_email').in('brief_slug', noteSlugs)
+    const recipientsBySlug = new Map<string, Set<string>>()
+    for (const r of recipientRows ?? []) {
+      const set = recipientsBySlug.get(r.brief_slug) ?? new Set<string>()
+      set.add((r.attendee_email || '').toLowerCase())
+      recipientsBySlug.set(r.brief_slug, set)
+    }
+    const callerEmail = (user.email || '').toLowerCase()
+    let isDocAdmin = false
+    if (callerEmail) {
+      const { data: adminRow } = await svc.from('wcm_cert_users')
+        .select('is_admin').ilike('email', callerEmail).eq('is_admin', true).maybeSingle()
+      isDocAdmin = !!adminRow
+    }
+    const canReadBody = (slug: string) => {
+      const recips = recipientsBySlug.get(slug)
+      if (!recips || recips.size === 0) return true
+      return isDocAdmin || (!!callerEmail && recips.has(callerEmail))
+    }
+    const readableNotes = meetingNoteDocs.filter(d => canReadBody(d.slug))
+
+    const briefingSlugs = readableNotes.filter(d => d.doc_url?.startsWith('/playbooks/')).map(d => d.slug)
+    const mockSlugs = readableNotes.filter(d => d.doc_url?.startsWith('/briefs/') && !d.doc_url.endsWith('.html')).map(d => d.slug)
+    const [briefingRows, mockRows] = await Promise.all([
+      briefingSlugs.length
+        ? svc.from('briefings').select('slug, content').eq('brand_slug', BRAND).in('slug', briefingSlugs)
+        : Promise.resolve({ data: [] as { slug: string; content: string | null }[] }),
+      mockSlugs.length
+        ? svc.from('mock_pages').select('slug, content').eq('brand', BRAND).eq('surface', 'brief').in('slug', mockSlugs)
+        : Promise.resolve({ data: [] as { slug: string; content: string | null }[] }),
+    ])
+    const contentBySlug = new Map<string, string>()
+    for (const r of briefingRows.data ?? []) contentBySlug.set(r.slug, r.content || '')
+    for (const r of mockRows.data ?? []) contentBySlug.set(r.slug, r.content || '')
+    const stripHtml = (html: string) => html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 4000)
+    // meetingNoteDocs, not readableNotes: every note still gets the field,
+    // but a restricted one this caller cannot read gets '' - the note stays
+    // listed and title-searchable exactly as before, it just contributes no
+    // body text to search.
+    for (const d of meetingNoteDocs) {
+      const raw = contentBySlug.get(d.slug)
+      d.content_text = raw ? stripHtml(raw) : ''
+    }
+  }
 
   // Full list of meeting-note series (Hot Lab, OOC-Felicia, Farrah Wilson,
   // etc.), independent of whether any instance has been created yet, so the

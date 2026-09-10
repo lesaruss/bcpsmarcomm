@@ -22,6 +22,7 @@ interface Doc {
   series_id: string | null
   series_title: string | null
   effective_object_id: string
+  content_text?: string
 }
 
 type Group = { id: string; slug: string; name: string }
@@ -190,7 +191,14 @@ export default function NotesPage() {
     if (seriesFilter !== 'all') list = list.filter(d => d.series_id === seriesFilter)
     if (search.trim()) {
       const q = search.toLowerCase()
-      list = list.filter(d => d.title.toLowerCase().includes(q) || (d.series_title || '').toLowerCase().includes(q))
+      // Matches title/series like before, plus each note's own body text
+      // (content_text, from the API) so a search for an attendee's name -
+      // e.g. "Ronnie" - finds every note whose Attendees section names them,
+      // not just notes whose title happens to contain the query.
+      list = list.filter(d =>
+        d.title.toLowerCase().includes(q)
+        || (d.series_title || '').toLowerCase().includes(q)
+        || (d.content_text || '').toLowerCase().includes(q))
     }
     return list
   }, [docs, search, seriesFilter])
@@ -276,7 +284,7 @@ export default function NotesPage() {
             <input
               type="text"
               className="notes-search"
-              placeholder="Search meeting notes..."
+              placeholder="Search by title or attendee..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               aria-label="Search meeting notes"
