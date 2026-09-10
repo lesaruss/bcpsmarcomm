@@ -157,6 +157,12 @@ export async function POST(req: NextRequest) {
 
   const ada_score = axe.ok ? axe.adaScore : null
   const counts = axe.ok ? axe.counts : { critical: 0, serious: 0, moderate: 0, minor: 0 }
+  // affected_elements stays the total count (existing consumers read it as
+  // a number); elements is new - the actual sample locations (CSS selector
+  // + HTML snippet) axe-scan.ts now captures, per Sean 2026-09-10: "it
+  // doesn't show them where on the site is impacted... they are left to
+  // guess." Previously runAxeScan collapsed this down to a bare count
+  // before it ever left the function.
   const violations = axe.ok
     ? axe.violations.map(v => ({
         id: v.id,
@@ -164,7 +170,8 @@ export async function POST(req: NextRequest) {
         description: v.description,
         help: v.help,
         helpUrl: v.helpUrl,
-        affected_elements: v.nodes,
+        affected_elements: v.nodeCount,
+        elements: v.nodes,
       }))
     : []
 

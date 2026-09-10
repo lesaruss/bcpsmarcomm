@@ -67,6 +67,12 @@ interface DirectorySchool {
   school_name: string
 }
 
+interface AxeElement {
+  target: string
+  html: string
+  failureSummary: string | null
+}
+
 interface Violation {
   id: string
   impact: 'critical' | 'serious' | 'moderate' | 'minor' | null
@@ -74,6 +80,11 @@ interface Violation {
   help: string
   helpUrl: string
   affected_elements: number | null
+  // Sample locations (CSS selector + HTML snippet) - added per Sean
+  // 2026-09-10: "it doesn't show them where on the site is impacted...
+  // they are left to guess." Older scans run before this fix won't have
+  // this field, so it's optional.
+  elements?: AxeElement[]
 }
 
 interface WaveViolation {
@@ -81,6 +92,7 @@ interface WaveViolation {
   id: string
   description: string
   count: number
+  selectors?: string[]
 }
 
 interface SchoolPage {
@@ -158,8 +170,40 @@ function ScoreRing({ score }: { score: number | null | undefined }) {
 // One finding, resolved against the glossary + any admin override. Shared
 // by the axe and WAVE branches below (they carry slightly different raw
 // shapes, so the caller passes in the already-looked-up entry + owner).
+type Location = { selector: string; html?: string }
+
+function LocationsList({ locations, total }: { locations: Location[]; total?: number | null }) {
+  const [open, setOpen] = useState(false)
+  const hiddenCount = total != null && total > locations.length ? total - locations.length : 0
+  return (
+    <div style={{ marginTop: 3 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ background: 'none', border: 'none', padding: 0, fontSize: 10.5, fontWeight: 700, color: BLUE, cursor: 'pointer' }}
+      >
+        {open ? 'Hide' : 'Show'} where on the page ({locations.length}{hiddenCount > 0 ? ` of ${total}` : ''})
+      </button>
+      {open && (
+        <div style={{ marginTop: 5, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {locations.map((loc, i) => (
+            <div key={i} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6, padding: '5px 7px' }}>
+              <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10.5, color: '#374151', wordBreak: 'break-all' }}>{loc.selector}</div>
+              {loc.html && (
+                <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: '#9ca3af', marginTop: 2, wordBreak: 'break-all' }}>{loc.html}</div>
+              )}
+            </div>
+          ))}
+          {hiddenCount > 0 && (
+            <div style={{ fontSize: 10, color: '#9ca3af' }}>+{hiddenCount} more not shown - fix these and re-scan to see the rest.</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FindingCard({
-  title, definition, helpUrl, ownerLabel, owner, entryFound, affectedElements, countSuffix,
+  title, definition, helpUrl, ownerLabel, owner, entryFound, affectedElements, locations, countSuffix,
   fixSteps, escalationNote, sourceUrl, onReclassify,
 }: {
   title: string
@@ -169,6 +213,7 @@ function FindingCard({
   owner: GlossaryOwner
   entryFound: boolean
   affectedElements?: number | null
+  locations?: Location[]
   countSuffix?: string
   fixSteps?: string[]
   escalationNote?: string
@@ -186,6 +231,7 @@ function FindingCard({
       {affectedElements != null && (
         <div style={{ fontSize: 10.5, color: '#9ca3af', marginTop: 2 }}>{affectedElements} element(s) affected</div>
       )}
+      {locations && locations.length > 0 && <LocationsList locations={locations} total={affectedElements} />}
       {!entryFound && helpUrl && (
         <div style={{ marginTop: 4, fontSize: 10.5, color: '#9ca3af' }}>
           <a href={helpUrl} target="_blank" rel="noreferrer" style={{ color: BLUE }}>axe-core reference for this rule</a> (glossary entry pending)
@@ -255,6 +301,7 @@ type Bucketed = {
   definition: string
   helpUrl?: string
   affectedElements?: number | null
+  locations?: Location[]
   countSuffix?: string
   glossaryKey?: string
   fixSteps?: string[]
@@ -288,6 +335,7 @@ function bucketPage(page: SchoolPage, overrides: OwnerOverrideMap): Record<Gloss
       definition: entry?.definition ?? v.description,
       helpUrl: v.helpUrl,
       affectedElements: v.affected_elements,
+      locations: v.elements?.map(e => ({ selector: e.target, html: e.html })),
       glossaryKey: entry?.key,
       fixSteps: entry?.fixSteps,
       escalationNote: entry?.escalationNote,
@@ -307,6 +355,7 @@ function bucketPage(page: SchoolPage, overrides: OwnerOverrideMap): Record<Gloss
       definition: `${v.category[0].toUpperCase()}${v.category.slice(1)} finding`,
       countSuffix: ` (${v.count}x)`,
       glossaryKey: entry?.key,
+      locations: v.selectors?.map(s => ({ selector: s })),
       fixSteps: entry?.fixSteps,
       escalationNote: entry?.escalationNote,
       sourceUrl: entry?.sourceUrl,
@@ -379,6 +428,7 @@ function PageIssueDetail({ page, overrides, onReclassify, onRescan, rescanning }
               definition={f.definition}
               helpUrl={f.helpUrl}
               affectedElements={f.affectedElements}
+              locations={f.locations}
               countSuffix={f.countSuffix}
               owner={f.owner}
               entryFound={f.entryFound}

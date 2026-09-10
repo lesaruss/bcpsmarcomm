@@ -25,6 +25,12 @@ import { lookupAxeEntry, lookupWaveEntry } from '@/lib/ada-glossary'
 import { resolveOwner, fetchOwnerOverrides, type OwnerOverrideMap } from '@/lib/ada-owner-overrides'
 import FixWalkthrough from '@/components/ada/FixWalkthrough'
 
+interface AxeElement {
+  target: string
+  html: string
+  failureSummary: string | null
+}
+
 interface Violation {
   id: string
   impact: 'critical' | 'serious' | 'moderate' | 'minor' | null
@@ -32,6 +38,11 @@ interface Violation {
   help: string
   helpUrl: string
   affected_elements: number | null
+  // Sample locations (CSS selector + HTML snippet) - added per Sean
+  // 2026-09-10: "it doesn't show them where on the site is impacted...
+  // they are left to guess." Older scans run before this fix won't have
+  // this field, so it's optional.
+  elements?: AxeElement[]
 }
 
 interface WaveViolation {
@@ -39,6 +50,39 @@ interface WaveViolation {
   id: string
   description: string
   count: number
+  selectors?: string[]
+}
+
+type Location = { selector: string; html?: string }
+
+function LocationsList({ locations, total }: { locations: Location[]; total?: number | null }) {
+  const [open, setOpen] = useState(false)
+  const hiddenCount = total != null && total > locations.length ? total - locations.length : 0
+  return (
+    <div style={{ marginTop: 4 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, fontWeight: 700, color: '#2B5F8F', cursor: 'pointer' }}
+      >
+        {open ? 'Hide' : 'Show'} where on the page ({locations.length}{hiddenCount > 0 ? ` of ${total}` : ''})
+      </button>
+      {open && (
+        <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {locations.map((loc, i) => (
+            <div key={i} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6, padding: '6px 8px' }}>
+              <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, color: '#374151', wordBreak: 'break-all' }}>{loc.selector}</div>
+              {loc.html && (
+                <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10.5, color: '#9ca3af', marginTop: 3, wordBreak: 'break-all' }}>{loc.html}</div>
+              )}
+            </div>
+          ))}
+          {hiddenCount > 0 && (
+            <div style={{ fontSize: 10.5, color: '#9ca3af' }}>+{hiddenCount} more not shown - fix these and re-scan to see the rest.</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 interface ScanResult {
@@ -80,7 +124,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 // a lightbox walkthrough (components/ada/FixWalkthrough.tsx) for the
 // step-by-step version.
 function FixableFindingCard({ f }: {
-  f: { key: string; title: string; definition: string; fixSteps?: string[]; sourceUrl?: string; affectedElements?: number | null; countSuffix?: string }
+  f: { key: string; title: string; definition: string; fixSteps?: string[]; sourceUrl?: string; affectedElements?: number | null; locations?: Location[]; countSuffix?: string }
 }) {
   const [walkthroughOpen, setWalkthroughOpen] = useState(false)
   return (
@@ -90,6 +134,7 @@ function FixableFindingCard({ f }: {
       {f.affectedElements != null && (
         <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{f.affectedElements} element(s) affected</div>
       )}
+      {f.locations && f.locations.length > 0 && <LocationsList locations={f.locations} total={f.affectedElements} />}
       {f.fixSteps && f.fixSteps.length > 0 && (
         <>
           <ol style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12, color: '#374151' }}>
@@ -355,7 +400,7 @@ export default function SchoolPortalPage() {
                     // issues and "depends" items are a district-team concern
                     // (see ADA Manager / AdaScannerPage), not something a
                     // school WCM needs to see or act on here.
-                    type Fixable = { key: string; title: string; definition: string; fixSteps?: string[]; sourceUrl?: string; affectedElements?: number | null; countSuffix?: string; rank: number }
+                    type Fixable = { key: string; title: string; definition: string; fixSteps?: string[]; sourceUrl?: string; affectedElements?: number | null; locations?: Location[]; countSuffix?: string; rank: number }
                     const fixable: Fixable[] = []
                     result.ada_violations.forEach((v, i) => {
                       const entry = lookupAxeEntry(v.id)
@@ -367,6 +412,7 @@ export default function SchoolPortalPage() {
                         fixSteps: entry?.fixSteps,
                         sourceUrl: entry?.sourceUrl,
                         affectedElements: v.affected_elements,
+                        locations: v.elements?.map(e => ({ selector: e.target, html: e.html })),
                         rank: impactRank(v.impact),
                       })
                     })
@@ -380,6 +426,7 @@ export default function SchoolPortalPage() {
                         fixSteps: entry?.fixSteps,
                         sourceUrl: entry?.sourceUrl,
                         countSuffix: ` (${v.count}x)`,
+                        locations: v.selectors?.map(s => ({ selector: s })),
                         rank: 4,
                       })
                     })

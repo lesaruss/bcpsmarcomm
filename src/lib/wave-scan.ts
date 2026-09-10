@@ -15,6 +15,11 @@ export type WaveViolation = {
   id: string
   description: string
   count: number
+  // CSS selectors for where this fires on the page - this is what
+  // reporttype=4 (paid for over reporttype=1 specifically for this) was
+  // requesting all along; capped, same reasoning as axe-scan.ts's
+  // MAX_NODES_PER_VIOLATION - count above still carries the true total.
+  selectors: string[]
 }
 
 export type WaveScanResult = {
@@ -25,7 +30,8 @@ export type WaveScanResult = {
   creditsRemaining?: number
 }
 
-type WaveCategoryItem = { id: string; description: string; count: number }
+type WaveCategoryItem = { id: string; description: string; count: number; selectors?: string[] }
+const MAX_SELECTORS_PER_VIOLATION = 10
 type WaveCategory = { description: string; count: number; items?: Record<string, WaveCategoryItem> }
 type WaveApiResponse = {
   status?: { success?: boolean; httpstatuscode?: number }
@@ -78,7 +84,10 @@ export async function runWaveScan(url: string): Promise<WaveScanResult> {
     const category = json.categories?.[cat]
     if (!category?.items) continue
     for (const item of Object.values(category.items)) {
-      violations.push({ category: cat, id: item.id, description: item.description, count: item.count })
+      violations.push({
+        category: cat, id: item.id, description: item.description, count: item.count,
+        selectors: (item.selectors ?? []).slice(0, MAX_SELECTORS_PER_VIOLATION),
+      })
     }
   }
 

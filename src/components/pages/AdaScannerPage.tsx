@@ -20,6 +20,12 @@ import { resolveOwner, fetchOwnerOverrides, setOwnerOverride, type OwnerOverride
 import AdaGlossaryPanel from '@/components/AdaGlossaryPanel'
 import FixWalkthrough from '@/components/ada/FixWalkthrough'
 
+interface AxeElement {
+  target: string
+  html: string
+  failureSummary: string | null
+}
+
 interface Violation {
   id: string
   impact: 'critical' | 'serious' | 'moderate' | 'minor' | null
@@ -27,6 +33,11 @@ interface Violation {
   help: string
   helpUrl: string
   affected_elements: number | null
+  // Sample locations (CSS selector + HTML snippet) - added per Sean
+  // 2026-09-10: "it doesn't show them where on the site is impacted...
+  // they are left to guess." Older scans run before this fix won't have
+  // this field, so it's optional.
+  elements?: AxeElement[]
 }
 
 interface WaveViolation {
@@ -34,6 +45,7 @@ interface WaveViolation {
   id: string
   description: string
   count: number
+  selectors?: string[]
 }
 
 interface ScanResult {
@@ -101,6 +113,8 @@ function OwnerBadge({ owner, entryFound }: { owner: GlossaryOwner; entryFound: b
   )
 }
 
+type Location = { selector: string; html?: string }
+
 type Bucketed = {
   key: string
   owner: GlossaryOwner
@@ -109,6 +123,7 @@ type Bucketed = {
   definition: string
   helpUrl?: string
   affectedElements?: number | null
+  locations?: Location[]
   countSuffix?: string
   glossaryKey?: string
   fixSteps?: string[]
@@ -136,6 +151,7 @@ function bucketResult(result: ScanResult, overrides: OwnerOverrideMap): Record<G
       key: `axe-${v.id}-${i}`, owner, entryFound: !!entry,
       title: entry?.title ?? v.help, definition: entry?.definition ?? v.description,
       helpUrl: v.helpUrl, affectedElements: v.affected_elements, glossaryKey: entry?.key,
+      locations: v.elements?.map(e => ({ selector: e.target, html: e.html })),
       fixSteps: entry?.fixSteps, escalationNote: entry?.escalationNote, sourceUrl: entry?.sourceUrl,
       rank: impactRank(v.impact),
     })
@@ -149,6 +165,7 @@ function bucketResult(result: ScanResult, overrides: OwnerOverrideMap): Record<G
       title: entry?.title ?? v.description,
       definition: `${v.category[0].toUpperCase()}${v.category.slice(1)} finding`,
       countSuffix: ` (${v.count}x)`, glossaryKey: entry?.key,
+      locations: v.selectors?.map(s => ({ selector: s })),
       fixSteps: entry?.fixSteps, escalationNote: entry?.escalationNote, sourceUrl: entry?.sourceUrl,
       rank: 4,
     })
@@ -159,6 +176,36 @@ function bucketResult(result: ScanResult, overrides: OwnerOverrideMap): Record<G
   }
 
   return buckets
+}
+
+function LocationsList({ locations, total }: { locations: Location[]; total?: number | null }) {
+  const [open, setOpen] = useState(false)
+  const hiddenCount = total != null && total > locations.length ? total - locations.length : 0
+  return (
+    <div style={{ marginTop: 4 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, fontWeight: 700, color: BLUE, cursor: 'pointer' }}
+      >
+        {open ? 'Hide' : 'Show'} where on the page ({locations.length}{hiddenCount > 0 ? ` of ${total}` : ''})
+      </button>
+      {open && (
+        <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {locations.map((loc, i) => (
+            <div key={i} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6, padding: '6px 8px' }}>
+              <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, color: '#374151', wordBreak: 'break-all' }}>{loc.selector}</div>
+              {loc.html && (
+                <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10.5, color: '#9ca3af', marginTop: 3, wordBreak: 'break-all' }}>{loc.html}</div>
+              )}
+            </div>
+          ))}
+          {hiddenCount > 0 && (
+            <div style={{ fontSize: 10.5, color: '#9ca3af' }}>+{hiddenCount} more not shown - fix these and re-scan to see the rest.</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function FindingCard({ f, onReclassify }: { f: Bucketed; onReclassify?: (owner: GlossaryOwner) => void }) {
@@ -173,6 +220,7 @@ function FindingCard({ f, onReclassify }: { f: Bucketed; onReclassify?: (owner: 
       {f.affectedElements != null && (
         <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{f.affectedElements} element(s) affected</div>
       )}
+      {f.locations && f.locations.length > 0 && <LocationsList locations={f.locations} total={f.affectedElements} />}
       {!f.entryFound && f.helpUrl && (
         <div style={{ marginTop: 6, fontSize: 11, color: '#9ca3af' }}>
           <a href={f.helpUrl} target="_blank" rel="noreferrer" style={{ color: BLUE }}>axe-core reference for this rule</a> (glossary entry pending)

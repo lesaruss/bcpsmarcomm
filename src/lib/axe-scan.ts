@@ -14,14 +14,33 @@ import path from 'path'
 
 export type AxeImpact = 'critical' | 'serious' | 'moderate' | 'minor' | null
 
+// One occurrence of a violation on the page - where it actually is, not
+// just that it exists. `target` is axe's CSS selector path to the element
+// (joined for iframe-nested targets); `html` is a truncated snippet of the
+// element itself, so a WCM can Ctrl+F their page source for it.
+export type AxeNode = {
+  target: string
+  html: string
+  failureSummary: string | null
+}
+
 export type AxeViolation = {
   id: string
   impact: AxeImpact
   description: string
   help: string
   helpUrl: string
-  nodes: number
+  nodeCount: number
+  nodes: AxeNode[]
 }
+
+// Cap per violation so a rule that hits 200 elements on one page doesn't
+// bloat the stored JSON or the finding card - nodeCount above still carries
+// the true total, this just limits how many sample locations we keep.
+const MAX_NODES_PER_VIOLATION = 10
+// Element HTML can run long (e.g. an entire nav with all its children) -
+// truncated to keep the snippet skimmable and the stored row small.
+const MAX_HTML_SNIPPET = 300
 
 export type AxeCounts = { critical: number; serious: number; moderate: number; minor: number }
 
@@ -76,7 +95,12 @@ export async function runAxeScan(url: string): Promise<AxeScanResult> {
       return await window.axe.run(document, {
         runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] },
       })
-    }) as { violations: Array<{ id: string; impact: AxeImpact; description: string; help: string; helpUrl: string; nodes: unknown[] }> }
+    }) as {
+      violations: Array<{
+        id: string; impact: AxeImpact; description: string; help: string; helpUrl: string
+        nodes: Array<{ target: string[]; html: string; failureSummary?: string | null }>
+      }>
+    }
 
     const violations: AxeViolation[] = results.violations.map(v => ({
       id: v.id,
@@ -84,7 +108,12 @@ export async function runAxeScan(url: string): Promise<AxeScanResult> {
       description: v.description,
       help: v.help,
       helpUrl: v.helpUrl,
-      nodes: v.nodes.length,
+      nodeCount: v.nodes.length,
+      nodes: v.nodes.slice(0, MAX_NODES_PER_VIOLATION).map(n => ({
+        target: n.target.join(' '),
+        html: n.html.length > MAX_HTML_SNIPPET ? n.html.slice(0, MAX_HTML_SNIPPET) + '…' : n.html,
+        failureSummary: n.failureSummary ?? null,
+      })),
     }))
 
     const counts: AxeCounts = { critical: 0, serious: 0, moderate: 0, minor: 0 }
