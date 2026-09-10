@@ -23,6 +23,12 @@ export default function WCMRegistrationRegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // signUp() only returns an active session when Supabase's "Confirm email"
+  // setting is off. With it on, the account exists but there's no session
+  // yet - sending them to "Continue to Certification Login" bounces them
+  // off middleware's auth check right back to /login, which reads as
+  // "I registered and it just sent me back to the login screen."
+  const [needsConfirm, setNeedsConfirm] = useState(false)
   const supabase = createClient()
 
   // Department picker - same searchable dropdown, same source (bcps_wcm_roster
@@ -147,6 +153,12 @@ export default function WCMRegistrationRegisterPage() {
         }).catch(() => { /* best effort, follow up manually if this fails */ })
       }
 
+      if (data.session) {
+        window.location.href = '/certification/login'
+        return
+      }
+
+      setNeedsConfirm(true)
       setStep('done')
     } catch (err: any) {
       setError(err.message || 'An error occurred. Please try again.')
@@ -302,8 +314,9 @@ export default function WCMRegistrationRegisterPage() {
             <div style={styles.card}>
               <h1 style={styles.title}>You&apos;re Enrolled</h1>
               <p style={styles.body}>
-                Your Web Content Manager Department Registration is complete. Next, log in to complete the Department
-                WCM Certification course.
+                {needsConfirm
+                  ? <>Your Web Content Manager Department Registration is complete. Before you can log in, check <strong>{email}</strong> for a confirmation email and click the link in it.</>
+                  : 'Your Web Content Manager Department Registration is complete. Next, log in to complete the Department WCM Certification course.'}
               </p>
               <a href="/certification/login" style={styles.btnLink}>
                 Continue to Certification Login

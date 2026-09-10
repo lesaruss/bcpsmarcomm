@@ -47,6 +47,16 @@ export default function BCPSLoginPage() {
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
   const [regDone, setRegDone] = useState(false)
+  // signUp() only returns an active session when Supabase's "Confirm email"
+  // setting is off (or the address is auto-confirmed). With it on - the case
+  // here - the account is created but there is no session yet, so telling
+  // them to "sign in above" immediately just sends them into
+  // handleSignIn's "Email not confirmed" error, which reads to a WCM as
+  // "I tried to log in and it bounced me back to the login screen." Track
+  // which case we're in so the success screen tells them what actually
+  // has to happen next.
+  const [regNeedsConfirm, setRegNeedsConfirm] = useState(false)
+  const [emailUnconfirmed, setEmailUnconfirmed] = useState(false)
   const [departments, setDepartments] = useState<DeptOption[]>([])
   const [deptQuery, setDeptQuery] = useState('')
   const [selectedDept, setSelectedDept] = useState<DeptOption | null>(null)
@@ -147,12 +157,27 @@ export default function BCPSLoginPage() {
         }).catch(() => { /* best effort, follow up manually if this fails */ })
       }
 
+      // If signUp already returned an active session (confirmation off /
+      // auto-confirmed), there is nothing left for them to do here - take
+      // them straight in rather than routing them back through Sign In.
+      if (data.session) {
+        window.location.href = getSafeNext()
+        return
+      }
+
+      setRegNeedsConfirm(true)
       setRegDone(true)
     } catch (err: unknown) {
       setRegError(err instanceof Error ? err.message : 'An error occurred. Please try again.')
     } finally {
       setRegLoading(false)
     }
+  }
+
+  const handleResendConfirmation = async () => {
+    setError('')
+    const { error } = await supabase.auth.resend({ type: 'signup', email })
+    setError(error ? error.message : 'Confirmation email resent - check your inbox.')
   }
 
   const handleGoogle = async () => {
@@ -173,12 +198,18 @@ export default function BCPSLoginPage() {
     setLoading(true)
     setError('')
 
+    setEmailUnconfirmed(false)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      setError(error.message === 'Invalid login credentials'
-        ? 'Incorrect email or password. Try again, or use Forgot Password below.'
-        : error.message)
+      setEmailUnconfirmed(error.message === 'Email not confirmed')
+      setError(
+        error.message === 'Invalid login credentials'
+          ? 'Incorrect email or password. Try again, or use Forgot Password below.'
+          : error.message === 'Email not confirmed'
+          ? 'Your account is created, but you still need to confirm your email. Check your inbox for the confirmation link, then sign in.'
+          : error.message
+      )
       setLoading(false)
       return
     }
@@ -343,7 +374,9 @@ export default function BCPSLoginPage() {
               </div>
               <h2 style={{ color: '#111827', fontSize: '16px', fontWeight: 700, marginBottom: '10px' }}>You&apos;re enrolled</h2>
               <p style={{ color: '#4b5563', fontSize: '13px', lineHeight: '1.7', marginBottom: '24px' }}>
-                Your Web Content Manager Department Registration is complete. Sign in above to complete the Department WCM Certification course.
+                {regNeedsConfirm
+                  ? <>Your Web Content Manager Department Registration is complete. Before you can sign in, check <strong style={{ color: '#111827' }}>{regEmail}</strong> for a confirmation email and click the link in it - then come back and sign in above.</>
+                  : 'Your Web Content Manager Department Registration is complete. Sign in above to complete the Department WCM Certification course.'}
               </p>
               <button onClick={() => { setMode('signin'); setRegDone(false) }} style={linkStyle}>
                 Back to Sign In
@@ -486,9 +519,14 @@ export default function BCPSLoginPage() {
                   required placeholder="********" style={{ ...inputStyle, marginBottom: '20px', letterSpacing: '0.15em' }} />
 
                 {error && (
-                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', color: '#b91c1c', fontSize: '13px', marginBottom: '16px' }}>
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', color: '#b91c1c', fontSize: '13px', marginBottom: emailUnconfirmed ? '8px' : '16px' }}>
                     {error}
                   </div>
+                )}
+                {emailUnconfirmed && (
+                  <button type="button" onClick={handleResendConfirmation} style={{ ...linkStyle, fontSize: '12px', marginBottom: '16px', display: 'block' }}>
+                    Resend confirmation email
+                  </button>
                 )}
 
                 <button type="submit" disabled={loading} style={{
