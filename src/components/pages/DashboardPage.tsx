@@ -7,7 +7,7 @@ import type { PageId } from '@/lib/types'
 import { MEMBERS } from '@/lib/data'
 import { useBCPSShell } from '@/components/BCPSShell'
 import { getTotalPages } from '@/lib/cert-data'
-import { SAMPLE_ROLE_MEMBERS } from '@/components/Sidebar'
+import { SAMPLE_ROLE_MEMBERS, SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
 
 interface DashboardPageProps {
   onNavigate: (page: PageId) => void
@@ -176,6 +176,7 @@ interface DashLayoutItem { id: string; span: DashSpan }
 const DASH_LAYOUT_STORAGE_KEY = 'bcps-dashboard-layout-v1'
 const DEFAULT_DASH_LAYOUT: DashLayoutItem[] = [
   { id: 'cert', span: 2 },
+  { id: 'wcmsnapshot', span: 2 },
   { id: 'stats', span: 2 },
   { id: 'messages', span: 2 },
   { id: 'tools', span: 1 },
@@ -567,6 +568,34 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
       : docs.filter(d => d.section === 'documents').sort((a, b) => (b.date_sort || '').localeCompare(a.date_sort || ''))
     ).slice(0, 5)
 
+  // Last 5 meeting notes for the "WCM Snapshot" widget, per Sean 2026-09-10
+  // (Fieldy feedback): a wider window than the 3-item "Latest Meeting
+  // Notes" widget elsewhere on this dashboard, kept as its own variable so
+  // that other widget doesn't change.
+  const meetingNotesTop5 = isSampleView
+    ? SAMPLE_MEETING_NOTES[viewAsUserId!]
+    : docs
+      .filter(d => d.section === 'meeting-notes')
+      .sort((a, b) => (b.date_sort || '').localeCompare(a.date_sort || ''))
+      .slice(0, 5)
+
+  // Other members of this person's department/division, for the "WCM
+  // Snapshot" widget's team column, per Sean 2026-09-10. Excludes the
+  // viewer themselves.
+  const deptTeammates = isSampleView
+    ? []
+    : teamMembers.filter(m => m.department?.slug === myDeptSlug && m.user_id !== (viewAsUserId ? undefined : meId))
+
+  // Per Sean 2026-09-10 (Fieldy feedback): "view as" is meant to show what
+  // that role actually sees, so a lower-tier preview (any real named
+  // person, or the Sample WCM / Sample District Web Team roles) must not
+  // still carry the real signed-in admin's own message/console
+  // permissions. Only "no preview" (a real admin's own dashboard) or the
+  // Sample Superadmin preview keep canManageMessages-gated widgets visible.
+  const effectiveCanManageMessages = viewAsUserId
+    ? viewAsUserId === SAMPLE_SUPERADMIN_ID
+    : canManageMessages
+
   function scrollToProfile() {
     profileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -740,13 +769,21 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   // before this became a reorderable grid.
   const dashWidgetVisible: Record<string, boolean> = {
     cert: certProgress !== null,
-    stats: true,
-    messages: canManageMessages,
+    // Meaningless to a WCM/department viewer, per Sean 2026-09-10 ("24
+    // active members, 142 notes published..." means nothing to them) -
+    // admin/superadmin tiers still get it. Gated on the *effective* role so
+    // a "view as" preview hides it too, not just a real WCM's own login.
+    stats: effectiveCanManageMessages,
+    // WCM Snapshot replaces the stat tiles for a department-level viewer:
+    // recent meeting notes / recent documents / department teammates, per
+    // Sean 2026-09-10.
+    wcmsnapshot: !effectiveCanManageMessages && !!myDeptSlug,
+    messages: effectiveCanManageMessages,
     tools: true,
     audit: !!myDeptSlug,
     meetingnotes: true,
     documents: true,
-    accessrequests: canManageMessages && accessRequests.length > 0,
+    accessrequests: effectiveCanManageMessages && accessRequests.length > 0,
     recentnotes: true,
     refgroup: true,
     profile: !!myDeptSlug,
@@ -836,6 +873,79 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                         Continue Certification
                       </a>
                     )}
+                  </div>
+                </div>
+              ))
+
+            // WCM Snapshot - replaces the admin stat tiles for a
+            // department-level viewer, per Sean 2026-09-10 (Fieldy
+            // feedback): three columns - recent meeting notes, recent
+            // documents, and department teammates - so a WCM lands on
+            // something immediately useful instead of counts that mean
+            // nothing to them.
+            case 'wcmsnapshot':
+              return dashCell('wcmsnapshot', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>Your Department at a Glance</h3>
+                  </div>
+                  <div className="wcm-snapshot-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Recent Meeting Notes</div>
+                      {docsLoading ? (
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading...</div>
+                      ) : meetingNotesTop5.length === 0 ? (
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No meeting notes yet.</div>
+                      ) : (
+                        <div className="note-list">
+                          {meetingNotesTop5.map(d => (
+                            <div key={d.id} className="note-list-item">
+                              <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
+                              <div className="note-list-meta">
+                                {d.date && <span>{d.date}</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Recent Documents</div>
+                      {docsLoading ? (
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading...</div>
+                      ) : documentsList.length === 0 ? (
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No documents yet.</div>
+                      ) : (
+                        <div className="note-list">
+                          {documentsList.slice(0, 5).map(d => (
+                            <div key={d.id} className="note-list-item">
+                              <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
+                              <div className="note-list-meta">
+                                {d.type && <span>{d.type}</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Your Team</div>
+                      {deptTeammates.length === 0 ? (
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No other members on file for your department.</div>
+                      ) : (
+                        <div className="member-list">
+                          {deptTeammates.slice(0, 6).map(m => (
+                            <div key={m.user_id} className="member-row">
+                              <div className="avatar avatar-sm" style={{ background: m.color }}>{m.initials}</div>
+                              <div className="member-info">
+                                <strong>{m.name}</strong>
+                                <span>{m.role}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -937,6 +1047,9 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
 
             // My Page Audit - only present once a department context
             // resolves (myDeptSlug), per Sean 2026-08-27/28.
+            // Split into two stacked rows - Page Audit, then ADA Audit - per
+            // Sean 2026-09-10 (Fieldy feedback): these used to sit side by
+            // side as three equal stat tiles, which buried the ADA score.
             case 'audit':
               return dashCell('audit', (
                 <div className="dash-panel">
@@ -947,13 +1060,8 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                     <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
                   ) : deptDetail ? (
                     <>
+                      {/* Row 1: Page Audit - round + last audit date + actions */}
                       <div className="audit-summary">
-                        <div className="audit-stat">
-                          <div className="audit-stat-value" style={{ color: deptDetail.ada_score == null ? 'var(--text-muted)' : deptDetail.ada_score >= 80 ? '#16a34a' : deptDetail.ada_score >= 60 ? '#b45309' : '#dc2626' }}>
-                            {deptDetail.ada_score != null ? Math.round(deptDetail.ada_score) : '—'}
-                          </div>
-                          <div className="audit-stat-label">Current ADA score</div>
-                        </div>
                         <div className="audit-stat">
                           <div className="audit-stat-value">{deptDetail.current_round ?? '—'}</div>
                           <div className="audit-stat-label">Audit round</div>
@@ -968,6 +1076,18 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                       <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                         <button className="btn-primary" onClick={() => onNavigate('department-audit')}>Submit page for review</button>
                         <button className="btn-outline" onClick={() => onNavigate('department-audit')}>View full audit findings</button>
+                      </div>
+
+                      {/* Row 2: ADA Audit - its own labeled row, no longer
+                          folded into the page-audit stat row above. */}
+                      <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>ADA Audit</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Accessibility compliance score</div>
+                        </div>
+                        <div style={{ fontSize: 28, fontWeight: 900, lineHeight: 1, color: deptDetail.ada_score == null ? 'var(--text-muted)' : deptDetail.ada_score >= 80 ? '#16a34a' : deptDetail.ada_score >= 60 ? '#b45309' : '#dc2626' }}>
+                          {deptDetail.ada_score != null ? Math.round(deptDetail.ada_score) : '—'}
+                        </div>
                       </div>
                     </>
                   ) : (
@@ -1123,7 +1243,14 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
             // moves and resizes as one, collapsing from a 2x2 grid to two
             // stacked rows of 2 when set to half-width.
             case 'refgroup': {
-              const myDept = teamMembers.find(m => m.user_id === meId)?.department
+              // Was `teamMembers.find(m => m.user_id === meId)?.department` -
+              // the real signed-in admin's own department, which ignored
+              // "view as" entirely (Sean 2026-09-10 Fieldy feedback: view as
+              // didn't cleanly show what the previewed user would see).
+              // deptDetail already resolves correctly for both a real
+              // viewAsUserId and the sample-role previews, so reuse it here
+              // instead of re-deriving from the real signed-in user.
+              const myDept = deptDetail ? { name: deptDetail.name, slug: deptDetail.slug, division: deptDetail.division } : null
               const refSpan = spanOfDashCell('refgroup')
               return dashCell('refgroup', (
                 <div className="locked-ref-group">
@@ -1170,6 +1297,35 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                           <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No department assigned yet.</div>
                         )}
                       </div>
+
+                      {/* Department page listed at the bottom, per Sean
+                          2026-09-10 (Fieldy feedback): "so they can quickly
+                          access their department page without having to
+                          scan." Every WCM/department record on file today
+                          maps to exactly one department (no member holds
+                          more than one - confirmed against bcps_departments
+                          2026-09-10), so this is a single listing; if that
+                          ever changes to a real multi-department
+                          assignment, this is where a 4-across grid of
+                          department tiles would replace it. */}
+                      {myDept && deptDetail?.website_url && (
+                        <a
+                          href={deptDetail.website_url.startsWith('http') ? deptDetail.website_url : `https://${deptDetail.website_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                            padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)',
+                            background: 'var(--bg-page)', textDecoration: 'none',
+                          }}
+                        >
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Department page</div>
+                            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deptDetail.website_url}</div>
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', flexShrink: 0 }}>View &rarr;</span>
+                        </a>
+                      )}
                     </div>
 
                     <div className="dash-panel">

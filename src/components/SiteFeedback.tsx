@@ -189,8 +189,10 @@ export default function SiteFeedback() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  // Right side only, per Sean 2026-09-10 (Fieldy feedback): the left slide-up
+  // menu obstructs this launcher and collides with "view as" testing.
   launcher: {
-    position: 'fixed', left: 20, bottom: 20, zIndex: 60,
+    position: 'fixed', right: 20, bottom: 20, zIndex: 60,
     width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center',
     background: '#0e4e73', color: '#fff', border: 'none', borderRadius: '50%',
     cursor: 'pointer', boxShadow: '0 6px 20px rgba(14,78,115,0.35)',
