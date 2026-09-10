@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useBCPSShell } from '@/components/BCPSShell'
+import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
 
 // ─── Period types ─────────────────────────────────────────────────────────────
 type PeriodMode = 'calendar' | 'school' | 'custom'
@@ -132,8 +133,12 @@ function DepartmentContent() {
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
   const supabase = createClient()
-  const { role } = useBCPSShell()
-  const isAdmin = role === 'superadmin'
+  const { role, viewAs } = useBCPSShell()
+  // View-as must not leak the real signed-in user's admin rights: a WCM
+  // previewed via "View As" (or a WCM's own real session) can only ever
+  // view listings here, never run/re-run audits or admin-review actions.
+  // Same pattern as the router's effectiveRole (src/app/(bcps)/page.tsx).
+  const isAdmin = viewAs ? viewAs.id === SAMPLE_SUPERADMIN_ID : role === 'superadmin'
 
   const [dept, setDept] = useState<Dept | null>(null)
   const [audit, setAudit] = useState<Audit | null>(null)

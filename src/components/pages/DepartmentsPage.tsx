@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useBCPSShell } from '@/components/BCPSShell'
+import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
 import type { PageId, BreadcrumbItem } from '@/lib/types'
 
 interface Dept {
@@ -95,8 +96,10 @@ interface DepartmentsPageProps {
 }
 
 export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavigate }: DepartmentsPageProps = {}) {
-  const { role } = useBCPSShell()
-  const isAdmin = role === 'superadmin'
+  const { role, viewAs } = useBCPSShell()
+  // Same view-as-aware admin check as the department profile page: a
+  // previewed WCM must only ever see listings, never audit/admin actions.
+  const isAdmin = viewAs ? viewAs.id === SAMPLE_SUPERADMIN_ID : role === 'superadmin'
   const [search, setSearch]         = useState('')
   const [divFilter, setDivFilter]   = useState('')
   const [auditFilter, setAuditFilter] = useState('')
@@ -399,7 +402,7 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
                       </button>
                     )}
 
-                    {status === 'wcm_submitted' && (
+                    {isAdmin && status === 'wcm_submitted' && (
                       <button
                         className="dv-action-btn run"
                         disabled={busy}
