@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import FindItFastPage from './FindItFastPage'
 import CharterSchoolsPage from './CharterSchoolsPage'
+import { useEffectiveRole } from '@/components/BCPSShell'
 
 interface Widget {
   id: string
@@ -81,7 +82,10 @@ export default function WidgetsPage() {
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
-  const isAdmin = role === 'admin' || role === 'superadmin'
+  // View-as aware, per Sean 2026-09-10: previewing a WCM must not leave
+  // the real admin's controls on screen. Server-side access is unchanged.
+  const effectiveRole = useEffectiveRole(role)
+  const isAdmin = effectiveRole === 'admin' || effectiveRole === 'superadmin'
 
   const act = useCallback(async (payload: any) => {
     setBusy(true); setErr('')

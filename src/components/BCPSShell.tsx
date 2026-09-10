@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense, createContext, useContext, useRef } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import Sidebar, { type UserRole, type TeamMember } from '@/components/Sidebar'
+import Sidebar, { SAMPLE_SUPERADMIN_ID, type UserRole, type TeamMember } from '@/components/Sidebar'
 import PulseWidget from '@/components/PulseWidget'
 import type { PageId } from '@/lib/types'
 
@@ -19,6 +19,26 @@ export const BCPSShellContext = createContext<BCPSShellContextValue>({
   canManageMessages: false,
 })
 export function useBCPSShell() { return useContext(BCPSShellContext) }
+
+// The role a page should RENDER for, which is not always the role the
+// signed-in user holds. Under "view as", a page must show what the
+// previewed person sees, per Sean 2026-09-10 - a lower-tier preview that
+// still renders the real admin's controls is not a preview.
+//
+// Pages that hold their own role (RecordsPage, DocumentsPage, NotesPage,
+// WidgetsPage each read it from their own API response) pass that in as
+// realRole. Their fetched data still comes back with the real user's
+// token and the server still decides what it will hand over - this only
+// governs which controls the page draws.
+//
+// Exists because this same ternary was being retyped per call site
+// (department/page.tsx, DepartmentsPage.tsx, DashboardPage.tsx) and every
+// new surface silently opted out of view-as by forgetting it.
+export function useEffectiveRole(realRole: string): string {
+  const { viewAs } = useBCPSShell()
+  if (!viewAs) return realRole
+  return viewAs.id === SAMPLE_SUPERADMIN_ID ? 'superadmin' : 'user'
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const SUPERADMIN_EMAILS = new Set(['contact@lesaruss.com'])

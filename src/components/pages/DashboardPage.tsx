@@ -584,12 +584,27 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
       .sort((a, b) => (b.date_sort || '').localeCompare(a.date_sort || ''))
       .slice(0, 5)
 
+  // Whose dashboard this actually is: the previewed member under "view
+  // as", otherwise the signed-in user. Both teammate lists below exclude
+  // this person from their own team tile.
+  //
+  // Was written inline at each call site as
+  //   m.user_id !== (viewAsUserId ? undefined : meId)
+  // which excluded nobody during a real-person preview (nothing equals
+  // undefined), so the previewed person appeared in their own Team and
+  // Your Team tiles. viewAsUserId carries a member's initials, not their
+  // user_id - same lookup myDeptSlug already does above - so it has to be
+  // resolved through teamMembers before it can be compared.
+  const viewerUserId = viewAsUserId
+    ? (teamMembers.find(m => m.initials === viewAsUserId)?.user_id ?? null)
+    : meId
+
   // Other members of this person's department/division, for the "WCM
   // Snapshot" widget's team column, per Sean 2026-09-10. Excludes the
   // viewer themselves.
   const deptTeammates = isSampleView
     ? []
-    : teamMembers.filter(m => m.department?.slug === myDeptSlug && m.user_id !== (viewAsUserId ? undefined : meId))
+    : teamMembers.filter(m => m.department?.slug === myDeptSlug && m.user_id !== viewerUserId)
 
   // "Team" tile (formerly bundled into the locked refgroup, per Sean
   // 2026-09-10) - scoped to the viewer's own division, not an arbitrary
@@ -605,7 +620,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     : (myDivision
       ? teamMembers.filter(m => m.department?.division === myDivision)
       : teamMembers
-    ).filter(m => m.user_id !== (viewAsUserId ? undefined : meId))
+    ).filter(m => m.user_id !== viewerUserId)
 
   // Per Sean 2026-09-10 (Fieldy feedback): "view as" is meant to show what
   // that role actually sees, so a lower-tier preview (any real named

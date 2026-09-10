@@ -46,6 +46,37 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await asUser.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Invalid session.' }, { status: 401 })
 
+  // Server-side district-domain check, added 2026-09-10 (Sean). The
+  // @browardschools.com rule was enforced ONLY in the browser, on both the
+  // login-page Create Account form and /wcm-registration/register, because
+  // auth.signUp runs client-side against the anon key. Anyone calling
+  // Supabase auth directly could create an account with any address, and
+  // wcm_cert_users already holds non-district rows. Account creation itself
+  // still cannot be blocked from here - that needs an allowlist at the auth
+  // layer - but ENROLLMENT can be, and enrollment is what actually grants
+  // BCPS access: the acl_member_roles row and WCM group membership written
+  // below are what every access check reads.
+  //
+  // Deliberately does not lock out anyone already enrolled. A non-district
+  // address that already holds an acl_member_roles row for this brand (QA
+  // and service accounts among them) keeps working; this only refuses to
+  // create NEW access for an address outside the district.
+  const email = (user.email || '').trim().toLowerCase()
+  if (!email.endsWith('@browardschools.com')) {
+    const { data: existingRole } = await svc
+      .from('acl_member_roles')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .eq('brand', BRAND)
+      .maybeSingle()
+    if (!existingRole) {
+      return NextResponse.json(
+        { error: 'BCPS access is restricted to @browardschools.com email addresses.' },
+        { status: 403 }
+      )
+    }
+  }
+
   let departmentSlug: string | null = null
   try {
     const body = await req.json().catch(() => ({}))

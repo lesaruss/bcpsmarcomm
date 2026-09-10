@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { runAxeScan } from '@/lib/axe-scan'
+
+// This route now launches headless Chromium for a real axe scan, so it needs
+// the same budget its siblings already use (ada-scan, school-scan). Without
+// it the default function timeout kills the scan mid-run.
+export const dynamic = 'force-dynamic'
+export const maxDuration = 240
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -32,6 +39,13 @@ async function requireBcpsAdmin(req: NextRequest): Promise<{ ok: true; email: st
 type IssueItem = { category: string; passed: boolean; severity?: string; label: string; detail?: string; fix_instructions?: string[] }
 type AdaItem = { impact?: string; id: string; nodes?: number; description: string; fix_instructions?: string; helpUrl?: string }
 
+// STILL SYNTHETIC, flagged to Sean 2026-09-10, not changed here. The ADA
+// half of this route is now a real scan, but layout/content/nav below are
+// still generated: pass/fail per item is r() > 0.4 and the scores are
+// derived from those coin flips. They feed overall_score, audit_status and
+// the Page Audit findings list on the department pages. Making them real
+// means deciding what a layout/content/nav audit actually measures, which
+// is a product call, not a refactor.
 function runPhase1Audit(deptName: string): { issues: IssueItem[]; layout_score: number; content_score: number; nav_score: number } {
   const r = () => Math.random()
 
@@ -68,33 +82,52 @@ function runPhase1Audit(deptName: string): { issues: IssueItem[]; layout_score: 
   }
 }
 
-function runAdaAudit(): { violations: AdaItem[]; ada_score: number; critical: number; serious: number; moderate: number; minor: number } {
-  const r = () => Math.random()
-  const candidates: AdaItem[] = [
-    { id: 'image-alt', impact: 'critical', nodes: Math.floor(r() * 4) + 1, description: 'Images must have alternative text', fix_instructions: 'In PageBuilder, select each image module and add descriptive alt text in Image Properties > Alt Text. Avoid "image of" or "photo of" - describe the content.', helpUrl: 'https://dequeuniversity.com/rules/axe/4.7/image-alt' },
-    { id: 'color-contrast', impact: 'serious', nodes: Math.floor(r() * 5) + 2, description: 'Elements must have sufficient color contrast (minimum 4.5:1 ratio for normal text)', fix_instructions: 'Update text or background colors in Finalsite Theme settings. District blue (#003087) on white meets AA. Avoid light gray text on white backgrounds.', helpUrl: 'https://dequeuniversity.com/rules/axe/4.7/color-contrast' },
-    { id: 'heading-order', impact: 'moderate', nodes: 1, description: 'Heading levels must not be skipped (e.g., H1 directly to H3)', fix_instructions: 'In PageBuilder, review all Heading modules. Ensure H1 is used only for the page title, then H2 for sections, H3 for sub-sections in order.', helpUrl: 'https://dequeuniversity.com/rules/axe/4.7/heading-order' },
-    { id: 'link-name', impact: 'serious', nodes: Math.floor(r() * 3) + 1, description: 'Links must have discernible, descriptive text', fix_instructions: 'Find any "click here", "read more", or icon-only links on this page. Replace with descriptive text, e.g., "Download the 2024 Budget Summary (PDF)".', helpUrl: 'https://dequeuniversity.com/rules/axe/4.7/link-name' },
-    { id: 'label', impact: 'critical', nodes: Math.floor(r() * 2) + 1, description: 'All form input elements must have associated labels', fix_instructions: 'Submit a WCM ticket to add visible label elements and aria-label attributes to all form fields on this page.', helpUrl: 'https://dequeuniversity.com/rules/axe/4.7/label' },
-    { id: 'pdf-tagged', impact: 'serious', nodes: Math.floor(r() * 3) + 1, description: 'Linked PDF documents must be tagged for screen reader accessibility', fix_instructions: 'Open each linked PDF in Adobe Acrobat Pro. Run Accessibility > Accessibility Check, then Add Tags to Document. Re-upload the tagged PDF via Finalsite File Manager.', helpUrl: 'https://www.adobe.com/accessibility/products/acrobat/pdf-repair-accessibility.html' },
-    { id: 'skip-link', impact: 'moderate', nodes: 1, description: 'Page must include a "Skip to main content" link for keyboard users', fix_instructions: 'Submit a WCM ticket - this is a district template-level fix. Reference WCAG 2.4.1 Bypass Blocks.', helpUrl: 'https://dequeuniversity.com/rules/axe/4.7/bypass' },
-    { id: 'focus-visible', impact: 'serious', nodes: Math.floor(r() * 3) + 1, description: 'Interactive elements must have a visible focus indicator', fix_instructions: 'Submit WCM ticket to update the district stylesheet - add :focus-visible styles with a high-contrast outline (3px solid #003087).', helpUrl: 'https://dequeuniversity.com/rules/axe/4.7/focus-visible' },
-  ]
+// REAL axe-core scan of the department's own page. Replaces runAdaAudit(),
+// which returned eight hardcoded findings with Math.random() element counts
+// (nodes: Math.floor(r() * 4) + 1) and derived an ada_score from those random
+// counts - a score this route then wrote to bcps_departments.ada_score, which
+// is what the department pages and the dashboard ADA Audit row display. 66
+// audit rows had been produced that way. Found 2026-09-10 while tracing the
+// ADA Scanner pipeline; removed with Sean's go-ahead the same day.
+//
+// Same scanner the ADA Scanner and school-scan routes already run in
+// production (src/lib/axe-scan.ts), mapped into the AdaItem shape the
+// findings rows and department/page.tsx already expect. axe carries no
+// prose fix steps, so recommendation is null rather than invented; the
+// glossary surfaces (lib/ada-glossary) are where fix guidance lives.
+//
+// No fabricated fallback: a department with no website_url, or a scan that
+// fails, yields ada_score null and no ADA findings. A missing number is
+// honest; a generated one is not.
+async function runRealAdaAudit(url: string | null): Promise<{
+  violations: AdaItem[]; ada_score: number | null
+  critical: number; serious: number; moderate: number; minor: number
+}> {
+  const empty = { violations: [] as AdaItem[], ada_score: null, critical: 0, serious: 0, moderate: 0, minor: 0 }
+  if (!url) return empty
 
-  const violations = candidates.filter(v => {
-    if (v.id === 'heading-order' || v.id === 'skip-link') return true
-    return r() > 0.4
-  })
+  const axe = await runAxeScan(url)
+  if (!axe.ok) {
+    console.error('[run-audit] axe scan failed for', url, axe.error)
+    return empty
+  }
 
-  const critical = violations.filter(v => v.impact === 'critical').length
-  const serious  = violations.filter(v => v.impact === 'serious').length
-  const moderate = violations.filter(v => v.impact === 'moderate').length
-  const minor    = violations.filter(v => v.impact === 'minor').length
+  const violations: AdaItem[] = axe.violations.map(v => ({
+    id: v.id,
+    impact: v.impact ?? 'moderate',
+    nodes: v.nodeCount,
+    description: v.description,
+    helpUrl: v.helpUrl,
+  }))
 
-  let ada_score = 100 - (critical * 12) - (serious * 7) - (moderate * 4) - (minor * 2)
-  ada_score = Math.max(30, Math.min(100, ada_score))
-
-  return { violations, ada_score, critical, serious, moderate, minor }
+  return {
+    violations,
+    ada_score: axe.adaScore,
+    critical: axe.counts.critical,
+    serious: axe.counts.serious,
+    moderate: axe.counts.moderate,
+    minor: axe.counts.minor,
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -119,8 +152,12 @@ export async function POST(req: NextRequest) {
 
     // Run the audit
     const phase1  = runPhase1Audit(dept.name)
-    const ada     = runAdaAudit()
-    const overall = Math.round((phase1.layout_score + phase1.content_score + phase1.nav_score + ada.ada_score) / 4)
+    const ada     = await runRealAdaAudit(dept.website_url)
+    // ada.ada_score is null when there is no page to scan or the scan
+    // failed, so it is averaged in only when real.
+    const scored = [phase1.layout_score, phase1.content_score, phase1.nav_score]
+    if (ada.ada_score != null) scored.push(ada.ada_score)
+    const overall = Math.round(scored.reduce((a, b) => a + b, 0) / scored.length)
     const auditStatus = overall >= 80 ? 'pass' : overall >= 60 ? 'needs_work' : 'critical'
 
     // Insert audit result

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
+import { useEffectiveRole } from '@/components/BCPSShell'
 
 interface Doc {
   id: string
@@ -92,7 +93,10 @@ export default function DocumentsPage() {
   const [activeTab, setActiveTab] = useState<string>('documents')
   const [sortMode, setSortMode] = useState<SortMode>('date_desc')
 
-  const isAdmin = role === 'admin' || role === 'superadmin'
+  // View-as aware, per Sean 2026-09-10: previewing a WCM must not leave
+  // the real admin's controls on screen. Server-side access is unchanged.
+  const effectiveRole = useEffectiveRole(role)
+  const isAdmin = effectiveRole === 'admin' || effectiveRole === 'superadmin'
   const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2800) }
 
