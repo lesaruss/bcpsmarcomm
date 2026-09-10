@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
 function getSafeNext(): string {
@@ -10,15 +10,150 @@ function getSafeNext(): string {
   return '/'
 }
 
+interface DeptOption {
+  id: string
+  department_name: string
+  location_number: string
+  department_slug: string | null
+}
+
+function titleCase(s: string): string {
+  return s.toLowerCase().replace(/(^|[\s/-])([a-z])/g, (_m, sep, ch) => sep + ch.toUpperCase())
+}
+
 export default function BCPSLoginPage() {
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
-  const [mode, setMode]         = useState<'signin' | 'forgot'>('signin')
+  // Was 'signin' | 'forgot' - Sean, 2026-09-10: the login page's only path
+  // to registration was a text link to a gated Playbook (60 named
+  // recipients), so anyone new who wasn't already on that list got bounced
+  // straight back to /login by that doc's own access check - "click
+  // Register, it just brings you back to the login screen." Fix is a real
+  // toggle right here, same pattern as the existing Sign In / Forgot
+  // Password switch, so creating an account never depends on a gated doc.
+  const [mode, setMode]         = useState<'signin' | 'register' | 'forgot'>('signin')
   const [resetSent, setResetSent] = useState(false)
 
+  // Registration fields/state - same shape and same submit sequence as
+  // /wcm-registration/register (auth.signUp -> wcm_cert_users upsert ->
+  // /api/bcps/wcm-pilot-register enrollment) so an account created from
+  // here ends up identically enrolled, department and all, rather than a
+  // second, thinner signup path that drifts from the real one over time.
+  const [regFullName, setRegFullName] = useState('')
+  const [regEmail, setRegEmail] = useState('')
+  const [regPassword, setRegPassword] = useState('')
+  const [regError, setRegError] = useState('')
+  const [regLoading, setRegLoading] = useState(false)
+  const [regDone, setRegDone] = useState(false)
+  const [departments, setDepartments] = useState<DeptOption[]>([])
+  const [deptQuery, setDeptQuery] = useState('')
+  const [selectedDept, setSelectedDept] = useState<DeptOption | null>(null)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [manualDept, setManualDept] = useState(false)
+  const deptBoxRef = useRef<HTMLDivElement>(null)
+
   const supabase = createClient()
+
+  useEffect(() => {
+    if (mode !== 'register' || departments.length) return
+    fetch('/api/bcps/wcm-roster-departments')
+      .then(r => r.json())
+      .then(j => setDepartments(j.departments || []))
+      .catch(() => setDepartments([]))
+  }, [mode, departments.length])
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (deptBoxRef.current && !deptBoxRef.current.contains(e.target as Node)) setShowDropdown(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
+  const filteredDepts = useMemo(() => {
+    const q = deptQuery.trim().toLowerCase()
+    if (!q) return departments
+    return departments.filter(d => d.department_name.toLowerCase().includes(q))
+  }, [departments, deptQuery])
+
+  function pickDept(d: DeptOption) {
+    setSelectedDept(d)
+    setDeptQuery(`${titleCase(d.department_name)} (${d.location_number})`)
+    setShowDropdown(false)
+  }
+
+  function useManualDept() {
+    setSelectedDept(null)
+    setManualDept(true)
+    setShowDropdown(false)
+  }
+
+  function backToDeptSearch() {
+    setManualDept(false)
+    setDeptQuery('')
+    setSelectedDept(null)
+  }
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setRegError('')
+
+    if (!regEmail.toLowerCase().endsWith('@browardschools.com')) {
+      setRegError('Access is restricted to @browardschools.com email addresses.')
+      return
+    }
+    if (!regFullName.trim()) {
+      setRegError('Full name is required.')
+      return
+    }
+
+    setRegLoading(true)
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: regEmail,
+        password: regPassword,
+        options: {
+          data: { full_name: regFullName },
+          emailRedirectTo: `${window.location.origin}/certification/login`,
+        },
+      })
+      if (signUpError) throw signUpError
+      if (!data.user) throw new Error('Registration did not return an account. Please try again.')
+
+      const departmentValue = manualDept
+        ? (deptQuery.trim() || null)
+        : (selectedDept ? titleCase(selectedDept.department_name) : null)
+      await supabase.from('wcm_cert_users').upsert(
+        {
+          user_id: data.user.id,
+          email: regEmail.toLowerCase(),
+          full_name: regFullName,
+          department: departmentValue,
+          department_needs_review: manualDept && !!deptQuery.trim(),
+          is_admin: false,
+        },
+        { onConflict: 'user_id' }
+      )
+
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (accessToken) {
+        await fetch('/api/bcps/wcm-pilot-register', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ department_slug: manualDept ? null : (selectedDept?.department_slug ?? null) }),
+        }).catch(() => { /* best effort, follow up manually if this fails */ })
+      }
+
+      setRegDone(true)
+    } catch (err: unknown) {
+      setRegError(err instanceof Error ? err.message : 'An error occurred. Please try again.')
+    } finally {
+      setRegLoading(false)
+    }
+  }
 
   const handleGoogle = async () => {
     setLoading(true)
@@ -114,6 +249,39 @@ export default function BCPSLoginPage() {
           boxShadow: '0 12px 32px rgba(15,41,69,0.10)',
         }}>
 
+          {!resetSent && (mode === 'signin' || mode === 'register') && !regDone && (
+            <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', borderRadius: '10px', padding: '4px', marginBottom: '24px' }}>
+              <button
+                type="button"
+                onClick={() => { setMode('signin'); setError('') }}
+                style={{
+                  flex: 1, padding: '9px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                  fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+                  fontFamily: "'Montserrat', sans-serif",
+                  background: mode === 'signin' ? '#ffffff' : 'transparent',
+                  color: mode === 'signin' ? '#0e4e73' : '#6b7280',
+                  boxShadow: mode === 'signin' ? '0 1px 4px rgba(0,0,0,0.10)' : 'none',
+                }}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode('register'); setRegError('') }}
+                style={{
+                  flex: 1, padding: '9px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                  fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+                  fontFamily: "'Montserrat', sans-serif",
+                  background: mode === 'register' ? '#ffffff' : 'transparent',
+                  color: mode === 'register' ? '#0e4e73' : '#6b7280',
+                  boxShadow: mode === 'register' ? '0 1px 4px rgba(0,0,0,0.10)' : 'none',
+                }}
+              >
+                Create Account
+              </button>
+            </div>
+          )}
+
           {resetSent ? (
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
               <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }} aria-hidden="true">
@@ -165,6 +333,110 @@ export default function BCPSLoginPage() {
                 </button>
               </p>
             </>
+          ) : mode === 'register' ? (
+            regDone ? (
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }} aria-hidden="true">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#16750C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </div>
+              <h2 style={{ color: '#111827', fontSize: '16px', fontWeight: 700, marginBottom: '10px' }}>You&apos;re enrolled</h2>
+              <p style={{ color: '#4b5563', fontSize: '13px', lineHeight: '1.7', marginBottom: '24px' }}>
+                Your Web Content Manager Department Registration is complete. Sign in above to complete the Department WCM Certification course.
+              </p>
+              <button onClick={() => { setMode('signin'); setRegDone(false) }} style={linkStyle}>
+                Back to Sign In
+              </button>
+            </div>
+            ) : (
+            <>
+              <h2 style={{ color: '#111827', fontSize: '17px', fontWeight: 700, margin: '0 0 6px' }}>Create your account</h2>
+              <p style={{ color: '#5b6675', fontSize: '13px', margin: '0 0 20px', lineHeight: '1.6' }}>
+                Registers you as a Department Web Content Manager. Access restricted to @browardschools.com addresses.
+              </p>
+              <form onSubmit={handleRegister}>
+                <label style={{ display: 'block', color: '#374151', fontSize: '11px', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  Full Name
+                </label>
+                <input type="text" value={regFullName} onChange={e => setRegFullName(e.target.value)}
+                  required placeholder="First Last" style={{ ...inputStyle, marginBottom: '14px' }} />
+
+                <label style={{ display: 'block', color: '#374151', fontSize: '11px', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  Department
+                </label>
+                {manualDept ? (
+                  <div style={{ marginBottom: '14px' }}>
+                    <input type="text" value={deptQuery} onChange={e => setDeptQuery(e.target.value)}
+                      placeholder="Type your department name" style={inputStyle} autoFocus />
+                    <button type="button" onClick={backToDeptSearch} style={{ ...linkStyle, fontSize: '12px', marginTop: '6px', display: 'block' }}>
+                      Search departments instead
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative', marginBottom: '14px' }} ref={deptBoxRef}>
+                    <input
+                      type="text" value={deptQuery}
+                      onChange={e => { setDeptQuery(e.target.value); setSelectedDept(null); setShowDropdown(true) }}
+                      onFocus={() => setShowDropdown(true)}
+                      placeholder="Start typing to search departments..." style={inputStyle} autoComplete="off"
+                    />
+                    {showDropdown && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px', maxHeight: '220px', overflowY: 'auto', background: '#fff', border: '1px solid #d1d5db', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 20 }}>
+                        {filteredDepts.length === 0 && (
+                          <div style={{ padding: '10px 14px', fontSize: '13px', color: '#9ca3af' }}>No departments match.</div>
+                        )}
+                        {filteredDepts.map(d => (
+                          <div key={d.id} onMouseDown={ev => ev.preventDefault()} onClick={() => pickDept(d)}
+                            style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #eef1f5' }}>
+                            {titleCase(d.department_name)} <span style={{ color: '#9ca3af', fontSize: '12px' }}>({d.location_number})</span>
+                          </div>
+                        ))}
+                        <div onMouseDown={ev => ev.preventDefault()} onClick={useManualDept}
+                          style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 600, color: '#0e4e73', cursor: 'pointer' }}>
+                          Don&apos;t see your department? Enter it manually
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <label style={{ display: 'block', color: '#374151', fontSize: '11px', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  BCPS Email Address
+                </label>
+                <input type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)}
+                  required placeholder="john.doe@browardschools.com" style={{ ...inputStyle, marginBottom: '4px' }} />
+                <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 14px' }}>
+                  This is your name-based BCPS email, not your P-number.
+                </p>
+
+                <label style={{ display: 'block', color: '#374151', fontSize: '11px', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  Password
+                </label>
+                <input type="password" value={regPassword} onChange={e => setRegPassword(e.target.value)}
+                  required minLength={8} placeholder="Create a password (min 8 characters)"
+                  style={{ ...inputStyle, marginBottom: '20px', letterSpacing: '0.15em' }} />
+
+                {regError && (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', color: '#b91c1c', fontSize: '13px', marginBottom: '16px' }}>
+                    {regError}
+                  </div>
+                )}
+
+                <button type="submit" disabled={regLoading} style={{
+                  width: '100%', padding: '12px', background: 'linear-gradient(135deg, #1672A7, #0e4e73)',
+                  border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 800,
+                  textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer',
+                  opacity: regLoading ? 0.7 : 1, fontFamily: "'Montserrat', sans-serif",
+                }}>
+                  {regLoading ? 'Creating account...' : 'Create Account'}
+                </button>
+              </form>
+              <p style={{ textAlign: 'center', marginTop: '20px', color: '#6b7280', fontSize: '12px', lineHeight: '1.6' }}>
+                Access restricted to @browardschools.com addresses.
+              </p>
+            </>
+            )
           ) : (
             <>
               <h2 style={{ color: '#111827', fontSize: '17px', fontWeight: 700, margin: '0 0 24px' }}>Sign in to your account</h2>
@@ -235,9 +507,9 @@ export default function BCPSLoginPage() {
               </p>
               <p style={{ textAlign: 'center', marginTop: '10px', fontSize: '12px', lineHeight: '1.6' }}>
                 Have not registered as a WCM yet?{' '}
-                <a href='/briefs/bcps-wcm-registration-2026-27' style={{ color: '#0e4e73', fontWeight: 700 }}>
-                  Start registration here
-                </a>.
+                <button type="button" onClick={() => { setMode('register'); setRegError('') }} style={{ ...linkStyle, fontSize: '12px' }}>
+                  Create an account
+                </button>.
               </p>
             </>
           )}
