@@ -768,18 +768,6 @@ body {
 }
 .dash-span-toggle button + button { border-left: 1px solid var(--border); }
 .dash-span-toggle button.active { background: var(--primary); color: #fff; }
-.locked-ref-group {
-  background: #fff; border-radius: 12px; border: 1.5px solid #b45309;
-  padding: 16px 20px 20px;
-}
-.locked-ref-group-head {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
-  font-size: 12px; font-weight: 800; color: #b45309; text-transform: uppercase; letter-spacing: .03em;
-}
-.locked-ref-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.locked-ref-grid.span-1 { grid-template-columns: repeat(2, 1fr); }
-@media (max-width: 860px) { .locked-ref-grid, .locked-ref-grid.span-1 { grid-template-columns: 1fr; } }
-
 .note-list { display: flex; flex-direction: column; gap: 10px; }
 .note-list-item {
   padding: 10px 0;

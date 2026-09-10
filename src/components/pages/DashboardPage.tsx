@@ -187,7 +187,10 @@ const DEFAULT_DASH_LAYOUT: DashLayoutItem[] = [
   { id: 'documents', span: 1 },
   { id: 'accessrequests', span: 2 },
   { id: 'recentnotes', span: 1 },
-  { id: 'refgroup', span: 2 },
+  { id: 'team', span: 1 },
+  { id: 'mydept', span: 1 },
+  { id: 'quickactions', span: 1 },
+  { id: 'consoles', span: 1 },
   { id: 'profile', span: 2 },
 ]
 
@@ -588,6 +591,22 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     ? []
     : teamMembers.filter(m => m.department?.slug === myDeptSlug && m.user_id !== (viewAsUserId ? undefined : meId))
 
+  // "Team" tile (formerly bundled into the locked refgroup, per Sean
+  // 2026-09-10) - scoped to the viewer's own division, not an arbitrary
+  // company-wide slice. Same class of leak as the earlier Labor Relations
+  // data mismatch: a viewer should only see teammates in their own
+  // division, never other divisions' staff mixed in. Falls back to
+  // everyone when the viewer has no division of their own - real Web Team
+  // staff and Superadmin accounts carry no department_slug (per
+  // /api/bcps/members), so there is nothing to scope by.
+  const myDivision = deptDetail?.division ?? null
+  const divisionTeammates = isSampleView
+    ? []
+    : (myDivision
+      ? teamMembers.filter(m => m.department?.division === myDivision)
+      : teamMembers
+    ).filter(m => m.user_id !== (viewAsUserId ? undefined : meId))
+
   // Per Sean 2026-09-10 (Fieldy feedback): "view as" is meant to show what
   // that role actually sees, so a lower-tier preview (any real named
   // person, or the Sample WCM / Sample District Web Team roles) must not
@@ -800,7 +819,15 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     documents: !showDeptTiles,
     accessrequests: effectiveCanManageMessages && accessRequests.length > 0,
     recentnotes: true,
-    refgroup: true,
+    // Formerly one locked group (Team / My Department / Quick Actions /
+    // Consoles) that always moved together. Split into four independently
+    // draggable/resizable tiles per Sean 2026-09-10, same as wcmnotes/
+    // wcmdocs/wcmteam above - and for every tier (WCM, District Web Team,
+    // Superadmin alike), since refgroup was already shown to everyone.
+    team: true,
+    mydept: true,
+    quickactions: true,
+    consoles: true,
     profile: !!myDeptSlug,
   }
   const visibleDashLayout = dashLayout.filter((w) => dashWidgetVisible[w.id])
@@ -1297,7 +1324,45 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
             // Consoles. A single locked unit per Sean 2026-08-29: it always
             // moves and resizes as one, collapsing from a 2x2 grid to two
             // stacked rows of 2 when set to half-width.
-            case 'refgroup': {
+            // Team - independently draggable/resizable, per Sean 2026-09-10
+            // (was locked together with My Department/Quick Actions/
+            // Consoles as one always-moves-together group). Scoped to the
+            // viewer's own division via divisionTeammates - previously an
+            // arbitrary company-wide slice (teamMembers.slice(0, 6)) with no
+            // division filter at all. Same list, same look, for every tier
+            // (WCM, District Web Team, Superadmin).
+            case 'team':
+              return dashCell('team', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>Team</h3>
+                    <button className="link-btn" onClick={() => onNavigate('members')}>View all &rarr;</button>
+                  </div>
+                  {divisionTeammates.length === 0 ? (
+                    <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No other members on file for your division.</div>
+                  ) : (
+                    <div className="member-list">
+                      {divisionTeammates.slice(0, 6).map((m) => (
+                        <div key={m.user_id} className="member-row">
+                          <div className="avatar avatar-sm" style={{ background: m.color }}>{m.initials}</div>
+                          <div className="member-info">
+                            <strong>
+                              <button onClick={() => router.push(`/?page=members&member=${m.user_id}`, { scroll: false })}
+                                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontWeight: 700, color: 'var(--primary)' }}>
+                                {m.name}
+                              </button>
+                            </strong>
+                            <span>{m.department?.name || (m.role === 'superadmin' ? 'Superadmin' : 'Team Member')}</span>
+                          </div>
+                          <div className="member-status online" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+
+            case 'mydept': {
               // Was `teamMembers.find(m => m.user_id === meId)?.department` -
               // the real signed-in admin's own department, which ignored
               // "view as" entirely (Sean 2026-09-10 Fieldy feedback: view as
@@ -1306,133 +1371,107 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
               // viewAsUserId and the sample-role previews, so reuse it here
               // instead of re-deriving from the real signed-in user.
               const myDept = deptDetail ? { name: deptDetail.name, slug: deptDetail.slug, division: deptDetail.division } : null
-              const refSpan = spanOfDashCell('refgroup')
-              return dashCell('refgroup', (
-                <div className="locked-ref-group">
-                  <div className="locked-ref-group-head">
-                    <span aria-hidden="true">&#128274;</span> Team &middot; My Department &middot; Quick Actions &middot; Consoles
+              return dashCell('mydept', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>My Department</h3>
+                    {myDept && <button className="link-btn" onClick={() => router.push(`/?page=departments&dept=${myDept.slug}`, { scroll: false })}>Open profile &rarr;</button>}
                   </div>
-                  <div className={`locked-ref-grid${refSpan === 1 ? ' span-1' : ''}`}>
-                    <div className="dash-panel">
-                      <div className="dash-panel-header">
-                        <h3>Team</h3>
-                        <button className="link-btn" onClick={() => onNavigate('members')}>View all &rarr;</button>
-                      </div>
-                      <div className="member-list">
-                        {teamMembers.slice(0, 6).map((m) => (
-                          <div key={m.user_id} className="member-row">
-                            <div className="avatar avatar-sm" style={{ background: m.color }}>{m.initials}</div>
-                            <div className="member-info">
-                              <strong>
-                                <button onClick={() => router.push(`/?page=members&member=${m.user_id}`, { scroll: false })}
-                                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontWeight: 700, color: 'var(--primary)' }}>
-                                  {m.name}
-                                </button>
-                              </strong>
-                              <span>{m.department?.name || (m.role === 'superadmin' ? 'Superadmin' : 'Team Member')}</span>
-                            </div>
-                            <div className="member-status online" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="dash-panel">
-                      <div className="dash-panel-header">
-                        <h3>My Department</h3>
-                        {myDept && <button className="link-btn" onClick={() => router.push(`/?page=departments&dept=${myDept.slug}`, { scroll: false })}>Open profile &rarr;</button>}
-                      </div>
-                      <div style={{ padding: '4px 0' }}>
-                        {myDept ? (
-                          <>
-                            <div style={{ fontSize: 16, fontWeight: 800 }}>{myDept.name}</div>
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{myDept.division || ''}</div>
-                          </>
-                        ) : (
-                          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No department assigned yet.</div>
-                        )}
-                      </div>
-
-                      {/* Department page listed at the bottom, per Sean
-                          2026-09-10 (Fieldy feedback): "so they can quickly
-                          access their department page without having to
-                          scan." Every WCM/department record on file today
-                          maps to exactly one department (no member holds
-                          more than one - confirmed against bcps_departments
-                          2026-09-10), so this is a single listing; if that
-                          ever changes to a real multi-department
-                          assignment, this is where a 4-across grid of
-                          department tiles would replace it. */}
-                      {myDept && deptDetail?.website_url && (
-                        <a
-                          href={deptDetail.website_url.startsWith('http') ? deptDetail.website_url : `https://${deptDetail.website_url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-                            padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)',
-                            background: 'var(--bg-page)', textDecoration: 'none',
-                          }}
-                        >
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Department page</div>
-                            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deptDetail.website_url}</div>
-                          </div>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', flexShrink: 0 }}>View &rarr;</span>
-                        </a>
-                      )}
-                    </div>
-
-                    <div className="dash-panel">
-                      <div className="dash-panel-header">
-                        <h3>Quick Actions</h3>
-                      </div>
-                      <div className="quick-actions">
-                        <button className="quick-action-btn" onClick={() => onNavigate('notes')}>
-                          <span className="qa-icon">{FlatIcons.note}</span>
-                          <span>Write a Note</span>
-                        </button>
-                        <button className="quick-action-btn" onClick={() => onNavigate('departments')}>
-                          <span className="qa-icon">{FlatIcons.building}</span>
-                          <span>Browse Departments</span>
-                        </button>
-                        <button className="quick-action-btn" onClick={() => onNavigate('analytics')}>
-                          <span className="qa-icon">{FlatIcons.chart}</span>
-                          <span>View Analytics</span>
-                        </button>
-                        <button className="quick-action-btn" onClick={() => onNavigate('superadmin')}>
-                          <span className="qa-icon">{FlatIcons.shield}</span>
-                          <span>SuperAdmin Panel</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="dash-panel">
-                      <div className="dash-panel-header">
-                        <h3>Your Consoles</h3>
-                      </div>
-                      <div className="console-grid">
-                        <button className="console-card" onClick={() => onNavigate('marcomm')}>
-                          <div className="console-icon">{FlatIcons.megaphone}</div>
-                          <div className="console-name">MarComm</div>
-                          <div className="console-desc">Marketing & Comms</div>
-                        </button>
-                        <button className="console-card" onClick={() => onNavigate('minutes')}>
-                          <div className="console-icon">{FlatIcons.clock}</div>
-                          <div className="console-name">Minutes</div>
-                          <div className="console-desc">Meeting Records</div>
-                        </button>
-                        <button className="console-card" onClick={() => onNavigate('wcm')}>
-                          <div className="console-icon">{FlatIcons.globe}</div>
-                          <div className="console-name">WCM</div>
-                          <div className="console-desc">Web Content</div>
-                        </button>
-                      </div>
-                    </div>
+                  <div style={{ padding: '4px 0' }}>
+                    {myDept ? (
+                      <>
+                        <div style={{ fontSize: 16, fontWeight: 800 }}>{myDept.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{myDept.division || ''}</div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No department assigned yet.</div>
+                    )}
                   </div>
+
+                  {/* Department page listed at the bottom, per Sean
+                      2026-09-10 (Fieldy feedback): "so they can quickly
+                      access their department page without having to
+                      scan." Every WCM/department record on file today
+                      maps to exactly one department (no member holds
+                      more than one - confirmed against bcps_departments
+                      2026-09-10), so this is a single listing; if that
+                      ever changes to a real multi-department
+                      assignment, this is where a 4-across grid of
+                      department tiles would replace it. */}
+                  {myDept && deptDetail?.website_url && (
+                    <a
+                      href={deptDetail.website_url.startsWith('http') ? deptDetail.website_url : `https://${deptDetail.website_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                        padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)',
+                        background: 'var(--bg-page)', textDecoration: 'none',
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Department page</div>
+                        <div style={{ fontSize: 11.5, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deptDetail.website_url}</div>
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', flexShrink: 0 }}>View &rarr;</span>
+                    </a>
+                  )}
                 </div>
               ))
             }
+
+            case 'quickactions':
+              return dashCell('quickactions', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>Quick Actions</h3>
+                  </div>
+                  <div className="quick-actions">
+                    <button className="quick-action-btn" onClick={() => onNavigate('notes')}>
+                      <span className="qa-icon">{FlatIcons.note}</span>
+                      <span>Write a Note</span>
+                    </button>
+                    <button className="quick-action-btn" onClick={() => onNavigate('departments')}>
+                      <span className="qa-icon">{FlatIcons.building}</span>
+                      <span>Browse Departments</span>
+                    </button>
+                    <button className="quick-action-btn" onClick={() => onNavigate('analytics')}>
+                      <span className="qa-icon">{FlatIcons.chart}</span>
+                      <span>View Analytics</span>
+                    </button>
+                    <button className="quick-action-btn" onClick={() => onNavigate('superadmin')}>
+                      <span className="qa-icon">{FlatIcons.shield}</span>
+                      <span>SuperAdmin Panel</span>
+                    </button>
+                  </div>
+                </div>
+              ))
+
+            case 'consoles':
+              return dashCell('consoles', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>Your Consoles</h3>
+                  </div>
+                  <div className="console-grid">
+                    <button className="console-card" onClick={() => onNavigate('marcomm')}>
+                      <div className="console-icon">{FlatIcons.megaphone}</div>
+                      <div className="console-name">MarComm</div>
+                      <div className="console-desc">Marketing & Comms</div>
+                    </button>
+                    <button className="console-card" onClick={() => onNavigate('minutes')}>
+                      <div className="console-icon">{FlatIcons.clock}</div>
+                      <div className="console-name">Minutes</div>
+                      <div className="console-desc">Meeting Records</div>
+                    </button>
+                    <button className="console-card" onClick={() => onNavigate('wcm')}>
+                      <div className="console-icon">{FlatIcons.globe}</div>
+                      <div className="console-name">WCM</div>
+                      <div className="console-desc">Web Content</div>
+                    </button>
+                  </div>
+                </div>
+              ))
 
             // Member Profile, per Sean 2026-08-27: what a member sees when
             // they click their own name in the welcome banner. Renamed
