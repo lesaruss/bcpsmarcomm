@@ -176,7 +176,9 @@ interface DashLayoutItem { id: string; span: DashSpan }
 const DASH_LAYOUT_STORAGE_KEY = 'bcps-dashboard-layout-v1'
 const DEFAULT_DASH_LAYOUT: DashLayoutItem[] = [
   { id: 'cert', span: 2 },
-  { id: 'wcmsnapshot', span: 2 },
+  { id: 'wcmnotes', span: 1 },
+  { id: 'wcmdocs', span: 1 },
+  { id: 'wcmteam', span: 1 },
   { id: 'stats', span: 2 },
   { id: 'messages', span: 2 },
   { id: 'tools', span: 1 },
@@ -596,6 +598,10 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     ? viewAsUserId === SAMPLE_SUPERADMIN_ID
     : canManageMessages
 
+  // A department-level viewer (WCM tier, department resolved) gets the
+  // three department tiles below in place of the admin stat tiles.
+  const showDeptTiles = !effectiveCanManageMessages && !!myDeptSlug
+
   function scrollToProfile() {
     profileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -774,15 +780,24 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     // admin/superadmin tiers still get it. Gated on the *effective* role so
     // a "view as" preview hides it too, not just a real WCM's own login.
     stats: effectiveCanManageMessages,
-    // WCM Snapshot replaces the stat tiles for a department-level viewer:
-    // recent meeting notes / recent documents / department teammates, per
-    // Sean 2026-09-10.
-    wcmsnapshot: !effectiveCanManageMessages && !!myDeptSlug,
+    // Three individual tiles rather than one merged panel, per Sean
+    // 2026-09-10, so each one moves and resizes on its own in the grid
+    // instead of the whole snapshot travelling as a single block. These
+    // replace the stat tiles for a department-level viewer: recent
+    // meeting notes / recent documents / department teammates.
+    wcmnotes: showDeptTiles,
+    wcmdocs: showDeptTiles,
+    wcmteam: showDeptTiles,
     messages: effectiveCanManageMessages,
     tools: true,
     audit: !!myDeptSlug,
-    meetingnotes: true,
-    documents: true,
+    // Superseded by wcmnotes/wcmdocs for a department-level viewer. Both
+    // read the same catalog the generic tiles do (wcmdocs renders the
+    // identical documentsList array, wcmnotes a 5-item window of the same
+    // meeting notes instead of 3), so leaving the generic pair visible
+    // would render the same two lists twice on one dashboard.
+    meetingnotes: !showDeptTiles,
+    documents: !showDeptTiles,
     accessrequests: effectiveCanManageMessages && accessRequests.length > 0,
     recentnotes: true,
     refgroup: true,
@@ -877,75 +892,115 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                 </div>
               ))
 
-            // WCM Snapshot - replaces the admin stat tiles for a
-            // department-level viewer, per Sean 2026-09-10 (Fieldy
-            // feedback): three columns - recent meeting notes, recent
-            // documents, and department teammates - so a WCM lands on
-            // something immediately useful instead of counts that mean
-            // nothing to them.
-            case 'wcmsnapshot':
-              return dashCell('wcmsnapshot', (
+            // Recent Meeting Notes - department-level viewer's own tile,
+            // per Sean 2026-09-10 (Fieldy feedback). Split out of the
+            // merged "Your Department at a Glance" panel so it drags and
+            // resizes independently. Wider window than the generic
+            // "Latest Meeting Notes" tile it stands in for (5 vs 3).
+            case 'wcmnotes':
+              return dashCell('wcmnotes', (
                 <div className="dash-panel">
                   <div className="dash-panel-header">
-                    <h3>Your Department at a Glance</h3>
+                    <h3>Recent Meeting Notes</h3>
+                    <button className="link-btn" onClick={() => onNavigate('notes')}>View all &rarr;</button>
                   </div>
-                  <div className="wcm-snapshot-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Recent Meeting Notes</div>
-                      {docsLoading ? (
-                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading...</div>
-                      ) : meetingNotesTop5.length === 0 ? (
-                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No meeting notes yet.</div>
-                      ) : (
-                        <div className="note-list">
-                          {meetingNotesTop5.map(d => (
-                            <div key={d.id} className="note-list-item">
-                              <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
-                              <div className="note-list-meta">
-                                {d.date && <span>{d.date}</span>}
-                              </div>
-                            </div>
-                          ))}
+                  <div className="note-list">
+                    {docsLoading ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+                    ) : meetingNotesTop5.length === 0 ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No meeting notes yet.</div>
+                    ) : meetingNotesTop5.map(d => (
+                      <div key={d.id} className="note-list-item">
+                        <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
+                        <div className="note-list-meta">
+                          <span>{d.series_title || 'Meeting Notes'}</span>
+                          {d.date && (<><span className="dot">&middot;</span><span>{d.date}</span></>)}
                         </div>
-                      )}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <button className="btn-outline" onClick={() => onNavigate('notes')}>View all meeting notes</button>
+                  </div>
+                </div>
+              ))
+
+            // Recent Documents - department-level viewer's own tile, per
+            // Sean 2026-09-10. Keeps the Favorites/Newest toggle from the
+            // generic Documents tile this stands in for, so a WCM does not
+            // lose the favorites filter along with that tile.
+            case 'wcmdocs':
+              return dashCell('wcmdocs', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>Recent Documents</h3>
+                    <div className="doc-toggle">
+                      <button className={docMode === 'favorites' ? 'active' : ''} onClick={() => setDocMode('favorites')}>Favorites</button>
+                      <button className={docMode === 'newest' ? 'active' : ''} onClick={() => setDocMode('newest')}>Newest</button>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Recent Documents</div>
-                      {docsLoading ? (
-                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading...</div>
-                      ) : documentsList.length === 0 ? (
-                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No documents yet.</div>
-                      ) : (
-                        <div className="note-list">
-                          {documentsList.slice(0, 5).map(d => (
-                            <div key={d.id} className="note-list-item">
-                              <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
-                              <div className="note-list-meta">
-                                {d.type && <span>{d.type}</span>}
-                              </div>
-                            </div>
-                          ))}
+                  </div>
+                  <div className="note-list">
+                    {docsLoading ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>Loading...</div>
+                    ) : documentsList.length === 0 ? (
+                      <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
+                        {docMode === 'favorites' ? 'No favorited documents yet.' : 'No documents yet.'}
+                      </div>
+                    ) : documentsList.map(d => (
+                      <div key={d.id} className="note-list-item" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: 7, background: 'var(--bg-page)', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 9.5, fontWeight: 700, color: 'var(--text-muted)',
+                        }}>
+                          {(d.type || 'DOC').slice(0, 3).toUpperCase()}
                         </div>
-                      )}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Your Team</div>
-                      {deptTeammates.length === 0 ? (
-                        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No other members on file for your department.</div>
-                      ) : (
-                        <div className="member-list">
-                          {deptTeammates.slice(0, 6).map(m => (
-                            <div key={m.user_id} className="member-row">
-                              <div className="avatar avatar-sm" style={{ background: m.color }}>{m.initials}</div>
-                              <div className="member-info">
-                                <strong>{m.name}</strong>
-                                <span>{m.role}</span>
-                              </div>
-                            </div>
-                          ))}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <a className="note-list-title" href={d.doc_url} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{d.title}</a>
+                          <div className="note-list-meta">
+                            {d.type && (<span>{d.type}</span>)}
+                            {d.date && (<><span className="dot">&middot;</span><span>{d.date}</span></>)}
+                          </div>
                         </div>
-                      )}
+                        {d.featured && (
+                          <span title="Favorited" style={{ color: '#C55326', fontSize: 14, flexShrink: 0 }}>&#9733;</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <button className="btn-outline" onClick={() => onNavigate('documents')}>Browse all documents</button>
+                  </div>
+                </div>
+              ))
+
+            // Your Team - the other members of this person's department,
+            // per Sean 2026-09-10. The only one of the three with no
+            // equivalent tile already on the dashboard.
+            case 'wcmteam':
+              return dashCell('wcmteam', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>Your Team</h3>
+                    <button className="link-btn" onClick={() => onNavigate('members')}>View all &rarr;</button>
+                  </div>
+                  {deptTeammates.length === 0 ? (
+                    <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No other members on file for your department.</div>
+                  ) : (
+                    <div className="member-list">
+                      {deptTeammates.slice(0, 6).map(m => (
+                        <div key={m.user_id} className="member-row">
+                          <div className="avatar avatar-sm" style={{ background: m.color }}>{m.initials}</div>
+                          <div className="member-info">
+                            <strong>{m.name}</strong>
+                            <span>{m.role}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  )}
+                  <div style={{ marginTop: 14 }}>
+                    <button className="btn-outline" onClick={() => onNavigate('members')}>View all members</button>
                   </div>
                 </div>
               ))
