@@ -23,6 +23,11 @@ export default function WCMRegistrationRegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // CORRECTED 2026-09-11: "Confirm email" is OFF on this project (verified
+  // against auth.users - confirmation lag is 0.00s on every recent row), so
+  // this branch does not fire today. Kept because it is correct if the
+  // setting is ever enabled. See login/page.tsx for the full finding.
+  //
   // signUp() only returns an active session when Supabase's "Confirm email"
   // setting is off. With it on, the account exists but there's no session
   // yet - sending them to "Continue to Certification Login" bounces them

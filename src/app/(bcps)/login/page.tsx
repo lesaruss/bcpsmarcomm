@@ -47,9 +47,19 @@ export default function BCPSLoginPage() {
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
   const [regDone, setRegDone] = useState(false)
+  // CORRECTED 2026-09-11 against live data: "Confirm email" is OFF on this
+  // project, so signUp returns a session and the confirm branch below never
+  // fires today. Every auth.users row created in the preceding 5 days has
+  // email_confirmed_at exactly equal to created_at (lag 0.00s) - that is
+  // auto-confirmation, not 15 people clicking a link within the same second.
+  // All 11 district signups in that window hold both a wcm_cert_users
+  // profile and an acl_member_roles row, so registration completes.
+  // Keeping this branch: it is correct if the setting is ever turned on,
+  // and the straight-in redirect below is the better path regardless.
+  //
   // signUp() only returns an active session when Supabase's "Confirm email"
-  // setting is off (or the address is auto-confirmed). With it on - the case
-  // here - the account is created but there is no session yet, so telling
+  // setting is off (or the address is auto-confirmed). With it on, the
+  // account is created but there is no session yet, so telling
   // them to "sign in above" immediately just sends them into
   // handleSignIn's "Email not confirmed" error, which reads to a WCM as
   // "I tried to log in and it bounced me back to the login screen." Track
