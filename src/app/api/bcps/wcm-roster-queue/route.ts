@@ -10,26 +10,31 @@ const supabase = createClient(
 
 const ACCESS_KEY = 'lr-wcm-roster-9f21ab6c'
 
-// Director account + email, sent on every approval regardless of action
-// (add/remove/na) - approving is the confirmation that this director's
-// designation for 2026-27 is locked in, independent of whether this
-// particular submission also changed a WCM. Added 2026-09-12 per Sean:
-// approving in this queue should be the one action that gets the real
-// person - director and WCM both - into a working account, rather than
-// that being a separate manual step someone has to remember to do.
-// Best-effort: any failure here is swallowed and reported back in the
-// response, never blocks the approval itself (the roster/member/department
-// writes above are already committed by the time this runs).
+// Director account + confirmation email, sent on every approval regardless
+// of action (add/remove/na) - approving is the confirmation that this
+// director's designation for 2026-27 is locked in, independent of whether
+// this particular submission also changed a WCM.
+//
+// 2026-09-12 (Sean, revised same day as the first version of this route):
+// create the account now, but do NOT invite the director in yet - no
+// action_link, no CTA button in this email at all. Directors get their own
+// tour and portal access with the October Communique, once the console
+// experience itself is ready; this email only confirms the roster decision
+// and, when applicable, that their WCM already has what they need to log
+// in. Account creation still happens now (not deferred to the Communique)
+// so nothing has to be re-run later - resolveOrInviteAccount + enrollment
+// silently provisions the account, its action_link is just never sent.
 async function notifyDirector(opts: {
   directorEmail: string
   directorName: string
   departmentName: string
   departmentSlug: string | null
+  wcmNotified: boolean
 }): Promise<{ account_ok: boolean; email_sent: boolean; error?: string }> {
   try {
     const resolved = await resolveOrInviteAccount(opts.directorEmail, opts.directorName)
     if (!resolved.ok) return { account_ok: false, email_sent: false, error: resolved.error }
-    const { userId, isNewAccount, actionLink } = resolved.account
+    const { userId } = resolved.account
 
     const enrolled = await enrollBcpsMember({
       userId,
@@ -41,37 +46,21 @@ async function notifyDirector(opts: {
     })
     if (!enrolled.ok) return { account_ok: false, email_sent: false, error: enrolled.error }
 
-    const html = isNewAccount
-      ? brandedEmail({
-          heading: `You're confirmed for 2026-27`,
-          body: `
-            <p>Hi ${esc(opts.directorName)},</p>
-            <p>Your Web Content Manager Roster submission for <strong>${esc(opts.departmentName)}</strong>
-            has been reviewed and approved. You're all set for the 2026-27 school year.</p>
-            <p>Click below to finish setting up your BCPS Web Team Portal account. Once you're in, you'll
-            see your department's page and the full Departments directory.</p>
-            <p>Need to add or remove a Web Content Manager later, or something else changed? Use the same
-            <a href="${SITE}/wcm-roster-signup">roster form</a> any time, no need to start over.</p>
-          `,
-          ctaLabel: 'Set Up Your Account',
-          ctaHref: actionLink!,
-          footNote: `This link is unique to you. If you weren't expecting this, contact Sean Russell.`,
-        })
-      : brandedEmail({
-          heading: `You're confirmed for 2026-27`,
-          body: `
-            <p>Hi ${esc(opts.directorName)},</p>
-            <p>Your Web Content Manager Roster submission for <strong>${esc(opts.departmentName)}</strong>
-            has been reviewed and approved. You're all set for the 2026-27 school year. You already have an
-            account, so there's nothing new to set up, just sign in below to see your department's page and
-            the full Departments directory.</p>
-            <p>Need to add or remove a Web Content Manager later, or something else changed? Use the same
-            <a href="${SITE}/wcm-roster-signup">roster form</a> any time, no need to start over.</p>
-          `,
-          ctaLabel: 'Log In',
-          ctaHref: `${SITE}/login`,
-          footNote: `Forgot your password? Use "Forgot password?" on the sign-in screen.`,
-        })
+    const html = brandedEmail({
+      heading: `You're confirmed for 2026-27`,
+      body: `
+        <p>Hi ${esc(opts.directorName)},</p>
+        <p>Your Web Content Manager Roster submission for <strong>${esc(opts.departmentName)}</strong>
+        has been reviewed and approved. You're all set for the 2026-27 school year.</p>
+        ${opts.wcmNotified ? `
+        <p>Your Web Content Manager has already received their own email with everything they need to log
+        in, so there's nothing you need to pass along.</p>` : ''}
+        <p>Watch for the next <strong>Communique</strong>: that's when we'll walk you through your own
+        BCPS Web Team Portal access, including a tour of what's available for your department.</p>
+        <p>Need to add or remove a Web Content Manager before then, or something else changed? Use the same
+        <a href="${SITE}/wcm-roster-signup">roster form</a> any time, no need to start over.</p>
+      `,
+    })
 
     const emailResult = await sendEmail({
       to: opts.directorEmail,
@@ -312,17 +301,9 @@ export async function PATCH(req: NextRequest) {
     // Get the real person - director, and the WCM if this approval
     // designates one - into a working account and notify them directly.
     // Best-effort: reported back in the response, never blocks the
-    // approval that already happened above.
-    let directorNotice: Awaited<ReturnType<typeof notifyDirector>> | null = null
-    if (submission.submitter_email) {
-      directorNotice = await notifyDirector({
-        directorEmail: submission.submitter_email,
-        directorName: submission.director_name || 'there',
-        departmentName: departmentDisplayName,
-        departmentSlug,
-      })
-    }
-
+    // approval that already happened above. WCM resolved first so the
+    // director's email can truthfully say whether the WCM was actually
+    // notified, rather than assuming success.
     let wcmNotice: Awaited<ReturnType<typeof notifyWcm>> | null = null
     if (submissionAction === 'add' && submission.wcm_email) {
       wcmNotice = await notifyWcm({
@@ -330,6 +311,17 @@ export async function PATCH(req: NextRequest) {
         wcmName: submission.wcm_name || 'there',
         departmentName: departmentDisplayName,
         departmentSlug,
+      })
+    }
+
+    let directorNotice: Awaited<ReturnType<typeof notifyDirector>> | null = null
+    if (submission.submitter_email) {
+      directorNotice = await notifyDirector({
+        directorEmail: submission.submitter_email,
+        directorName: submission.director_name || 'there',
+        departmentName: departmentDisplayName,
+        departmentSlug,
+        wcmNotified: !!wcmNotice?.email_sent,
       })
     }
 
