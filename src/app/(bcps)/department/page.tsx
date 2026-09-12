@@ -14,7 +14,7 @@ const CUR_MONTH_D = NOW_D.getMonth() + 1
 const CUR_SCHOOL_START_D = CUR_MONTH_D >= 8 ? CUR_YEAR_D : CUR_YEAR_D - 1
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface Dept { id: string; name: string; division?: string; health_status?: string; website_url?: string; wcm_name?: string; wcm_email?: string; director_name?: string; chief_name?: string; chief_title?: string; audit_status?: string; ada_score?: number }
+interface Dept { id: string; slug?: string; name: string; division?: string; health_status?: string; website_url?: string; wcm_name?: string; wcm_email?: string; director_name?: string; director_email?: string; chief_name?: string; chief_title?: string; audit_status?: string; ada_score?: number }
 interface Audit { id: string; audited_at: string; overall_score: number | null; layout_score: number | null; content_score: number | null; nav_score: number | null; ada_score: number | null; status: string; auditor?: string; issues?: unknown; ada_violations?: unknown; ada_violations_critical?: number; ada_violations_serious?: number; ada_violations_moderate?: number; ada_violations_minor?: number }
 interface AnalyticsRow { period: string; synced_at?: string; monthly_visitors?: number; avg_time_seconds?: number; bounce_rate?: number; mobile_pct?: number; top_pages?: Array<{ title: string; url: string; views: number }>; traffic_sources?: Array<{ source: string; sessions: number | string; pct: string }>; top_queries?: Array<{ query: string; clicks: number; impressions: number }> }
 
@@ -140,6 +140,17 @@ function DepartmentContent() {
   // Same pattern as the router's effectiveRole (src/app/(bcps)/page.tsx).
   const isAdmin = viewAs ? viewAs.id === SAMPLE_SUPERADMIN_ID : role === 'superadmin'
 
+  // Own email, used only to detect "I am this department's director" - the
+  // system has no separate director role, so this string match against
+  // bcps_departments.director_email (same signal wcm-pilot-register already
+  // trusts) is the only way to know. Real signed-in identity, never the
+  // "view as" preview - a director previewing as someone else shouldn't
+  // gain a real director's invite power from it.
+  const [myEmail, setMyEmail] = useState('')
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setMyEmail((data.user?.email || '').trim().toLowerCase()))
+  }, [supabase])
+
   const [dept, setDept] = useState<Dept | null>(null)
   const [audit, setAudit] = useState<Audit | null>(null)
   const [history, setHistory] = useState<Audit[]>([])
@@ -213,6 +224,38 @@ function DepartmentContent() {
       setAuditStep('')
     }
   }, [dept, showToast])
+
+  const [inviteSending, setInviteSending] = useState(false)
+  const sendWcmInvite = useCallback(async () => {
+    if (!dept?.slug) return
+    setInviteSending(true)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error('Session expired. Please refresh and try again.')
+      const res = await fetch('/api/bcps/wcm-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ department_slug: dept.slug }),
+      })
+      const json = await res.json()
+      if (!res.ok || json.error) throw new Error(json.error || 'Could not send the invite.')
+      if (!json.email_sent) {
+        showToast(`Confirmed in the system, but the email did not send: ${json.email_error || 'unknown error'}`, 'error')
+      } else {
+        showToast(
+          json.status === 'invited'
+            ? `Invite sent to ${dept.wcm_email}.`
+            : `${dept.wcm_email} was already registered - sent them a login notice instead.`,
+          'success'
+        )
+      }
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Could not send the invite.', 'error')
+    } finally {
+      setInviteSending(false)
+    }
+  }, [dept, supabase, showToast])
 
   const loadHistoricalAudit = useCallback(async (auditId: string) => {
     if (audit?.id === auditId) return
@@ -760,6 +803,20 @@ function DepartmentContent() {
                 <div className="info-section-label">WCM Contact</div>
                 <div className="info-row"><span className="info-label">Name</span><span className={`info-value${dept.wcm_name?'':' unset'}`}>{dept.wcm_name||'Unassigned'}</span></div>
                 <div className="info-row"><span className="info-label">Email</span><span className={`info-value${dept.wcm_email?'':' unset'}`}>{dept.wcm_email?<a href={`mailto:${dept.wcm_email}`}>{dept.wcm_email}</a>:'Not on file'}</span></div>
+                {(isAdmin || (!!dept.director_email && dept.director_email.trim().toLowerCase() === myEmail)) && dept.wcm_email && (
+                  <button
+                    type="button"
+                    onClick={sendWcmInvite}
+                    disabled={inviteSending}
+                    style={{
+                      marginTop: 10, width: '100%', padding: '9px', borderRadius: 8,
+                      border: '1px solid var(--border, #d1d5db)', background: inviteSending ? '#f1f5f9' : '#fff',
+                      color: '#0e4e73', fontSize: 12.5, fontWeight: 700, cursor: inviteSending ? 'default' : 'pointer',
+                    }}
+                  >
+                    {inviteSending ? 'Sending...' : 'Send Portal Invite to WCM'}
+                  </button>
+                )}
               </div>
               <div className="info-section">
                 <div className="info-section-label">Leadership</div>
