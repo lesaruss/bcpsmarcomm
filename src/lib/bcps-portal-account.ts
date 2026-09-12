@@ -53,6 +53,14 @@ export function brandedEmail(opts: { heading: string; body: string; ctaLabel?: s
   `
 }
 
+// The living "Getting Started" guide - LAB first (PD credit), then the
+// BCPS Certification link in the body of LAB's confirmation page, which
+// hands off to this platform. Per Sean 2026-09-12: a WCM who is just handed
+// a bare login/set-password link with no context won't know LAB comes
+// first, so every WCM confirmation email leads with this guide and treats
+// the direct account link as a failsafe, not the primary instruction.
+export const WCM_GETTING_STARTED_URL = `${SITE}/playbooks/bcps-wcm-registration-2026-27`
+
 export type ResolvedAccount = { userId: string; isNewAccount: boolean; actionLink: string | null }
 
 // Try to create the account (this IS the invite email link when new); on
@@ -89,6 +97,35 @@ export async function resolveOrInviteAccount(email: string, fullName?: string): 
   }
 
   return { ok: false, error: inviteErr?.message || 'Could not create this account.' }
+}
+
+// The WCM confirmation email, shared by wcm-invite (manual button) and
+// wcm-roster-queue (automatic on approval). Leads with the LAB-first
+// Getting Started guide - the actual district process - and presents the
+// direct account link as a failsafe, not the headline action, per Sean
+// 2026-09-12.
+export function wcmConfirmationEmail(opts: {
+  wcmName: string
+  departmentName: string
+  isNewAccount: boolean
+  failsafeHref: string
+}): string {
+  return brandedEmail({
+    heading: `You've been confirmed as a Web Content Manager`,
+    body: `
+      <p>Hi ${esc(opts.wcmName)},</p>
+      <p>Your department director has officially confirmed you as the Web Content Manager for
+      <strong>${esc(opts.departmentName)}</strong> on the BCPS Web Team Portal.</p>
+      <p>Next: register for PD credit in LAB, then look for the BCPS Certification link in the body of
+      LAB's confirmation page. That link brings you to our platform to finish creating your account${opts.isNewAccount ? '' : ', or log in since you already have one'}.
+      Full step-by-step instructions: <a href="${WCM_GETTING_STARTED_URL}">Getting Started guide</a>.</p>
+    `,
+    ctaLabel: opts.isNewAccount ? 'Set Up Your Account (Failsafe Link)' : 'Log In (Failsafe Link)',
+    ctaHref: opts.failsafeHref,
+    footNote: opts.isNewAccount
+      ? `The button above is a direct failsafe in case LAB's own link doesn't work for you. This link is unique to you - if you weren't expecting this, contact Sean Russell.`
+      : `The button above is a direct failsafe in case LAB's own link doesn't work for you. Forgot your password? Use "Forgot password?" on the sign-in screen.`,
+  })
 }
 
 // Same enrollment wcm-pilot-register performs on self-registration:

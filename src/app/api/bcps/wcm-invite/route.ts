@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
-import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, SITE } from '@/lib/bcps-portal-account'
+import { resolveOrInviteAccount, enrollBcpsMember, wcmConfirmationEmail, SITE } from '@/lib/bcps-portal-account'
 
 export const dynamic = 'force-dynamic'
 
@@ -108,32 +108,12 @@ export async function POST(req: NextRequest) {
   })
   if (!enrolled.ok) return NextResponse.json({ error: enrolled.error }, { status: 500 })
 
-  const html = isNewAccount
-    ? brandedEmail({
-        heading: `You've been added as a Web Content Manager`,
-        body: `
-          <p>Hi ${esc(wcmName)},</p>
-          <p>Your department director has added you as the Web Content Manager for
-          <strong>${esc(dept.name)}</strong> on the BCPS Web Team Portal.</p>
-          <p>Click below to set your password and finish setting up your account. You're already
-          enrolled, this just gets you signed in.</p>
-        `,
-        ctaLabel: 'Set Up Your Account',
-        ctaHref: actionLink!,
-        footNote: `This link is unique to you. If you weren't expecting this, contact Sean Russell.`,
-      })
-    : brandedEmail({
-        heading: `You're set up as a Web Content Manager`,
-        body: `
-          <p>Hi ${esc(wcmName)},</p>
-          <p>Your department director has confirmed you as the Web Content Manager for
-          <strong>${esc(dept.name)}</strong> on the BCPS Web Team Portal. You already have an account,
-          so there's nothing new to set up, just sign in below.</p>
-        `,
-        ctaLabel: 'Log In',
-        ctaHref: `${SITE}/login`,
-        footNote: `Forgot your password? Use "Forgot password?" on the sign-in screen.`,
-      })
+  const html = wcmConfirmationEmail({
+    wcmName,
+    departmentName: dept.name,
+    isNewAccount,
+    failsafeHref: isNewAccount ? actionLink! : `${SITE}/login`,
+  })
 
   const emailResult = await sendEmail({
     to: wcmEmail,

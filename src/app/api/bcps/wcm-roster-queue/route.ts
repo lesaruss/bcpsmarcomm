@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
-import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, SITE } from '@/lib/bcps-portal-account'
+import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, wcmConfirmationEmail, SITE } from '@/lib/bcps-portal-account'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -53,8 +53,8 @@ async function notifyDirector(opts: {
         <p>Your Web Content Manager Roster submission for <strong>${esc(opts.departmentName)}</strong>
         has been reviewed and approved. You're all set for the 2026-27 school year.</p>
         ${opts.wcmNotified ? `
-        <p>Your Web Content Manager has already received their own email with everything they need to log
-        in, so there's nothing you need to pass along.</p>` : ''}
+        <p>Your Web Content Manager has already received their own email with everything they need to get
+        started, so there's nothing you need to pass along.</p>` : ''}
         <p>Watch for the next <strong>Communique</strong>: that's when we'll walk you through your own
         BCPS Web Team Portal access, including a tour of what's available for your department.</p>
         <p>Need to add or remove a Web Content Manager before then, or something else changed? Use the same
@@ -100,32 +100,12 @@ async function notifyWcm(opts: {
     })
     if (!enrolled.ok) return { account_ok: false, email_sent: false, error: enrolled.error }
 
-    const html = isNewAccount
-      ? brandedEmail({
-          heading: `You've been confirmed as a Web Content Manager`,
-          body: `
-            <p>Hi ${esc(opts.wcmName)},</p>
-            <p>Your department director has officially confirmed you as the Web Content Manager for
-            <strong>${esc(opts.departmentName)}</strong> on the BCPS Web Team Portal.</p>
-            <p>Click below to set your password and finish setting up your account. You're already
-            enrolled, this just gets you signed in.</p>
-          `,
-          ctaLabel: 'Set Up Your Account',
-          ctaHref: actionLink!,
-          footNote: `This link is unique to you. If you weren't expecting this, contact Sean Russell.`,
-        })
-      : brandedEmail({
-          heading: `You've been confirmed as a Web Content Manager`,
-          body: `
-            <p>Hi ${esc(opts.wcmName)},</p>
-            <p>Your department director has officially confirmed you as the Web Content Manager for
-            <strong>${esc(opts.departmentName)}</strong> on the BCPS Web Team Portal. You already have an
-            account, so there's nothing new to set up, just sign in below.</p>
-          `,
-          ctaLabel: 'Log In',
-          ctaHref: `${SITE}/login`,
-          footNote: `Forgot your password? Use "Forgot password?" on the sign-in screen.`,
-        })
+    const html = wcmConfirmationEmail({
+      wcmName: opts.wcmName,
+      departmentName: opts.departmentName,
+      isNewAccount,
+      failsafeHref: isNewAccount ? actionLink! : `${SITE}/login`,
+    })
 
     const emailResult = await sendEmail({
       to: opts.wcmEmail,
