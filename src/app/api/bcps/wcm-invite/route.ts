@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
+import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, SITE } from '@/lib/bcps-portal-account'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,8 +9,6 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const BRAND = 'bcps'
-const WCM_GROUP_SLUG = 'wcm'
-const SITE = 'https://bcpsmarcomm.com'
 
 const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 
@@ -29,14 +28,13 @@ const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 // creation and notice to the actual person happen in the same step instead
 // of depending on a side conversation.
 //
-// New vs. already-registered is detected the same way beta-invite already
-// does it for SuperAdmin invites: try to create the auth user, and treat
-// "already registered" as the existing-user case rather than a failure.
-// Unlike beta-invite, this never lets Supabase's own invite/recovery email
-// go out - generateLink only ever returns the link, it doesn't send
-// anything - so the WCM gets one BCPS-branded email either way, worded for
-// whichever case they're actually in, through the same Resend sender every
-// other BCPS notification already uses.
+// 2026-09-12: the invite/enroll/branded-email logic this route pioneered is
+// now shared (src/lib/bcps-portal-account.ts), because wcm-roster-queue's
+// approval step does the same thing automatically for both the WCM and the
+// director. This route stays as the manual, on-demand version - re-sending
+// an invite, or inviting a WCM whose department page contact changed
+// outside the roster flow - and both call sites now share one
+// implementation instead of drifting apart.
 async function requireDirectorOrAdmin(
   req: NextRequest,
   departmentSlug: string
@@ -72,48 +70,6 @@ async function requireDirectorOrAdmin(
   return { ok: false, status: 403, error: 'Only that department\'s director or a BCPS admin can send this invite.' }
 }
 
-// bcps_departments.wcm_name and director_name originate from the PUBLIC
-// roster submission form (wcm-roster-intake -> wcm-roster-queue approval
-// copies submission.wcm_name onto the department row), so they are not
-// admin-authored strings even though an admin approves them - a reviewer
-// is checking that a submission looks legitimate, not scanning it for
-// markup. Interpolating them raw into this email would let a submitted
-// name inject arbitrary HTML, including a competing anchor, into a
-// BCPS-branded message carrying a real "Set Up Your Account" button.
-// Escaped at every interpolation site instead. Not in the original patch.
-function esc(v: string): string {
-  return v
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
-function brandedEmail(opts: { heading: string; body: string; ctaLabel: string; ctaHref: string; footNote?: string }) {
-  return `
-    <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
-      <div style="background:#0e4e73;padding:20px 28px;border-radius:8px 8px 0 0">
-        <span style="color:#fff;font-size:13px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase">
-          Broward County Public Schools
-        </span>
-      </div>
-      <div style="border:1px solid #d1d5db;border-top:none;border-radius:0 0 8px 8px;padding:28px">
-        <h1 style="font-size:18px;margin:0 0 14px;color:#0e4e73">${opts.heading}</h1>
-        <div style="font-size:14px;line-height:1.65;color:#333">${opts.body}</div>
-        <div style="margin:26px 0 6px">
-          <a href="${esc(opts.ctaHref)}" style="display:inline-block;padding:12px 26px;background:#1672A7;color:#fff;
-            border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">${opts.ctaLabel}</a>
-        </div>
-        ${opts.footNote ? `<p style="font-size:12px;color:#767676;margin-top:22px">${opts.footNote}</p>` : ''}
-      </div>
-      <p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:14px">
-        This is an automated message from the BCPS Web Team Portal.
-      </p>
-    </div>
-  `
-}
-
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const departmentSlug = (body?.department_slug as string | undefined)?.trim()
@@ -138,84 +94,19 @@ export async function POST(req: NextRequest) {
   }
   const wcmName = dept.wcm_name || 'there'
 
-  let userId: string | null = null
-  let isNewAccount = false
-  let inviteActionLink: string | null = null
+  const resolved = await resolveOrInviteAccount(wcmEmail, dept.wcm_name || undefined)
+  if (!resolved.ok) return NextResponse.json({ error: resolved.error }, { status: 500 })
+  const { userId, isNewAccount, actionLink } = resolved.account
 
-  const { data: inviteData, error: inviteErr } = await svc.auth.admin.generateLink({
-    type: 'invite',
+  const enrolled = await enrollBcpsMember({
+    userId,
     email: wcmEmail,
-    options: {
-      data: { full_name: dept.wcm_name || undefined },
-      redirectTo: `${SITE}/set-password`,
-    },
+    fullName: dept.wcm_name || wcmEmail,
+    departmentName: dept.name,
+    departmentSlug,
+    addToWcmGroup: true,
   })
-
-  if (!inviteErr && inviteData?.user && inviteData.properties?.action_link) {
-    userId = inviteData.user.id
-    inviteActionLink = inviteData.properties.action_link
-    isNewAccount = true
-  } else if (inviteErr && /already been registered|already registered|exists/i.test(inviteErr.message)) {
-    const { data: existing, error: existingErr } = await svc.auth.admin.generateLink({
-      type: 'recovery',
-      email: wcmEmail,
-    })
-    if (existingErr || !existing?.user) {
-      return NextResponse.json({ error: existingErr?.message || 'Could not look up this WCM\'s account.' }, { status: 500 })
-    }
-    userId = existing.user.id
-    isNewAccount = false
-  } else {
-    return NextResponse.json({ error: inviteErr?.message || 'Could not create this WCM\'s account.' }, { status: 500 })
-  }
-
-  if (!userId) return NextResponse.json({ error: 'Could not resolve an account for this WCM.' }, { status: 500 })
-
-  // Same enrollment wcm-pilot-register performs on self-registration, so a
-  // director-invited WCM is indistinguishable from one who signed up
-  // themselves. department_confirmed = true here (unlike self-registration's
-  // narrower director-email-match heuristic) because a director or admin
-  // explicitly picking this person for this department is itself the
-  // confirmation - there's no stronger signal available.
-  await svc.from('wcm_cert_users').upsert(
-    {
-      user_id: userId,
-      email: wcmEmail,
-      full_name: dept.wcm_name || wcmEmail,
-      department: dept.name,
-      department_needs_review: false,
-      is_admin: false,
-    },
-    { onConflict: 'user_id' }
-  )
-
-  const { data: group } = await svc
-    .from('acl_groups')
-    .select('id')
-    .eq('brand', BRAND)
-    .eq('slug', WCM_GROUP_SLUG)
-    .maybeSingle()
-
-  const { error: roleError } = await svc.from('acl_member_roles').upsert(
-    {
-      user_id: userId,
-      brand: BRAND,
-      role: 'user',
-      department_slug: departmentSlug,
-      department_confirmed: true,
-      department_confirmed_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id,brand' }
-  )
-  if (roleError) return NextResponse.json({ error: roleError.message }, { status: 500 })
-
-  if (group?.id) {
-    const { error: groupError } = await svc.from('acl_group_members').upsert(
-      { group_id: group.id, user_id: userId },
-      { onConflict: 'group_id,user_id' }
-    )
-    if (groupError) return NextResponse.json({ error: groupError.message }, { status: 500 })
-  }
+  if (!enrolled.ok) return NextResponse.json({ error: enrolled.error }, { status: 500 })
 
   const html = isNewAccount
     ? brandedEmail({
@@ -228,7 +119,7 @@ export async function POST(req: NextRequest) {
           enrolled, this just gets you signed in.</p>
         `,
         ctaLabel: 'Set Up Your Account',
-        ctaHref: inviteActionLink!,
+        ctaHref: actionLink!,
         footNote: `This link is unique to you. If you weren't expecting this, contact Sean Russell.`,
       })
     : brandedEmail({

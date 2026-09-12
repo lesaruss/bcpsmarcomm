@@ -78,7 +78,18 @@ function DepartmentRosterSection() {
         body: JSON.stringify({ id, action, reviewer: 'Sean A. Russell' }),
       })
       if (r.ok) {
+        const j = await r.json().catch(() => ({}))
         await load()
+        if (action === 'approve') {
+          const problems: string[] = []
+          if (j.director_notice && !j.director_notice.account_ok) problems.push(`Director account: ${j.director_notice.error || 'failed'}`)
+          else if (j.director_notice && !j.director_notice.email_sent) problems.push(`Director email did not send: ${j.director_notice.error || 'unknown error'}`)
+          if (j.wcm_notice && !j.wcm_notice.account_ok) problems.push(`WCM account: ${j.wcm_notice.error || 'failed'}`)
+          else if (j.wcm_notice && !j.wcm_notice.email_sent) problems.push(`WCM email did not send: ${j.wcm_notice.error || 'unknown error'}`)
+          if (problems.length > 0) {
+            alert(`Approved, but: ${problems.join(' | ')}`)
+          }
+        }
       } else {
         const j = await r.json().catch(() => ({}))
         alert(j.error || 'Could not update this submission.')

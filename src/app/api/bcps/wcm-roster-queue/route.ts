@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendEmail } from '@/lib/resend'
+import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, SITE } from '@/lib/bcps-portal-account'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -7,6 +9,148 @@ const supabase = createClient(
 )
 
 const ACCESS_KEY = 'lr-wcm-roster-9f21ab6c'
+
+// Director account + email, sent on every approval regardless of action
+// (add/remove/na) - approving is the confirmation that this director's
+// designation for 2026-27 is locked in, independent of whether this
+// particular submission also changed a WCM. Added 2026-09-12 per Sean:
+// approving in this queue should be the one action that gets the real
+// person - director and WCM both - into a working account, rather than
+// that being a separate manual step someone has to remember to do.
+// Best-effort: any failure here is swallowed and reported back in the
+// response, never blocks the approval itself (the roster/member/department
+// writes above are already committed by the time this runs).
+async function notifyDirector(opts: {
+  directorEmail: string
+  directorName: string
+  departmentName: string
+  departmentSlug: string | null
+}): Promise<{ account_ok: boolean; email_sent: boolean; error?: string }> {
+  try {
+    const resolved = await resolveOrInviteAccount(opts.directorEmail, opts.directorName)
+    if (!resolved.ok) return { account_ok: false, email_sent: false, error: resolved.error }
+    const { userId, isNewAccount, actionLink } = resolved.account
+
+    const enrolled = await enrollBcpsMember({
+      userId,
+      email: opts.directorEmail,
+      fullName: opts.directorName,
+      departmentName: opts.departmentName,
+      departmentSlug: opts.departmentSlug,
+      addToWcmGroup: false,
+    })
+    if (!enrolled.ok) return { account_ok: false, email_sent: false, error: enrolled.error }
+
+    const html = isNewAccount
+      ? brandedEmail({
+          heading: `You're confirmed for 2026-27`,
+          body: `
+            <p>Hi ${esc(opts.directorName)},</p>
+            <p>Your Web Content Manager Roster submission for <strong>${esc(opts.departmentName)}</strong>
+            has been reviewed and approved. You're all set for the 2026-27 school year.</p>
+            <p>Click below to finish setting up your BCPS Web Team Portal account. Once you're in, you'll
+            see your department's page and the full Departments directory.</p>
+            <p>Need to add or remove a Web Content Manager later, or something else changed? Use the same
+            <a href="${SITE}/wcm-roster-signup">roster form</a> any time, no need to start over.</p>
+          `,
+          ctaLabel: 'Set Up Your Account',
+          ctaHref: actionLink!,
+          footNote: `This link is unique to you. If you weren't expecting this, contact Sean Russell.`,
+        })
+      : brandedEmail({
+          heading: `You're confirmed for 2026-27`,
+          body: `
+            <p>Hi ${esc(opts.directorName)},</p>
+            <p>Your Web Content Manager Roster submission for <strong>${esc(opts.departmentName)}</strong>
+            has been reviewed and approved. You're all set for the 2026-27 school year. You already have an
+            account, so there's nothing new to set up, just sign in below to see your department's page and
+            the full Departments directory.</p>
+            <p>Need to add or remove a Web Content Manager later, or something else changed? Use the same
+            <a href="${SITE}/wcm-roster-signup">roster form</a> any time, no need to start over.</p>
+          `,
+          ctaLabel: 'Log In',
+          ctaHref: `${SITE}/login`,
+          footNote: `Forgot your password? Use "Forgot password?" on the sign-in screen.`,
+        })
+
+    const emailResult = await sendEmail({
+      to: opts.directorEmail,
+      subject: `You're confirmed: BCPS Web Content Manager Roster for ${opts.departmentName}`,
+      replyTo: 'sean.russell@browardschools.com',
+      html,
+    })
+    return { account_ok: true, email_sent: emailResult.ok, error: emailResult.ok ? undefined : emailResult.error ?? undefined }
+  } catch (e: unknown) {
+    return { account_ok: false, email_sent: false, error: e instanceof Error ? e.message : 'Unknown error' }
+  }
+}
+
+// WCM account + email, sent only when this approval actually designates a
+// WCM (action === 'add'). Mirrors wcm-invite's manual "Send Portal Invite"
+// button exactly, just fired automatically at the moment of approval
+// instead of waiting for someone to click it separately on the department
+// page.
+async function notifyWcm(opts: {
+  wcmEmail: string
+  wcmName: string
+  departmentName: string
+  departmentSlug: string | null
+}): Promise<{ account_ok: boolean; email_sent: boolean; error?: string }> {
+  try {
+    const resolved = await resolveOrInviteAccount(opts.wcmEmail, opts.wcmName)
+    if (!resolved.ok) return { account_ok: false, email_sent: false, error: resolved.error }
+    const { userId, isNewAccount, actionLink } = resolved.account
+
+    const enrolled = await enrollBcpsMember({
+      userId,
+      email: opts.wcmEmail,
+      fullName: opts.wcmName,
+      departmentName: opts.departmentName,
+      departmentSlug: opts.departmentSlug,
+      addToWcmGroup: true,
+    })
+    if (!enrolled.ok) return { account_ok: false, email_sent: false, error: enrolled.error }
+
+    const html = isNewAccount
+      ? brandedEmail({
+          heading: `You've been confirmed as a Web Content Manager`,
+          body: `
+            <p>Hi ${esc(opts.wcmName)},</p>
+            <p>Your department director has officially confirmed you as the Web Content Manager for
+            <strong>${esc(opts.departmentName)}</strong> on the BCPS Web Team Portal.</p>
+            <p>Click below to set your password and finish setting up your account. You're already
+            enrolled, this just gets you signed in.</p>
+          `,
+          ctaLabel: 'Set Up Your Account',
+          ctaHref: actionLink!,
+          footNote: `This link is unique to you. If you weren't expecting this, contact Sean Russell.`,
+        })
+      : brandedEmail({
+          heading: `You've been confirmed as a Web Content Manager`,
+          body: `
+            <p>Hi ${esc(opts.wcmName)},</p>
+            <p>Your department director has officially confirmed you as the Web Content Manager for
+            <strong>${esc(opts.departmentName)}</strong> on the BCPS Web Team Portal. You already have an
+            account, so there's nothing new to set up, just sign in below.</p>
+          `,
+          ctaLabel: 'Log In',
+          ctaHref: `${SITE}/login`,
+          footNote: `Forgot your password? Use "Forgot password?" on the sign-in screen.`,
+        })
+
+    const emailResult = await sendEmail({
+      to: opts.wcmEmail,
+      subject: isNewAccount
+        ? `You're invited: BCPS Web Content Manager for ${opts.departmentName}`
+        : `You're confirmed: BCPS Web Content Manager for ${opts.departmentName}`,
+      replyTo: 'sean.russell@browardschools.com',
+      html,
+    })
+    return { account_ok: true, email_sent: emailResult.ok, error: emailResult.ok ? undefined : emailResult.error ?? undefined }
+  } catch (e: unknown) {
+    return { account_ok: false, email_sent: false, error: e instanceof Error ? e.message : 'Unknown error' }
+  }
+}
 
 function checkKey(req: NextRequest): boolean {
   const key = req.nextUrl.searchParams.get('access_key')
@@ -143,20 +287,58 @@ export async function PATCH(req: NextRequest) {
     // legitimate, so a submitter_email on the submission becomes the
     // director_email of record too - this is how that field gets populated
     // over time without needing an upfront authoritative source.
+    let departmentSlug: string | null = null
+    let departmentDisplayName = submission.department_name
     if (rosterRow.matched_department_id && submissionAction !== 'remove') {
       const deptUpdate: Record<string, string> = {
         wcm_name: submission.wcm_name,
         director_name: submission.director_name,
       }
       if (submission.submitter_email) deptUpdate.director_email = submission.submitter_email
-      await supabase.from('bcps_departments').update(deptUpdate).eq('id', rosterRow.matched_department_id)
+      const { data: updatedDept } = await supabase
+        .from('bcps_departments')
+        .update(deptUpdate)
+        .eq('id', rosterRow.matched_department_id)
+        .select('slug, name')
+        .maybeSingle()
+      departmentSlug = updatedDept?.slug ?? null
+      departmentDisplayName = updatedDept?.name ?? departmentDisplayName
     }
 
     await supabase.from('bcps_wcm_roster_submissions').update({
       status: 'approved', reviewed_at: now, reviewed_by: reviewer ?? 'admin',
     }).eq('id', id)
 
-    return NextResponse.json({ success: true, action: 'approved' })
+    // Get the real person - director, and the WCM if this approval
+    // designates one - into a working account and notify them directly.
+    // Best-effort: reported back in the response, never blocks the
+    // approval that already happened above.
+    let directorNotice: Awaited<ReturnType<typeof notifyDirector>> | null = null
+    if (submission.submitter_email) {
+      directorNotice = await notifyDirector({
+        directorEmail: submission.submitter_email,
+        directorName: submission.director_name || 'there',
+        departmentName: departmentDisplayName,
+        departmentSlug,
+      })
+    }
+
+    let wcmNotice: Awaited<ReturnType<typeof notifyWcm>> | null = null
+    if (submissionAction === 'add' && submission.wcm_email) {
+      wcmNotice = await notifyWcm({
+        wcmEmail: submission.wcm_email,
+        wcmName: submission.wcm_name || 'there',
+        departmentName: departmentDisplayName,
+        departmentSlug,
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      action: 'approved',
+      director_notice: directorNotice,
+      wcm_notice: wcmNotice,
+    })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error'
     return NextResponse.json({ error: msg }, { status: 500 })

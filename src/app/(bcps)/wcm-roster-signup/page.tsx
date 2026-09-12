@@ -58,6 +58,14 @@ export default function WCMRosterSignupPage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  // Full "what's next" panel replaces the form after a successful submit,
+  // per Sean 2026-09-12: a director who just submitted should see what
+  // happens next, not just a one-line confirmation. Account creation and
+  // the notification emails (to the director AND the WCM they designated)
+  // happen when the District Web Team approves the submission, not here on
+  // raw submission - so this panel sets expectations rather than promising
+  // something that hasn't happened yet.
+  const [submittedCount, setSubmittedCount] = useState(0)
 
   const boxRef = useRef<HTMLDivElement>(null)
 
@@ -224,10 +232,8 @@ export default function WCMRosterSignupPage() {
       }
 
       const count = removals.length + additions.length
-      setResult({
-        type: 'success',
-        text: `Thank you! ${count} update${count === 1 ? '' : 's'} submitted and awaiting review by the District Web Team. Nothing changes on the live roster until then.`,
-      })
+      setSubmittedCount(count)
+      setResult({ type: 'success', text: '' })
       setNewRows([])
       setRemoveIds(new Set())
       // Re-pull current WCMs so the pending-removal strike-through clears
@@ -278,19 +284,61 @@ export default function WCMRosterSignupPage() {
           </p>
         </div>
 
-        {result && (
+        {result?.type === 'error' && (
           <div
             style={{
               padding: '14px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14, fontWeight: 600,
-              background: result.type === 'success' ? '#ECFDF5' : '#FEF2F2',
-              color: result.type === 'success' ? '#059669' : '#DC2626',
-              border: `1px solid ${result.type === 'success' ? 'rgba(5,150,105,0.25)' : 'rgba(220,38,38,0.25)'}`,
+              background: '#FEF2F2', color: '#DC2626', border: '1px solid rgba(220,38,38,0.25)',
             }}
           >
             {result.text}
           </div>
         )}
 
+        {result?.type === 'success' && (
+          <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ background: '#ECFDF5', borderBottom: '1px solid rgba(5,150,105,0.25)', padding: '18px 24px' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#059669', marginBottom: 4 }}>
+                Submitted
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Thank you. {submittedCount} update{submittedCount === 1 ? '' : 's'} submitted for the 2026/27 school year.
+              </div>
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--blue)', marginBottom: 12 }}>
+                What happens next
+              </div>
+              <ol style={{ margin: 0, padding: '0 0 0 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  The District Web Team reviews your submission. Nothing changes on the live roster until it&apos;s approved.
+                </li>
+                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Once approved, you&apos;ll get an email confirming you&apos;re set for 2026/27, with a one-click link to log in or finish setting up your BCPS Web Team Portal account. From there you can see your department&apos;s page and the full Departments directory.
+                </li>
+                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Your designated Web Content Manager gets their own confirmation email at the same time, with the same kind of one-click link, so nothing depends on you passing along a password or a set of instructions.
+                </li>
+                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Watch for <strong>Communique</strong>, our monthly newsletter, for anything new between now and then.
+                </li>
+                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Need to add or remove a Web Content Manager later, or something changes? Come back to this same form any time, no need to start over.
+                </li>
+              </ol>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ marginTop: 22, fontSize: 12.5, padding: '8px 16px' }}
+                onClick={() => { setResult(null); backToDeptSearch() }}
+              >
+                Submit another update
+              </button>
+            </div>
+          </div>
+        )}
+
+        {result?.type !== 'success' && (
         <div className="wcm-portal-content">
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 20 }}>
@@ -502,6 +550,7 @@ export default function WCMRosterSignupPage() {
             </button>
           </form>
         </div>
+        )}
       </main>
     </div>
   )
