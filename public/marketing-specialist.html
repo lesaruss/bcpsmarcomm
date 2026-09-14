@@ -56,30 +56,33 @@
   <div id="app"></div>
 
 <script>
-const qs = new URLSearchParams(location.search);
-let KEY = qs.get('key') || '';
+// Auth, 2026-09-14: this page used to take a shared access key from the share
+// link (?key=). That key lived in a public repo, so the link was the lock and
+// the key was published. It is gone. This page is same-origin with the app, and
+// the app keeps its Supabase session in cookies, so a normal fetch from here
+// already carries the signed-in staff member's identity - no key, no token
+// plumbing, no Supabase client needed on this page. The API verifies it.
 let subs = []; let selId = null;
 
 const $ = id => document.getElementById(id);
 function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function fmt(d){try{return new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}catch(e){return d}}
 
-function gate(){
+function gate(msg){
   $("app").innerHTML = `<div class="gate">
     <div style="font-weight:800;color:#0F567E;font-size:18px">Specialist access</div>
-    <p style="font-size:13.5px;color:#555">Enter the access key from your share link.</p>
-    <input type="text" id="k" placeholder="access key" style="text-align:center">
-    <div><button class="save" onclick="setKey()">Open queue</button></div>
+    <p style="font-size:13.5px;color:#555">${esc(msg || 'Sign in with your BCPS account to open the queue.')}</p>
+    <div><a class="save" href="/login?next=%2Fmarketing-specialist.html"
+      style="display:inline-block;text-decoration:none;text-align:center">Sign in</a></div>
     <div class="msg bad" id="gm"></div>
   </div>`;
 }
-function setKey(){ KEY=$("k").value.trim(); if(KEY) load(); }
 
 async function load(){
-  if(!KEY){ gate(); return; }
   try{
-    const r = await fetch('/api/bcps/marketing-queue?key='+encodeURIComponent(KEY));
-    if(r.status===401){ gate(); if($("gm"))$("gm").textContent='That key was not accepted.'; return; }
+    const r = await fetch('/api/bcps/marketing-queue', { credentials: 'same-origin' });
+    if(r.status===401){ gate('Sign in with your BCPS account to open the queue.'); return; }
+    if(r.status===403){ gate('Your BCPS account does not have access to the specialist queue. Contact Sean Russell.'); return; }
     const j = await r.json();
     subs = j.submissions||[];
     shell();
@@ -149,8 +152,8 @@ function renderDetail(){
 async function saveReview(){
   const sm=$("sm"); sm.textContent='Saving...'; sm.className='msg';
   try{
-    const r=await fetch('/api/bcps/marketing-queue',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({key:KEY,id:selId,status:$("st").value,assigned_specialist:$("asg").value.trim(),specialist_notes:$("nt").value})});
+    const r=await fetch('/api/bcps/marketing-queue',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id:selId,status:$("st").value,assigned_specialist:$("asg").value.trim(),specialist_notes:$("nt").value})});
     const j=await r.json();
     if(!r.ok) throw new Error(j.error||'Save failed');
     const s=subs.find(x=>x.id===selId);

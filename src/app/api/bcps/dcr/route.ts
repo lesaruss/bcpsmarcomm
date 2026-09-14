@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireDistrictUser } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const ACCESS_KEY = 'lr-dcr-7b2e4a90'
+// AUTH, rewritten 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED, second pass).
+// Same defect as ooc-queue: the shared key was hardcoded here AND in
+// CommunityRelationsPage.tsx, so it shipped in the client bundle and sat in a
+// PUBLIC repo. It guarded three tables at once - dcr_tasks, dcr_weekly_reports
+// and dcr_project_notes - readable, editable and deletable by anyone holding it.
+//
+// Gated on requireDistrictUser (src/lib/bcps-auth.ts): the Task Tracker page
+// lives in the sidebar's MarComm section and is NOT in Sidebar.tsx's
+// SUPERADMIN_PAGES, so any signed-in BCPS member can already open it. That is
+// the check that guards this data today, per
+// canon-gate-new-surfaces-on-the-same-check.
 
 async function notifyNeedsSupport(taskTitle: string, programArea: string) {
   const key = process.env.RESEND_API_KEY
@@ -54,8 +65,8 @@ async function notifyNeedsSupport(taskTitle: string, programArea: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const key = req.nextUrl.searchParams.get('key')
-  if (key !== ACCESS_KEY) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireDistrictUser(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const [tasks, weekly, notes] = await Promise.all([
     supabase.from('dcr_tasks').select('*').order('created_at', { ascending: true }),
@@ -74,9 +85,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireDistrictUser(req)
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
     const body = await req.json()
-    const { key, action } = body
-    if (key !== ACCESS_KEY) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { action } = body
 
     if (action === 'task_create') {
       const { program_area, title, detail, assignee, due_date } = body

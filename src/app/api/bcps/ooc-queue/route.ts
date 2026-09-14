@@ -1,16 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireDistrictUser } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const ACCESS_KEY = 'lr-ooc-web-9d2e7f14'
+// AUTH, rewritten 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED, second pass).
+// This route used to accept a shared static key that was hardcoded here AND in
+// QueuePage.tsx, so it shipped in the client bundle and sat in a PUBLIC repo -
+// meaning anyone could read the District Web Team's task list and, through the
+// POST actions below, edit or DELETE any row in it.
+//
+// Gated on requireDistrictUser (src/lib/bcps-auth.ts) rather than admin: the
+// Queue page sits in the sidebar's Platform section and is NOT in Sidebar.tsx's
+// SUPERADMIN_PAGES, so every signed-in BCPS member can already open it. That is
+// the check that actually guards this data today, per
+// canon-gate-new-surfaces-on-the-same-check - gating harder here would break the
+// page for the members it is built for.
 
 export async function GET(req: NextRequest) {
-  const key = req.nextUrl.searchParams.get('key')
-  if (key !== ACCESS_KEY) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireDistrictUser(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { data, error } = await supabase
     .from('ooc_web_tasks')
@@ -24,9 +36,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireDistrictUser(req)
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
     const body = await req.json()
-    const { key, action, ...rest } = body
-    if (key !== ACCESS_KEY) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { action, ...rest } = body
 
     if (action === 'task_create') {
       const { category, title, detail, assignee, status, due_date, priority } = rest
