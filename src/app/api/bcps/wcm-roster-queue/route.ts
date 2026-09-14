@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
 import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, wcmConfirmationEmail, SITE } from '@/lib/bcps-portal-account'
+import { requireBcpsAdmin, isDistrictEmail } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
   process.env.LESARUSS_SUPABASE_SERVICE_KEY!
 )
-
-const ACCESS_KEY = 'lr-wcm-roster-9f21ab6c'
 
 // Director account + confirmation email, sent on every approval regardless
 // of action (add/remove/na) - approving is the confirmation that this
@@ -121,16 +120,26 @@ async function notifyWcm(opts: {
   }
 }
 
-function checkKey(req: NextRequest): boolean {
-  const key = req.nextUrl.searchParams.get('access_key')
-  return key === ACCESS_KEY
-}
+// AUTH, rewritten 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED).
+// Both handlers used to accept a shared static ACCESS_KEY passed as a URL
+// query parameter (?access_key=...). That key shipped in the client bundle
+// and sat in a PUBLIC GitHub repo, so this route was effectively open:
+// GET dumped the whole roster including every WCM's name, work email and
+// personnel number, and PATCH let anyone approve any pending submission -
+// which writes bcps_departments.director_email and, since 7723385/8e421bd,
+// provisions and enrols a real portal account for that address.
+//
+// Both are now requireBcpsAdmin (src/lib/bcps-auth.ts) - the same check that
+// already guards admin-set-department, admin-reset-password, admin-decision
+// and run-audit, per canon-gate-new-surfaces-on-the-same-check. The only UI
+// caller (WCMPage's roster queue) is behind the admin console already.
 
 // GET: full roster (departments, alphabetical) with each department's
 // current director + assigned WCM(s), plus any submissions still awaiting
 // review. Backs the "WCM Roster" tab in the Department WCMS Portal.
 export async function GET(req: NextRequest) {
-  if (!checkKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireBcpsAdmin(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const [{ data: roster, error: rosterErr }, { data: members, error: memberErr }, { data: submissions, error: subErr }] =
     await Promise.all([
@@ -178,7 +187,8 @@ export async function GET(req: NextRequest) {
 // reject                  -> marks the submission rejected with reviewer notes,
 //                             no roster/member change either way.
 export async function PATCH(req: NextRequest) {
-  if (!checkKey(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireBcpsAdmin(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   try {
     const { id, action: decision, reviewer, notes } = await req.json() as {
@@ -206,7 +216,7 @@ export async function PATCH(req: NextRequest) {
 
     if (decision === 'reject') {
       await supabase.from('bcps_wcm_roster_submissions').update({
-        status: 'rejected', reviewed_at: now, reviewed_by: reviewer ?? 'admin', review_notes: notes ?? null,
+        status: 'rejected', reviewed_at: now, reviewed_by: auth.user.email || reviewer || 'admin', review_notes: notes ?? null,
       }).eq('id', id)
       return NextResponse.json({ success: true, action: 'rejected' })
     }
@@ -256,6 +266,21 @@ export async function PATCH(req: NextRequest) {
     // legitimate, so a submitter_email on the submission becomes the
     // director_email of record too - this is how that field gets populated
     // over time without needing an upfront authoritative source.
+    // Legacy-row guard, added 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED).
+    // Every row submitted before this date came in through the old shared-key
+    // endpoint, where submitter_email was free text from the request body and
+    // was never checked against anything - one live pending row carries a
+    // @comcast.com address. Approving such a row would write that address into
+    // bcps_departments.director_email AND provision + enrol a real BCPS portal
+    // account for it. New submissions are safe (submitter_email is taken from
+    // the session), but the backlog is not, so the district-domain rule is
+    // enforced here at the point of use rather than trusted from the row.
+    // A non-district submitter no longer blocks the roster decision itself -
+    // it just cannot become an identity of record.
+    const submitterEmail: string | null = submission.submitter_email ?? null
+    const submitterUsable = !!submitterEmail && isDistrictEmail(submitterEmail)
+    const submitterRejected = !!submitterEmail && !submitterUsable
+
     let departmentSlug: string | null = null
     let departmentDisplayName = submission.department_name
     if (rosterRow.matched_department_id && submissionAction !== 'remove') {
@@ -263,7 +288,7 @@ export async function PATCH(req: NextRequest) {
         wcm_name: submission.wcm_name,
         director_name: submission.director_name,
       }
-      if (submission.submitter_email) deptUpdate.director_email = submission.submitter_email
+      if (submitterUsable) deptUpdate.director_email = submitterEmail!
       const { data: updatedDept } = await supabase
         .from('bcps_departments')
         .update(deptUpdate)
@@ -275,7 +300,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     await supabase.from('bcps_wcm_roster_submissions').update({
-      status: 'approved', reviewed_at: now, reviewed_by: reviewer ?? 'admin',
+      status: 'approved', reviewed_at: now, reviewed_by: auth.user.email || reviewer || 'admin',
     }).eq('id', id)
 
     // Get the real person - director, and the WCM if this approval
@@ -295,9 +320,9 @@ export async function PATCH(req: NextRequest) {
     }
 
     let directorNotice: Awaited<ReturnType<typeof notifyDirector>> | null = null
-    if (submission.submitter_email) {
+    if (submitterUsable) {
       directorNotice = await notifyDirector({
-        directorEmail: submission.submitter_email,
+        directorEmail: submitterEmail!,
         directorName: submission.director_name || 'there',
         departmentName: departmentDisplayName,
         departmentSlug,
@@ -310,6 +335,12 @@ export async function PATCH(req: NextRequest) {
       action: 'approved',
       director_notice: directorNotice,
       wcm_notice: wcmNotice,
+      // Set when the roster change was applied but the submitter's address was
+      // not district-issued, so no director_email was recorded and no account
+      // was created. Surfaced in the queue UI so it is a visible outcome.
+      submitter_rejected: submitterRejected
+        ? `Roster updated, but "${submitterEmail}" is not a @browardschools.com address, so it was not recorded as the director email and no portal account was created.`
+        : null,
     })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error'

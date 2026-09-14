@@ -1,23 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireDistrictUser } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
   process.env.LESARUSS_SUPABASE_SERVICE_KEY!
 )
 
-// Public, no access key, scoped to ONE department per request (not a bulk
-// dump of the roster). Backs the "here's who we have on file" prefill on
-// the WCM Roster signup form. This intentionally exposes WCM name/email/
-// personnel number for the single selected department to an unauthenticated
-// visitor - a step up from the old departments-list endpoint, which was
-// deliberately scrubbed of personal data. Flagged to Sean rather than done
-// silently: the tradeoff is convenience (directors instantly see who's on
-// file so they can correct rather than re-type from scratch) vs. staff PII
-// being visible to anyone who can guess/select a department without logging
-// in. If that's not acceptable, this route should move behind the existing
-// browardschools.com login used elsewhere in this app.
+// Per-department prefill for the WCM Roster signup form: who we currently have
+// on file, so a director corrects the list instead of retyping it.
+//
+// Gated 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED). This route was
+// deliberately public and the original author flagged the tradeoff in this very
+// comment: it exposes a named staff member's work email and personnel number
+// for any department an anonymous visitor cares to select, and noted that "if
+// that's not acceptable, this route should move behind the existing
+// browardschools.com login used elsewhere in this app." That is now exactly
+// what happened - its only caller, /wcm-roster-signup, requires a district
+// session as of this change, so the reason to leave this one open is gone.
+// Same gate as the form it feeds: requireDistrictUser (src/lib/bcps-auth.ts).
 export async function GET(req: NextRequest) {
+  const auth = await requireDistrictUser(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   const rosterId = req.nextUrl.searchParams.get('roster_id')
   if (!rosterId) return NextResponse.json({ error: 'roster_id required' }, { status: 400 })
 

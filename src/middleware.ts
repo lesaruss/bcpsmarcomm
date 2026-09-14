@@ -87,11 +87,12 @@ export async function middleware(request: NextRequest) {
     pathname === '/login' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/set-password') ||
-    // Department WCM Roster signup: the one page on this site Directors
-    // reach with no account. Real access control lives here, not just the
-    // BCPSShell wrapper - without this line an anonymous visitor gets
-    // redirected to /login before the page ever renders.
-    pathname.startsWith('/wcm-roster-signup') ||
+    // NOTE: /wcm-roster-signup was exempted here until 2026-09-14. It is no
+    // longer public (PUBLIC-REPO-HARDCODED-KEY-ESCALATED): the roster form
+    // writes the department director of record and, on approval, provisions a
+    // portal account, so it now requires a district sign-in like every other
+    // authenticated page. Directors without an account create one at /login
+    // with their @browardschools.com address.
     // WCM Department Registration welcome page (renamed from WCM Pilot
     // Program 2026-07-28): shared with brand new WCMs who have no account
     // yet. Same reasoning as wcm-roster-signup above - must stay public or
@@ -114,8 +115,17 @@ export async function middleware(request: NextRequest) {
     // WCM Certification is not a separate account system - per V,
     // 2026-07-28: one BCPS Marcomm login gates every page, certification
     // included. No bespoke cert login/register exists.
+    //
+    // Carry the requested path through as ?next= so signing in returns the
+    // visitor to where they were headed instead of the homepage. The login
+    // page already reads this param (4808bc5); it just was never being sent
+    // from here. Added 2026-09-14 alongside gating /wcm-roster-signup, whose
+    // link is emailed to directors directly - without this, every director
+    // following that link lands somewhere else after signing in.
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
+    loginUrl.search = ''
+    loginUrl.searchParams.set('next', pathname + request.nextUrl.search)
     return NextResponse.redirect(loginUrl)
   }
 

@@ -1,23 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireDistrictUser } from '@/lib/bcps-auth'
+import { verifyDirector } from '@/lib/bcps-director-match'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
   process.env.LESARUSS_SUPABASE_SERVICE_KEY!
 )
 
-// Shared secret for the Power Automate flow that forwards Microsoft Forms
-// responses here, and for the native WCM Roster signup page. Not a real
-// auth boundary (it ships in the client bundle) - it just keeps this from
-// being a wide-open POST endpoint. Rotate by updating both this constant
-// and the Power Automate flow's HTTP action header if it's ever compromised.
-const ACCESS_KEY = 'lr-wcm-roster-9f21ab6c'
-
 const ADMIN_EMAIL = 'contact@lesaruss.com'
 
-// Fires when the submitter checked "I'm not the director on file." Best-effort:
-// a missing/unset RESEND_API_KEY should never block the submission itself, so
-// this always no-ops quietly rather than throwing.
+// Fires when the signed-in submitter could not be verified as the director on
+// file. Best-effort: a missing/unset RESEND_API_KEY should never block the
+// submission itself, so this always no-ops quietly rather than throwing.
 async function notifyIdentityMismatch(opts: {
   departmentName: string
   onFileDirector: string
@@ -26,6 +21,7 @@ async function notifyIdentityMismatch(opts: {
   submitterRole: string
   submitterEmail: string
   chiefName: string | null
+  reason: string
 }) {
   const key = process.env.RESEND_API_KEY
   if (!key) return
@@ -45,12 +41,15 @@ async function notifyIdentityMismatch(opts: {
       body: JSON.stringify({
         from: 'WCM Roster <noreply@bcpsmarcomm.com>',
         to: ADMIN_EMAIL,
-        subject: `Flag for review: non-director submission - ${opts.departmentName}`,
+        subject: `Flag for review: unverified submitter - ${opts.departmentName}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:560px;padding:24px;">
             <p style="margin:0 0 12px;font-size:15px;color:#1a1a1a;">
-              Someone other than the director on file submitted a WCM Roster update for
-              <strong>${opts.departmentName}</strong>.
+              A WCM Roster update for <strong>${opts.departmentName}</strong> was submitted by a signed-in
+              district user who could not be verified as the director on file.
+            </p>
+            <p style="margin:0 0 12px;font-size:13px;color:#92400E;background:#FFFBEB;padding:10px 12px;border-radius:6px;">
+              ${opts.reason}
             </p>
             ${chiefNote}
             <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
@@ -64,10 +63,10 @@ async function notifyIdentityMismatch(opts: {
               </tr>
               <tr>
                 <td style="padding:8px 12px;background:#f3f4f6;font-size:13px;font-weight:700;color:#374151;">Submitted by</td>
-                <td style="padding:8px 12px;font-size:13px;color:#1a1a1a;">${opts.submitterName} - ${opts.submitterRole}</td>
+                <td style="padding:8px 12px;font-size:13px;color:#1a1a1a;">${opts.submitterName || 'Not given'} - ${opts.submitterRole || 'Role not given'}</td>
               </tr>
               <tr>
-                <td style="padding:8px 12px;background:#f3f4f6;font-size:13px;font-weight:700;color:#374151;">Their email</td>
+                <td style="padding:8px 12px;background:#f3f4f6;font-size:13px;font-weight:700;color:#374151;">Signed in as</td>
                 <td style="padding:8px 12px;font-size:13px;color:#1a1a1a;">${opts.submitterEmail}</td>
               </tr>
             </table>
@@ -87,26 +86,45 @@ async function notifyIdentityMismatch(opts: {
   }
 }
 
-// Intake endpoint for WCM roster changes. Originally built for the
-// "Department Web Content Managers Roster 2026/27" Microsoft Form via
-// Power Automate (one submission = one new WCM). Extended to also carry
-// 'remove' (an existing WCM is no longer correct - target_member_id points
-// at the bcps_wcm_roster_members row in question) and 'na' (department is
-// telling us they don't need a dedicated WCM this cycle) from the native
-// signup page's prefill/suggest-update flow. Also carries submitter_email
-// (who filled this out) and, when the submitter says they're not the
-// director on file, identity_flag + submitter_name/submitter_role so the
-// District Web Team can confirm before approving.
-// Nothing here touches the live roster or department records directly -
-// it only lands a pending row in bcps_wcm_roster_submissions. An admin
-// approves/rejects from the WCM Roster review queue (wcm-roster-queue),
-// which is what actually updates bcps_wcm_roster / bcps_wcm_roster_members
-// (and, on approval, bcps_departments.director_email from submitter_email).
+// Intake endpoint for WCM roster changes, submitted from the native BCPS
+// Marcom form at bcpsmarcomm.com/wcm-roster-signup. One submission carries
+// 'add' (a new WCM), 'remove' (target_member_id points at the
+// bcps_wcm_roster_members row that is no longer correct) or 'na' (the
+// department has no dedicated WCM this cycle).
+//
+// AUTH, rewritten 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED):
+// this route used to accept a shared static ACCESS_KEY (value withheld)
+// in the request body. That key shipped in the client bundle and sat in a PUBLIC
+// GitHub repo, so in practice this endpoint was unauthenticated: anyone could
+// post a roster change naming any department, any director and any email.
+// An earlier comment here described the caller as a Microsoft Forms/Power
+// Automate flow - that was wrong and is corrected: verified 2026-09-14 against
+// all 81 rows of bcps_wcm_roster_submissions.raw_payload, every submission
+// carries this native form's field shape, and the MS Forms approach was
+// replaced back on 2026-07-15 (8a660f6, 48697f1). There is no external caller
+// to keep a shared key for, so the key is gone rather than rotated.
+//
+// The door is now requireDistrictUser (src/lib/bcps-auth.ts) - the same check
+// that guards enrollment in wcm-pilot-register, per
+// canon-gate-new-surfaces-on-the-same-check.
+//
+// Two things follow from having a real session, and both matter more than the
+// gate itself:
+//   1. submitter_email is taken FROM THE SESSION, never from the request body.
+//      This is the field that becomes bcps_departments.director_email on
+//      approval and the address an account is provisioned for, so it must not
+//      be attacker-supplied.
+//   2. identity_flag is now decided server-side by verifyDirector() instead of
+//      being a checkbox the submitter ticked. The submitter cannot clear their
+//      own flag.
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireDistrictUser(req)
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+    const sessionEmail = auth.user.email
+
     const body = await req.json()
     const {
-      access_key,
       department_name,
       director_name,
       wcm_name,
@@ -115,18 +133,11 @@ export async function POST(req: NextRequest) {
       action,
       target_member_id,
       roster_id,
-      submitter_email,
-      identity_flag,
       submitter_name,
       submitter_role,
     } = body as Record<string, string | boolean | undefined>
 
-    if (access_key !== ACCESS_KEY) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const submissionAction = action === 'remove' || action === 'na' ? action : 'add'
-    const isFlagged = identity_flag === true
 
     if (!department_name || !director_name) {
       return NextResponse.json(
@@ -134,20 +145,11 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
-    if (!submitter_email) {
-      return NextResponse.json({ error: 'submitter_email is required' }, { status: 400 })
-    }
     if (submissionAction === 'add' && !wcm_name) {
       return NextResponse.json({ error: 'wcm_name is required to add a WCM' }, { status: 400 })
     }
     if (submissionAction === 'remove' && !target_member_id) {
       return NextResponse.json({ error: 'target_member_id is required to remove a WCM' }, { status: 400 })
-    }
-    if (isFlagged && (!submitter_name || !submitter_role)) {
-      return NextResponse.json(
-        { error: 'submitter_name and submitter_role are required when identity_flag is set' },
-        { status: 400 }
-      )
     }
 
     // Match against the canonical roster list (case-insensitive) to carry
@@ -158,6 +160,7 @@ export async function POST(req: NextRequest) {
     // nothing is silently dropped.
     let locationNumber: string | null = null
     let onFileDirectorName: string | null = null
+    let onFileDirectorEmail: string | null = null
     let chiefName: string | null = null
     const rosterQuery = supabase
       .from('bcps_wcm_roster')
@@ -170,9 +173,23 @@ export async function POST(req: NextRequest) {
     onFileDirectorName = rosterRow?.director_name ?? null
     if (rosterRow?.matched_department_id) {
       const { data: dept } = await supabase
-        .from('bcps_departments').select('chief_name').eq('id', rosterRow.matched_department_id).maybeSingle()
+        .from('bcps_departments')
+        .select('chief_name, director_name, director_email')
+        .eq('id', rosterRow.matched_department_id)
+        .maybeSingle()
       chiefName = dept?.chief_name ?? null
+      onFileDirectorEmail = dept?.director_email ?? null
+      if (!onFileDirectorName) onFileDirectorName = dept?.director_name ?? null
     }
+
+    // Server-side identity verification (replaces the self-declared checkbox).
+    const verdict = verifyDirector({
+      sessionEmail,
+      onFileDirector: onFileDirectorName,
+      claimedDirector: (director_name as string).trim(),
+      onFileDirectorEmail,
+    })
+    const isFlagged = !verdict.verified
 
     const { data: inserted, error } = await supabase
       .from('bcps_wcm_roster_submissions')
@@ -186,11 +203,18 @@ export async function POST(req: NextRequest) {
         status: 'pending',
         action: submissionAction,
         target_member_id: submissionAction === 'remove' ? target_member_id : null,
-        submitter_email: (submitter_email as string).trim(),
+        submitter_email: sessionEmail,
         identity_flag: isFlagged,
-        submitter_name: isFlagged ? (submitter_name as string).trim() : null,
-        submitter_role: isFlagged ? (submitter_role as string).trim() : null,
-        raw_payload: body,
+        submitter_name: (submitter_name as string)?.trim() || null,
+        submitter_role: (submitter_role as string)?.trim() || null,
+        raw_payload: {
+          ...body,
+          // Recorded so a later audit can tell what the server decided and why,
+          // rather than having to re-derive it. The client cannot set these.
+          verified_submitter_email: sessionEmail,
+          identity_verified: verdict.verified,
+          identity_reason: verdict.reason,
+        },
       })
       .select('id')
       .single()
@@ -209,7 +233,7 @@ export async function POST(req: NextRequest) {
       station: 'SAR-station',
       task_id: null,
       summary: isFlagged
-        ? `[BCPS WCM Roster] FLAGGED - "${department_name}": submitted by ${submitter_name} (${submitter_role}), not the director on file (${onFileDirectorName || 'none on file'}). Wants to ${actionLabel}.`
+        ? `[BCPS WCM Roster] FLAGGED - "${(department_name as string).trim()}": submitted by ${sessionEmail}, not verified as the director on file (${onFileDirectorName || 'none on file'}). Wants to ${actionLabel}.`
         : `[BCPS WCM Roster] "${(department_name as string).trim()}" wants to ${actionLabel} - awaiting review.`,
       status: 'pending',
       context_link: 'https://bcpsmarcomm.com/bcps?page=wcm',
@@ -220,14 +244,15 @@ export async function POST(req: NextRequest) {
         departmentName: (department_name as string).trim(),
         onFileDirector: onFileDirectorName || '',
         claimedDirector: (director_name as string).trim(),
-        submitterName: (submitter_name as string).trim(),
-        submitterRole: (submitter_role as string).trim(),
-        submitterEmail: (submitter_email as string).trim(),
+        submitterName: (submitter_name as string)?.trim() || '',
+        submitterRole: (submitter_role as string)?.trim() || '',
+        submitterEmail: sessionEmail,
         chiefName,
+        reason: verdict.reason,
       })
     }
 
-    return NextResponse.json({ success: true, id: inserted?.id })
+    return NextResponse.json({ success: true, id: inserted?.id, identity_verified: verdict.verified })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error'
     return NextResponse.json({ error: msg }, { status: 500 })

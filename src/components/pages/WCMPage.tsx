@@ -1,10 +1,19 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { createClient } from '@/lib/supabase'
 
 type WCMView = 'hub' | 'school' | 'department'
 
-const ROSTER_ACCESS_KEY = 'lr-wcm-roster-9f21ab6c'
+// The roster queue moved off a shared static access key onto real admin auth
+// 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED). The route now enforces
+// requireBcpsAdmin server-side; this just passes the signed-in session token.
+const supabase = createClient()
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 const ROSTER_SIGNUP_URL = 'https://bcpsmarcomm.com/wcm-roster-signup'
 
 interface RosterMember {
@@ -57,7 +66,7 @@ function DepartmentRosterSection() {
   async function load() {
     setLoading(true)
     try {
-      const r = await fetch(`/api/bcps/wcm-roster-queue?access_key=${ROSTER_ACCESS_KEY}`)
+      const r = await fetch('/api/bcps/wcm-roster-queue', { headers: await authHeaders() })
       const j = await r.json()
       setRoster(j.roster || [])
       setSubmissions(j.submissions || [])
@@ -72,10 +81,10 @@ function DepartmentRosterSection() {
   async function decide(id: string, action: 'approve' | 'reject') {
     setActing(id)
     try {
-      const r = await fetch(`/api/bcps/wcm-roster-queue?access_key=${ROSTER_ACCESS_KEY}`, {
+      const r = await fetch('/api/bcps/wcm-roster-queue', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action, reviewer: 'Sean A. Russell' }),
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+        body: JSON.stringify({ id, action }),
       })
       if (r.ok) {
         const j = await r.json().catch(() => ({}))
@@ -86,6 +95,7 @@ function DepartmentRosterSection() {
           else if (j.director_notice && !j.director_notice.email_sent) problems.push(`Director email did not send: ${j.director_notice.error || 'unknown error'}`)
           if (j.wcm_notice && !j.wcm_notice.account_ok) problems.push(`WCM account: ${j.wcm_notice.error || 'failed'}`)
           else if (j.wcm_notice && !j.wcm_notice.email_sent) problems.push(`WCM email did not send: ${j.wcm_notice.error || 'unknown error'}`)
+          if (j.submitter_rejected) problems.push(j.submitter_rejected)
           if (problems.length > 0) {
             alert(`Approved, but: ${problems.join(' | ')}`)
           }
