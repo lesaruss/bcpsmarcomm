@@ -1,9 +1,18 @@
 'use client'
 
+import { createClient } from '@/lib/supabase'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-const ACCESS_KEY = 'lr-dcr-7b2e4a90'
+// Shared access key removed 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED):
+// it shipped in this bundle and sat in a public repo. The route now verifies a
+// real signed-in district user; this just forwards the session token.
+const supabaseClient = createClient()
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabaseClient.auth.getSession()
+  const token = data.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 const PROGRAM_AREAS = [
   'SSP',
@@ -214,7 +223,7 @@ export default function CommunityRelationsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await fetch(`/api/bcps/dcr?key=${ACCESS_KEY}`)
+      const r = await fetch('/api/bcps/dcr', { headers: await authHeaders() })
       const j = await r.json()
       if (j.ok) {
         setTasks(j.tasks)
@@ -230,8 +239,8 @@ export default function CommunityRelationsPage() {
   const post = useCallback(async (payload: Record<string, unknown>) => {
     const r = await fetch('/api/bcps/dcr', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: ACCESS_KEY, ...payload }),
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+      body: JSON.stringify(payload),
     })
     return r.ok
   }, [])

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
 
 // Shared BCPS request auth. Extracted 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED)
 // when the WCM Roster intake/queue pair moved off the shared static ACCESS_KEY
@@ -36,17 +37,54 @@ export type AuthResult =
   | { ok: true; user: AuthUser }
   | { ok: false; status: number; error: string }
 
+// Accepts either an explicit bearer token or the app's own session cookie.
+//
+// The cookie path was added 2026-09-14 when the second batch of shared-key
+// endpoints (ooc-queue, dcr, marketing-queue) moved onto real auth. This app
+// signs users in with @supabase/ssr, which keeps the session in cookies on
+// this origin - so any same-origin caller is already carrying a verified
+// identity, whether or not it can build an Authorization header. That matters
+// for public/marketing-specialist.html, a plain static page with no bundler
+// and no Supabase client of its own: with the cookie path it authenticates as
+// the signed-in staff member with no rewrite, instead of needing a shared key.
+// React callers still send a bearer token explicitly; both routes end at the
+// same verified user.
 async function userFromRequest(req: NextRequest): Promise<AuthUser | null> {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
-  if (!token) return null
-  const asUser = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } }
-  )
-  const { data: { user } } = await asUser.auth.getUser()
-  if (!user) return null
-  return { userId: user.id, email: (user.email || '').trim().toLowerCase() }
+
+  // Both paths are wrapped: a malformed or truncated auth cookie makes
+  // @supabase/ssr throw out of its own cookie parsing rather than return a null
+  // user. Unwrapped that still ends in a 401 (the caller treats null as denied),
+  // but it logs a TypeError on every junk request. Denying quietly is the
+  // correct behavior for an unauthenticated caller, so catch and return null.
+  if (token) {
+    try {
+      const asUser = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } }
+      )
+      const { data: { user } } = await asUser.auth.getUser()
+      if (user) return { userId: user.id, email: (user.email || '').trim().toLowerCase() }
+    } catch { /* fall through to denied */ }
+    return null
+  }
+
+  try {
+    const fromCookies = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return req.cookies.getAll() },
+          setAll() { /* read-only: this never refreshes or writes a session */ },
+        },
+      }
+    )
+    const { data: { user } } = await fromCookies.auth.getUser()
+    if (user) return { userId: user.id, email: (user.email || '').trim().toLowerCase() }
+  } catch { /* fall through to denied */ }
+  return null
 }
 
 // A signed-in district user. This is the door for anything a real BCPS

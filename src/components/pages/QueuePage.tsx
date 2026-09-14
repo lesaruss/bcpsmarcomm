@@ -1,9 +1,18 @@
 'use client'
 
+import { createClient } from '@/lib/supabase'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import type { PageId, BreadcrumbItem } from '@/lib/types'
 
-const ACCESS_KEY = 'lr-ooc-web-9d2e7f14'
+// Shared access key removed 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED):
+// it shipped in this bundle and sat in a public repo. The route now verifies a
+// real signed-in district user; this just forwards the session token.
+const supabaseClient = createClient()
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabaseClient.auth.getSession()
+  const token = data.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 const CATEGORIES = [
   'Communications',
@@ -405,7 +414,7 @@ export default function QueuePage({ onShowToast }: QueuePageProps) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await fetch(`/api/bcps/ooc-queue?key=${ACCESS_KEY}`)
+      const r = await fetch('/api/bcps/ooc-queue', { headers: await authHeaders() })
       const j = await r.json()
       if (j.ok) setTasks(j.tasks)
     } catch { /* ignore */ }
@@ -417,8 +426,8 @@ export default function QueuePage({ onShowToast }: QueuePageProps) {
   const post = useCallback(async (payload: Record<string, unknown>) => {
     const r = await fetch('/api/bcps/ooc-queue', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: ACCESS_KEY, ...payload }),
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+      body: JSON.stringify(payload),
     })
     return r.ok
   }, [])
