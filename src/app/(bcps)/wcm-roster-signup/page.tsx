@@ -1,8 +1,14 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { createClient } from '@/lib/supabase'
 
-const ACCESS_KEY = 'lr-wcm-roster-9f21ab6c'
+// AUTH, 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED): this form used to
+// carry a shared static access key in the client bundle and post the
+// submitter's email as free text. Both are gone. The page now requires a real
+// district session, and the signed-in address is what gets recorded - the
+// submitter cannot type someone else's.
+const supabase = createClient()
 
 interface DeptOption {
   id: string
@@ -43,8 +49,11 @@ export default function WCMRosterSignupPage() {
   // director may have retyped) - used to detect a possible identity mismatch.
   const [originalDirectorName, setOriginalDirectorName] = useState('')
 
+  // Signed-in identity. submitterEmail is no longer typed by the submitter -
+  // it is read from the session and sent as a bearer token, so it cannot be
+  // spoofed. 'checking' gates the whole page until we know.
+  const [authState, setAuthState] = useState<'checking' | 'in' | 'out'>('checking')
   const [submitterEmail, setSubmitterEmail] = useState('')
-  const [notDirector, setNotDirector] = useState(false)
   const [submitterName, setSubmitterName] = useState('')
   const [submitterRole, setSubmitterRole] = useState('')
 
@@ -58,15 +67,49 @@ export default function WCMRosterSignupPage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  // Full "what's next" panel replaces the form after a successful submit,
+  // per Sean 2026-09-12: a director who just submitted should see what
+  // happens next, not just a one-line confirmation. Account creation and
+  // the notification emails (to the director AND the WCM they designated)
+  // happen when the District Web Team approves the submission, not here on
+  // raw submission - so this panel sets expectations rather than promising
+  // something that hasn't happened yet.
+  const [submittedCount, setSubmittedCount] = useState(0)
 
   const boxRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    let cancelled = false
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return
+      const email = data.session?.user?.email || ''
+      if (!email) {
+        // Bounce to the same login the rest of the site uses, and come back
+        // here afterwards (the login page already honors ?next=).
+        const next = encodeURIComponent('/wcm-roster-signup')
+        window.location.href = `/login?next=${next}`
+        setAuthState('out')
+        return
+      }
+      setSubmitterEmail(email)
+      setAuthState('in')
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  async function authHeaders(): Promise<Record<string, string>> {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  }
+
+  useEffect(() => {
+    if (authState !== 'in') return
     fetch('/api/bcps/wcm-roster-departments')
       .then(r => r.json())
       .then(j => setDepartments(j.departments || []))
       .catch(() => setDepartments([]))
-  }, [])
+  }, [authState])
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -81,7 +124,6 @@ export default function WCMRosterSignupPage() {
   // WCM(s) pop up so the director can confirm, remove, or add rather than
   // re-typing everything from a blank form.
   useEffect(() => {
-    setNotDirector(false)
     setSubmitterName('')
     setSubmitterRole('')
     if (!selectedDept) {
@@ -92,7 +134,8 @@ export default function WCMRosterSignupPage() {
     }
     setCurrentLoading(true)
     setRemoveIds(new Set())
-    fetch(`/api/bcps/wcm-roster-current?roster_id=${selectedDept.id}`)
+    authHeaders()
+      .then(headers => fetch(`/api/bcps/wcm-roster-current?roster_id=${selectedDept.id}`, { headers }))
       .then(r => r.json())
       .then(j => {
         setCurrentWcms(j.wcms || [])
@@ -154,8 +197,8 @@ export default function WCMRosterSignupPage() {
   async function postChange(payload: Record<string, unknown>) {
     const r = await fetch('/api/bcps/wcm-roster-intake', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ access_key: ACCESS_KEY, ...payload }),
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+      body: JSON.stringify(payload),
     })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(j.error || 'Submission failed.')
@@ -175,14 +218,6 @@ export default function WCMRosterSignupPage() {
       setResult({ type: 'error', text: 'Director name is required.' })
       return
     }
-    if (!submitterEmail.trim()) {
-      setResult({ type: 'error', text: 'Your email address is required.' })
-      return
-    }
-    if (notDirector && (!submitterName.trim() || !submitterRole.trim())) {
-      setResult({ type: 'error', text: 'Please enter your name and role so the District Web Team knows who completed this.' })
-      return
-    }
 
     const removals = currentWcms?.filter(w => removeIds.has(w.id)) ?? []
     const additions = newRows.filter(r => r.name.trim())
@@ -200,14 +235,15 @@ export default function WCMRosterSignupPage() {
     setSubmitting(true)
     setResult(null)
     try {
+      // submitter_email and identity_flag are deliberately NOT sent: the
+      // server takes the address from the session and decides the flag itself
+      // (src/app/api/bcps/wcm-roster-intake/route.ts).
       const common = {
         department_name: departmentName,
         director_name: directorName.trim(),
         roster_id: selectedDept?.id,
-        submitter_email: submitterEmail.trim(),
-        identity_flag: notDirector,
-        submitter_name: notDirector ? submitterName.trim() : undefined,
-        submitter_role: notDirector ? submitterRole.trim() : undefined,
+        submitter_name: submitterName.trim() || undefined,
+        submitter_role: submitterRole.trim() || undefined,
       }
 
       for (const w of removals) {
@@ -224,16 +260,15 @@ export default function WCMRosterSignupPage() {
       }
 
       const count = removals.length + additions.length
-      setResult({
-        type: 'success',
-        text: `Thank you! ${count} update${count === 1 ? '' : 's'} submitted and awaiting review by the District Web Team. Nothing changes on the live roster until then.`,
-      })
+      setSubmittedCount(count)
+      setResult({ type: 'success', text: '' })
       setNewRows([])
       setRemoveIds(new Set())
       // Re-pull current WCMs so the pending-removal strike-through clears
       // now that the removal has actually been recorded.
       if (selectedDept) {
-        fetch(`/api/bcps/wcm-roster-current?roster_id=${selectedDept.id}`)
+        authHeaders()
+          .then(headers => fetch(`/api/bcps/wcm-roster-current?roster_id=${selectedDept.id}`, { headers }))
           .then(r => r.json()).then(j => setCurrentWcms(j.wcms || [])).catch(() => {})
       }
     } catch (err) {
@@ -241,6 +276,20 @@ export default function WCMRosterSignupPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  // Hold the page until the session is known. Without this the form (and its
+  // prefill call) would flash for an anonymous visitor before the redirect.
+  if (authState !== 'in') {
+    return (
+      <div style={{
+        minHeight: '100vh', background: '#fff', display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+        fontSize: 14, color: 'var(--text-muted, #6B7280)',
+      }}>
+        {authState === 'checking' ? 'Checking your BCPS sign-in...' : 'Redirecting you to sign in...'}
+      </div>
+    )
   }
 
   return (
@@ -278,19 +327,61 @@ export default function WCMRosterSignupPage() {
           </p>
         </div>
 
-        {result && (
+        {result?.type === 'error' && (
           <div
             style={{
               padding: '14px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14, fontWeight: 600,
-              background: result.type === 'success' ? '#ECFDF5' : '#FEF2F2',
-              color: result.type === 'success' ? '#059669' : '#DC2626',
-              border: `1px solid ${result.type === 'success' ? 'rgba(5,150,105,0.25)' : 'rgba(220,38,38,0.25)'}`,
+              background: '#FEF2F2', color: '#DC2626', border: '1px solid rgba(220,38,38,0.25)',
             }}
           >
             {result.text}
           </div>
         )}
 
+        {result?.type === 'success' && (
+          <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ background: '#ECFDF5', borderBottom: '1px solid rgba(5,150,105,0.25)', padding: '18px 24px' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#059669', marginBottom: 4 }}>
+                Submitted
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Thank you. {submittedCount} update{submittedCount === 1 ? '' : 's'} submitted for the 2026/27 school year.
+              </div>
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--blue)', marginBottom: 12 }}>
+                What happens next
+              </div>
+              <ol style={{ margin: 0, padding: '0 0 0 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  The District Web Team reviews your submission. Nothing changes on the live roster until it&apos;s approved.
+                </li>
+                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Once approved, you&apos;ll get an email confirming you&apos;re set for 2026/27.
+                </li>
+                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Your designated Web Content Manager gets their own confirmation email at the same time, with a one-click link to log in or finish setting up their account, so nothing depends on you passing along a password or a set of instructions.
+                </li>
+                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Watch for <strong>Communique</strong>, our monthly newsletter: that&apos;s where you&apos;ll get your own BCPS Web Team Portal access and a tour of what&apos;s available for your department.
+                </li>
+                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Need to add or remove a Web Content Manager later, or something changes? Come back to this same form any time, no need to start over.
+                </li>
+              </ol>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ marginTop: 22, fontSize: 12.5, padding: '8px 16px' }}
+                onClick={() => { setResult(null); backToDeptSearch() }}
+              >
+                Submit another update
+              </button>
+            </div>
+          </div>
+        )}
+
+        {result?.type !== 'success' && (
         <div className="wcm-portal-content">
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 20 }}>
@@ -374,19 +465,20 @@ export default function WCMRosterSignupPage() {
 
             <div style={{ marginBottom: 14 }}>
               <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
-                Your Email <span style={{ color: '#DC2626' }}>*</span>
+                Submitting As
               </label>
-              <input
-                className="form-input"
-                style={{ width: '100%', boxSizing: 'border-box' }}
-                type="email"
-                value={submitterEmail}
-                onChange={e => setSubmitterEmail(e.target.value)}
-                placeholder="you@browardschools.com"
-                required
-              />
+              <div
+                style={{
+                  width: '100%', boxSizing: 'border-box', padding: '10px 12px',
+                  background: 'var(--surface-2, #F3F4F6)', border: '1px solid var(--border, #E5E7EB)',
+                  borderRadius: 6, fontSize: 14, color: 'var(--text, #111827)',
+                }}
+              >
+                {submitterEmail}
+              </div>
               <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: '6px 0 0' }}>
-                So the District Web Team can reach you about this submission if needed.
+                Taken from your signed-in BCPS account. This is the address the District Web Team
+                will use to reach you about this submission.
               </p>
             </div>
 
@@ -502,6 +594,7 @@ export default function WCMRosterSignupPage() {
             </button>
           </form>
         </div>
+        )}
       </main>
     </div>
   )
