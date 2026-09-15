@@ -1,6 +1,20 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase'
+
+// Session token for the API calls below. These routes verify the caller
+// server-side as of 2026-09-15 (they previously had no auth at all), so every
+// request needs a real session. Pulled fresh per call - supabase-js keeps the
+// token refreshed in memory, so this avoids sending a stale one from a
+// long-open page.
+const supabaseClient = createClient()
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabaseClient.auth.getSession()
+  const token = data.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 import { BETA_MEMBERS, DOMAIN_RULES } from '@/lib/data'
 import type { BetaMember, DomainRule } from '@/lib/types'
 
@@ -34,7 +48,7 @@ function InvitesTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
 
   const refresh = async () => {
     try {
-      const r = await fetch('/api/bcps/beta-invite')
+      const r = await fetch('/api/bcps/beta-invite', { headers: await authHeaders() })
       const j = await r.json()
       if (Array.isArray(j.members)) setMembers(j.members)
     } catch { /* keep current list */ }
@@ -49,7 +63,7 @@ function InvitesTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
     onShowToast('Sending invitation...')
     try {
       const r = await fetch('/api/bcps/beta-invite', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({ action: 'invite', name: form.name, email: form.email, role: form.role }),
       })
       const j = await r.json()
@@ -67,7 +81,7 @@ function InvitesTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
     onShowToast(`Resending invite to ${m.name}...`)
     try {
       const r = await fetch('/api/bcps/beta-invite', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({ action: 'resend', email: m.email }),
       })
       const j = await r.json()
@@ -78,7 +92,7 @@ function InvitesTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
   const handleRevoke = async (id: number) => {
     try {
       const r = await fetch('/api/bcps/beta-invite', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({ action: 'revoke', id }),
       })
       const j = await r.json()

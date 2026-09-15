@@ -1,4 +1,14 @@
 'use client'
+import { createClient } from '@/lib/supabase'
+
+// Session token for the API calls below. These routes verify the caller
+// server-side as of 2026-09-15 (they previously had no auth at all).
+const supabaseClient = createClient()
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabaseClient.auth.getSession()
+  const token = data.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 import { useEffect, useMemo, useState } from 'react'
 
@@ -57,7 +67,8 @@ export default function DepartmentAuditPage() {
   const [q, setQ] = useState('')
 
   useEffect(() => {
-    fetch('/api/bcps/department-audit')
+    authHeaders()
+      .then(headers => fetch('/api/bcps/department-audit', { headers }))
       .then(r => r.json())
       .then(j => { if (j.error) setError(j.error); else setData(j) })
       .catch(() => setError('Could not load the audit data.'))

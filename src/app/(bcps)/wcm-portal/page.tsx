@@ -136,10 +136,16 @@ export default function WCMPortalPage() {
     if (!dept || !userEmail) return
     setSubmitting(true)
     try {
+      // wcm_email is no longer sent: the route takes the submitter's identity
+      // from the session, so it cannot be spoofed or omitted to skip the check.
+      const { data: sess } = await supabase.auth.getSession()
       const res = await fetch('/api/bcps/wcm-submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ department_id: dept.id, wcm_email: userEmail }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sess.session?.access_token ? { Authorization: `Bearer ${sess.session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ department_id: dept.id }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)

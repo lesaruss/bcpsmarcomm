@@ -1,6 +1,20 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase'
+
+// Session token for the API calls below. These routes verify the caller
+// server-side as of 2026-09-15 (they previously had no auth at all), so every
+// request needs a real session. Pulled fresh per call - supabase-js keeps the
+// token refreshed in memory, so this avoids sending a stale one from a
+// long-open page.
+const supabaseClient = createClient()
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabaseClient.auth.getSession()
+  const token = data.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 
 interface Finding {
   code: string
@@ -63,7 +77,7 @@ export default function ReportsPage() {
     try {
       const res = await fetch('/api/bcps/generate-report', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({}),
       })
       if (res.ok) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireBcpsSuperAdmin } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,8 +15,25 @@ function domainOf(email: string) {
   return (email.split('@')[1] || '').toLowerCase().trim()
 }
 
+// AUTH, added 2026-09-15 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED, third pass).
+// This route had NO auth of any kind, and it is the most consequential of the
+// set: an unauthenticated POST called supabase.auth.admin.inviteUserByEmail,
+// which creates a real auth user in invited state and sends a genuine
+// BCPS-branded invite carrying a working set-password link. The GET returned
+// every invite - name, email, role - to anyone who asked. The ALLOWED_DOMAINS
+// list limited who could be invited but was never an authorization check on
+// who could DO the inviting.
+//
+// Gated on requireBcpsSuperAdmin, not requireBcpsAdmin: its only caller is
+// SuperAdminPage, and Sidebar.tsx shows that page only to
+// effectiveRole === 'superadmin' (SUPERADMIN_PAGES). The server now matches
+// that, per canon-gate-new-surfaces-on-the-same-check.
+
 // GET: list beta invites for the SuperAdmin panel.
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireBcpsSuperAdmin(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   const { data, error } = await supabase
     .from('bcps_beta_invites')
     .select('id, name, email, role, status, beta')
@@ -27,6 +45,9 @@ export async function GET() {
 // POST: { action: 'invite' | 'resend' | 'revoke', ... }
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireBcpsSuperAdmin(req)
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
     const body = await req.json()
     const action = body.action as string
 

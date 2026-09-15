@@ -108,6 +108,40 @@ export async function requireDistrictUser(req: NextRequest): Promise<AuthResult>
   return { ok: true, user }
 }
 
+// Superadmin only. Sidebar.tsx gates a handful of pages on
+// effectiveRole === 'superadmin' (its SUPERADMIN_PAGES set), which is STRICTER
+// than requireBcpsAdmin's admin-or-superadmin. Routes backing those pages use
+// this instead, so the server matches the UI rather than quietly accepting a
+// tier the page itself would not show - per canon-gate-new-surfaces-on-the-same-check.
+export async function requireBcpsSuperAdmin(req: NextRequest): Promise<AuthResult> {
+  const user = await userFromRequest(req)
+  if (!user) return { ok: false, status: 401, error: 'Sign in with your BCPS account to continue.' }
+
+  const { data: roleRow } = await service
+    .from('acl_member_roles')
+    .select('role')
+    .eq('user_id', user.userId)
+    .eq('brand', BRAND)
+    .maybeSingle()
+  if ((roleRow?.role || 'user') !== 'superadmin') {
+    return { ok: false, status: 403, error: 'Forbidden - superadmin access required' }
+  }
+  return { ok: true, user }
+}
+
+// True when this user holds admin or superadmin for BCPS. Used where a route
+// is primarily self-service but staff need to act on someone else's behalf.
+export async function isBcpsAdmin(userId: string): Promise<boolean> {
+  const { data: roleRow } = await service
+    .from('acl_member_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('brand', BRAND)
+    .maybeSingle()
+  const role = roleRow?.role || 'user'
+  return role === 'admin' || role === 'superadmin'
+}
+
 export async function requireBcpsAdmin(req: NextRequest): Promise<AuthResult> {
   const user = await userFromRequest(req)
   if (!user) return { ok: false, status: 401, error: 'Sign in with your BCPS account to continue.' }

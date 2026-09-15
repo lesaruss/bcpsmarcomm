@@ -1,4 +1,14 @@
 'use client'
+import { createClient } from '@/lib/supabase'
+
+// Session token for the API calls below. These routes verify the caller
+// server-side as of 2026-09-15 (they previously had no auth at all).
+const supabaseClient = createClient()
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabaseClient.auth.getSession()
+  const token = data.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 import React, { useState, useEffect, useCallback } from 'react'
 
@@ -318,7 +328,7 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
         })
         url += '?' + params.toString()
       }
-      const res = await fetch(url)
+      const res = await fetch(url, { headers: await authHeaders() })
       const data = await res.json()
       setSnapshot(data.snapshot ?? null)
       setPrevSnapshot(data.prevSnapshot ?? null)
@@ -344,7 +354,7 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
     setSyncing(true)
     onShowToast('Syncing GA4 data...')
     try {
-      const res = await fetch('/api/bcps/analytics', { method: 'POST' })
+      const res = await fetch('/api/bcps/analytics', { method: 'POST', headers: await authHeaders() })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Sync failed')
       await load()
