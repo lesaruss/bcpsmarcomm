@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
+import { useBCPSShell } from '@/components/BCPSShell'
 
 type WCMView = 'hub' | 'school' | 'department'
 
@@ -563,12 +564,18 @@ function SchoolPortal({ onBack }: { onBack: () => void }) {
 }
 
 /* ─── DEPARTMENT PORTAL ───────────────────────────────── */
-function DepartmentPortal() {
+function DepartmentPortal({ onBack }: { onBack: () => void }) {
   const [activeSection, setActiveSection] = useState('overview')
+  // The WCM Roster tab is the District Web Team's approval queue: it reads
+  // /api/bcps/wcm-roster-queue, which enforces requireBcpsAdmin server-side.
+  // Now that WCM Hub is granted to all 61 Web Content Managers (2026-09-15),
+  // a non-admin opening that tab would get a 403 and an empty table, so the
+  // tab and its overview card are admin-only rather than broken-for-most.
+  const { canManageMessages: isAdmin } = useBCPSShell()
 
   const sections = [
     { id: 'overview', label: 'Overview' },
-    { id: 'roster', label: 'WCM Roster' },
+    ...(isAdmin ? [{ id: 'roster', label: 'WCM Roster' }] : []),
     { id: 'audit', label: 'Audit Resources' },
     { id: 'templates', label: 'Layout Templates' },
     { id: 'training', label: 'Training Materials' },
@@ -577,6 +584,8 @@ function DepartmentPortal() {
 
   return (
     <div className="wcm-portal-page" style={{ maxWidth: 'none' }}>
+      <button className="wcm-back-btn" onClick={onBack}>&larr; WCM Community Hub</button>
+
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--blue)', marginBottom: 8 }}>
           Department Web Managers
@@ -605,7 +614,7 @@ function DepartmentPortal() {
               <p className="wcm-section-intro">This portal supports BCPS department web managers in maintaining accurate, accessible, and consistent department websites across the district.</p>
               <div className="wcm-overview-cards">
                 {[
-                  { icon: '🗂', title: 'WCM Roster', desc: 'Every department, its Director, and assigned Web Content Manager(s) - updated via the annual roster intake form.', section: 'roster' },
+                  ...(isAdmin ? [{ icon: '🗂', title: 'WCM Roster', desc: 'Every department, its Director, and assigned Web Content Manager(s) - updated via the annual roster intake form.', section: 'roster' }] : []),
                   { icon: '🔍', title: 'Audit Resources', desc: 'Checklists and tools to audit your department pages for accuracy, accessibility, and compliance.', section: 'audit' },
                   { icon: '📐', title: 'Layout Templates', desc: 'Approved page templates for common department content types — staff pages, program info, and more.', section: 'templates' },
                   { icon: '🎓', title: 'Training Materials', desc: 'On-demand training videos, slide decks, and reference guides for department content managers.', section: 'training' },
@@ -765,6 +774,14 @@ function DepartmentPortal() {
 // Department Portal instead of a hub landing screen with a school/department
 // choice. SchoolPortal/WCMHub are left in place (unused) rather than deleted,
 // in case school support comes back later.
+// Entry point. Fixed 2026-09-15: this rendered <DepartmentPortal /> directly,
+// so every Web Content Manager who clicked "WCM Hub" landed inside the
+// Department portal and the WCM Community Hub - the School / Department
+// choice the whole section is built around - was unreachable dead code.
 export default function WCMPage() {
-  return <DepartmentPortal />
+  const [view, setView] = useState<WCMView>('hub')
+
+  if (view === 'school') return <SchoolPortal onBack={() => setView('hub')} />
+  if (view === 'department') return <DepartmentPortal onBack={() => setView('hub')} />
+  return <WCMHub onNavigate={setView} />
 }
