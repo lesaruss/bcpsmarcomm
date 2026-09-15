@@ -10,18 +10,21 @@ const supabase = createClient(
 // Per-department prefill for the WCM Roster signup form: who we currently have
 // on file, so a director corrects the list instead of retyping it.
 //
-// Gated 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED). This route was
-// deliberately public and the original author flagged the tradeoff in this very
-// comment: it exposes a named staff member's work email and personnel number
-// for any department an anonymous visitor cares to select, and noted that "if
-// that's not acceptable, this route should move behind the existing
-// browardschools.com login used elsewhere in this app." That is now exactly
-// what happened - its only caller, /wcm-roster-signup, requires a district
-// session as of this change, so the reason to leave this one open is gone.
-// Same gate as the form it feeds: requireDistrictUser (src/lib/bcps-auth.ts).
+// Gated 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED) because it exposes a
+// named staff member's work email and personnel number for any department an
+// anonymous visitor cares to select.
+//
+// 2026-09-15: /wcm-roster-signup is public again, so this route has to answer
+// an anonymous caller or the director sees nothing on file and retypes their
+// roster from scratch - the exact problem the prefill exists to prevent. The
+// answer is to keep the gate on the SENSITIVE FIELDS rather than on the route:
+// a signed-in district user gets the full record as before, and an anonymous
+// caller gets only what a director needs to confirm or correct the list -
+// director name and WCM names, with the member ids that drive "remove". Work
+// emails and personnel numbers are never sent to an unauthenticated caller.
 export async function GET(req: NextRequest) {
   const auth = await requireDistrictUser(req)
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const authed = auth.ok
 
   const rosterId = req.nextUrl.searchParams.get('roster_id')
   if (!rosterId) return NextResponse.json({ error: 'roster_id required' }, { status: 400 })
@@ -41,8 +44,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: (rosterErr || memberErr)?.message }, { status: 500 })
   }
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     director_name: roster?.director_name ?? null,
-    wcms: members ?? [],
+    wcms: (members ?? []).map(m => authed ? m : {
+      id: m.id,
+      wcm_name: m.wcm_name,
+      wcm_email: null,
+      wcm_personnel_number: null,
+      added_at: m.added_at,
+    }),
+    // The form uses this to tell the director why contact details are hidden.
+    redacted: !authed,
   })
+  res.headers.set('Cache-Control', 'no-store')
+  return res
 }
