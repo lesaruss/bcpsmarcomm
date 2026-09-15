@@ -16,6 +16,26 @@ const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 // Pulled out of wcm-invite/route.ts so both call sites share one
 // implementation rather than drifting apart.
 
+// Greetings use a first name only - "Hi David," not "Hi David Azzarito,"
+// (Sean, 2026-09-15: the full name reads oddly). Handles the shapes these
+// names actually arrive in: "David Azzarito", "Azzarito, David" (the roster
+// export format), a leading title, and the "there" fallback used when no
+// name was captured.
+const NAME_TITLES = new Set(['mr', 'mrs', 'ms', 'miss', 'mx', 'dr', 'prof', 'rev'])
+export function firstName(fullName: string | null | undefined): string {
+  const raw = (fullName || '').trim()
+  if (!raw) return 'there'
+  // "Azzarito, David" -> "David Azzarito"
+  const commaPart = raw.includes(',') ? raw.split(',')[1]?.trim() : ''
+  const source = commaPart || raw
+  for (const token of source.split(/\s+/)) {
+    const bare = token.replace(/[.,]/g, '').toLowerCase()
+    if (!bare || NAME_TITLES.has(bare)) continue
+    return token.replace(/,$/, '')
+  }
+  return raw
+}
+
 export function esc(v: string): string {
   return v
     .replace(/&/g, '&amp;')
@@ -123,7 +143,7 @@ export function directorConfirmationEmail(opts: {
   return brandedEmail({
     heading: `Confirmed: your Web Content Manager for 2026-27`,
     body: `
-      <p>Hi ${esc(opts.directorName)},</p>
+      <p>Hi ${esc(firstName(opts.directorName))},</p>
       <p>Your Web Content Manager Roster submission for <strong>${esc(opts.departmentName)}</strong>
       has been reviewed and <strong>approved</strong>. ${opts.wcmName
         ? `<strong>${esc(opts.wcmName)}</strong> is now the Web Content Manager of record for your department.`
@@ -161,7 +181,7 @@ export function wcmConfirmationEmail(opts: {
   return brandedEmail({
     heading: `You've been confirmed as a Web Content Manager`,
     body: `
-      <p>Hi ${esc(opts.wcmName)},</p>
+      <p>Hi ${esc(firstName(opts.wcmName))},</p>
       <p>Your department director has officially confirmed you as the Web Content Manager for
       <strong>${esc(opts.departmentName)}</strong> on the BCPS Web Team Portal.</p>
       <p>Next: register for PD credit in LAB, then look for the BCPS Certification link in the body of

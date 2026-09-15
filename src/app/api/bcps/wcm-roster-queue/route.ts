@@ -44,6 +44,8 @@ async function notifyDirector(opts: {
       subject: `Confirmed: BCPS Web Content Manager Roster for ${opts.departmentName}`,
       replyTo: 'sean.russell@browardschools.com',
       html,
+      kind: 'wcm-roster-approval-director',
+      context: { department: opts.departmentName, wcm_name: opts.wcmName },
     })
     // account_ok is reported true because no account is attempted: director
     // portal accounts are ON HOLD (Sean, 2026-09-15 - "I'm not ready to give
@@ -97,6 +99,8 @@ async function notifyWcm(opts: {
         : `You're confirmed: BCPS Web Content Manager for ${opts.departmentName}`,
       replyTo: 'sean.russell@browardschools.com',
       html,
+      kind: 'wcm-roster-approval-wcm',
+      context: { department: opts.departmentName, is_new_account: isNewAccount },
     })
     return { account_ok: true, email_sent: emailResult.ok, error: emailResult.ok ? undefined : emailResult.error ?? undefined }
   } catch (e: unknown) {

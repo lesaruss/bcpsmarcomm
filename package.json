@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "next build",
+    "build": "npm run emails:check && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "emails": "tsx scripts/render-emails.ts",
+    "emails:check": "tsx scripts/render-emails.ts --check"
   },
   "dependencies": {
     "@sparticuz/chromium": "^149.0.0",
@@ -24,6 +26,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "typescript": "^5"
+    "typescript": "^5",
+    "tsx": "^4.20.3"
   }
 }
