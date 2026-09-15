@@ -99,6 +99,10 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole>('user')
   const [viewAs, setViewAs] = useState<TeamMember | null>(null)
   const [allowedPages, setAllowedPages] = useState<string[] | null>(null)
+  // The previewed subject's real page set while "View as" is active. Kept
+  // apart from allowedPages so resetting the preview restores the real one
+  // without a refetch.
+  const [previewPages, setPreviewPages] = useState<string[] | null>(null)
   const [unreadMessages, setUnreadMessages] = useState(0)
   // canManageMessages tracks the raw backend role (admin OR superadmin) for
   // the notification bell / dashboard inbox specifically. Deliberately kept
@@ -137,6 +141,31 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
     })()
   }, [])
 
+  // "View as": resolve what that person actually sees rather than assuming
+  // the full user-tier menu (Sean, 2026-09-15 - the preview was showing
+  // pages the previewed person has no grant for, which made it useless for
+  // verifying someone's access). The sample Superadmin identity previews the
+  // admin tier and keeps the real superadmin page set.
+  useEffect(() => {
+    if (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID || !viewAs.previewGroup) {
+      setPreviewPages(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const token = tokenRef.current
+      if (!token) return
+      try {
+        const r = await fetch(`/api/bcps/my-access?preview_group=${encodeURIComponent(viewAs.previewGroup!)}`,
+          { headers: { Authorization: `Bearer ${token}` } })
+        if (!r.ok) return
+        const j = await r.json()
+        if (!cancelled) setPreviewPages(j.pages as string[])
+      } catch { /* leave the preview on the real page set */ }
+    })()
+    return () => { cancelled = true }
+  }, [viewAs])
+
   // Notification bell: unread count of site reports (wcm_pilot_feedback),
   // admin/superadmin inbox per Sean 2026-07-29. Poll every 45s so the bell
   // reflects new reports without a full page reload.
@@ -173,6 +202,14 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   }, [pathname, searchParams])
 
   const { title, sub } = PAGE_TITLES[activePage] ?? PAGE_TITLES['dashboard']
+
+  // The page set in force right now: the previewed subject's while previewing,
+  // otherwise the signed-in user's own.
+  // The sample Superadmin identity previews the admin tier, so it keeps the
+  // real superadmin page set rather than a group's.
+  const effectivePages = viewAs
+    ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? allowedPages : previewPages)
+    : allowedPages
 
   // Engine-driven page enforcement: if the user lands on a page they may not reach, send to dashboard.
   useEffect(() => {
@@ -227,7 +264,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           onClose={() => setSidebarOpen(false)}
           viewAs={viewAs}
           onViewAs={handleViewAs}
-          allowedPages={allowedPages ?? undefined}
+          allowedPages={effectivePages ?? undefined}
         />
 
         <div className="main-area">

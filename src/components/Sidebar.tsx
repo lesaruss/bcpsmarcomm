@@ -11,13 +11,17 @@ export interface TeamMember {
   initials: string
   color: string
   roleLabel: string
+  // The acl_groups name whose real grants this identity's "View as" preview
+  // resolves against (2026-09-15). Without it a preview falls back to the
+  // full user-tier menu, which is what made previews untrustworthy.
+  previewGroup?: string
 }
 
 export const TEAM_MEMBERS: TeamMember[] = [
-  { id: 'FH', name: 'Felicia Hicks',     initials: 'FH', color: '#7C3AED', roleLabel: 'Web Team' },
-  { id: 'VD', name: 'Vanessa Deslandes', initials: 'VD', color: '#059669', roleLabel: 'Web Team' },
-  { id: 'TA', name: 'Tricia Allen',      initials: 'TA', color: '#D97706', roleLabel: 'Web Team' },
-  { id: 'NA', name: 'Nakesha Ali-Sirju', initials: 'NA', color: '#0891B2', roleLabel: 'Web Team' },
+  { id: 'FH', name: 'Felicia Hicks',     initials: 'FH', color: '#7C3AED', roleLabel: 'Web Team', previewGroup: 'District Web Team' },
+  { id: 'VD', name: 'Vanessa Deslandes', initials: 'VD', color: '#059669', roleLabel: 'Web Team', previewGroup: 'District Web Team' },
+  { id: 'TA', name: 'Tricia Allen',      initials: 'TA', color: '#D97706', roleLabel: 'Web Team', previewGroup: 'District Web Team' },
+  { id: 'NA', name: 'Nakesha Ali-Sirju', initials: 'NA', color: '#0891B2', roleLabel: 'Web Team', previewGroup: 'District Web Team' },
 ]
 
 // Fictitious, sample-data-only identities so a SuperAdmin can preview each
@@ -28,8 +32,8 @@ export const TEAM_MEMBERS: TeamMember[] = [
 // substitutes fully-synthetic content for these ids instead of fetching.
 export const SAMPLE_SUPERADMIN_ID = 'SSA'
 export const SAMPLE_ROLE_MEMBERS: TeamMember[] = [
-  { id: 'SWC', name: 'Wendy Ramirez', initials: 'SWC', color: '#9CA3AF', roleLabel: 'Web Content Manager (Sample)' },
-  { id: 'SDW', name: 'Dana Okafor',   initials: 'SDW', color: '#9CA3AF', roleLabel: 'District Web Team Member (Sample)' },
+  { id: 'SWC', name: 'Wendy Ramirez', initials: 'SWC', color: '#9CA3AF', roleLabel: 'Web Content Manager (Sample)', previewGroup: 'Web Content Management' },
+  { id: 'SDW', name: 'Dana Okafor',   initials: 'SDW', color: '#9CA3AF', roleLabel: 'District Web Team Member (Sample)', previewGroup: 'District Web Team' },
   { id: SAMPLE_SUPERADMIN_ID, name: 'Sam Rivera', initials: 'SSA', color: '#9CA3AF', roleLabel: 'Superadmin (Sample)' },
 ]
 
@@ -240,7 +244,14 @@ const Icons: Record<string, React.ReactNode> = {
 // ── Nav config ─────────────────────────────────────────────────────────────
 const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations'])
 
-interface NavItem { id: PageId; label: string }
+// A nav item is normally a PageId routed through ?page=. Some items are
+// direct links to a document that lives outside the page router - the
+// Playbooks under Web Content Managers, for instance, which are served at
+// /playbooks/[slug]. Those carry `href`, and `requires` names the PageId
+// whose access they ride on, so a link never shows to someone who has no
+// business in that section (Sean, 2026-09-15: quick access for the people
+// who already have the section, not a new door for everyone else).
+interface NavItem { id: string; label: string; href?: string; requires?: PageId }
 
 interface NavSection { label: string; items: NavItem[] }
 
@@ -264,15 +275,27 @@ const SECTIONS: NavSection[] = [
     { id: 'community-relations', label: 'Task Tracker' },
   ] },
   { label: 'Web Content Managers', items: [
-    { id: 'bcps-certification', label: 'Department Certification' },
     { id: 'wcm', label: 'WCM Hub' },
+    { id: 'bcps-certification', label: 'Department Certification' },
+    // The three playbooks linked in the WCM registration and director
+    // emails, surfaced here for quick reference per Sean 2026-09-15 -
+    // people were being sent to their inbox to find them again.
+    { id: 'pb-wcm-department', label: 'Department WCM Playbook', href: '/playbooks/wcm-department', requires: 'wcm' },
+    { id: 'pb-director-department', label: 'Director Playbook', href: '/playbooks/director-department', requires: 'wcm' },
+    { id: 'pb-wcm-registration', label: 'Registration: Getting Started', href: '/playbooks/bcps-wcm-registration-2026-27', requires: 'wcm' },
   ] },
   // District Web Team - 2026-09-04, Sean: these are the DWT-facing tools
   // still being tested (banners, school profiles, ADA, Google governance),
   // split out from Web Content Managers into their own segment so testing
   // work doesn't sit mixed in with the stable WCM tools.
   { label: 'District Web Team', items: [
+    // Assignments and governance pinned to the top, Sean 2026-09-15 - these
+    // are the two the team reaches for daily. Web Team Assignments already
+    // had its acl_objects page row and a District Web Team grant, it was
+    // simply never listed here, so the page was unreachable from the nav.
+    { id: 'bcps-assignments', label: 'Web Team Assignments' },
     { id: 'bcps-google-governance', label: 'Google Governance' },
+    { id: 'pb-web-governance', label: 'Website Governance Plan', href: '/briefs/bcps-website-governance-plan-2026-06-10', requires: 'bcps-google-governance' },
     { id: 'banner-submissions', label: 'Banner Submissions' },
     { id: 'school-profiles', label: 'School Profiles' },
     { id: 'department-audit', label: 'Department Name Audit' },
@@ -292,8 +315,14 @@ const SECTIONS: NavSection[] = [
   ] },
 ]
 
-function canSee(effectiveRole: UserRole, pageId: PageId): boolean {
-  return effectiveRole === 'superadmin' || !SUPERADMIN_PAGES.has(pageId)
+// The PageId an item's access is decided by: itself for a normal page, or
+// the page it rides on for a direct link.
+function gateOf(item: NavItem): PageId {
+  return (item.requires ?? item.id) as PageId
+}
+
+function canSee(effectiveRole: UserRole, item: NavItem): boolean {
+  return effectiveRole === 'superadmin' || !SUPERADMIN_PAGES.has(gateOf(item))
 }
 
 // Chevron icon for the user switcher
@@ -318,8 +347,13 @@ export default function Sidebar({
   // superadmin-tier experience, not collapse to 'user' like every other viewAs selection.
   const effectiveRole: UserRole = viewAs ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? 'superadmin' : 'user') : role
 
-  const nav = (page: PageId) => {
-    onNavigate(page)
+  const nav = (item: NavItem) => {
+    if (item.href) {
+      window.location.href = item.href
+      onClose()
+      return
+    }
+    onNavigate(item.id as PageId)
     onClose()
   }
 
@@ -366,9 +400,14 @@ export default function Sidebar({
         {/* Nav */}
         <nav className="sidebar-nav">
           {SECTIONS.map((section, si) => {
-            const items = (allowedPages && !viewAs)
-              ? section.items.filter(item => allowedPages.includes(item.id) || (effectiveRole === 'superadmin' && SUPERADMIN_PAGES.has(item.id)))
-              : section.items.filter(item => canSee(effectiveRole, item.id))
+            // allowedPages is the real page set: the signed-in user's own, or -
+            // while previewing - the previewed subject's, fetched from
+            // my-access?preview_group. Only fall back to the role-only filter
+            // when there is no page set to honour (preview still loading, or a
+            // preview identity with no group mapped).
+            const items = allowedPages
+              ? section.items.filter(item => allowedPages.includes(gateOf(item)) || (effectiveRole === 'superadmin' && SUPERADMIN_PAGES.has(gateOf(item))))
+              : section.items.filter(item => canSee(effectiveRole, item))
             if (items.length === 0) return null
             return (
               <div key={section.label}>
@@ -376,10 +415,10 @@ export default function Sidebar({
                 {items.map((item) => (
                   <button
                     key={item.id}
-                    className={`sidebar-link${activePage === item.id ? ' active' : ''}`}
-                    onClick={() => nav(item.id)}
+                    className={`sidebar-link${!item.href && activePage === item.id ? ' active' : ''}`}
+                    onClick={() => nav(item)}
                   >
-                    <span className="sidebar-icon">{Icons[item.id]}</span>
+                    <span className="sidebar-icon">{Icons[item.id] ?? Icons[gateOf(item)]}</span>
                     <span>{item.label}</span>
                   </button>
                 ))}

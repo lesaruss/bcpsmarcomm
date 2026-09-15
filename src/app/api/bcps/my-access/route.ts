@@ -32,6 +32,35 @@ export async function GET(req: NextRequest) {
     .select('id, slug, visibility').eq('brand', BRAND).eq('kind', 'page')
   const all = pages ?? []
 
+  // ?preview_group=<group name> - the page set a plain member of that group
+  // would get, for SuperAdmin's "View as" preview. Added 2026-09-15 (Sean):
+  // the preview used to ignore the permission model entirely and render the
+  // full user-tier menu, so it showed pages the previewed person cannot
+  // reach (this is how the unregistered Minibase page appeared under a
+  // sample Web Content Manager while it was invisible to every real
+  // account, SuperAdmin included). A preview that does not match what the
+  // person sees is worse than no preview - it was being used to verify
+  // other people's access.
+  //
+  // SuperAdmin only: this reads another subject's effective access, so it
+  // must never answer for a caller who is not already entitled to see it.
+  const previewGroup = req.nextUrl.searchParams.get('preview_group')
+  if (previewGroup) {
+    if (role !== 'superadmin') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    const { data: group } = await svc.from('acl_groups')
+      .select('id').eq('brand', BRAND).eq('name', previewGroup).maybeSingle()
+    if (!group) return NextResponse.json({ error: 'unknown group' }, { status: 404 })
+    const { data: grants } = await svc.from('acl_grants')
+      .select('object_id').eq('subject_type', 'group').eq('subject_id', group.id)
+    const grantedObjIds = new Set((grants ?? []).map(g => g.object_id))
+    const previewPages = all
+      .filter(p => p.visibility === 'public' || grantedObjIds.has(p.id))
+      .map(p => p.slug)
+    const previewRes = NextResponse.json({ ok: true, role: 'user', preview_group: previewGroup, pages: previewPages })
+    previewRes.headers.set('Cache-Control', 'no-store')
+    return previewRes
+  }
+
   let allowed: string[]
   if (role === 'superadmin') {
     allowed = all.map(p => p.slug)
