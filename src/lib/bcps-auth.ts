@@ -32,6 +32,64 @@ export function isDistrictEmail(email: string | null | undefined): boolean {
   return (email || '').trim().toLowerCase().endsWith(DISTRICT_DOMAIN)
 }
 
+const DISTRICT_HOST = DISTRICT_DOMAIN.slice(1)
+
+// Plain Levenshtein. Small inputs (a hostname against one 18-char constant),
+// so the naive two-row implementation is the right amount of machinery.
+function editDistance(a: string, b: string): number {
+  if (a === b) return 0
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i]
+    for (let j = 1; j <= b.length; j++) {
+      row[j] = Math.min(
+        prev[j] + 1,
+        row[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      )
+    }
+    prev = row
+  }
+  return prev[b.length]
+}
+
+// A mistyped district domain resolves back to the district domain.
+//
+// Added 2026-09-15 (Sean). Four pending roster submissions carried
+// broardschools.com, browatdschools.com, browardschool.scom and
+// browardschools.coms.com. Every one is a well-formed address that a mail
+// provider accepts and then bounces, so the WCM is never told anything and
+// nothing in the system notices. The WCM email field had no domain check at
+// all, which is how they sat in the queue since July.
+//
+// Only near-misses are repaired, by two rules:
+//   - the host already starts with the district name, so the tail is mangled
+//     (browardschools.coms.com, browardschools.con)
+//   - the host is within two edits of the district host, so the name itself is
+//     mangled (broardschools.com, browatdschools.com, browardschool.scom)
+//
+// A genuinely different domain is returned exactly as typed. A vendor address
+// or a personal one is a different person to make a decision about, not a typo
+// to repair, and the roster flow already handles a non-district submitter
+// deliberately: it can be emailed but never becomes an identity of record.
+// Both rules only ever move an address TOWARD the district domain, so the
+// failure direction is mail reaching BCPS rather than leaving it.
+export function normalizeDistrictEmail(email: string | null | undefined): string | null {
+  const raw = (email || '').trim()
+  if (!raw) return null
+
+  const at = raw.lastIndexOf('@')
+  if (at < 1 || at === raw.length - 1) return raw
+
+  const local = raw.slice(0, at)
+  const host = raw.slice(at + 1).toLowerCase()
+  if (host === DISTRICT_HOST) return `${local}@${DISTRICT_HOST}`
+
+  const mangledTail = host.startsWith('browardschools')
+  const mangledName = editDistance(host, DISTRICT_HOST) <= 2
+  return mangledTail || mangledName ? `${local}@${DISTRICT_HOST}` : raw
+}
+
 type AuthUser = { userId: string; email: string }
 export type AuthResult =
   | { ok: true; user: AuthUser }

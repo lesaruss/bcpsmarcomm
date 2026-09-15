@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { requireDistrictUser, isDistrictEmail, DISTRICT_DOMAIN } from '@/lib/bcps-auth'
+import { requireDistrictUser, isDistrictEmail, normalizeDistrictEmail, DISTRICT_DOMAIN } from '@/lib/bcps-auth'
 import { verifyDirector } from '@/lib/bcps-director-match'
 
 const supabase = createClient(
@@ -127,7 +127,11 @@ export async function POST(req: NextRequest) {
     // an identity on its own.
     const auth = await requireDistrictUser(req)
     const body = await req.json()
-    const declaredEmail = ((body as Record<string, unknown>).submitter_email as string | undefined)?.trim() || null
+    // Normalized before the district gate below, so a director who fat-fingers
+    // their own domain is let through and corrected rather than bounced back at
+    // the form. Only the SELF-DECLARED address is normalized. A session address
+    // is already proven and is never rewritten.
+    const declaredEmail = normalizeDistrictEmail((body as Record<string, unknown>).submitter_email as string | undefined)
 
     const sessionEmail = auth.ok ? auth.user.email : declaredEmail
     const emailVerified = auth.ok
@@ -215,7 +219,7 @@ export async function POST(req: NextRequest) {
         director_name: (director_name as string).trim(),
         wcm_name: submissionAction === 'na' ? 'N/A' : ((wcm_name as string)?.trim() || null),
         wcm_personnel_number: (wcm_personnel_number as string)?.trim() || null,
-        wcm_email: (wcm_email as string)?.trim() || null,
+        wcm_email: normalizeDistrictEmail(wcm_email as string | undefined),
         status: 'pending',
         action: submissionAction,
         target_member_id: submissionAction === 'remove' ? target_member_id : null,

@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "npm run emails:check && next build",
+    "build": "npm run emails:check && npm run normalizer:check && next build",
     "start": "next start",
     "lint": "next lint",
     "emails": "tsx scripts/render-emails.ts",
-    "emails:check": "tsx scripts/render-emails.ts --check"
+    "emails:check": "tsx scripts/render-emails.ts --check",
+    "normalizer:check": "tsx scripts/check-email-normalizer.ts"
   },
   "dependencies": {
     "@sparticuz/chromium": "^149.0.0",
