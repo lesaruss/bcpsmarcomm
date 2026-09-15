@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireBcpsSuperAdmin } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
   process.env.LESARUSS_SUPABASE_SERVICE_KEY!
 )
 
+// AUTH, added 2026-09-15 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED, third pass).
+// Both handlers were unauthenticated. Gated on requireBcpsSuperAdmin because
+// its only caller is AnalyticsPage and Sidebar.tsx lists 'analytics' in
+// SUPERADMIN_PAGES - the server matches the page's own gate.
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireBcpsSuperAdmin(req)
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
     const { searchParams } = new URL(req.url)
     const from = searchParams.get('from')
     const to = searchParams.get('to')

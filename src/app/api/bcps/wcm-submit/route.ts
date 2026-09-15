@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireDistrictUser, isBcpsAdmin } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -8,9 +9,22 @@ const supabase = createClient(
 
 // WCM submits their checklist after marking all findings fixed.
 // Updates audit_status to wcm_submitted, stamps the round, notifies admin.
+// AUTH, rewritten 2026-09-15 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED, third pass).
+// This route DID carry an ownership check, but it was bypassable in two ways:
+// the wcm_email it compared came from the request body rather than a session,
+// and the comparison was written `if (wcm_email && dept.wcm_email && ...)`, so
+// simply omitting wcm_email skipped the check entirely and let an
+// unauthenticated caller mark any department's audit as submitted.
+//
+// The caller identity now comes from the session (the WCM is already signed in
+// to reach /wcm-portal), and the check no longer has an opt-out path. A BCPS
+// admin may still submit on a department's behalf.
 export async function POST(req: NextRequest) {
   try {
-    const { department_id, wcm_email } = await req.json()
+    const auth = await requireDistrictUser(req)
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+    const { department_id } = await req.json()
     if (!department_id) return NextResponse.json({ error: 'department_id required' }, { status: 400 })
 
     // Verify all findings for this department+round are marked fixed
@@ -22,9 +36,17 @@ export async function POST(req: NextRequest) {
 
     if (!dept) return NextResponse.json({ error: 'Department not found' }, { status: 404 })
 
-    // Security: confirm caller email matches wcm_email on record (or service key call)
-    if (wcm_email && dept.wcm_email && wcm_email.toLowerCase() !== dept.wcm_email.toLowerCase()) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    // Ownership: the signed-in caller must be the WCM of record for this
+    // department, or a BCPS admin. No branch here can be skipped by omitting a
+    // field - a department with no wcm_email on file is admin-only, not open.
+    const callerEmail = auth.user.email
+    const onFileWcm = (dept.wcm_email || '').trim().toLowerCase()
+    const isOwner = !!onFileWcm && onFileWcm === callerEmail
+    if (!isOwner && !(await isBcpsAdmin(auth.user.userId))) {
+      return NextResponse.json(
+        { error: 'Only this department\'s Web Content Manager can submit its checklist.' },
+        { status: 403 }
+      )
     }
 
     const { data: openFindings } = await supabase
@@ -47,7 +69,9 @@ export async function POST(req: NextRequest) {
       .from('bcps_audit_rounds')
       .update({
         wcm_submitted_at:   now,
-        wcm_submitted_by:   wcm_email ?? dept.wcm_email,
+        // Recorded from the verified session, so the audit trail names who
+        // actually submitted rather than whoever the request body claimed.
+        wcm_submitted_by:   callerEmail || dept.wcm_email,
         findings_fixed:     await getFixedCount(department_id, dept.current_round),
       })
       .eq('department_id', department_id)

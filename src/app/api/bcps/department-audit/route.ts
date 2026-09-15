@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireDistrictUser } from '@/lib/bcps-auth'
 
 export const dynamic = 'force-dynamic'
+
+// AUTH, added 2026-09-15 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED, third pass).
+// Read-only, but it was returning the District's full department and WCM
+// roster matching to anonymous callers. Its page (Department Name Audit) sits
+// in the sidebar's District Web Team section and is not in SUPERADMIN_PAGES,
+// so every signed-in BCPS member can already open it - requireDistrictUser is
+// that same check, per canon-gate-new-surfaces-on-the-same-check.
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -51,7 +60,10 @@ interface RosterRow {
 // Surfaces matched pairs, both sides' unmatched rows, and best-guess
 // consolidation candidates for anything unmatched - Sean decides which
 // candidates are real duplicates, this only suggests.
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireDistrictUser(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
   const { data: depts, error: dErr } = await svc
     .from('bcps_departments')
     .select('id, name, division, director_name, wcm_name')

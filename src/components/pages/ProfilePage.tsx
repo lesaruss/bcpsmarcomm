@@ -2,6 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
+
+// Session token for the API calls below. These routes verify the caller
+// server-side as of 2026-09-15 (they previously had no auth at all).
+const supabaseClient = createClient()
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabaseClient.auth.getSession()
+  const token = data.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 import type { PageId } from '@/lib/types'
 
 interface ProfilePageProps {
@@ -59,7 +69,7 @@ function MissionControlTab({ profile, onProfileUpdate }: { profile: UserProfile 
     setSaved(false)
     const res = await fetch('/api/cert/profile', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: JSON.stringify({ user_id: profile.userId, full_name: displayName.trim() || null, department: department.trim() || null }),
     })
     setSaving(false)
@@ -249,7 +259,7 @@ export default function ProfilePage({ subPage }: ProfilePageProps) {
       // Ensure a row exists for this user
       await fetch('/api/cert/profile/ensure', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({ user_id: user.id, email: user.email }),
       }).catch(() => {})
       const { data } = await supabase

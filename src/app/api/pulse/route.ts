@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireDistrictUser } from '@/lib/bcps-auth'
 
-export async function GET() {
+// AUTH, added 2026-09-15 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED, third pass).
+// Aggregate counts only, no PII, but it was still handing out the District's
+// department-health picture to anonymous callers. Its only caller is
+// PulseWidget, which renders inside BCPSShell - i.e. only ever for a signed-in
+// user - so requireDistrictUser matches where it is actually used.
+export async function GET(req: NextRequest) {
   try {
+    const auth = await requireDistrictUser(req)
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
     // bcps_departments and studio_projects live in the main LESARUSS Supabase project
     const supabase = createClient(
       process.env.LESARUSS_SUPABASE_URL!,

@@ -1,6 +1,8 @@
 'use server'
 
+import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireBcpsSuperAdmin } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,8 +10,16 @@ const supabase = createClient(
   { auth: { persistSession: false } }
 )
 
+// AUTH, added 2026-09-15 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED, third pass).
+// Both handlers were unauthenticated: GET returned every row of bcps_reports
+// to any caller. Gated on requireBcpsSuperAdmin because its only caller is
+// ReportsPage, and Sidebar.tsx lists 'reports' in SUPERADMIN_PAGES - the
+// server now matches the page's own gate rather than a looser one.
 export async function GET(request: Request) {
   try {
+    const auth = await requireBcpsSuperAdmin(request as NextRequest)
+    if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
     const { data: reports, error } = await supabase
       .from('bcps_reports')
       .select('*')
@@ -39,6 +49,9 @@ const FINALSITE_FIXABLE = new Set([
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireBcpsSuperAdmin(request as NextRequest)
+    if (!auth.ok) return Response.json({ error: auth.error }, { status: auth.status })
+
     const body = await request.json()
 
     // Query latest audit results per department

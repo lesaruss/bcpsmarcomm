@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
+import { requireDistrictUser, isBcpsAdmin } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,10 +12,32 @@ const supabase = createClient(
 // heads-up without needing to check the admin dashboard (Sean, 2026-08-20).
 const CERT_NOTIFY_CC = 'contact@lesaruss.com'
 
+// AUTH, added 2026-09-15 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED, third pass -
+// the no-auth-at-all sweep that followed the shared-key work).
+// This route had NO caller check of any kind: an unauthenticated POST of
+// {user_id, course_id} issued a real BCPS certification and fired the
+// certificate email. Anyone could mark anyone certified, which is an integrity
+// problem for a District-branded program (69 certified users at time of fix).
+//
+// Gated as SELF-SERVICE rather than admin-only, because the legitimate caller
+// is the learner finishing their own course (the certification course page).
+// A signed-in user may only certify THEMSELVES; a BCPS admin may still act on
+// someone else's behalf, which is what support needs. The learner's identity
+// comes from the session, never from the request body.
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireDistrictUser(req)
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
     const { user_id, course_id } = await req.json()
     if (!user_id || !course_id) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+
+    if (user_id !== auth.user.userId && !(await isBcpsAdmin(auth.user.userId))) {
+      return NextResponse.json(
+        { error: 'You can only complete your own certification.' },
+        { status: 403 }
+      )
+    }
 
     // Check first so the completion email only ever fires once per learner,
     // even though this endpoint can be called more than once for the same

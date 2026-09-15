@@ -1,4 +1,14 @@
 'use client'
+import { createClient } from '@/lib/supabase'
+
+// Session token for the API calls below. These routes verify the caller
+// server-side as of 2026-09-15 (they previously had no auth at all).
+const supabaseClient = createClient()
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabaseClient.auth.getSession()
+  const token = data.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 import { useState, useEffect } from 'react'
 import type { UserRole } from '@/components/Sidebar'
@@ -58,7 +68,8 @@ export default function PulseWidget({ role }: PulseWidgetProps) {
   useEffect(() => {
     if (role !== 'superadmin') return
     setLoading(true)
-    fetch('/api/pulse')
+    authHeaders()
+      .then(headers => fetch('/api/pulse', { headers }))
       .then(r => r.json())
       .then((data: PulseStats) => setStats(data))
       .catch(console.error)

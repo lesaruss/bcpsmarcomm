@@ -342,7 +342,7 @@ export default function CoursePlayerPage({ params }: Props) {
       if (allKeys.every((k: string) => newCompleted.has(k))) {
         await fetch('/api/cert/complete', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: await getAuthHeaders(),
           body: JSON.stringify({ user_id: userId, course_id: COURSE_ID }),
         }).catch(console.error)
         router.push('/certification/departments/complete')
@@ -386,7 +386,7 @@ export default function CoursePlayerPage({ params }: Props) {
     if (allKeys.every((k: string) => newCompleted.has(k))) {
       await fetch('/api/cert/complete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({ user_id: userId, course_id: COURSE_ID }),
       }).catch(console.error)
       router.push('/certification/departments/complete')
@@ -445,7 +445,7 @@ export default function CoursePlayerPage({ params }: Props) {
         if (allKeys.every((k: string) => newCompleted.has(k))) {
           await fetch('/api/cert/complete', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: await getAuthHeaders(),
             body: JSON.stringify({ user_id: userId, course_id: COURSE_ID }),
           }).catch(console.error)
           router.push('/certification/departments/complete')
