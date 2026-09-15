@@ -25,6 +25,12 @@ interface RosterMember {
   // When the director submission designating this WCM was approved. Null for
   // rows an admin added by hand, which have no submission behind them.
   approved_at: string | null
+  // Whether the approval emails for this WCM actually went out.
+  delivery?: {
+    state: 'confirmed' | 'failed' | 'pending' | 'not_sent'
+    at: string | null
+    detail: { to: string; subject: string; status: string; error: string | null; at: string | null }[]
+  } | null
 }
 
 interface RosterRow {
@@ -72,6 +78,8 @@ function DepartmentRosterSection() {
   // Outcome of the most recent approval, shown inline. Deliberately not an
   // alert: an alert per approval is unusable across a long queue.
   const [lastResult, setLastResult] = useState<string | null>(null)
+  // The WCM whose failed-delivery detail is open in the lightbox.
+  const [failureDetail, setFailureDetail] = useState<RosterMember | null>(null)
 
   async function load() {
     setLoading(true)
@@ -180,6 +188,28 @@ function DepartmentRosterSection() {
         .roster-loc { font-size: 11px; color: rgba(26,26,26,0.4); }
         .roster-empty-val { color: rgba(26,26,26,0.35); font-style: italic; }
         .roster-wcm-row { font-size: 12.5px; }
+        .pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 6px;
+                font-size: 11px; font-weight: 800; letter-spacing: .2px; white-space: nowrap; border: 1px solid transparent; }
+        .pill-confirmed { background: #ECFDF5; color: #065F46; border-color: #A7F3D0; }
+        .pill-failed { background: #FDF2F8; color: #9D174D; border-color: #FBCFE8; cursor: pointer; }
+        .pill-failed:hover { background: #FCE7F3; }
+        .pill-pending { background: #FFFBEB; color: #92400E; border-color: #FDE68A; }
+        .pill-none { background: #F3F4F6; color: #6B7280; border-color: #E5E7EB; }
+        .pill-date { display: block; font-size: 10.5px; color: rgba(26,26,26,0.45); margin-top: 3px; font-weight: 600; }
+        .lightbox-back { position: fixed; inset: 0; background: rgba(15,23,42,0.55); display: flex;
+                         align-items: center; justify-content: center; padding: 20px; z-index: 200; }
+        .lightbox { background: #fff; border-radius: 12px; max-width: 560px; width: 100%; max-height: 80vh;
+                    overflow: auto; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,0.3); }
+        .lightbox h4 { margin: 0 0 4px; font-size: 16px; font-weight: 900; color: #9D174D; }
+        .lb-sub { font-size: 12.5px; color: #6B7280; margin: 0 0 16px; }
+        .lb-item { border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+        .lb-item.bad { border-color: #FBCFE8; background: #FDF2F8; }
+        .lb-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: #6B7280; }
+        .lb-val { font-size: 12.5px; color: #1a1a1a; margin-bottom: 8px; word-break: break-word; }
+        .lb-err { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: #9D174D;
+                  background: #fff; border: 1px solid #FBCFE8; border-radius: 6px; padding: 8px; white-space: pre-wrap; }
+        .lb-close { margin-top: 6px; padding: 9px 16px; border-radius: 8px; border: none; background: #003087;
+                    color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; font-family: inherit; }
         .roster-wcm-email { color: rgba(26,26,26,0.45); font-size: 11px; }
         .roster-link-box {
           display: flex; align-items: center; justify-content: space-between; gap: 16px;
@@ -274,6 +304,42 @@ function DepartmentRosterSection() {
         <span className="roster-count">{loading ? 'Loading...' : `${filteredRoster.length} of ${roster.length} departments`}</span>
       </div>
 
+      {failureDetail && (
+        <div className="lightbox-back" onClick={() => setFailureDetail(null)}>
+          <div className="lightbox" onClick={e => e.stopPropagation()}>
+            <h4>Delivery failed</h4>
+            <p className="lb-sub">
+              {failureDetail.wcm_name} - the approval itself went through and the roster is updated.
+              These are the notification emails that did not go out.
+            </p>
+            {(failureDetail.delivery?.detail ?? []).map((d, i) => (
+              <div key={i} className={`lb-item${d.status === 'failed' ? ' bad' : ''}`}>
+                <div className="lb-label">To</div>
+                <div className="lb-val">{d.to}</div>
+                <div className="lb-label">Subject</div>
+                <div className="lb-val">{d.subject}</div>
+                <div className="lb-label">Result</div>
+                <div className="lb-val">
+                  {d.status === 'sent' ? 'Accepted by the mail provider' : d.status}
+                  {d.at ? ` - ${formatDate(d.at)}` : ''}
+                </div>
+                {d.error && (
+                  <>
+                    <div className="lb-label">Why it failed</div>
+                    <div className="lb-err">{d.error}</div>
+                  </>
+                )}
+              </div>
+            ))}
+            <p className="lb-sub" style={{ marginTop: 14, marginBottom: 10 }}>
+              Nothing is lost. Every message is stored in full before sending, so these can be
+              re-sent once the mail provider is working again.
+            </p>
+            <button className="lb-close" onClick={() => setFailureDetail(null)}>Close</button>
+          </div>
+        </div>
+      )}
+
       <div className="roster-table-wrap">
         <table className="roster-table">
           <thead>
@@ -281,7 +347,7 @@ function DepartmentRosterSection() {
               <th>Department</th>
               <th>Director</th>
               <th>Web Content Manager(s)</th>
-              <th>Approved</th>
+              <th>Emails</th>
               <th>Updated</th>
             </tr>
           </thead>
@@ -307,16 +373,51 @@ function DepartmentRosterSection() {
                     </div>
                   ))}
                 </td>
-                <td className="roster-loc">
+                <td>
                   {r.wcms.length === 0 ? (
                     <span className="roster-empty-val">—</span>
-                  ) : r.wcms.map(w => (
-                    <div key={w.id} className="roster-wcm-row">
-                      {w.approved_at
-                        ? <>Approved {formatDate(w.approved_at)}</>
-                        : <span className="roster-empty-val">Added manually</span>}
-                    </div>
-                  ))}
+                  ) : r.wcms.map(w => {
+                    const state = w.delivery?.state ?? 'not_sent'
+                    const when = w.delivery?.at ?? w.approved_at
+                    if (state === 'failed') {
+                      return (
+                        <div key={w.id} className="roster-wcm-row" style={{ marginBottom: 6 }}>
+                          <button
+                            className="pill pill-failed"
+                            onClick={() => setFailureDetail(w)}
+                            title="See why this failed"
+                          >
+                            ● Failed
+                          </button>
+                          {when && <span className="pill-date">{formatDate(when)}</span>}
+                        </div>
+                      )
+                    }
+                    if (state === 'confirmed') {
+                      return (
+                        <div key={w.id} className="roster-wcm-row" style={{ marginBottom: 6 }}>
+                          <span className="pill pill-confirmed">● Confirmed</span>
+                          {when && <span className="pill-date">{formatDate(when)}</span>}
+                        </div>
+                      )
+                    }
+                    if (state === 'pending') {
+                      return (
+                        <div key={w.id} className="roster-wcm-row" style={{ marginBottom: 6 }}>
+                          <span className="pill pill-pending">● Sending</span>
+                          {when && <span className="pill-date">{formatDate(when)}</span>}
+                        </div>
+                      )
+                    }
+                    return (
+                      <div key={w.id} className="roster-wcm-row" style={{ marginBottom: 6 }}>
+                        <span className="pill pill-none">No email sent</span>
+                        <span className="pill-date">
+                          {w.approved_at ? `Approved ${formatDate(w.approved_at)}` : 'Added manually'}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </td>
                 <td className="roster-loc">{r.updated_at ? formatDate(r.updated_at) : '—'}</td>
               </tr>

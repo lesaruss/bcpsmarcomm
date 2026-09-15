@@ -30,6 +30,8 @@ async function notifyDirector(opts: {
   departmentSlug: string | null
   wcmName: string | null
   wcmNotified: boolean
+  rosterMemberId?: string | null
+  submissionId?: string | null
 }): Promise<{ account_ok: boolean; email_sent: boolean; error?: string }> {
   try {
     const html = directorConfirmationEmail({
@@ -45,7 +47,12 @@ async function notifyDirector(opts: {
       replyTo: 'sean.russell@browardschools.com',
       html,
       kind: 'wcm-roster-approval-director',
-      context: { department: opts.departmentName, wcm_name: opts.wcmName },
+      context: {
+        department: opts.departmentName,
+        wcm_name: opts.wcmName,
+        roster_member_id: opts.rosterMemberId ?? null,
+        submission_id: opts.submissionId ?? null,
+      },
     })
     // account_ok is reported true because no account is attempted: director
     // portal accounts are ON HOLD (Sean, 2026-09-15 - "I'm not ready to give
@@ -69,6 +76,8 @@ async function notifyWcm(opts: {
   wcmName: string
   departmentName: string
   departmentSlug: string | null
+  rosterMemberId?: string | null
+  submissionId?: string | null
 }): Promise<{ account_ok: boolean; email_sent: boolean; error?: string }> {
   try {
     const resolved = await resolveOrInviteAccount(opts.wcmEmail, opts.wcmName)
@@ -100,7 +109,12 @@ async function notifyWcm(opts: {
       replyTo: 'sean.russell@browardschools.com',
       html,
       kind: 'wcm-roster-approval-wcm',
-      context: { department: opts.departmentName, is_new_account: isNewAccount },
+      context: {
+        department: opts.departmentName,
+        is_new_account: isNewAccount,
+        roster_member_id: opts.rosterMemberId ?? null,
+        submission_id: opts.submissionId ?? null,
+      },
     })
     return { account_ok: true, email_sent: emailResult.ok, error: emailResult.ok ? undefined : emailResult.error ?? undefined }
   } catch (e: unknown) {
@@ -121,6 +135,51 @@ async function notifyWcm(opts: {
 // already guards admin-set-department, admin-reset-password, admin-decision
 // and run-audit, per canon-gate-new-surfaces-on-the-same-check. The only UI
 // caller (WCMPage's roster queue) is behind the admin console already.
+
+// Delivery status per WCM, read from the outbound email log
+// (bcps_outbound_emails, written before every send attempt). Each approval
+// sends up to two emails - the director's and the WCM's - and a member is
+// only "confirmed" when every email it should have sent was accepted.
+//
+// Deliberately more than two states. "Confirmed or failed" cannot express a
+// row where NO email was ever attempted (a submission with no address, or a
+// member an admin added by hand), and showing those as either one would be
+// a lie in a column meant to be trusted at a glance.
+type DeliveryStatus = {
+  state: 'confirmed' | 'failed' | 'pending' | 'not_sent'
+  at: string | null
+  detail: { to: string; subject: string; status: string; error: string | null; at: string | null }[]
+}
+
+async function deliveryByMember(memberIds: string[]): Promise<Map<string, DeliveryStatus>> {
+  const out = new Map<string, DeliveryStatus>()
+  if (memberIds.length === 0) return out
+
+  const { data: rows } = await supabase.from('bcps_outbound_emails')
+    .select('to_addresses, subject, status, last_error, sent_at, last_attempt_at, created_at, context')
+    .in('context->>roster_member_id', memberIds)
+    .order('created_at', { ascending: true })
+
+  for (const r of rows ?? []) {
+    const memberId = (r.context as Record<string, unknown> | null)?.roster_member_id as string | undefined
+    if (!memberId) continue
+    const entry = out.get(memberId) ?? { state: 'confirmed' as DeliveryStatus['state'], at: null, detail: [] }
+    entry.detail.push({
+      to: (r.to_addresses ?? []).join(', '),
+      subject: r.subject,
+      status: r.status,
+      error: r.last_error ?? null,
+      at: r.sent_at ?? r.last_attempt_at ?? r.created_at ?? null,
+    })
+    // Worst state wins: one failure makes the whole approval failed.
+    if (r.status === 'failed') entry.state = 'failed'
+    else if (r.status !== 'sent' && entry.state !== 'failed') entry.state = 'pending'
+    if (r.status === 'sent' && r.sent_at && (!entry.at || r.sent_at > entry.at)) entry.at = r.sent_at
+    if (r.status === 'failed') entry.at = r.last_attempt_at ?? entry.at
+    out.set(memberId, entry)
+  }
+  return out
+}
 
 // GET: full roster (departments, alphabetical) with each department's
 // current director + assigned WCM(s), plus any submissions still awaiting
@@ -179,10 +238,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: (rosterErr || memberErr || subErr)?.message }, { status: 500 })
   }
 
-  const membersByRoster = new Map<string, typeof members>()
+  const delivery = await deliveryByMember((members ?? []).map(m => m.id))
+
+  const membersByRoster = new Map<string, unknown[]>()
   for (const m of members ?? []) {
     const list = membersByRoster.get(m.roster_id) ?? []
-    list.push(m)
+    // A member with no approval date was added by hand, so no email was ever
+    // owed for it - that is 'not_sent', not a failure.
+    const d = delivery.get(m.id) ?? {
+      state: m.approved_at ? 'not_sent' : 'not_sent', at: null, detail: [],
+    }
+    list.push({ ...m, delivery: d })
     membersByRoster.set(m.roster_id, list)
   }
 
@@ -269,6 +335,10 @@ export async function PATCH(req: NextRequest) {
       }).eq('id', rosterRow.id)
     }
 
+    // Carried into each notification's context so the roster can show, per
+    // WCM, whether their approval emails actually went out.
+    let memberId: string | null = null
+
     if (submissionAction === 'remove' && submission.target_member_id) {
       await supabase.from('bcps_wcm_roster_members').delete().eq('id', submission.target_member_id)
     } else if (submissionAction === 'add') {
@@ -276,14 +346,15 @@ export async function PATCH(req: NextRequest) {
       // beside the WCM on the roster (Sean, 2026-09-15). A row added by hand
       // by an admin has no submission behind it and stays null - the UI
       // labels those "Added manually" rather than showing a blank date.
-      await supabase.from('bcps_wcm_roster_members').insert({
+      const { data: insertedMember } = await supabase.from('bcps_wcm_roster_members').insert({
         roster_id: rosterRow.id,
         wcm_name: submission.wcm_name,
         wcm_personnel_number: submission.wcm_personnel_number,
         wcm_email: submission.wcm_email,
         approved_at: now,
         approved_from_submission_id: submission.id,
-      })
+      }).select('id').single()
+      memberId = insertedMember?.id ?? null
     }
     // action === 'na': roster director already updated above, no member row change.
 
@@ -363,6 +434,8 @@ export async function PATCH(req: NextRequest) {
         wcmName: submission.wcm_name || 'there',
         departmentName: departmentDisplayName,
         departmentSlug,
+        rosterMemberId: memberId,
+        submissionId: submission.id,
       })
     }
 
@@ -375,6 +448,8 @@ export async function PATCH(req: NextRequest) {
         departmentSlug,
         wcmName: submissionAction === 'add' ? (submission.wcm_name || null) : null,
         wcmNotified: !!wcmNotice?.email_sent,
+        rosterMemberId: memberId,
+        submissionId: submission.id,
       })
     }
 
