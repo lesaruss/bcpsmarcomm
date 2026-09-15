@@ -83,11 +83,12 @@ export default function WCMRosterSignupPage() {
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return
       const email = data.session?.user?.email || ''
+      // Public again as of 2026-09-15 (Sean): a director can respond without
+      // an account, since directors are not being given portal accounts yet.
+      // Signed in, the address is taken from the session and locked; signed
+      // out, the director types their district address and the server marks
+      // the submission as self-declared rather than proven.
       if (!email) {
-        // Bounce to the same login the rest of the site uses, and come back
-        // here afterwards (the login page already honors ?next=).
-        const next = encodeURIComponent('/wcm-roster-signup')
-        window.location.href = `/login?next=${next}`
         setAuthState('out')
         return
       }
@@ -104,7 +105,7 @@ export default function WCMRosterSignupPage() {
   }
 
   useEffect(() => {
-    if (authState !== 'in') return
+    if (authState === 'checking') return
     fetch('/api/bcps/wcm-roster-departments')
       .then(r => r.json())
       .then(j => setDepartments(j.departments || []))
@@ -214,6 +215,10 @@ export default function WCMRosterSignupPage() {
       })
       return
     }
+    if (!signedIn && !/@browardschools\.com$/i.test(submitterEmail.trim())) {
+      setResult({ type: 'error', text: 'Enter your @browardschools.com email address so we know who this response is from.' })
+      return
+    }
     if (!directorName.trim()) {
       setResult({ type: 'error', text: 'Director name is required.' })
       return
@@ -242,6 +247,7 @@ export default function WCMRosterSignupPage() {
         department_name: departmentName,
         director_name: directorName.trim(),
         roster_id: selectedDept?.id,
+        submitter_email: submitterEmail.trim() || undefined,
         submitter_name: submitterName.trim() || undefined,
         submitter_role: submitterRole.trim() || undefined,
       }
@@ -280,17 +286,18 @@ export default function WCMRosterSignupPage() {
 
   // Hold the page until the session is known. Without this the form (and its
   // prefill call) would flash for an anonymous visitor before the redirect.
-  if (authState !== 'in') {
+  if (authState === 'checking') {
     return (
       <div style={{
         minHeight: '100vh', background: '#fff', display: 'flex',
         alignItems: 'center', justifyContent: 'center',
         fontSize: 14, color: 'var(--text-muted, #6B7280)',
       }}>
-        {authState === 'checking' ? 'Checking your BCPS sign-in...' : 'Redirecting you to sign in...'}
+        Loading the roster form...
       </div>
     )
   }
+  const signedIn = authState === 'in'
 
   return (
     <div style={{ minHeight: '100vh', background: '#fff' }}>
@@ -465,21 +472,44 @@ export default function WCMRosterSignupPage() {
 
             <div style={{ marginBottom: 14 }}>
               <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
-                Submitting As
+                Submitting As {!signedIn && <span style={{ color: '#DC2626' }}>*</span>}
               </label>
-              <div
-                style={{
-                  width: '100%', boxSizing: 'border-box', padding: '10px 12px',
-                  background: 'var(--surface-2, #F3F4F6)', border: '1px solid var(--border, #E5E7EB)',
-                  borderRadius: 6, fontSize: 14, color: 'var(--text, #111827)',
-                }}
-              >
-                {submitterEmail}
-              </div>
-              <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: '6px 0 0' }}>
-                Taken from your signed-in BCPS account. This is the address the District Web Team
-                will use to reach you about this submission.
-              </p>
+              {signedIn ? (
+                <>
+                  <div
+                    style={{
+                      width: '100%', boxSizing: 'border-box', padding: '10px 12px',
+                      background: 'var(--surface-2, #F3F4F6)', border: '1px solid var(--border, #E5E7EB)',
+                      borderRadius: 6, fontSize: 14, color: 'var(--text, #111827)',
+                    }}
+                  >
+                    {submitterEmail}
+                  </div>
+                  <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: '6px 0 0' }}>
+                    Taken from your signed-in BCPS account. This is the address the District Web Team
+                    will use to reach you about this submission.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <input
+                    className="form-input"
+                    type="email"
+                    value={submitterEmail}
+                    onChange={e => setSubmitterEmail(e.target.value)}
+                    placeholder="firstname.lastname@browardschools.com"
+                    style={{
+                      width: '100%', boxSizing: 'border-box', padding: '10px 12px',
+                      border: '1px solid var(--border, #E5E7EB)', borderRadius: 6,
+                      fontSize: 14, fontFamily: 'inherit',
+                    }}
+                  />
+                  <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: '6px 0 0' }}>
+                    Your BCPS email address, so the District Web Team can confirm this submission with you.
+                    Must be a @browardschools.com address.
+                  </p>
+                </>
+              )}
             </div>
 
             {selectedDept && (

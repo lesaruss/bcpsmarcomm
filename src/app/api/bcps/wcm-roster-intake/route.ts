@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { requireDistrictUser } from '@/lib/bcps-auth'
+import { requireDistrictUser, isDistrictEmail, DISTRICT_DOMAIN } from '@/lib/bcps-auth'
 import { verifyDirector } from '@/lib/bcps-director-match'
 
 const supabase = createClient(
@@ -119,11 +119,25 @@ async function notifyIdentityMismatch(opts: {
 //      own flag.
 export async function POST(req: NextRequest) {
   try {
+    // The form is public again (Sean, 2026-09-15) so a director can respond
+    // without an account. A session is used when there is one - that address
+    // is proven, and only a proven address may later become director_email of
+    // record. Signed out, the submitter declares a district address in the
+    // form: enough to route and flag the request, never enough to establish
+    // an identity on its own.
     const auth = await requireDistrictUser(req)
-    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-    const sessionEmail = auth.user.email
-
     const body = await req.json()
+    const declaredEmail = ((body as Record<string, unknown>).submitter_email as string | undefined)?.trim() || null
+
+    const sessionEmail = auth.ok ? auth.user.email : declaredEmail
+    const emailVerified = auth.ok
+    if (!sessionEmail || !isDistrictEmail(sessionEmail)) {
+      return NextResponse.json(
+        { error: `Enter your ${DISTRICT_DOMAIN} email address so we know who this response is from.` },
+        { status: 400 }
+      )
+    }
+
     const {
       department_name,
       director_name,
@@ -183,12 +197,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Server-side identity verification (replaces the self-declared checkbox).
-    const verdict = verifyDirector({
+    const verdict = emailVerified
+      ? verifyDirector({
       sessionEmail,
       onFileDirector: onFileDirectorName,
       claimedDirector: (director_name as string).trim(),
       onFileDirectorEmail,
     })
+      : { verified: false, reason: 'Submitted through the public form without signing in - address is self-declared.' }
     const isFlagged = !verdict.verified
 
     const { data: inserted, error } = await supabase
@@ -212,6 +228,10 @@ export async function POST(req: NextRequest) {
           // Recorded so a later audit can tell what the server decided and why,
           // rather than having to re-derive it. The client cannot set these.
           verified_submitter_email: sessionEmail,
+          // false = self-declared through the public form, not proven by a
+          // session. Approval refuses to write a self-declared address into
+          // bcps_departments.director_email.
+          submitter_email_session_verified: emailVerified,
           identity_verified: verdict.verified,
           identity_reason: verdict.reason,
         },

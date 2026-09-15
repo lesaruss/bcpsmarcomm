@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
-import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, wcmConfirmationEmail, SITE } from '@/lib/bcps-portal-account'
-import { requireBcpsAdmin, isDistrictEmail } from '@/lib/bcps-auth'
+import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, wcmConfirmationEmail, SITE, WCM_PLAYBOOK_URL, DIRECTOR_PLAYBOOK_URL } from '@/lib/bcps-portal-account'
+import { requireBcpsAdmin, requireDistrictUser, isDistrictEmail } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -28,48 +28,51 @@ async function notifyDirector(opts: {
   directorName: string
   departmentName: string
   departmentSlug: string | null
+  wcmName: string | null
   wcmNotified: boolean
 }): Promise<{ account_ok: boolean; email_sent: boolean; error?: string }> {
   try {
-    const resolved = await resolveOrInviteAccount(opts.directorEmail, opts.directorName)
-    if (!resolved.ok) return { account_ok: false, email_sent: false, error: resolved.error }
-    const { userId } = resolved.account
-
-    const enrolled = await enrollBcpsMember({
-      userId,
-      email: opts.directorEmail,
-      fullName: opts.directorName,
-      departmentName: opts.departmentName,
-      departmentSlug: opts.departmentSlug,
-      addToWcmGroup: false,
-    })
-    if (!enrolled.ok) return { account_ok: false, email_sent: false, error: enrolled.error }
-
     const html = brandedEmail({
-      heading: `You're confirmed for 2026-27`,
+      heading: `Confirmed: your Web Content Manager for 2026-27`,
       body: `
         <p>Hi ${esc(opts.directorName)},</p>
         <p>Your Web Content Manager Roster submission for <strong>${esc(opts.departmentName)}</strong>
-        has been reviewed and approved. You're all set for the 2026-27 school year.</p>
-        ${opts.wcmNotified ? `
-        <p>Your Web Content Manager has already received their own email with everything they need to get
-        started, so there's nothing you need to pass along.</p>` : ''}
-        <p>Watch for the next <strong>Communique</strong>: that's when we'll walk you through your own
-        BCPS Web Team Portal access, including a tour of what's available for your department.</p>
-        <p>Need to add or remove a Web Content Manager before then, or something else changed? Use the same
-        <a href="${SITE}/wcm-roster-signup">roster form</a> any time, no need to start over.</p>
+        has been reviewed and <strong>approved</strong>. ${opts.wcmName
+          ? `<strong>${esc(opts.wcmName)}</strong> is now the Web Content Manager of record for your department.`
+          : `Your department is on record as having no dedicated Web Content Manager this year.`}</p>
+        <p><strong>What happens next</strong></p>
+        <ul style="margin:0 0 16px;padding-left:20px;font-size:14px;line-height:1.7;">
+          <li>Nothing further is needed from you to complete this year's roster.</li>
+          ${opts.wcmNotified
+            ? `<li>Your Web Content Manager has been emailed directly with their own access and next steps, so there is nothing to pass along.</li>`
+            : ''}
+          <li>Your department's site work runs through your Web Content Manager and the District Web Team from here.</li>
+          <li>Need to add or remove a Web Content Manager later? Use the same
+              <a href="${SITE}/wcm-roster-signup">roster form</a> any time - no need to start over.</li>
+        </ul>
+        <p>The director playbook below covers the rest: what the program expects of your department,
+        what your Web Content Manager is responsible for, and how to support them.</p>
       `,
+      ctaLabel: 'Open the Director Playbook',
+      ctaHref: DIRECTOR_PLAYBOOK_URL,
+      footNote: `Watch for the next Communique - that's when we'll walk you through your own BCPS Web Team Portal access.`,
     })
 
     const emailResult = await sendEmail({
       to: opts.directorEmail,
-      subject: `You're confirmed: BCPS Web Content Manager Roster for ${opts.departmentName}`,
+      subject: `Confirmed: BCPS Web Content Manager Roster for ${opts.departmentName}`,
       replyTo: 'sean.russell@browardschools.com',
       html,
     })
+    // account_ok is reported true because no account is attempted: director
+    // portal accounts are ON HOLD (Sean, 2026-09-15 - "I'm not ready to give
+    // directors accounts yet, we've got to do some cleaning up first"). This
+    // replaces the 2026-09-12 behaviour of silently provisioning the account
+    // now and withholding only the invite link. The confirmation email and
+    // the playbook link need no account, so approval is unaffected.
     return { account_ok: true, email_sent: emailResult.ok, error: emailResult.ok ? undefined : emailResult.error ?? undefined }
   } catch (e: unknown) {
-    return { account_ok: false, email_sent: false, error: e instanceof Error ? e.message : 'Unknown error' }
+    return { account_ok: true, email_sent: false, error: e instanceof Error ? e.message : 'Unknown error' }
   }
 }
 
@@ -138,8 +141,41 @@ async function notifyWcm(opts: {
 // current director + assigned WCM(s), plus any submissions still awaiting
 // review. Backs the "WCM Roster" tab in the Department WCMS Portal.
 export async function GET(req: NextRequest) {
-  const auth = await requireBcpsAdmin(req)
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  // Web Content Managers get a READ-ONLY view of the roster and its outcomes
+  // (Sean, 2026-09-15: "they should only be able to see the roster and the
+  // results of that"). Approving stays admin-only - the PATCH below is
+  // unchanged. A non-admin district user gets the roster with the approval
+  // dates and no pending-submission queue; personnel numbers and WCM email
+  // addresses are withheld, since the read-only view is a directory, not the
+  // staff record the admin queue is.
+  const admin = await requireBcpsAdmin(req)
+  if (!admin.ok) {
+    const viewer = await requireDistrictUser(req)
+    if (!viewer.ok) return NextResponse.json({ error: viewer.error }, { status: viewer.status })
+
+    const [{ data: roster }, { data: members }] = await Promise.all([
+      supabase.from('bcps_wcm_roster')
+        .select('id, department_name, location_number, director_name, updated_at')
+        .order('department_name', { ascending: true }),
+      supabase.from('bcps_wcm_roster_members')
+        .select('id, roster_id, wcm_name, approved_at, added_at')
+        .order('added_at', { ascending: true }),
+    ])
+    const byRoster = new Map<string, unknown[]>()
+    for (const m of members ?? []) {
+      const list = byRoster.get(m.roster_id) ?? []
+      list.push({ id: m.id, wcm_name: m.wcm_name, approved_at: m.approved_at, wcm_email: null, wcm_personnel_number: null })
+      byRoster.set(m.roster_id, list)
+    }
+    const res = NextResponse.json({
+      read_only: true,
+      roster: (roster ?? []).map(r => ({ ...r, wcms: byRoster.get(r.id) ?? [] })),
+      submissions: [],
+    })
+    res.headers.set('Cache-Control', 'no-store')
+    return res
+  }
+  const auth = admin
 
   const [{ data: roster, error: rosterErr }, { data: members, error: memberErr }, { data: submissions, error: subErr }] =
     await Promise.all([
@@ -147,7 +183,7 @@ export async function GET(req: NextRequest) {
         .select('id, department_name, location_number, matched_department_id, director_name, updated_at')
         .order('department_name', { ascending: true }),
       supabase.from('bcps_wcm_roster_members')
-        .select('id, roster_id, wcm_name, wcm_personnel_number, wcm_email, added_at')
+        .select('id, roster_id, wcm_name, wcm_personnel_number, wcm_email, added_at, approved_at')
         .order('added_at', { ascending: true }),
       supabase.from('bcps_wcm_roster_submissions')
         .select('*')
@@ -251,11 +287,17 @@ export async function PATCH(req: NextRequest) {
     if (submissionAction === 'remove' && submission.target_member_id) {
       await supabase.from('bcps_wcm_roster_members').delete().eq('id', submission.target_member_id)
     } else if (submissionAction === 'add') {
+      // approved_at is the date this director submission was approved, shown
+      // beside the WCM on the roster (Sean, 2026-09-15). A row added by hand
+      // by an admin has no submission behind it and stays null - the UI
+      // labels those "Added manually" rather than showing a blank date.
       await supabase.from('bcps_wcm_roster_members').insert({
         roster_id: rosterRow.id,
         wcm_name: submission.wcm_name,
         wcm_personnel_number: submission.wcm_personnel_number,
         wcm_email: submission.wcm_email,
+        approved_at: now,
+        approved_from_submission_id: submission.id,
       })
     }
     // action === 'na': roster director already updated above, no member row change.
@@ -280,6 +322,13 @@ export async function PATCH(req: NextRequest) {
     const submitterEmail: string | null = submission.submitter_email ?? null
     const submitterUsable = !!submitterEmail && isDistrictEmail(submitterEmail)
     const submitterRejected = !!submitterEmail && !submitterUsable
+    // The roster form is public again (2026-09-15), so a submitter address can
+    // be self-declared rather than proven by a session. A district address is
+    // still good enough to EMAIL - that is just replying to whoever wrote in -
+    // but never good enough to become bcps_departments.director_email, which
+    // is an identity of record. Only a session-verified address writes that.
+    const rawPayload = (submission.raw_payload ?? {}) as Record<string, unknown>
+    const submitterSessionVerified = rawPayload.submitter_email_session_verified !== false
 
     let departmentSlug: string | null = null
     let departmentDisplayName = submission.department_name
@@ -288,7 +337,7 @@ export async function PATCH(req: NextRequest) {
         wcm_name: submission.wcm_name,
         director_name: submission.director_name,
       }
-      if (submitterUsable) deptUpdate.director_email = submitterEmail!
+      if (submitterUsable && submitterSessionVerified) deptUpdate.director_email = submitterEmail!
       const { data: updatedDept } = await supabase
         .from('bcps_departments')
         .update(deptUpdate)
@@ -326,6 +375,7 @@ export async function PATCH(req: NextRequest) {
         directorName: submission.director_name || 'there',
         departmentName: departmentDisplayName,
         departmentSlug,
+        wcmName: submissionAction === 'add' ? (submission.wcm_name || null) : null,
         wcmNotified: !!wcmNotice?.email_sent,
       })
     }
@@ -339,7 +389,13 @@ export async function PATCH(req: NextRequest) {
       // not district-issued, so no director_email was recorded and no account
       // was created. Surfaced in the queue UI so it is a visible outcome.
       submitter_rejected: submitterRejected
-        ? `Roster updated, but "${submitterEmail}" is not a @browardschools.com address, so it was not recorded as the director email and no portal account was created.`
+        ? `Roster updated, but "${submitterEmail}" is not a @browardschools.com address, so it was not recorded as the director email.`
+        : null,
+      // Set when the submission came through the public form without a
+      // session: the confirmation email still goes out, but the address was
+      // not recorded as the director of record.
+      submitter_unverified: submitterUsable && !submitterSessionVerified
+        ? `Confirmation sent to "${submitterEmail}", but it was self-declared on the public form and was not recorded as the director email of record.`
         : null,
     })
   } catch (e: unknown) {

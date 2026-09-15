@@ -61,6 +61,13 @@ export function brandedEmail(opts: { heading: string; body: string; ctaLabel?: s
 // the direct account link as a failsafe, not the primary instruction.
 export const WCM_GETTING_STARTED_URL = `${SITE}/playbooks/bcps-wcm-registration-2026-27`
 
+// The two role playbooks each party is pointed at on approval (Sean,
+// 2026-09-15). Both are public - no recipient list - so they open for a
+// director who has no portal account, which is the whole point while
+// director accounts are on hold.
+export const WCM_PLAYBOOK_URL = `${SITE}/playbooks/wcm-department`
+export const DIRECTOR_PLAYBOOK_URL = `${SITE}/playbooks/director-department`
+
 export type ResolvedAccount = { userId: string; isNewAccount: boolean; actionLink: string | null }
 
 // Try to create the account (this IS the invite email link when new); on
@@ -119,6 +126,13 @@ export function wcmConfirmationEmail(opts: {
       <p>Next: register for PD credit in LAB, then look for the BCPS Certification link in the body of
       LAB's confirmation page. That link brings you to our platform to finish creating your account${opts.isNewAccount ? '' : ', or log in since you already have one'}.
       Full step-by-step instructions: <a href="${WCM_GETTING_STARTED_URL}">Getting Started guide</a>.</p>
+      <p><strong>What happens next</strong></p>
+      <ul style="margin:0 0 16px;padding-left:20px;font-size:14px;line-height:1.7;">
+        <li>You are the Web Content Manager of record for your department - your director's confirmation is complete, nothing more is needed from them.</li>
+        <li>Register for PD credit in LAB and finish your certification through the link above.</li>
+        <li>Your day-to-day standards, responsibilities and tools live in the playbook below - that is the one to bookmark.</li>
+      </ul>
+      <p>Your role playbook: <a href="${WCM_PLAYBOOK_URL}">Department Web Content Manager Playbook</a>.</p>
     `,
     ctaLabel: opts.isNewAccount ? 'Set Up Your Account (Failsafe Link)' : 'Log In (Failsafe Link)',
     ctaHref: opts.failsafeHref,

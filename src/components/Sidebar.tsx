@@ -192,6 +192,13 @@ const Icons: Record<string, React.ReactNode> = {
       <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
     </svg>
   ),
+  'wcm-roster': (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 5h18"/><path d="M3 12h18"/><path d="M3 19h18"/>
+      <circle cx="7" cy="5" r="1.4" fill="currentColor" stroke="none"/>
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+    </svg>
+  ),
   minibase: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <ellipse cx="12" cy="5" rx="9" ry="3"/>
@@ -280,6 +287,9 @@ const SECTIONS: NavSection[] = [
     // The three playbooks linked in the WCM registration and director
     // emails, surfaced here for quick reference per Sean 2026-09-15 -
     // people were being sent to their inbox to find them again.
+    // Read-only for Web Content Managers, full approval queue for admins -
+    // same tab, the API decides which (Sean, 2026-09-15).
+    { id: 'wcm-roster', label: 'WCM Roster', href: '/?page=wcm&wcmview=department&section=roster', requires: 'wcm' },
     { id: 'pb-wcm-department', label: 'Department WCM Playbook', href: '/playbooks/wcm-department', requires: 'wcm' },
     { id: 'pb-director-department', label: 'Director Playbook', href: '/playbooks/director-department', requires: 'wcm' },
     { id: 'pb-wcm-registration', label: 'Registration: Getting Started', href: '/playbooks/bcps-wcm-registration-2026-27', requires: 'wcm' },

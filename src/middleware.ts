@@ -87,12 +87,23 @@ export async function middleware(request: NextRequest) {
     pathname === '/login' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/set-password') ||
-    // NOTE: /wcm-roster-signup was exempted here until 2026-09-14. It is no
-    // longer public (PUBLIC-REPO-HARDCODED-KEY-ESCALATED): the roster form
-    // writes the department director of record and, on approval, provisions a
-    // portal account, so it now requires a district sign-in like every other
-    // authenticated page. Directors without an account create one at /login
-    // with their @browardschools.com address.
+    // /wcm-roster-signup: public again as of 2026-09-15, Sean's explicit call
+    // with the risk stated - directors are not getting portal accounts yet
+    // (that is being cleaned up first) and the sign-in wall was costing
+    // responses. Every director will be moved onto a real login in a week or
+    // two and this goes back behind auth then.
+    //
+    // What still protects the record, so re-opening the page is not re-opening
+    // the 2026-09-14 hole (PUBLIC-REPO-HARDCODED-KEY-ESCALATED):
+    //   - the submission is a REQUEST, never a write to the roster. Nothing
+    //     reaches bcps_wcm_roster until an admin approves it by hand.
+    //   - a district (@browardschools.com) submitter address is still required,
+    //     now self-declared rather than session-proven when signed out.
+    //   - only a SESSION-VERIFIED submitter can become director_email of
+    //     record on approval (see wcm-roster-queue) - a self-declared address
+    //     never writes an identity, it only labels the request.
+    //   - unverified submitters still raise identity_flag and the review email.
+    pathname.startsWith('/wcm-roster-signup') ||
     // WCM Department Registration welcome page (renamed from WCM Pilot
     // Program 2026-07-28): shared with brand new WCMs who have no account
     // yet. Same reasoning as wcm-roster-signup above - must stay public or

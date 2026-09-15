@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { useBCPSShell } from '@/components/BCPSShell'
 
 type WCMView = 'hub' | 'school' | 'department'
 
@@ -22,6 +22,9 @@ interface RosterMember {
   wcm_name: string
   wcm_personnel_number: string | null
   wcm_email: string | null
+  // When the director submission designating this WCM was approved. Null for
+  // rows an admin added by hand, which have no submission behind them.
+  approved_at: string | null
 }
 
 interface RosterRow {
@@ -63,6 +66,9 @@ function DepartmentRosterSection() {
   const [acting, setActing] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
+  // Web Content Managers see the roster and its outcomes but no pending queue
+  // and no approve/reject controls - the API decides this and says so.
+  const [readOnly, setReadOnly] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -71,6 +77,7 @@ function DepartmentRosterSection() {
       const j = await r.json()
       setRoster(j.roster || [])
       setSubmissions(j.submissions || [])
+      setReadOnly(!!j.read_only)
     } catch {
       setRoster([]); setSubmissions([])
     }
@@ -196,7 +203,7 @@ function DepartmentRosterSection() {
         </button>
       </div>
 
-      {pending.length > 0 && (
+      {!readOnly && pending.length > 0 && (
         <>
           <h4 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#C55326', margin: '20px 0 10px' }}>
             Pending Review ({pending.length})
@@ -253,14 +260,15 @@ function DepartmentRosterSection() {
               <th>Department</th>
               <th>Director</th>
               <th>Web Content Manager(s)</th>
+              <th>Approved</th>
               <th>Updated</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af', padding: 24 }}>Loading roster...</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9ca3af', padding: 24 }}>Loading roster...</td></tr>
             ) : filteredRoster.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af', padding: 24 }}>No departments match that search.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9ca3af', padding: 24 }}>No departments match that search.</td></tr>
             ) : filteredRoster.map(r => (
               <tr key={r.id}>
                 <td>
@@ -275,6 +283,17 @@ function DepartmentRosterSection() {
                     <div key={w.id} className="roster-wcm-row">
                       {w.wcm_name}
                       {w.wcm_email && <div className="roster-wcm-email">{w.wcm_email}</div>}
+                    </div>
+                  ))}
+                </td>
+                <td className="roster-loc">
+                  {r.wcms.length === 0 ? (
+                    <span className="roster-empty-val">—</span>
+                  ) : r.wcms.map(w => (
+                    <div key={w.id} className="roster-wcm-row">
+                      {w.approved_at
+                        ? <>Approved {formatDate(w.approved_at)}</>
+                        : <span className="roster-empty-val">Added manually</span>}
                     </div>
                   ))}
                 </td>
@@ -564,18 +583,15 @@ function SchoolPortal({ onBack }: { onBack: () => void }) {
 }
 
 /* ─── DEPARTMENT PORTAL ───────────────────────────────── */
-function DepartmentPortal({ onBack }: { onBack: () => void }) {
-  const [activeSection, setActiveSection] = useState('overview')
-  // The WCM Roster tab is the District Web Team's approval queue: it reads
-  // /api/bcps/wcm-roster-queue, which enforces requireBcpsAdmin server-side.
-  // Now that WCM Hub is granted to all 61 Web Content Managers (2026-09-15),
-  // a non-admin opening that tab would get a 403 and an empty table, so the
-  // tab and its overview card are admin-only rather than broken-for-most.
-  const { canManageMessages: isAdmin } = useBCPSShell()
-
+function DepartmentPortal({ onBack, initialSection }: { onBack: () => void; initialSection?: string }) {
+  const [activeSection, setActiveSection] = useState(initialSection || 'overview')
+  // The WCM Roster tab shows every Web Content Manager the read-only roster
+  // and its approval dates; the API withholds the pending queue and contact
+  // details from non-admins and refuses their approvals (Sean, 2026-09-15:
+  // "they should only be able to see the roster and the results of that").
   const sections = [
     { id: 'overview', label: 'Overview' },
-    ...(isAdmin ? [{ id: 'roster', label: 'WCM Roster' }] : []),
+    { id: 'roster', label: 'WCM Roster' },
     { id: 'audit', label: 'Audit Resources' },
     { id: 'templates', label: 'Layout Templates' },
     { id: 'training', label: 'Training Materials' },
@@ -614,7 +630,7 @@ function DepartmentPortal({ onBack }: { onBack: () => void }) {
               <p className="wcm-section-intro">This portal supports BCPS department web managers in maintaining accurate, accessible, and consistent department websites across the district.</p>
               <div className="wcm-overview-cards">
                 {[
-                  ...(isAdmin ? [{ icon: '🗂', title: 'WCM Roster', desc: 'Every department, its Director, and assigned Web Content Manager(s) - updated via the annual roster intake form.', section: 'roster' }] : []),
+                  { icon: '🗂', title: 'WCM Roster', desc: 'Every department, its Director, and assigned Web Content Manager(s), with the date each designation was approved.', section: 'roster' },
                   { icon: '🔍', title: 'Audit Resources', desc: 'Checklists and tools to audit your department pages for accuracy, accessibility, and compliance.', section: 'audit' },
                   { icon: '📐', title: 'Layout Templates', desc: 'Approved page templates for common department content types — staff pages, program info, and more.', section: 'templates' },
                   { icon: '🎓', title: 'Training Materials', desc: 'On-demand training videos, slide decks, and reference guides for department content managers.', section: 'training' },
@@ -779,9 +795,17 @@ function DepartmentPortal({ onBack }: { onBack: () => void }) {
 // Department portal and the WCM Community Hub - the School / Department
 // choice the whole section is built around - was unreachable dead code.
 export default function WCMPage() {
-  const [view, setView] = useState<WCMView>('hub')
+  // ?wcmview=department&section=roster deep-links the WCM Roster from the
+  // sidebar shortcut (Sean, 2026-09-15) without making the roster a separate
+  // page - it stays one tab inside the Department portal.
+  const search = useSearchParams()
+  const initialView = (search.get('wcmview') as WCMView) || 'hub'
+  const initialSection = search.get('section') || undefined
+  const [view, setView] = useState<WCMView>(
+    initialView === 'school' || initialView === 'department' ? initialView : 'hub'
+  )
 
   if (view === 'school') return <SchoolPortal onBack={() => setView('hub')} />
-  if (view === 'department') return <DepartmentPortal onBack={() => setView('hub')} />
+  if (view === 'department') return <DepartmentPortal onBack={() => setView('hub')} initialSection={initialSection} />
   return <WCMHub onNavigate={setView} />
 }
