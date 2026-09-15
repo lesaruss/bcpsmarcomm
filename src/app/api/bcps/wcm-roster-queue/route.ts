@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
 import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, wcmConfirmationEmail, directorConfirmationEmail, SITE } from '@/lib/bcps-portal-account'
-import { requireBcpsAdmin, requireDistrictUser, isDistrictEmail } from '@/lib/bcps-auth'
+import { requireBcpsAdmin, requireDistrictUser, isDistrictEmail, normalizeDistrictEmail } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -337,6 +337,13 @@ export async function PATCH(req: NextRequest) {
 
     // Carried into each notification's context so the roster can show, per
     // WCM, whether their approval emails actually went out.
+    // Repaired at the point of use as well as at intake, because the backlog
+    // predates the intake check: four pending rows carried a mistyped district
+    // domain that a mail provider accepts and then bounces. Normalizing here
+    // means the roster row, the notification and the skip check all agree on
+    // one address, and a typo cannot reach a member row.
+    const wcmEmail = normalizeDistrictEmail(submission.wcm_email)
+
     let memberId: string | null = null
 
     if (submissionAction === 'remove' && submission.target_member_id) {
@@ -350,7 +357,7 @@ export async function PATCH(req: NextRequest) {
         roster_id: rosterRow.id,
         wcm_name: submission.wcm_name,
         wcm_personnel_number: submission.wcm_personnel_number,
-        wcm_email: submission.wcm_email,
+        wcm_email: wcmEmail,
         approved_at: now,
         approved_from_submission_id: submission.id,
       }).select('id').single()
@@ -384,7 +391,16 @@ export async function PATCH(req: NextRequest) {
     // but never good enough to become bcps_departments.director_email, which
     // is an identity of record. Only a session-verified address writes that.
     const rawPayload = (submission.raw_payload ?? {}) as Record<string, unknown>
-    const submitterSessionVerified = rawPayload.submitter_email_session_verified !== false
+    // Fail closed on absence. The intake route writes this flag explicitly on
+    // every submission, true or false, so a row WITHOUT it is a legacy row from
+    // the old shared-key endpoint where submitter_email was unchecked free text
+    // from the request body. Defaulting those to verified trusted exactly the
+    // backlog the guard above says cannot be trusted: on 2026-09-15 all 73
+    // pending rows predate the flag, so every one of them would have written a
+    // hand-typed address into bcps_departments.director_email as an identity of
+    // record. Absent now means unproven, which still emails the submitter and
+    // still applies the roster change, and only withholds the of-record write.
+    const submitterSessionVerified = rawPayload.submitter_email_session_verified === true
 
     let departmentSlug: string | null = null
     let departmentDisplayName = submission.department_name
@@ -420,7 +436,7 @@ export async function PATCH(req: NextRequest) {
     // the wrong signal when someone is working through a queue of them.
     let wcmSkipped: string | null = null
     let directorSkipped: string | null = null
-    if (submissionAction === 'add' && !submission.wcm_email) {
+    if (submissionAction === 'add' && !wcmEmail) {
       wcmSkipped = `No WCM email address on this submission, so ${submission.wcm_name || 'the WCM'} was not emailed and no account was created.`
     }
     if (!submitterEmail) {
@@ -428,9 +444,9 @@ export async function PATCH(req: NextRequest) {
     }
 
     let wcmNotice: Awaited<ReturnType<typeof notifyWcm>> | null = null
-    if (submissionAction === 'add' && submission.wcm_email) {
+    if (submissionAction === 'add' && wcmEmail) {
       wcmNotice = await notifyWcm({
-        wcmEmail: submission.wcm_email,
+        wcmEmail,
         wcmName: submission.wcm_name || 'there',
         departmentName: departmentDisplayName,
         departmentSlug,
