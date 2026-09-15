@@ -106,6 +106,47 @@ export async function resolveOrInviteAccount(email: string, fullName?: string): 
   return { ok: false, error: inviteErr?.message || 'Could not create this account.' }
 }
 
+// The director confirmation email, sent on approval. Lives here rather than
+// inline in wcm-roster-queue so the copy has one source: the route and any
+// preview render the same function, and reviewing the wording never means
+// reading it out of a route handler.
+//
+// No account, no portal CTA: director portal accounts are on hold (Sean,
+// 2026-09-15). The only action offered is the director playbook, which is
+// public and opens without signing in.
+export function directorConfirmationEmail(opts: {
+  directorName: string
+  departmentName: string
+  wcmName: string | null
+  wcmNotified: boolean
+}): string {
+  return brandedEmail({
+    heading: `Confirmed: your Web Content Manager for 2026-27`,
+    body: `
+      <p>Hi ${esc(opts.directorName)},</p>
+      <p>Your Web Content Manager Roster submission for <strong>${esc(opts.departmentName)}</strong>
+      has been reviewed and <strong>approved</strong>. ${opts.wcmName
+        ? `<strong>${esc(opts.wcmName)}</strong> is now the Web Content Manager of record for your department.`
+        : `Your department is on record as having no dedicated Web Content Manager this year.`}</p>
+      <p><strong>What happens next</strong></p>
+      <ul style="margin:0 0 16px;padding-left:20px;font-size:14px;line-height:1.7;">
+        <li>Nothing further is needed from you to complete this year's roster.</li>
+        ${opts.wcmNotified
+          ? `<li>Your Web Content Manager has been emailed directly with their own access and next steps, so there is nothing to pass along.</li>`
+          : ''}
+        <li>Your department's site work runs through your Web Content Manager and the District Web Team from here.</li>
+        <li>Need to add or remove a Web Content Manager later? Use the same
+            <a href="${SITE}/wcm-roster-signup">roster form</a> any time - no need to start over.</li>
+      </ul>
+      <p>The director playbook below covers the rest: what the program expects of your department,
+      what your Web Content Manager is responsible for, and how to support them.</p>
+    `,
+    ctaLabel: 'Open the Director Playbook',
+    ctaHref: DIRECTOR_PLAYBOOK_URL,
+    footNote: `Watch for the next Communique - that's when we'll walk you through your own BCPS Web Team Portal access.`,
+  })
+}
+
 // The WCM confirmation email, shared by wcm-invite (manual button) and
 // wcm-roster-queue (automatic on approval). Leads with the LAB-first
 // Getting Started guide - the actual district process - and presents the

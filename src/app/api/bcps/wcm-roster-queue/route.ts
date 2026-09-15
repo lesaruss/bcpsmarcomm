@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
-import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, wcmConfirmationEmail, SITE, WCM_PLAYBOOK_URL, DIRECTOR_PLAYBOOK_URL } from '@/lib/bcps-portal-account'
+import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, wcmConfirmationEmail, directorConfirmationEmail, SITE } from '@/lib/bcps-portal-account'
 import { requireBcpsAdmin, requireDistrictUser, isDistrictEmail } from '@/lib/bcps-auth'
 
 const supabase = createClient(
@@ -32,30 +32,11 @@ async function notifyDirector(opts: {
   wcmNotified: boolean
 }): Promise<{ account_ok: boolean; email_sent: boolean; error?: string }> {
   try {
-    const html = brandedEmail({
-      heading: `Confirmed: your Web Content Manager for 2026-27`,
-      body: `
-        <p>Hi ${esc(opts.directorName)},</p>
-        <p>Your Web Content Manager Roster submission for <strong>${esc(opts.departmentName)}</strong>
-        has been reviewed and <strong>approved</strong>. ${opts.wcmName
-          ? `<strong>${esc(opts.wcmName)}</strong> is now the Web Content Manager of record for your department.`
-          : `Your department is on record as having no dedicated Web Content Manager this year.`}</p>
-        <p><strong>What happens next</strong></p>
-        <ul style="margin:0 0 16px;padding-left:20px;font-size:14px;line-height:1.7;">
-          <li>Nothing further is needed from you to complete this year's roster.</li>
-          ${opts.wcmNotified
-            ? `<li>Your Web Content Manager has been emailed directly with their own access and next steps, so there is nothing to pass along.</li>`
-            : ''}
-          <li>Your department's site work runs through your Web Content Manager and the District Web Team from here.</li>
-          <li>Need to add or remove a Web Content Manager later? Use the same
-              <a href="${SITE}/wcm-roster-signup">roster form</a> any time - no need to start over.</li>
-        </ul>
-        <p>The director playbook below covers the rest: what the program expects of your department,
-        what your Web Content Manager is responsible for, and how to support them.</p>
-      `,
-      ctaLabel: 'Open the Director Playbook',
-      ctaHref: DIRECTOR_PLAYBOOK_URL,
-      footNote: `Watch for the next Communique - that's when we'll walk you through your own BCPS Web Team Portal access.`,
+    const html = directorConfirmationEmail({
+      directorName: opts.directorName,
+      departmentName: opts.departmentName,
+      wcmName: opts.wcmName,
+      wcmNotified: opts.wcmNotified,
     })
 
     const emailResult = await sendEmail({
