@@ -384,7 +384,16 @@ export async function PATCH(req: NextRequest) {
     // but never good enough to become bcps_departments.director_email, which
     // is an identity of record. Only a session-verified address writes that.
     const rawPayload = (submission.raw_payload ?? {}) as Record<string, unknown>
-    const submitterSessionVerified = rawPayload.submitter_email_session_verified !== false
+    // Fail closed on absence. The intake route writes this flag explicitly on
+    // every submission, true or false, so a row WITHOUT it is a legacy row from
+    // the old shared-key endpoint where submitter_email was unchecked free text
+    // from the request body. Defaulting those to verified trusted exactly the
+    // backlog the guard above says cannot be trusted: on 2026-09-15 all 73
+    // pending rows predate the flag, so every one of them would have written a
+    // hand-typed address into bcps_departments.director_email as an identity of
+    // record. Absent now means unproven, which still emails the submitter and
+    // still applies the roster change, and only withholds the of-record write.
+    const submitterSessionVerified = rawPayload.submitter_email_session_verified === true
 
     let departmentSlug: string | null = null
     let departmentDisplayName = submission.department_name
