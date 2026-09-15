@@ -343,6 +343,19 @@ export async function PATCH(req: NextRequest) {
     // approval that already happened above. WCM resolved first so the
     // director's email can truthfully say whether the WCM was actually
     // notified, rather than assuming success.
+    // Why an email was NOT attempted, so the console can say so out loud.
+    // Without this, a submission missing an address approves in silence and
+    // looks identical to one where both emails went out - which is exactly
+    // the wrong signal when someone is working through a queue of them.
+    let wcmSkipped: string | null = null
+    let directorSkipped: string | null = null
+    if (submissionAction === 'add' && !submission.wcm_email) {
+      wcmSkipped = `No WCM email address on this submission, so ${submission.wcm_name || 'the WCM'} was not emailed and no account was created.`
+    }
+    if (!submitterEmail) {
+      directorSkipped = 'No submitter address on this submission, so the director was not emailed.'
+    }
+
     let wcmNotice: Awaited<ReturnType<typeof notifyWcm>> | null = null
     if (submissionAction === 'add' && submission.wcm_email) {
       wcmNotice = await notifyWcm({
@@ -370,6 +383,15 @@ export async function PATCH(req: NextRequest) {
       action: 'approved',
       director_notice: directorNotice,
       wcm_notice: wcmNotice,
+      director_skipped: directorSkipped,
+      wcm_skipped: wcmSkipped,
+      // True only when every email this approval SHOULD have sent was
+      // accepted by the mail provider. The console shows a plain
+      // confirmation on this rather than leaving silence to mean success.
+      emails_ok:
+        !directorSkipped && !wcmSkipped &&
+        (!directorNotice || directorNotice.email_sent) &&
+        (!wcmNotice || wcmNotice.email_sent),
       // Set when the roster change was applied but the submitter's address was
       // not district-issued, so no director_email was recorded and no account
       // was created. Surfaced in the queue UI so it is a visible outcome.

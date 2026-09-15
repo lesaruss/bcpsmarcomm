@@ -69,6 +69,9 @@ function DepartmentRosterSection() {
   // Web Content Managers see the roster and its outcomes but no pending queue
   // and no approve/reject controls - the API decides this and says so.
   const [readOnly, setReadOnly] = useState(false)
+  // Outcome of the most recent approval, shown inline. Deliberately not an
+  // alert: an alert per approval is unusable across a long queue.
+  const [lastResult, setLastResult] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -103,9 +106,17 @@ function DepartmentRosterSection() {
           else if (j.director_notice && !j.director_notice.email_sent) problems.push(`Director email did not send: ${j.director_notice.error || 'unknown error'}`)
           if (j.wcm_notice && !j.wcm_notice.account_ok) problems.push(`WCM account: ${j.wcm_notice.error || 'failed'}`)
           else if (j.wcm_notice && !j.wcm_notice.email_sent) problems.push(`WCM email did not send: ${j.wcm_notice.error || 'unknown error'}`)
+          if (j.director_skipped) problems.push(j.director_skipped)
+          if (j.wcm_skipped) problems.push(j.wcm_skipped)
           if (j.submitter_rejected) problems.push(j.submitter_rejected)
+          if (j.submitter_unverified) problems.push(j.submitter_unverified)
           if (problems.length > 0) {
             alert(`Approved, but: ${problems.join(' | ')}`)
+          } else if (j.emails_ok) {
+            // Say it out loud rather than letting silence stand for success.
+            // Working through a queue of these, "nothing happened" and "both
+            // emails went out" must not look the same.
+            setLastResult('Approved. Confirmation emails accepted by the mail provider for both the director and the WCM.')
           }
         }
       } else {
@@ -202,6 +213,16 @@ function DepartmentRosterSection() {
           {linkCopied ? 'Copied!' : 'Copy Link'}
         </button>
       </div>
+
+      {lastResult && (
+        <div style={{
+          fontSize: 12.5, color: '#065F46', background: '#ECFDF5',
+          border: '1px solid #A7F3D0', borderRadius: 8,
+          padding: '9px 12px', marginBottom: 14,
+        }}>
+          {lastResult}
+        </div>
+      )}
 
       {!readOnly && pending.length > 0 && (
         <>
