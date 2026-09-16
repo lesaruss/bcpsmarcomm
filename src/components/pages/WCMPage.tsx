@@ -117,14 +117,18 @@ function DepartmentRosterSection() {
           if (j.director_skipped) problems.push(j.director_skipped)
           if (j.wcm_skipped) problems.push(j.wcm_skipped)
           if (j.submitter_rejected) problems.push(j.submitter_rejected)
-          if (j.submitter_unverified) problems.push(j.submitter_unverified)
+          // Provenance is an outcome, not a failure, so it never interrupts
+          // with a dialog. A modal on every one of seventy approvals trains
+          // you to dismiss it unread, and that is how a real failure slips by.
+          const note = j.director_email_provisional ? ` ${j.director_email_provisional}` : ''
           if (problems.length > 0) {
             alert(`Approved, but: ${problems.join(' | ')}`)
-          } else if (j.emails_ok) {
+          }
+          if (j.emails_ok) {
             // Say it out loud rather than letting silence stand for success.
             // Working through a queue of these, "nothing happened" and "both
             // emails went out" must not look the same.
-            setLastResult('Approved. Confirmation emails accepted by the mail provider for both the director and the WCM.')
+            setLastResult(`Approved. Confirmation emails accepted by the mail provider for both the director and the WCM.${note}`)
           }
         }
       } else {
