@@ -23,6 +23,19 @@ const supabase = createClient(
 // in. Account creation still happens now (not deferred to the Communique)
 // so nothing has to be re-run later - resolveOrInviteAccount + enrollment
 // silently provisions the account, its action_link is just never sent.
+// How much a recorded director_email can be trusted. Higher wins.
+//
+// A write only lands when it is at least as strong as what is already on the
+// department, so an Active Directory address is never quietly replaced by
+// something typed on the public form, while a form response freely replaces an
+// address whose provenance was never recorded.
+const DIRECTOR_EMAIL_SOURCE_RANK: Record<string, number> = {
+  unknown: 1,
+  self_declared: 2,
+  session_verified: 3,
+  active_directory: 4,
+}
+
 async function notifyDirector(opts: {
   directorEmail: string
   directorName: string
@@ -404,12 +417,33 @@ export async function PATCH(req: NextRequest) {
 
     let departmentSlug: string | null = null
     let departmentDisplayName = submission.department_name
+    let directorEmailRecordedAs: string | null = null
     if (rosterRow.matched_department_id && submissionAction !== 'remove') {
       const deptUpdate: Record<string, string> = {
         wcm_name: submission.wcm_name,
         director_name: submission.director_name,
       }
-      if (submitterUsable && submitterSessionVerified) deptUpdate.director_email = submitterEmail!
+      // Sean, 2026-09-15: a district address given on the roster form IS
+      // recorded as the working director of record. There is no authoritative
+      // district source yet, an Active Directory export is not available, and
+      // an absent email helps nobody. What keeps this provisional rather than
+      // permanent by accident is director_email_source: every write records
+      // where the address came from, so an AD export can later overwrite
+      // exactly the self-declared ones and leave proven ones untouched.
+      if (submitterUsable) {
+        const incomingSource = submitterSessionVerified ? 'session_verified' : 'self_declared'
+        const { data: currentDept } = await supabase
+          .from('bcps_departments')
+          .select('director_email_source')
+          .eq('id', rosterRow.matched_department_id)
+          .maybeSingle()
+        const currentRank = DIRECTOR_EMAIL_SOURCE_RANK[currentDept?.director_email_source ?? ''] ?? 0
+        if (DIRECTOR_EMAIL_SOURCE_RANK[incomingSource] >= currentRank) {
+          deptUpdate.director_email = submitterEmail!
+          deptUpdate.director_email_source = incomingSource
+          directorEmailRecordedAs = incomingSource
+        }
+      }
       const { data: updatedDept } = await supabase
         .from('bcps_departments')
         .update(deptUpdate)
@@ -489,11 +523,13 @@ export async function PATCH(req: NextRequest) {
       submitter_rejected: submitterRejected
         ? `Roster updated, but "${submitterEmail}" is not a @browardschools.com address, so it was not recorded as the director email.`
         : null,
-      // Set when the submission came through the public form without a
-      // session: the confirmation email still goes out, but the address was
-      // not recorded as the director of record.
-      submitter_unverified: submitterUsable && !submitterSessionVerified
-        ? `Confirmation sent to "${submitterEmail}", but it was self-declared on the public form and was not recorded as the director email of record.`
+      // Informational, never a failure. The address WAS recorded, flagged as
+      // self-declared so an Active Directory export can replace exactly these
+      // later. The console shows this inline rather than as a dialog: working
+      // a queue of seventy, a modal on every approval trains you to dismiss it
+      // unread, which is how a real failure gets missed.
+      director_email_provisional: directorEmailRecordedAs === 'self_declared'
+        ? `Recorded "${submitterEmail}" as the director email, flagged self-declared until a district source confirms it.`
         : null,
     })
   } catch (e: unknown) {
