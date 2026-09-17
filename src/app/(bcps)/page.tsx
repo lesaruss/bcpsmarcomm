@@ -95,7 +95,7 @@ function HomeInner() {
       {nav.page === 'marcomm'                && effectiveRole === 'superadmin' && <CartridgePage title="MarComm Console" description="Manage marketing and communications assets, campaigns, and approvals." />}
       {nav.page === 'graphics'               && effectiveRole === 'superadmin' && <GraphicsPage />}
       {nav.page === 'minutes'                && <MinutesPage />}
-      {nav.page === 'wcm'                    && effectiveRole === 'superadmin' && <WCMPage />}
+      {nav.page === 'wcm'                    && effectiveRole === 'superadmin' && <WCMPage onNavigate={navigate} />}
       {nav.page === 'queue'                  && <QueuePage onNavigate={navigate} onShowToast={showToast} viewAsUserId={viewAs?.id} />}
       {nav.page === 'bcps-google-governance' && <BCPSGovernancePage />}
       {nav.page === 'bcps-assignments'       && <AssignmentsPage />}

@@ -46,6 +46,7 @@ interface SidebarProps {
   onClose?: () => void
   viewAs?: TeamMember | null
   onViewAs?: (member: TeamMember | null) => void
+  onOpenDoc?: (title: string, url: string) => void
 }
 
 // ── Flat SVG icons ──────────────────────────────────────────────────────────
@@ -286,7 +287,12 @@ const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytic
 // whose access they ride on, so a link never shows to someone who has no
 // business in that section (Sean, 2026-09-15: quick access for the people
 // who already have the section, not a new door for everyone else).
-interface NavItem { id: string; label: string; href?: string; requires?: PageId }
+// inlineDoc marks an href item whose target is a document route (playbooks,
+// briefs) rather than another app page - it opens in the same in-app preview
+// lightbox every other Document uses instead of navigating the browser away
+// from the shell (Sean, 2026-09-17: the Director Playbook opened full-screen
+// with no way back to the app, unlike every other document).
+interface NavItem { id: string; label: string; href?: string; requires?: PageId; inlineDoc?: boolean }
 
 interface NavSection { label: string; items: NavItem[] }
 
@@ -317,9 +323,9 @@ const SECTIONS: NavSection[] = [
     // Read-only for Web Content Managers, full approval queue for admins -
     // same tab, the API decides which (Sean, 2026-09-15).
     { id: 'wcm-roster', label: 'WCM Roster', href: '/?page=wcm&wcmview=department&section=roster', requires: 'wcm' },
-    { id: 'pb-wcm-department', label: 'Department WCM Playbook', href: '/playbooks/wcm-department', requires: 'wcm' },
-    { id: 'pb-director-department', label: 'Director Playbook', href: '/playbooks/director-department', requires: 'wcm' },
-    { id: 'pb-wcm-registration', label: 'Registration: Getting Started', href: '/playbooks/bcps-wcm-registration-2026-27', requires: 'wcm' },
+    { id: 'pb-wcm-department', label: 'Department WCM Playbook', href: '/playbooks/wcm-department', requires: 'wcm', inlineDoc: true },
+    { id: 'pb-director-department', label: 'Director Playbook', href: '/playbooks/director-department', requires: 'wcm', inlineDoc: true },
+    { id: 'pb-wcm-registration', label: 'Registration: Getting Started', href: '/playbooks/bcps-wcm-registration-2026-27', requires: 'wcm', inlineDoc: true },
   ] },
   // District Web Team - 2026-09-04, Sean: these are the DWT-facing tools
   // still being tested (banners, school profiles, ADA, Google governance),
@@ -332,7 +338,7 @@ const SECTIONS: NavSection[] = [
     // simply never listed here, so the page was unreachable from the nav.
     { id: 'bcps-assignments', label: 'Web Team Assignments' },
     { id: 'bcps-google-governance', label: 'Google Governance' },
-    { id: 'pb-web-governance', label: 'Website Governance Plan', href: '/briefs/bcps-website-governance-plan-2026-06-10', requires: 'bcps-google-governance' },
+    { id: 'pb-web-governance', label: 'Website Governance Plan', href: '/briefs/bcps-website-governance-plan-2026-06-10', requires: 'bcps-google-governance', inlineDoc: true },
     { id: 'banner-submissions', label: 'Banner Submissions' },
     { id: 'school-profiles', label: 'School Profiles' },
     { id: 'department-audit', label: 'Department Name Audit' },
@@ -377,6 +383,7 @@ export default function Sidebar({
   isOpen = false, onClose = () => {},
   viewAs = null, onViewAs,
   allowedPages,
+  onOpenDoc,
 }: SidebarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false)
 
@@ -387,6 +394,11 @@ export default function Sidebar({
 
   const nav = (item: NavItem) => {
     if (item.href) {
+      if (item.inlineDoc && onOpenDoc) {
+        onOpenDoc(item.label, item.href)
+        onClose()
+        return
+      }
       window.location.href = item.href
       onClose()
       return

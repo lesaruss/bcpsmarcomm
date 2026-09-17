@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import type { PageId } from '@/lib/types'
 
 type WCMView = 'hub' | 'school' | 'department'
 
@@ -709,7 +710,7 @@ function SchoolPortal({ onBack }: { onBack: () => void }) {
 }
 
 /* ─── DEPARTMENT PORTAL ───────────────────────────────── */
-function DepartmentPortal({ onBack, initialSection }: { onBack: () => void; initialSection?: string }) {
+function DepartmentPortal({ onBack, backLabel, initialSection }: { onBack: () => void; backLabel: string; initialSection?: string }) {
   const [activeSection, setActiveSection] = useState(initialSection || 'overview')
   // The WCM Roster tab shows every Web Content Manager the read-only roster
   // and its approval dates; the API withholds the pending queue and contact
@@ -726,7 +727,7 @@ function DepartmentPortal({ onBack, initialSection }: { onBack: () => void; init
 
   return (
     <div className="wcm-portal-page" style={{ maxWidth: 'none' }}>
-      <button className="wcm-back-btn" onClick={onBack}>&larr; WCM Community Hub</button>
+      <button className="wcm-back-btn" onClick={onBack}>&larr; {backLabel}</button>
 
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--blue)', marginBottom: 8 }}>
@@ -920,7 +921,7 @@ function DepartmentPortal({ onBack, initialSection }: { onBack: () => void; init
 // so every Web Content Manager who clicked "WCM Hub" landed inside the
 // Department portal and the WCM Community Hub - the School / Department
 // choice the whole section is built around - was unreachable dead code.
-export default function WCMPage() {
+export default function WCMPage({ onNavigate }: { onNavigate?: (page: PageId) => void }) {
   // ?wcmview=department&section=roster deep-links the WCM Roster from the
   // sidebar shortcut (Sean, 2026-09-15) without making the roster a separate
   // page - it stays one tab inside the Department portal.
@@ -931,7 +932,21 @@ export default function WCMPage() {
     initialView === 'school' || initialView === 'department' ? initialView : 'hub'
   )
 
+  // The Roster is reached directly from its own sidebar link, never by
+  // choosing it inside the WCM Community Hub - so its back button should
+  // return to the Dashboard, not into a hub flow the visitor never entered
+  // (Sean, 2026-09-17: "the hub is a resource, the roster is a whole other
+  // animal"). Any other route into the Department portal still backs out
+  // to the Hub as before.
+  const rosterShortcut = initialView === 'department' && initialSection === 'roster'
+
   if (view === 'school') return <SchoolPortal onBack={() => setView('hub')} />
-  if (view === 'department') return <DepartmentPortal onBack={() => setView('hub')} initialSection={initialSection} />
+  if (view === 'department') return (
+    <DepartmentPortal
+      onBack={rosterShortcut && onNavigate ? () => onNavigate('dashboard') : () => setView('hub')}
+      backLabel={rosterShortcut && onNavigate ? 'Dashboard' : 'WCM Community Hub'}
+      initialSection={initialSection}
+    />
+  )
   return <WCMHub onNavigate={setView} />
 }

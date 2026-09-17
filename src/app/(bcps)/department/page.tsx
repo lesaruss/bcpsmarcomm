@@ -573,7 +573,7 @@ function DepartmentContent() {
                       {dept.website_url && (
                         <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'var(--lr-text-50)',marginBottom:14,padding:'8px 12px',background:'#f8fafb',border:'1px solid var(--lr-border)',borderRadius:8}}>
                           <span style={{fontWeight:700,color:'var(--lr-text)'}}>Page audited:</span>
-                          <a href={dept.website_url} target="_blank" rel="noopener" style={{color:'#1672A7',fontWeight:600,wordBreak:'break-all'}}>{dept.website_url}</a>
+                          <a href={dept.website_url} target="_blank" rel="noopener" style={{color:'#1672A7',fontWeight:600}}>{dept.name} on Finalsite</a>
                         </div>
                       )}
                       <div className="issue-list">
@@ -624,7 +624,7 @@ function DepartmentContent() {
                   {dept.website_url && (
                     <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'var(--lr-text-50)',marginBottom:14,padding:'8px 12px',background:'#f8fafb',border:'1px solid var(--lr-border)',borderRadius:8}}>
                       <span style={{fontWeight:700,color:'var(--lr-text)'}}>Page audited:</span>
-                      <a href={dept.website_url} target="_blank" rel="noopener" style={{color:'#1672A7',fontWeight:600,wordBreak:'break-all'}}>{dept.website_url}</a>
+                      <a href={dept.website_url} target="_blank" rel="noopener" style={{color:'#1672A7',fontWeight:600}}>{dept.name} on Finalsite</a>
                     </div>
                   )}
                   {adaSorted.length > 0 ? (
