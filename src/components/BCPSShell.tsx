@@ -96,6 +96,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams()
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [docPreview, setDocPreview] = useState<{ title: string; url: string } | null>(null)
   const [role, setRole] = useState<UserRole>('user')
   const [viewAs, setViewAs] = useState<TeamMember | null>(null)
   const [allowedPages, setAllowedPages] = useState<string[] | null>(null)
@@ -265,6 +266,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           viewAs={viewAs}
           onViewAs={handleViewAs}
           allowedPages={effectivePages ?? undefined}
+          onOpenDoc={(title, url) => setDocPreview({ title, url })}
         />
 
         <div className="main-area">
@@ -336,6 +338,25 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </div>
+
+      {/* Playbooks/briefs linked from the sidebar preview here, in-shell, the
+          same way Documents previews every other document - matches Sean,
+          2026-09-17: the Director Playbook used to open full-screen via a
+          hard navigation, with no way back to the app underneath it. */}
+      {docPreview && (
+        <div className="doc-lightbox active" onClick={() => setDocPreview(null)}>
+          <div className="doc-lightbox-content" onClick={e => e.stopPropagation()}>
+            <div className="doc-lightbox-header">
+              <span className="doc-lightbox-title">{docPreview.title}</span>
+              <div className="doc-lightbox-actions">
+                <a href={docPreview.url} target="_blank" rel="noopener noreferrer" className="doc-lightbox-open-btn">Open full page ↗</a>
+                <button className="doc-lightbox-close-btn" onClick={() => setDocPreview(null)} aria-label="Close preview">x</button>
+              </div>
+            </div>
+            <iframe className="doc-lightbox-iframe" src={docPreview.url} title={docPreview.title} />
+          </div>
+        </div>
+      )}
     </BCPSShellContext.Provider>
   )
 }
