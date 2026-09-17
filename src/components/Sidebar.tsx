@@ -206,11 +206,31 @@ const Icons: Record<string, React.ReactNode> = {
       <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
     </svg>
   ),
-  requests: (
+  members: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-      <rect x="9" y="3" width="6" height="4" rx="1"/>
-      <path d="M9 12l2 2 4-4"/>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  ),
+  'banner-submissions': (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h16v13l-8 4-8-4z"/>
+      <line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/>
+    </svg>
+  ),
+  'school-profiles': (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 21h18"/>
+      <path d="M5 21V7l7-4 7 4v14"/>
+      <path d="M9 21v-6h6v6"/>
+    </svg>
+  ),
+  permissions: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="11" width="14" height="10" rx="2"/>
+      <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
     </svg>
   ),
   'pulse-approvals': (
@@ -273,7 +293,6 @@ const SECTIONS: NavSection[] = [
     { id: 'profile', label: 'My Profile' },
     { id: 'members', label: 'Members' },
     { id: 'minibase', label: 'Minibase' },
-    { id: 'requests', label: 'Requests' },
   ] },
   { label: 'MarComm', items: [
     { id: 'marcomm', label: 'Newsroom' },
@@ -450,38 +469,6 @@ export default function Sidebar({
                   boxShadow: '0 -8px 24px rgba(0,0,0,0.25)',
                 }}>
                   <div style={{ padding: '10px 14px 6px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.4)' }}>
-                    View as...
-                  </div>
-                  {TEAM_MEMBERS.map(member => (
-                    <button
-                      key={member.id}
-                      onClick={() => selectViewAs(member)}
-                      style={{
-                        width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-                        padding: '9px 14px', background: viewAs?.id === member.id ? 'rgba(255,255,255,0.12)' : 'none',
-                        border: 'none', cursor: 'pointer', textAlign: 'left',
-                        transition: 'background 0.12s',
-                      }}
-                      onMouseOver={e => { if (viewAs?.id !== member.id) e.currentTarget.style.background = 'rgba(255,255,255,0.07)' }}
-                      onMouseOut={e => { if (viewAs?.id !== member.id) e.currentTarget.style.background = 'none' }}
-                    >
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: member.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
-                        {member.initials}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{member.name}</div>
-                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>{member.roleLabel}</div>
-                      </div>
-                      {viewAs?.id === member.id && (
-                        <svg style={{ marginLeft: 'auto' }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F4C436" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-
-                  <div style={{ borderTop: '1px dashed rgba(255,255,255,0.15)', margin: '4px 0' }}/>
-                  <div style={{ padding: '8px 14px 4px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.4)' }}>
                     Preview a role (sample data)
                   </div>
                   {SAMPLE_ROLE_MEMBERS.map(member => (

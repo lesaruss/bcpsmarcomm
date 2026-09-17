@@ -26,7 +26,6 @@ export type PageId =
   | 'pulse-approvals'
   | 'find-it-fast'
   | 'widgets'
-  | 'requests'
   | 'ada-scanner'
   | 'ada-manager'
   | 'banner-submissions'
