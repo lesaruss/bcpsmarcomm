@@ -233,6 +233,14 @@ const Icons: Record<string, React.ReactNode> = {
       <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
     </svg>
   ),
+  roster: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2"/>
+      <path d="M3 9h18"/>
+      <path d="M8 13h.01"/><path d="M8 17h.01"/>
+      <line x1="12" y1="13" x2="17" y2="13"/><line x1="12" y1="17" x2="17" y2="17"/>
+    </svg>
+  ),
   'pulse-approvals': (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
@@ -269,7 +277,7 @@ const Icons: Record<string, React.ReactNode> = {
 }
 
 // ── Nav config ─────────────────────────────────────────────────────────────
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations', 'roster'])
 
 // A nav item is normally a PageId routed through ?page=. Some items are
 // direct links to a document that lives outside the page router - the
@@ -336,6 +344,7 @@ const SECTIONS: NavSection[] = [
     { id: 'permissions', label: 'Permissions' },
     { id: 'pulse-approvals', label: 'Note Approvals' },
     { id: 'registrations', label: 'Registrations' },
+    { id: 'roster', label: 'The Roster' },
   ] },
   { label: 'Other', items: [
     { id: 'minutes', label: 'Minutes' },

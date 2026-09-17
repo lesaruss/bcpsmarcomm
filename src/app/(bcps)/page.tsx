@@ -34,9 +34,10 @@ import ADAManagerPage from '@/components/pages/ADAManagerPage'
 import RegistrationsPage from '@/components/pages/RegistrationsPage'
 import BannerSubmissionsPage from '@/components/pages/BannerSubmissionsPage'
 import SchoolProfilesPage from '@/components/pages/SchoolProfilesPage'
+import RosterPage from '@/components/pages/RosterPage'
 import { SAMPLE_SUPERADMIN_ID, type UserRole } from '@/components/Sidebar'
 
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations', 'roster'])
 
 function HomeInner() {
   const router = useRouter()
@@ -113,6 +114,7 @@ function HomeInner() {
       {nav.page === 'registrations'            && effectiveRole === 'superadmin' && <RegistrationsPage />}
       {nav.page === 'banner-submissions'       && <BannerSubmissionsPage />}
       {nav.page === 'school-profiles'          && <SchoolProfilesPage />}
+      {nav.page === 'roster'                   && effectiveRole === 'superadmin' && <RosterPage />}
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>

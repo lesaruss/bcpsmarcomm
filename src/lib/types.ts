@@ -30,6 +30,7 @@ export type PageId =
   | 'ada-manager'
   | 'banner-submissions'
   | 'school-profiles'
+  | 'roster'
 
 export interface BreadcrumbItem {
   label: string
