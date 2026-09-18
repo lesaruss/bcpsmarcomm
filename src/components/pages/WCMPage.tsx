@@ -37,6 +37,10 @@ interface RosterRow {
   department_name: string
   location_number: string
   director_name: string | null
+  // Confirmed director address on file, joined from bcps_departments - the
+  // roster itself only ever stored the name. Folded in from the retired
+  // standalone "Roster" BCC tool (Sean, 2026-09-18).
+  director_email: string | null
   updated_at: string
   wcms: RosterMember[]
 }
@@ -83,6 +87,13 @@ function DepartmentRosterSection() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState({ wcm_name: '', wcm_personnel_number: '', wcm_email: '' })
   const [deleting, setDeleting] = useState<string | null>(null)
+  // BCC-list selection, open to every viewer (not just admins) since it only
+  // reads emails already on the page - folded in from the retired
+  // standalone "Roster" tool (Sean, 2026-09-18: "put the functionality of
+  // selecting the emails in the existing WCM roster page"). Keyed
+  // `wcm:<memberId>` or `dir:<rosterRowId>` so both kinds share one map.
+  const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const [bccToast, setBccToast] = useState('')
 
   async function load() {
     setLoading(true)
@@ -225,6 +236,53 @@ function DepartmentRosterSection() {
     return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   }
 
+  // Every selectable {key, email} across the whole roster (not just the
+  // filtered/visible rows), so a BCC list built before searching stays intact
+  // once the search box is cleared.
+  const selectableRows = useMemo(() => {
+    const rows: { key: string; email: string }[] = []
+    for (const r of roster) {
+      if (r.director_email) rows.push({ key: `dir:${r.id}`, email: r.director_email })
+      for (const w of r.wcms) if (w.wcm_email) rows.push({ key: `wcm:${w.id}`, email: w.wcm_email })
+    }
+    return rows
+  }, [roster])
+
+  const selectedEmails = useMemo(
+    () => selectableRows.filter(r => selected[r.key]).map(r => r.email),
+    [selectableRows, selected]
+  )
+
+  function toggleSelect(key: string) {
+    setSelected(prev => {
+      const next = { ...prev }
+      if (next[key]) delete next[key]; else next[key] = true
+      return next
+    })
+  }
+  const selectAllConfirmed = () => {
+    const next = { ...selected }
+    selectableRows.forEach(r => { next[r.key] = true })
+    setSelected(next)
+  }
+  const clearSelection = () => setSelected({})
+
+  const showBccToast = (msg: string) => { setBccToast(msg); setTimeout(() => setBccToast(''), 1800) }
+  const copyBcc = async () => {
+    if (!selectedEmails.length) return
+    const list = selectedEmails.join(', ')
+    try {
+      await navigator.clipboard.writeText(list)
+      showBccToast(`Copied ${selectedEmails.length} email${selectedEmails.length === 1 ? '' : 's'}`)
+    } catch {
+      window.prompt('Copy this BCC list:', list)
+    }
+  }
+  const openMailto = () => {
+    if (!selectedEmails.length) return
+    window.location.href = `mailto:?bcc=${encodeURIComponent(selectedEmails.join(','))}`
+  }
+
   return (
     <div className="wcm-content-section">
       <style>{`
@@ -313,24 +371,36 @@ function DepartmentRosterSection() {
         }
         .roster-link-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #C55326; margin-bottom: 4px; }
         .roster-link-url { font-size: 13px; color: #1a1a1a; font-family: ui-monospace, monospace; word-break: break-all; }
+        .roster-select-row { display: flex; align-items: center; gap: 6px; cursor: pointer; margin-top: 2px; }
+        .roster-select-row input { margin: 0; cursor: pointer; }
+        .roster-bcc-bar {
+          position: sticky; bottom: 16px; margin-top: 20px; background: #fff; border: 1px solid #d1d5db;
+          border-radius: 12px; box-shadow: 0 8px 24px -12px rgba(0,0,0,0.18); padding: 14px 18px;
+          display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+        }
+        .roster-bcc-count { font-weight: 700; font-size: 13.5px; }
+        .roster-bcc-count strong { color: #0e4e73; }
+        .roster-bcc-toast { font-size: 12px; color: #0e4e73; font-weight: 600; }
       `}</style>
 
-      <div className="roster-link-box">
-        <div>
-          <div className="roster-link-label">Share this with Department Directors</div>
-          <div className="roster-link-url">{ROSTER_SIGNUP_URL}</div>
+      {!readOnly && (
+        <div className="roster-link-box">
+          <div>
+            <div className="roster-link-label">Share this with Department Directors</div>
+            <div className="roster-link-url">{ROSTER_SIGNUP_URL}</div>
+          </div>
+          <button
+            className="roster-btn approve"
+            onClick={() => {
+              navigator.clipboard.writeText(ROSTER_SIGNUP_URL)
+              setLinkCopied(true)
+              setTimeout(() => setLinkCopied(false), 2000)
+            }}
+          >
+            {linkCopied ? 'Copied!' : 'Copy Link'}
+          </button>
         </div>
-        <button
-          className="roster-btn approve"
-          onClick={() => {
-            navigator.clipboard.writeText(ROSTER_SIGNUP_URL)
-            setLinkCopied(true)
-            setTimeout(() => setLinkCopied(false), 2000)
-          }}
-        >
-          {linkCopied ? 'Copied!' : 'Copy Link'}
-        </button>
-      </div>
+      )}
 
       {lastResult && (
         <div style={{
@@ -383,7 +453,7 @@ function DepartmentRosterSection() {
         </>
       )}
 
-      <div className="roster-toolbar" style={{ marginTop: pending.length > 0 ? 24 : 4 }}>
+      <div className="roster-toolbar" style={{ marginTop: !readOnly && pending.length > 0 ? 24 : 4 }}>
         <input
           className="roster-search"
           placeholder="Search departments, directors, or WCMs..."
@@ -391,6 +461,8 @@ function DepartmentRosterSection() {
           onChange={e => setSearch(e.target.value)}
         />
         <span className="roster-count">{loading ? 'Loading...' : `${filteredRoster.length} of ${roster.length} departments`}</span>
+        <button className="roster-btn reject" onClick={selectAllConfirmed} disabled={selectableRows.length === 0}>Select all emails</button>
+        <button className="roster-btn reject" onClick={clearSelection} disabled={selectedEmails.length === 0}>Clear selection</button>
       </div>
 
       {failureDetail && (
@@ -450,7 +522,19 @@ function DepartmentRosterSection() {
                   <div className="roster-dept-name">{titleCase(r.department_name)}</div>
                   <div className="roster-loc">Loc #{r.location_number}</div>
                 </td>
-                <td>{r.director_name || <span className="roster-empty-val">Not on file</span>}</td>
+                <td>
+                  {r.director_name ? (
+                    <>
+                      <div>{r.director_name}</div>
+                      {r.director_email && (
+                        <label className="roster-select-row">
+                          <input type="checkbox" checked={!!selected[`dir:${r.id}`]} onChange={() => toggleSelect(`dir:${r.id}`)} />
+                          <span className="roster-wcm-email">{r.director_email}</span>
+                        </label>
+                      )}
+                    </>
+                  ) : <span className="roster-empty-val">Not on file</span>}
+                </td>
                 <td>
                   {r.wcms.length === 0 ? (
                     <span className="roster-empty-val">Not assigned</span>
@@ -518,7 +602,12 @@ function DepartmentRosterSection() {
                       <div key={w.id} className="wcm-member-row">
                         <div className="wcm-member-info">
                           <div className="wcm-member-name">{w.wcm_name}</div>
-                          {w.wcm_email && <div className="roster-wcm-email">{w.wcm_email}</div>}
+                          {w.wcm_email && (
+                            <label className="roster-select-row">
+                              <input type="checkbox" checked={!!selected[`wcm:${w.id}`]} onChange={() => toggleSelect(`wcm:${w.id}`)} />
+                              <span className="roster-wcm-email">{w.wcm_email}</span>
+                            </label>
+                          )}
                         </div>
                         <div className="wcm-member-status">{statusEl}</div>
                         {!readOnly && (
@@ -543,6 +632,14 @@ function DepartmentRosterSection() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="roster-bcc-bar">
+        <div className="roster-bcc-count"><strong>{selectedEmails.length}</strong> selected</div>
+        {bccToast && <span className="roster-bcc-toast">{bccToast}</span>}
+        <div style={{ flex: 1 }} />
+        <button className="roster-btn reject" disabled={!selectedEmails.length} onClick={openMailto}>Open in mail app</button>
+        <button className="roster-btn approve" disabled={!selectedEmails.length} onClick={copyBcc}>Copy BCC list</button>
       </div>
     </div>
   )
@@ -1036,7 +1133,11 @@ function DepartmentPortal({ initialSection }: { initialSection?: string }) {
 /* ─── STANDALONE WCM ROSTER PAGE ──────────────────────── */
 // Pulled out of the Department Portal (Sean, 2026-09-18: "it's not part of
 // the resources, so it doesn't make sense" to live in that tab list). Its
-// own sidebar entry under District Web Team, superadmin-only.
+// own sidebar entry under District Web Team, open to every district user
+// (2026-09-18) - browsing the directory and building a BCC list is
+// read-only; the signup-link box, the approval queue, and editing/deleting
+// entries stay admin-only inside DepartmentRosterSection via its own
+// !readOnly check.
 export function WcmRosterStandalonePage() {
   return (
     <div style={{ padding: 32, background: '#ffffff' }}>
@@ -1046,9 +1147,8 @@ export function WcmRosterStandalonePage() {
         </div>
         <h1 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 10px' }}>WCM Roster</h1>
         <p style={{ fontSize: 14, color: 'rgba(26,26,26,0.55)', margin: 0, lineHeight: 1.6, maxWidth: 780 }}>
-          Live directory of every district department, its Director, and assigned Web Content Manager(s) - kept current by
-          the <strong>Department Web Content Managers Roster</strong> signup form below. Director submissions land in the
-          review queue for approval before they update a department&apos;s record.
+          Live directory of every district department, its Director, and assigned Web Content Manager(s). Search below,
+          check off any names, and copy or email a BCC list from their addresses on file.
         </p>
       </div>
       <DepartmentRosterSection />

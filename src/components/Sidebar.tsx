@@ -338,7 +338,9 @@ const SECTIONS: NavSection[] = [
     { id: 'bcps-google-governance', label: 'Google Governance' },
     // Pulled out of the Department Portal's tab list (Sean, 2026-09-18): the
     // roster isn't one of the department's resources, so it gets its own
-    // page, superadmin-only for now, listed here instead.
+    // page, listed here instead. Open to every district user (2026-09-18) -
+    // viewing and BCC-selecting the roster is read-only; approving, editing,
+    // and deleting entries stays superadmin/admin-only inside the page.
     { id: 'wcm-roster', label: 'WCM Roster' },
     { id: 'pb-web-governance', label: 'Website Governance Plan', href: '/briefs/bcps-website-governance-plan-2026-06-10', requires: 'bcps-google-governance', inlineDoc: true },
     { id: 'banner-submissions', label: 'Banner Submissions' },
@@ -352,7 +354,6 @@ const SECTIONS: NavSection[] = [
     { id: 'permissions', label: 'Permissions' },
     { id: 'pulse-approvals', label: 'Note Approvals' },
     { id: 'registrations', label: 'Registrations' },
-    { id: 'roster', label: 'The Roster' },
   ] },
   { label: 'Other', items: [
     { id: 'minutes', label: 'Minutes' },

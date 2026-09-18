@@ -71,7 +71,6 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'ada-scanner':            { title: 'ADA Scanner',           sub: 'Accessibility Compliance Check' },
   'schools-ada':            { title: 'Schools ADA',           sub: 'Full-Site Accessibility Scores by School' },
   'schools':                { title: 'School ADA Accounts',   sub: 'School-Level WCM Portal Accounts' },
-  'roster':                 { title: 'The Roster',            sub: 'WCM & Director BCC List' },
   'wcm-roster':             { title: 'WCM Roster',            sub: 'District Web Team' },
 }
 

@@ -194,17 +194,32 @@ async function deliveryByMember(memberIds: string[]): Promise<Map<string, Delive
   return out
 }
 
+// Every department this roster references, keyed by bcps_departments.id, for
+// the BCC-list director_email column - the roster itself only stores
+// director_name, the confirmed address lives on bcps_departments (also read
+// by the now-retired standalone "Roster" BCC tool, whose select-and-copy
+// feature moved into this page - Sean, 2026-09-18).
+async function directorEmailsByDepartment(deptIds: string[]): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>()
+  const ids = Array.from(new Set(deptIds))
+  if (ids.length === 0) return out
+  const { data } = await supabase.from('bcps_departments').select('id, director_email').in('id', ids)
+  for (const d of data ?? []) out.set(d.id, d.director_email ?? null)
+  return out
+}
+
 // GET: full roster (departments, alphabetical) with each department's
 // current director + assigned WCM(s), plus any submissions still awaiting
 // review. Backs the "WCM Roster" tab in the Department WCMS Portal.
 export async function GET(req: NextRequest) {
-  // Web Content Managers get a READ-ONLY view of the roster and its outcomes
-  // (Sean, 2026-09-15: "they should only be able to see the roster and the
-  // results of that"). Approving stays admin-only - the PATCH below is
-  // unchanged. A non-admin district user gets the roster with the approval
-  // dates and no pending-submission queue; personnel numbers and WCM email
-  // addresses are withheld, since the read-only view is a directory, not the
-  // staff record the admin queue is.
+  // Open to every district user, not just admins (Sean, 2026-09-18): the
+  // roster is a directory anyone should be able to browse and pull a BCC
+  // list from. Approving/editing/deleting stays admin-only - the PATCH/
+  // PUT/DELETE handlers below are unchanged and still require
+  // requireBcpsAdmin. A non-admin viewer gets the roster and director/WCM
+  // emails for the BCC tool, but no pending-submission queue and no
+  // personnel numbers - those are the staff record the admin queue is, not
+  // the directory this view is.
   const admin = await requireBcpsAdmin(req)
   if (!admin.ok) {
     const viewer = await requireDistrictUser(req)
@@ -212,21 +227,26 @@ export async function GET(req: NextRequest) {
 
     const [{ data: roster }, { data: members }] = await Promise.all([
       supabase.from('bcps_wcm_roster')
-        .select('id, department_name, location_number, director_name, updated_at')
+        .select('id, department_name, location_number, matched_department_id, director_name, updated_at')
         .order('department_name', { ascending: true }),
       supabase.from('bcps_wcm_roster_members')
-        .select('id, roster_id, wcm_name, approved_at, added_at')
+        .select('id, roster_id, wcm_name, wcm_email, approved_at, added_at')
         .order('added_at', { ascending: true }),
     ])
+    const directorEmails = await directorEmailsByDepartment((roster ?? []).map(r => r.matched_department_id).filter(Boolean))
     const byRoster = new Map<string, unknown[]>()
     for (const m of members ?? []) {
       const list = byRoster.get(m.roster_id) ?? []
-      list.push({ id: m.id, wcm_name: m.wcm_name, approved_at: m.approved_at, wcm_email: null, wcm_personnel_number: null })
+      list.push({ id: m.id, wcm_name: m.wcm_name, approved_at: m.approved_at, wcm_email: m.wcm_email, wcm_personnel_number: null })
       byRoster.set(m.roster_id, list)
     }
     const res = NextResponse.json({
       read_only: true,
-      roster: (roster ?? []).map(r => ({ ...r, wcms: byRoster.get(r.id) ?? [] })),
+      roster: (roster ?? []).map(r => ({
+        ...r,
+        director_email: r.matched_department_id ? directorEmails.get(r.matched_department_id) ?? null : null,
+        wcms: byRoster.get(r.id) ?? [],
+      })),
       submissions: [],
     })
     res.headers.set('Cache-Control', 'no-store')
@@ -251,7 +271,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: (rosterErr || memberErr || subErr)?.message }, { status: 500 })
   }
 
-  const delivery = await deliveryByMember((members ?? []).map(m => m.id))
+  const [delivery, directorEmails] = await Promise.all([
+    deliveryByMember((members ?? []).map(m => m.id)),
+    directorEmailsByDepartment((roster ?? []).map(r => r.matched_department_id).filter(Boolean)),
+  ])
 
   const membersByRoster = new Map<string, unknown[]>()
   for (const m of members ?? []) {
@@ -267,6 +290,7 @@ export async function GET(req: NextRequest) {
 
   const rosterWithMembers = (roster ?? []).map(r => ({
     ...r,
+    director_email: r.matched_department_id ? directorEmails.get(r.matched_department_id) ?? null : null,
     wcms: membersByRoster.get(r.id) ?? [],
   }))
 

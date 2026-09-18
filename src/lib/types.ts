@@ -30,7 +30,6 @@ export type PageId =
   | 'ada-manager'
   | 'banner-submissions'
   | 'school-profiles'
-  | 'roster'
   | 'wcm-roster'
 
 export interface BreadcrumbItem {

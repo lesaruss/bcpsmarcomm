@@ -34,7 +34,6 @@ import ADAManagerPage from '@/components/pages/ADAManagerPage'
 import RegistrationsPage from '@/components/pages/RegistrationsPage'
 import BannerSubmissionsPage from '@/components/pages/BannerSubmissionsPage'
 import SchoolProfilesPage from '@/components/pages/SchoolProfilesPage'
-import RosterPage from '@/components/pages/RosterPage'
 import { SAMPLE_SUPERADMIN_ID, type UserRole } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
 
@@ -95,7 +94,7 @@ function HomeInner() {
       {nav.page === 'graphics'               && effectiveRole === 'superadmin' && <GraphicsPage />}
       {nav.page === 'minutes'                && <MinutesPage />}
       {nav.page === 'wcm'                    && <WCMPage />}
-      {nav.page === 'wcm-roster'              && effectiveRole === 'superadmin' && <WcmRosterStandalonePage />}
+      {nav.page === 'wcm-roster'              && <WcmRosterStandalonePage />}
       {nav.page === 'queue'                  && <QueuePage onNavigate={navigate} onShowToast={showToast} viewAsUserId={viewAs?.id} />}
       {nav.page === 'bcps-google-governance' && <BCPSGovernancePage />}
       {nav.page === 'bcps-assignments'       && <AssignmentsPage />}
@@ -114,7 +113,6 @@ function HomeInner() {
       {nav.page === 'registrations'            && effectiveRole === 'superadmin' && <RegistrationsPage />}
       {nav.page === 'banner-submissions'       && <BannerSubmissionsPage />}
       {nav.page === 'school-profiles'          && <SchoolProfilesPage />}
-      {nav.page === 'roster'                   && effectiveRole === 'superadmin' && <RosterPage />}
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>
