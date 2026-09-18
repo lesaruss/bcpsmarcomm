@@ -537,3 +537,57 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
+
+// PUT: admin edits a confirmed roster member's name, personnel number, or
+// email directly - the manual-correction path Sean asked for after finding
+// duplicate registrations and a truncated name ("Lorena") in the live data,
+// so fixing it doesn't require a direct database edit next time.
+export async function PUT(req: NextRequest) {
+  const auth = await requireBcpsAdmin(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+  try {
+    const { id, wcm_name, wcm_personnel_number, wcm_email } = await req.json() as {
+      id?: string; wcm_name?: string; wcm_personnel_number?: string | null; wcm_email?: string | null
+    }
+    if (!id || !wcm_name?.trim()) {
+      return NextResponse.json({ error: 'id and wcm_name are required' }, { status: 400 })
+    }
+
+    const { error } = await supabase.from('bcps_wcm_roster_members').update({
+      wcm_name: wcm_name.trim(),
+      wcm_personnel_number: wcm_personnel_number?.trim() || null,
+      wcm_email: wcm_email?.trim() ? normalizeDistrictEmail(wcm_email.trim()) : null,
+    }).eq('id', id)
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}
+
+// DELETE: admin removes either a pending submission outright (distinct from
+// Reject, which keeps the row marked rejected) or a confirmed roster member,
+// per Sean 2026-09-18 - manual cleanup of duplicate/incorrect roster data
+// used to mean editing the database directly.
+export async function DELETE(req: NextRequest) {
+  const auth = await requireBcpsAdmin(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+  try {
+    const { type, id } = await req.json() as { type?: 'submission' | 'member'; id?: string }
+    if (!id || (type !== 'submission' && type !== 'member')) {
+      return NextResponse.json({ error: 'type ("submission" or "member") and id are required' }, { status: 400 })
+    }
+
+    const table = type === 'submission' ? 'bcps_wcm_roster_submissions' : 'bcps_wcm_roster_members'
+    const { error } = await supabase.from(table).delete().eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}

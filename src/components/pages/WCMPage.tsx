@@ -81,6 +81,10 @@ function DepartmentRosterSection() {
   const [lastResult, setLastResult] = useState<string | null>(null)
   // The WCM whose failed-delivery detail is open in the lightbox.
   const [failureDetail, setFailureDetail] = useState<RosterMember | null>(null)
+  // The WCM member row currently open for inline editing, and its draft values.
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState({ wcm_name: '', wcm_personnel_number: '', wcm_email: '' })
+  const [deleting, setDeleting] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -142,17 +146,82 @@ function DepartmentRosterSection() {
     setActing(null)
   }
 
+  async function deleteSubmission(id: string) {
+    if (!window.confirm('Delete this pending submission? This removes it entirely, it will not show as rejected.')) return
+    setActing(id)
+    try {
+      const r = await fetch('/api/bcps/wcm-roster-queue', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+        body: JSON.stringify({ type: 'submission', id }),
+      })
+      if (r.ok) await load()
+      else { const j = await r.json().catch(() => ({})); alert(j.error || 'Could not delete this submission.') }
+    } catch {
+      alert('Could not delete this submission.')
+    }
+    setActing(null)
+  }
+
+  async function deleteMember(id: string, name: string) {
+    if (!window.confirm(`Remove ${name} from this department's roster? This cannot be undone.`)) return
+    setDeleting(id)
+    try {
+      const r = await fetch('/api/bcps/wcm-roster-queue', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+        body: JSON.stringify({ type: 'member', id }),
+      })
+      if (r.ok) await load()
+      else { const j = await r.json().catch(() => ({})); alert(j.error || 'Could not remove this WCM.') }
+    } catch {
+      alert('Could not remove this WCM.')
+    }
+    setDeleting(null)
+  }
+
+  function startEdit(m: RosterMember) {
+    setEditingId(m.id)
+    setEditDraft({ wcm_name: m.wcm_name, wcm_personnel_number: m.wcm_personnel_number ?? '', wcm_email: m.wcm_email ?? '' })
+  }
+
+  async function saveEdit(id: string) {
+    if (!editDraft.wcm_name.trim()) { alert('Name cannot be empty.'); return }
+    setDeleting(id)
+    try {
+      const r = await fetch('/api/bcps/wcm-roster-queue', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+        body: JSON.stringify({ id, ...editDraft }),
+      })
+      if (r.ok) { setEditingId(null); await load() }
+      else { const j = await r.json().catch(() => ({})); alert(j.error || 'Could not save this change.') }
+    } catch {
+      alert('Could not save this change.')
+    }
+    setDeleting(null)
+  }
+
   const pending = useMemo(() => submissions.filter(s => s.status === 'pending'), [submissions])
+
+  // Confirmed WCMs (a real email on file) first, ahead of legacy no-email
+  // placeholder rows - Sean, 2026-09-18: in Bilingual/ESOL the confirmed WCM
+  // was sorting to the bottom, below three unconfirmed legacy names, just
+  // because it was added to the roster later.
+  const sortedRoster = useMemo(() => roster.map(r => ({
+    ...r,
+    wcms: [...r.wcms].sort((a, b) => (a.wcm_email ? 0 : 1) - (b.wcm_email ? 0 : 1)),
+  })), [roster])
 
   const filteredRoster = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return roster
-    return roster.filter(r =>
+    if (!q) return sortedRoster
+    return sortedRoster.filter(r =>
       r.department_name.toLowerCase().includes(q) ||
       (r.director_name || '').toLowerCase().includes(q) ||
       r.wcms.some(w => w.wcm_name.toLowerCase().includes(q))
     )
-  }, [roster, search])
+  }, [sortedRoster, search])
 
   function formatDate(iso: string) {
     return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -176,7 +245,30 @@ function DepartmentRosterSection() {
         .roster-btn { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-family: inherit; border: none; }
         .roster-btn.approve { background: #16750C; color: #fff; }
         .roster-btn.reject { background: #fff; color: #9ca3af; border: 1.5px solid #e5e7eb; }
+        .roster-btn.delete { background: #fff; color: #DC2626; border: 1.5px solid #FBCFE8; }
         .roster-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .wcm-member-row {
+          display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .wcm-member-row:last-child { border-bottom: none; }
+        .wcm-member-info { min-width: 0; flex: 1 1 auto; }
+        .wcm-member-name { font-size: 13px; font-weight: 700; color: #1a1a1a; }
+        .wcm-member-status { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+        .wcm-member-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+        .wcm-icon-btn {
+          width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+          border: 1px solid #e5e7eb; background: #fff; border-radius: 6px; cursor: pointer;
+          font-size: 12px; color: #6b7280; padding: 0;
+        }
+        .wcm-icon-btn:hover { border-color: #9ca3af; color: #1a1a1a; }
+        .wcm-icon-btn.danger:hover { border-color: #FBCFE8; color: #DC2626; background: #FDF2F8; }
+        .wcm-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .wcm-edit-form { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 6px 0; }
+        .wcm-edit-form input {
+          font: inherit; font-size: 12.5px; padding: 6px 8px; border: 1.5px solid #d1d5db; border-radius: 6px;
+        }
+        .wcm-edit-actions { display: flex; gap: 6px; margin-top: 2px; }
         .roster-pending-card.is-flagged { border-left-color: #DC2626; background: #FEF2F2; }
         .roster-flag-badge {
           display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 800;
@@ -293,6 +385,7 @@ function DepartmentRosterSection() {
               <div className="roster-pending-actions">
                 <button className="roster-btn reject" disabled={acting === s.id} onClick={() => decide(s.id, 'reject')}>Reject</button>
                 <button className="roster-btn approve" disabled={acting === s.id} onClick={() => decide(s.id, 'approve')}>Approve</button>
+                <button className="roster-btn delete" disabled={acting === s.id} onClick={() => deleteSubmission(s.id)}>Delete</button>
               </div>
             </div>
           ))}
@@ -352,15 +445,14 @@ function DepartmentRosterSection() {
               <th>Department</th>
               <th>Director</th>
               <th>Web Content Manager(s)</th>
-              <th>Emails</th>
               <th>Updated</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9ca3af', padding: 24 }}>Loading roster...</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af', padding: 24 }}>Loading roster...</td></tr>
             ) : filteredRoster.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9ca3af', padding: 24 }}>No departments match that search.</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af', padding: 24 }}>No departments match that search.</td></tr>
             ) : filteredRoster.map(r => (
               <tr key={r.id}>
                 <td>
@@ -371,55 +463,86 @@ function DepartmentRosterSection() {
                 <td>
                   {r.wcms.length === 0 ? (
                     <span className="roster-empty-val">Not assigned</span>
-                  ) : r.wcms.map(w => (
-                    <div key={w.id} className="roster-wcm-row">
-                      {w.wcm_name}
-                      {w.wcm_email && <div className="roster-wcm-email">{w.wcm_email}</div>}
-                    </div>
-                  ))}
-                </td>
-                <td>
-                  {r.wcms.length === 0 ? (
-                    <span className="roster-empty-val">—</span>
                   ) : r.wcms.map(w => {
+                    if (editingId === w.id) {
+                      return (
+                        <div key={w.id} className="wcm-edit-form">
+                          <input
+                            value={editDraft.wcm_name}
+                            onChange={e => setEditDraft(d => ({ ...d, wcm_name: e.target.value }))}
+                            placeholder="Name"
+                          />
+                          <input
+                            value={editDraft.wcm_email}
+                            onChange={e => setEditDraft(d => ({ ...d, wcm_email: e.target.value }))}
+                            placeholder="Email"
+                          />
+                          <input
+                            value={editDraft.wcm_personnel_number}
+                            onChange={e => setEditDraft(d => ({ ...d, wcm_personnel_number: e.target.value }))}
+                            placeholder="Personnel #"
+                          />
+                          <div className="wcm-edit-actions">
+                            <button className="roster-btn approve" disabled={deleting === w.id} onClick={() => saveEdit(w.id)}>Save</button>
+                            <button className="roster-btn reject" disabled={deleting === w.id} onClick={() => setEditingId(null)}>Cancel</button>
+                          </div>
+                        </div>
+                      )
+                    }
+
                     const state = w.delivery?.state ?? 'not_sent'
                     const when = w.delivery?.at ?? w.approved_at
+                    let statusEl: React.ReactNode
                     if (state === 'failed') {
-                      return (
-                        <div key={w.id} className="roster-wcm-row" style={{ marginBottom: 6 }}>
-                          <button
-                            className="pill pill-failed"
-                            onClick={() => setFailureDetail(w)}
-                            title="See why this failed"
-                          >
-                            ● Failed
-                          </button>
+                      statusEl = (
+                        <>
+                          <button className="pill pill-failed" onClick={() => setFailureDetail(w)} title="See why this failed">● Failed</button>
                           {when && <span className="pill-date">{formatDate(when)}</span>}
-                        </div>
+                        </>
                       )
-                    }
-                    if (state === 'confirmed') {
-                      return (
-                        <div key={w.id} className="roster-wcm-row" style={{ marginBottom: 6 }}>
+                    } else if (state === 'confirmed') {
+                      statusEl = (
+                        <>
                           <span className="pill pill-confirmed">● Confirmed</span>
                           {when && <span className="pill-date">{formatDate(when)}</span>}
-                        </div>
+                        </>
                       )
-                    }
-                    if (state === 'pending') {
-                      return (
-                        <div key={w.id} className="roster-wcm-row" style={{ marginBottom: 6 }}>
+                    } else if (state === 'pending') {
+                      statusEl = (
+                        <>
                           <span className="pill pill-pending">● Sending</span>
                           {when && <span className="pill-date">{formatDate(when)}</span>}
-                        </div>
+                        </>
+                      )
+                    } else {
+                      statusEl = (
+                        <>
+                          <span className="pill pill-none">No email sent</span>
+                          <span className="pill-date">{w.approved_at ? `Approved ${formatDate(w.approved_at)}` : 'Added manually'}</span>
+                        </>
                       )
                     }
+
                     return (
-                      <div key={w.id} className="roster-wcm-row" style={{ marginBottom: 6 }}>
-                        <span className="pill pill-none">No email sent</span>
-                        <span className="pill-date">
-                          {w.approved_at ? `Approved ${formatDate(w.approved_at)}` : 'Added manually'}
-                        </span>
+                      <div key={w.id} className="wcm-member-row">
+                        <div className="wcm-member-info">
+                          <div className="wcm-member-name">{w.wcm_name}</div>
+                          {w.wcm_email && <div className="roster-wcm-email">{w.wcm_email}</div>}
+                        </div>
+                        <div className="wcm-member-status">{statusEl}</div>
+                        {!readOnly && (
+                          <div className="wcm-member-actions">
+                            <button className="wcm-icon-btn" title="Edit" onClick={() => startEdit(w)}>✎</button>
+                            <button
+                              className="wcm-icon-btn danger"
+                              title="Remove"
+                              disabled={deleting === w.id}
+                              onClick={() => deleteMember(w.id, w.wcm_name)}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
