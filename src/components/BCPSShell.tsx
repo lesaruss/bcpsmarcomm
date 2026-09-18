@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar, { SAMPLE_SUPERADMIN_ID, type UserRole, type TeamMember } from '@/components/Sidebar'
 import PulseWidget from '@/components/PulseWidget'
 import type { PageId } from '@/lib/types'
+import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
 
 // ── Context (consumed by bcps/page.tsx for role-gated content) ────────────
 interface BCPSShellContextValue {
@@ -42,7 +43,6 @@ export function useEffectiveRole(realRole: string): string {
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const SUPERADMIN_EMAILS = new Set(['contact@lesaruss.com'])
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm', 'pulse-approvals', 'roster', 'wcm-roster'])
 
 const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   dashboard:                { title: 'Dashboard',               sub: 'Broward County Public Schools' },

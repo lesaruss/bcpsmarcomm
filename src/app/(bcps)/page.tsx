@@ -36,8 +36,7 @@ import BannerSubmissionsPage from '@/components/pages/BannerSubmissionsPage'
 import SchoolProfilesPage from '@/components/pages/SchoolProfilesPage'
 import RosterPage from '@/components/pages/RosterPage'
 import { SAMPLE_SUPERADMIN_ID, type UserRole } from '@/components/Sidebar'
-
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations', 'roster', 'wcm-roster'])
+import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
 
 function HomeInner() {
   const router = useRouter()

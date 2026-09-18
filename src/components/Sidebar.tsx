@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { PageId } from '@/lib/types'
+import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
 
 export type UserRole = 'superadmin' | 'user'
 
@@ -278,8 +279,6 @@ const Icons: Record<string, React.ReactNode> = {
 }
 
 // ── Nav config ─────────────────────────────────────────────────────────────
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations', 'roster', 'wcm-roster'])
-
 // A nav item is normally a PageId routed through ?page=. Some items are
 // direct links to a document that lives outside the page router - the
 // Playbooks under Web Content Managers, for instance, which are served at
