@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import type { PageId } from '@/lib/types'
 
 type WCMView = 'hub' | 'school' | 'department'
 
@@ -833,15 +831,16 @@ function SchoolPortal({ onBack }: { onBack: () => void }) {
 }
 
 /* ─── DEPARTMENT PORTAL ───────────────────────────────── */
-function DepartmentPortal({ onBack, backLabel, initialSection }: { onBack: () => void; backLabel: string; initialSection?: string }) {
+// This is the WCM Hub landing page now (Sean, 2026-09-18): the old
+// Schools/Departments picker (WCMHub) is retired since school WCMs are out
+// of scope, so its welcome hero is salvaged here instead of being lost, and
+// the WCM nav link opens straight to this page. The WCM Roster tab that used
+// to live here moved out to its own standalone, superadmin-only page - it
+// isn't one of the department's resources, so it didn't belong in this list.
+function DepartmentPortal({ initialSection }: { initialSection?: string }) {
   const [activeSection, setActiveSection] = useState(initialSection || 'overview')
-  // The WCM Roster tab shows every Web Content Manager the read-only roster
-  // and its approval dates; the API withholds the pending queue and contact
-  // details from non-admins and refuses their approvals (Sean, 2026-09-15:
-  // "they should only be able to see the roster and the results of that").
   const sections = [
     { id: 'overview', label: 'Overview' },
-    { id: 'roster', label: 'WCM Roster' },
     { id: 'audit', label: 'Audit Resources' },
     { id: 'templates', label: 'Layout Templates' },
     { id: 'training', label: 'Training Materials' },
@@ -850,15 +849,24 @@ function DepartmentPortal({ onBack, backLabel, initialSection }: { onBack: () =>
 
   return (
     <div className="wcm-portal-page" style={{ maxWidth: 'none' }}>
-      <button className="wcm-back-btn" onClick={onBack}>&larr; {backLabel}</button>
-
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--blue)', marginBottom: 8 }}>
-          Department Web Managers
+      <div className="wcm-hero">
+        <div className="wcm-hero-text">
+          <div className="wcm-eyebrow">WCM Community</div>
+          <h1 className="wcm-hero-title">Welcome to the<br />WCM Community Hub!</h1>
+          <div className="wcm-hero-divider" />
+          <p>Your central hub for managing BCPS websites. Access tutorials, guidelines, and updates to keep your pages accurate, accessible, and engaging. The District Web Team is here to support a consistent and high-quality online experience across all sites.</p>
         </div>
-        <h1 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
-          Department WCM Portal Overview
-        </h1>
+        <div className="wcm-hero-badge">
+          <div className="wcm-cert-badge">
+            <div className="wcm-cert-inner">
+              <div className="wcm-cert-logo">BCPS</div>
+              <div className="wcm-cert-line1">WEB CONTENT</div>
+              <div className="wcm-cert-line2">MANAGER</div>
+              <div className="wcm-cert-line3">CERTIFIED</div>
+              <div className="wcm-cert-year">2026</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="wcm-portal-layout">
@@ -880,7 +888,6 @@ function DepartmentPortal({ onBack, backLabel, initialSection }: { onBack: () =>
               <p className="wcm-section-intro">This portal supports BCPS department web managers in maintaining accurate, accessible, and consistent department websites across the district.</p>
               <div className="wcm-overview-cards">
                 {[
-                  { icon: '🗂', title: 'WCM Roster', desc: 'Every department, its Director, and assigned Web Content Manager(s), with the date each designation was approved.', section: 'roster' },
                   { icon: '🔍', title: 'Audit Resources', desc: 'Checklists and tools to audit your department pages for accuracy, accessibility, and compliance.', section: 'audit' },
                   { icon: '📐', title: 'Layout Templates', desc: 'Approved page templates for common department content types — staff pages, program info, and more.', section: 'templates' },
                   { icon: '🎓', title: 'Training Materials', desc: 'On-demand training videos, slide decks, and reference guides for department content managers.', section: 'training' },
@@ -898,8 +905,6 @@ function DepartmentPortal({ onBack, backLabel, initialSection }: { onBack: () =>
               </div>
             </div>
           )}
-
-          {activeSection === 'roster' && <DepartmentRosterSection />}
 
           {activeSection === 'audit' && (
             <div className="wcm-content-section">
@@ -1035,41 +1040,30 @@ function DepartmentPortal({ onBack, backLabel, initialSection }: { onBack: () =>
   )
 }
 
+/* ─── STANDALONE WCM ROSTER PAGE ──────────────────────── */
+// Pulled out of the Department Portal (Sean, 2026-09-18: "it's not part of
+// the resources, so it doesn't make sense" to live in that tab list). Its
+// own sidebar entry under District Web Team, superadmin-only.
+export function WcmRosterStandalonePage() {
+  return (
+    <div style={{ padding: 32, maxWidth: 1100 }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--blue)', marginBottom: 8 }}>
+          District Web Team
+        </div>
+        <h1 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>WCM Roster</h1>
+      </div>
+      <DepartmentRosterSection />
+    </div>
+  )
+}
+
 /* ─── ROOT ────────────────────────────────────────────── */
-// School WCMs are out of scope for now - WCM Hub opens straight to the
-// Department Portal instead of a hub landing screen with a school/department
-// choice. SchoolPortal/WCMHub are left in place (unused) rather than deleted,
-// in case school support comes back later.
-// Entry point. Fixed 2026-09-15: this rendered <DepartmentPortal /> directly,
-// so every Web Content Manager who clicked "WCM Hub" landed inside the
-// Department portal and the WCM Community Hub - the School / Department
-// choice the whole section is built around - was unreachable dead code.
-export default function WCMPage({ onNavigate }: { onNavigate?: (page: PageId) => void }) {
-  // ?wcmview=department&section=roster deep-links the WCM Roster from the
-  // sidebar shortcut (Sean, 2026-09-15) without making the roster a separate
-  // page - it stays one tab inside the Department portal.
-  const search = useSearchParams()
-  const initialView = (search.get('wcmview') as WCMView) || 'hub'
-  const initialSection = search.get('section') || undefined
-  const [view, setView] = useState<WCMView>(
-    initialView === 'school' || initialView === 'department' ? initialView : 'hub'
-  )
-
-  // The Roster is reached directly from its own sidebar link, never by
-  // choosing it inside the WCM Community Hub - so its back button should
-  // return to the Dashboard, not into a hub flow the visitor never entered
-  // (Sean, 2026-09-17: "the hub is a resource, the roster is a whole other
-  // animal"). Any other route into the Department portal still backs out
-  // to the Hub as before.
-  const rosterShortcut = initialView === 'department' && initialSection === 'roster'
-
-  if (view === 'school') return <SchoolPortal onBack={() => setView('hub')} />
-  if (view === 'department') return (
-    <DepartmentPortal
-      onBack={rosterShortcut && onNavigate ? () => onNavigate('dashboard') : () => setView('hub')}
-      backLabel={rosterShortcut && onNavigate ? 'Dashboard' : 'WCM Community Hub'}
-      initialSection={initialSection}
-    />
-  )
-  return <WCMHub onNavigate={setView} />
+// The old Schools/Departments picker (WCMHub) is retired (Sean, 2026-09-18):
+// school WCMs are out of scope, so the WCM nav link now opens straight to
+// the Department Portal, whose hero salvages the Hub's welcome banner.
+// WCMHub/SchoolPortal are left defined but unreachable, in case school
+// support comes back later.
+export default function WCMPage() {
+  return <DepartmentPortal />
 }

@@ -278,7 +278,7 @@ const Icons: Record<string, React.ReactNode> = {
 }
 
 // ── Nav config ─────────────────────────────────────────────────────────────
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations', 'roster'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'permissions', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations', 'roster', 'wcm-roster'])
 
 // A nav item is normally a PageId routed through ?page=. Some items are
 // direct links to a document that lives outside the page router - the
@@ -322,7 +322,6 @@ const SECTIONS: NavSection[] = [
     // people were being sent to their inbox to find them again.
     // Read-only for Web Content Managers, full approval queue for admins -
     // same tab, the API decides which (Sean, 2026-09-15).
-    { id: 'wcm-roster', label: 'WCM Roster', href: '/?page=wcm&wcmview=department&section=roster', requires: 'wcm' },
     { id: 'pb-wcm-department', label: 'Department WCM Playbook', href: '/playbooks/wcm-department', requires: 'wcm', inlineDoc: true },
     { id: 'pb-director-department', label: 'Director Playbook', href: '/playbooks/director-department', requires: 'wcm', inlineDoc: true },
     { id: 'pb-wcm-registration', label: 'Registration: Getting Started', href: '/playbooks/bcps-wcm-registration-2026-27', requires: 'wcm', inlineDoc: true },
@@ -338,6 +337,10 @@ const SECTIONS: NavSection[] = [
     // simply never listed here, so the page was unreachable from the nav.
     { id: 'bcps-assignments', label: 'Web Team Assignments' },
     { id: 'bcps-google-governance', label: 'Google Governance' },
+    // Pulled out of the Department Portal's tab list (Sean, 2026-09-18): the
+    // roster isn't one of the department's resources, so it gets its own
+    // page, superadmin-only for now, listed here instead.
+    { id: 'wcm-roster', label: 'WCM Roster' },
     { id: 'pb-web-governance', label: 'Website Governance Plan', href: '/briefs/bcps-website-governance-plan-2026-06-10', requires: 'bcps-google-governance', inlineDoc: true },
     { id: 'banner-submissions', label: 'Banner Submissions' },
     { id: 'school-profiles', label: 'School Profiles' },

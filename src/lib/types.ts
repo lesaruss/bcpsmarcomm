@@ -31,6 +31,7 @@ export type PageId =
   | 'banner-submissions'
   | 'school-profiles'
   | 'roster'
+  | 'wcm-roster'
 
 export interface BreadcrumbItem {
   label: string

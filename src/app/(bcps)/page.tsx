@@ -13,7 +13,7 @@ import DocumentsPage from '@/components/pages/DocumentsPage'
 import PermissionsPanel from '@/components/pages/PermissionsPanel'
 import SuperAdminPage from '@/components/pages/SuperAdminPage'
 import CartridgePage from '@/components/pages/CartridgePage'
-import WCMPage from '@/components/pages/WCMPage'
+import WCMPage, { WcmRosterStandalonePage } from '@/components/pages/WCMPage'
 import MinutesPage from '@/components/pages/MinutesPage'
 import QueuePage from '@/components/pages/QueuePage'
 import BCPSGovernancePage from '@/components/pages/BCPSGovernancePage'
@@ -37,7 +37,7 @@ import SchoolProfilesPage from '@/components/pages/SchoolProfilesPage'
 import RosterPage from '@/components/pages/RosterPage'
 import { SAMPLE_SUPERADMIN_ID, type UserRole } from '@/components/Sidebar'
 
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations', 'roster'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'reports', 'pulse-approvals', 'registrations', 'roster', 'wcm-roster'])
 
 function HomeInner() {
   const router = useRouter()
@@ -95,7 +95,8 @@ function HomeInner() {
       {nav.page === 'marcomm'                && effectiveRole === 'superadmin' && <CartridgePage title="MarComm Console" description="Manage marketing and communications assets, campaigns, and approvals." />}
       {nav.page === 'graphics'               && effectiveRole === 'superadmin' && <GraphicsPage />}
       {nav.page === 'minutes'                && <MinutesPage />}
-      {nav.page === 'wcm'                    && effectiveRole === 'superadmin' && <WCMPage onNavigate={navigate} />}
+      {nav.page === 'wcm'                    && <WCMPage />}
+      {nav.page === 'wcm-roster'              && effectiveRole === 'superadmin' && <WcmRosterStandalonePage />}
       {nav.page === 'queue'                  && <QueuePage onNavigate={navigate} onShowToast={showToast} viewAsUserId={viewAs?.id} />}
       {nav.page === 'bcps-google-governance' && <BCPSGovernancePage />}
       {nav.page === 'bcps-assignments'       && <AssignmentsPage />}
