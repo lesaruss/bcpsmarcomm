@@ -42,7 +42,7 @@ export function useEffectiveRole(realRole: string): string {
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const SUPERADMIN_EMAILS = new Set(['contact@lesaruss.com'])
-const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm', 'pulse-approvals'])
+const SUPERADMIN_PAGES = new Set<PageId>(['superadmin', 'analytics', 'marcomm', 'graphics', 'wcm', 'pulse-approvals', 'roster', 'wcm-roster'])
 
 const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   dashboard:                { title: 'Dashboard',               sub: 'Broward County Public Schools' },
@@ -71,6 +71,8 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'ada-scanner':            { title: 'ADA Scanner',           sub: 'Accessibility Compliance Check' },
   'schools-ada':            { title: 'Schools ADA',           sub: 'Full-Site Accessibility Scores by School' },
   'schools':                { title: 'School ADA Accounts',   sub: 'School-Level WCM Portal Accounts' },
+  'roster':                 { title: 'The Roster',            sub: 'WCM & Director BCC List' },
+  'wcm-roster':             { title: 'WCM Roster',            sub: 'District Web Team' },
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────
