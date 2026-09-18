@@ -315,13 +315,6 @@ function DepartmentRosterSection() {
         .roster-link-url { font-size: 13px; color: #1a1a1a; font-family: ui-monospace, monospace; word-break: break-all; }
       `}</style>
 
-      <h3>WCM Roster</h3>
-      <p className="wcm-section-intro">
-        Live directory of every district department, its Director, and assigned Web Content Manager(s) - kept current by
-        the <strong>Department Web Content Managers Roster</strong> signup form below. Director submissions land in the
-        review queue for approval before they update a department&apos;s record.
-      </p>
-
       <div className="roster-link-box">
         <div>
           <div className="roster-link-label">Share this with Department Directors</div>
@@ -1046,12 +1039,17 @@ function DepartmentPortal({ initialSection }: { initialSection?: string }) {
 // own sidebar entry under District Web Team, superadmin-only.
 export function WcmRosterStandalonePage() {
   return (
-    <div style={{ padding: 32, maxWidth: 1100 }}>
+    <div style={{ padding: 32, background: '#ffffff' }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--blue)', marginBottom: 8 }}>
           District Web Team
         </div>
-        <h1 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>WCM Roster</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 10px' }}>WCM Roster</h1>
+        <p style={{ fontSize: 14, color: 'rgba(26,26,26,0.55)', margin: 0, lineHeight: 1.6, maxWidth: 780 }}>
+          Live directory of every district department, its Director, and assigned Web Content Manager(s) - kept current by
+          the <strong>Department Web Content Managers Roster</strong> signup form below. Director submissions land in the
+          review queue for approval before they update a department&apos;s record.
+        </p>
       </div>
       <DepartmentRosterSection />
     </div>
