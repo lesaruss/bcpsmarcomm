@@ -9,6 +9,23 @@ const SENSITIVE_DOC_ALLOWED = new Set([
   'farrah.wilson@browardschools.com',
 ])
 
+// Static documents that require a signed-in session but no particular person:
+// any authenticated BCPS platform user passes, no recipient list, no role.
+// Paths are lower-case and matched exactly.
+//
+// This list has to be checked BEFORE the isStaticFile early return below,
+// which otherwise serves every .html under /public to anyone who has the URL.
+//
+// bcps-ai-preview-checklist-2026-07-16.html (2026-09-20, Sean): the companion
+// document to the one gated on browardschools.ai at the same path. Gating only
+// the browardschools.ai copy would have left the same slug reachable and fully
+// public here, which is the wider-reachable-path case in
+// canon-gate-new-surfaces-on-the-same-check - the gate has to cover every host
+// the document is served from, not just the one it was reported on.
+const LOGIN_REQUIRED_STATIC = new Set([
+  '/briefs/bcps-ai-preview-checklist-2026-07-16.html',
+])
+
 function readOnlyClient(request: NextRequest) {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,6 +60,25 @@ export async function middleware(request: NextRequest) {
       url.pathname = '/'
       url.search = '?page=documents&denied=1'
       return NextResponse.redirect(url)
+    }
+    return NextResponse.next()
+  }
+
+  // ── Login-required static document gate ──────────────────────────────────
+  // Same check the standard auth middleware below applies to every logged-in
+  // page on this site: an @supabase/ssr client over the request cookies, then
+  // supabase.auth.getUser(). The only difference is that this one runs ahead
+  // of the isStaticFile bypass, because the documents it protects are .html
+  // files in /public that the bypass would otherwise hand to anyone.
+  if (LOGIN_REQUIRED_STATIC.has(pathname.toLowerCase())) {
+    const supabase = readOnlyClient(request)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = '/login'
+      loginUrl.search = ''
+      loginUrl.searchParams.set('next', pathname)
+      return NextResponse.redirect(loginUrl)
     }
     return NextResponse.next()
   }
