@@ -8,6 +8,11 @@
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
 // does not ship.
+//
+// This is DENO code, not Node: it imports over jsr: and uses the Deno global,
+// neither of which resolves under the app's TypeScript config. "supabase" is
+// excluded in tsconfig.json for exactly that reason. Do not remove that
+// exclusion - it fails `next build` at the typecheck step, not at runtime.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
