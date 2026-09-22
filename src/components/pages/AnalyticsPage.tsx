@@ -205,6 +205,9 @@ function CampaignForm({
   const [primaryUrl, setPrimaryUrl] = useState(initial?.primary_url ?? '')
   const [owner, setOwner] = useState(initial?.owner ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
+  // Default on for a new campaign, matching the column default: a report is
+  // shareable unless someone decides otherwise.
+  const [isPublic, setIsPublic] = useState(initial?.is_public !== false)
 
   const input: React.CSSProperties = {
     width: '100%', fontSize: 12, fontFamily: 'Montserrat, sans-serif',
@@ -250,12 +253,24 @@ function CampaignForm({
           <input id="camp-desc" style={input} value={description} onChange={e => setDescription(e.target.value)} placeholder="What this campaign is" />
         </div>
       </div>
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 14, cursor: 'pointer', maxWidth: 620 }}>
+        <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)}
+          style={{ marginTop: 2, width: 15, height: 15, cursor: 'pointer', accentColor: '#1672A7' }} />
+        <span style={{ fontSize: 11.5, color: '#555', lineHeight: 1.55 }}>
+          <strong style={{ color: '#1a1a1a' }}>Anyone with the link can view this report.</strong>{' '}
+          Leave this on to hand the report to a chief, a vendor or anyone else without
+          them needing an account. Turn it off and the report is restricted to the
+          Office of Communications, named individuals and District admins. Either way
+          it stays out of search engines.
+        </span>
+      </label>
+
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           disabled={saving || !name.trim() || !paths.trim()}
           onClick={() => onSave({
             name, page_paths: paths, primary_url: primaryUrl,
-            owner, description,
+            owner, description, is_public: isPublic,
             ...(initial?.id ? { id: initial.id } : {}),
           })}
           style={{
@@ -326,8 +341,18 @@ function CampaignTile({ campaign }: { campaign: Campaign }) {
         {stat('Views', fmt(m?.page_views ?? 0))}
         {stat('Avg. time', fmtTime(m?.avg_time_seconds ?? 0))}
       </div>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#1672A7', letterSpacing: '.4px' }}>
-        Open report &rarr;
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: '#1672A7', letterSpacing: '.4px' }}>
+          Open report &rarr;
+        </span>
+        <span style={{
+          fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em',
+          padding: '3px 7px', borderRadius: 999,
+          background: campaign.is_public ? 'rgba(22,114,167,.10)' : 'rgba(133,79,11,.10)',
+          color: campaign.is_public ? '#0e4e73' : '#854F0B',
+        }}>
+          {campaign.is_public ? 'Public link' : 'Restricted'}
+        </span>
       </div>
     </a>
   )
