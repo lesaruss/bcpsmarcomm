@@ -112,3 +112,25 @@ create policy bcps_campaign_daily_superadmin_read on public.bcps_campaign_daily
     select 1 from public.acl_member_roles r
     where r.user_id = auth.uid() and r.brand = 'bcps' and r.role = 'superadmin'
   ));
+
+-- ---------------------------------------------------------------------------
+-- Campaign report dimensions beyond the three headline numbers (added same
+-- day, after Sean asked what else belongs in a campaign report).
+--
+--   channels          - HOW people arrived. The most actionable cut: it is what
+--                       tells the team which push actually worked.
+--   devices           - mobile vs desktop vs tablet, actionable for page design.
+--   new_users         - reach vs repetition. Returning = unique_visitors - new_users.
+--   engagement_rate   - whether people read the page or bounced off it.
+--   engaged_sessions  - the raw numerator, so the rate is always re-derivable.
+alter table public.bcps_campaign_analytics
+  add column if not exists channels         jsonb   not null default '[]'::jsonb,
+  add column if not exists devices          jsonb   not null default '[]'::jsonb,
+  add column if not exists new_users        integer,
+  add column if not exists engaged_sessions integer,
+  add column if not exists engagement_rate  numeric;
+
+comment on column public.bcps_campaign_analytics.new_users is
+  'GA4 newUsers for the window. Returning visitors = unique_visitors - new_users; do not store that separately, it would drift.';
+comment on column public.bcps_campaign_analytics.engagement_rate is
+  'GA4 engagementRate 0-1 for the window. engaged_sessions / sessions is the same figure and is kept alongside so it can be re-derived.';

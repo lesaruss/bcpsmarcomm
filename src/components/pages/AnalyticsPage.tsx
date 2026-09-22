@@ -125,6 +125,13 @@ interface CampaignDay {
   engagement_seconds: number
 }
 
+interface CampaignDimension {
+  name: string
+  sessions: number
+  unique_visitors: number
+  page_views: number
+}
+
 interface CampaignMetrics {
   period: string
   unique_visitors: number | null
@@ -134,6 +141,12 @@ interface CampaignMetrics {
   engagement_seconds: number | null
   pages: CampaignPage[]
   synced_at: string
+  // Added 2026-09-22 for the campaign report.
+  new_users: number | null
+  engaged_sessions: number | null
+  engagement_rate: number | null
+  channels: CampaignDimension[]
+  devices: CampaignDimension[]
 }
 
 interface Campaign {
@@ -468,6 +481,138 @@ function CampaignTrend({ daily, campaignName }: { daily: CampaignDay[]; campaign
   )
 }
 
+// ─── Rundown ──────────────────────────────────────────────────────────────────
+//
+// Plain-language read of what the numbers say, for someone who runs marketing
+// rather than analytics.
+//
+// This is DERIVED, never written prose and never generated text. Every sentence
+// is computed from the figures on the same screen, so it cannot drift from them
+// and cannot invent a claim about the District's data. If a number is missing,
+// the sentence that needs it is dropped rather than hedged.
+type RundownNote = { title: string; body: string; tone: 'good' | 'watch' | 'neutral' }
+
+function pct(n: number, of: number): number {
+  return of > 0 ? Math.round((n / of) * 100) : 0
+}
+
+function buildRundown(c: Campaign): { headline: string | null; notes: RundownNote[] } {
+  const m = c.metrics
+  const daily = c.daily ?? []
+  if (!m || !m.page_views) return { headline: null, notes: [] }
+
+  const notes: RundownNote[] = []
+  const views = m.page_views ?? 0
+  const visitors = m.unique_visitors ?? 0
+  const sessions = m.sessions ?? 0
+
+  const headline = daily.length
+    ? `${visitors.toLocaleString('en-US')} people opened this page ${views.toLocaleString('en-US')} times over the last ${daily.length} days.`
+    : `${visitors.toLocaleString('en-US')} people opened this page ${views.toLocaleString('en-US')} times.`
+
+  // Trend. The last complete day is used as the right edge - today is partial
+  // and would always read as a decline.
+  const complete = daily.slice(0, -1)
+  if (complete.length >= 14) {
+    const last7 = complete.slice(-7).reduce((s, d) => s + d.page_views, 0)
+    const prev7 = complete.slice(-14, -7).reduce((s, d) => s + d.page_views, 0)
+    if (prev7 > 0) {
+      const change = Math.round(((last7 - prev7) / prev7) * 100)
+      const dir = change > 0 ? 'up' : change < 0 ? 'down' : 'level'
+      notes.push({
+        title: 'Which way it is going',
+        tone: change > 5 ? 'good' : change < -15 ? 'watch' : 'neutral',
+        body: change === 0
+          ? `The last seven days matched the seven before them, at ${last7.toLocaleString('en-US')} views each.`
+          : `Views are ${dir} ${Math.abs(change)}% over the last seven days, ${last7.toLocaleString('en-US')} against ${prev7.toLocaleString('en-US')} the week before. Today is left out of this because it is still counting.`,
+      })
+    }
+  }
+
+  // Peak day.
+  if (daily.length) {
+    const peak = daily.reduce((b, d) => (d.page_views > b.page_views ? d : b), daily[0])
+    if (peak.page_views > 0) {
+      notes.push({
+        title: 'Busiest day',
+        tone: 'neutral',
+        body: `${shortDate(peak.date)} was the high point, with ${peak.page_views.toLocaleString('en-US')} views from ${peak.unique_visitors.toLocaleString('en-US')} people. If something went out that day, this is what it did.`,
+      })
+    }
+  }
+
+  // Where people came from - the most actionable cut.
+  const channels = (m.channels ?? []).filter(ch => ch.sessions > 0)
+  if (channels.length) {
+    const top = channels[0]
+    const share = pct(top.sessions, sessions)
+    const named = channels.slice(0, 3)
+      .map(ch => `${ch.name} ${pct(ch.sessions, sessions)}%`)
+      .join(', ')
+    notes.push({
+      title: 'How people found it',
+      tone: 'neutral',
+      body: `${named}. ${top.name} is the biggest single source at ${share}% of visits (${top.sessions.toLocaleString('en-US')} of ${sessions.toLocaleString('en-US')}).${
+        top.name === 'Organic Search'
+          ? ' That means people are searching for this rather than being sent to it, so the page is doing the work, not a push.'
+          : ''
+      }`,
+    })
+
+    // A channel that should be delivering and is not is worth saying out loud.
+    const email = channels.find(ch => ch.name.toLowerCase().includes('email'))
+    const emailSessions = email?.sessions ?? 0
+    if (emailSessions <= Math.max(5, sessions * 0.01)) {
+      notes.push({
+        title: 'Email is not showing up',
+        tone: 'watch',
+        body: `Email accounts for ${emailSessions} of ${sessions.toLocaleString('en-US')} visits. If this campaign is being emailed out, the links are not being tagged in a way analytics can see, so that effort is invisible here and may be landing in Direct instead.`,
+      })
+    }
+  }
+
+  // Device split.
+  const devices = (m.devices ?? []).filter(d => d.sessions > 0)
+  if (devices.length) {
+    const total = devices.reduce((s, d) => s + d.sessions, 0)
+    const mobile = devices.find(d => d.name.toLowerCase() === 'mobile')
+    const mobileShare = pct(mobile?.sessions ?? 0, total)
+    if (mobile) {
+      notes.push({
+        title: 'What they are reading it on',
+        tone: mobileShare >= 60 ? 'watch' : 'neutral',
+        body: `${mobileShare}% arrived on a phone${mobileShare >= 60 ? ', so the phone layout is the real layout here' : ''}. ${devices.map(d => `${d.name.charAt(0).toUpperCase()}${d.name.slice(1)} ${pct(d.sessions, total)}%`).join(', ')}.`,
+      })
+    }
+  }
+
+  // Reach versus repetition.
+  if (m.new_users != null && visitors > 0) {
+    const newShare = pct(m.new_users, visitors)
+    notes.push({
+      title: 'New faces or the same ones',
+      tone: newShare >= 50 ? 'good' : 'neutral',
+      body: `${newShare}% of visitors were new to the site (${m.new_users.toLocaleString('en-US')} of ${visitors.toLocaleString('en-US')}). ${
+        newShare >= 50
+          ? 'The campaign is reaching beyond the people who already follow the District.'
+          : 'Most of this traffic is people who have been here before, so it is holding an existing audience more than widening it.'
+      }`,
+    })
+  }
+
+  // Did they actually read it.
+  if (m.engagement_rate != null && sessions > 0) {
+    const rate = Math.round(m.engagement_rate * 100)
+    notes.push({
+      title: 'Did they stay',
+      tone: rate >= 50 ? 'good' : 'watch',
+      body: `${rate}% of visits counted as engaged, meaning the visitor stayed past ten seconds, viewed another page, or did something on the page. The other ${100 - rate}% opened it and left. Average time on the page was ${fmtTime(m.avg_time_seconds ?? 0)}.`,
+    })
+  }
+
+  return { headline, notes }
+}
+
 // ─── Campaigns ────────────────────────────────────────────────────────────────
 function CampaignForm({
   initial, onSave, onCancel, saving,
@@ -552,134 +697,286 @@ function CampaignForm({
   )
 }
 
-function CampaignCard({
-  campaign, onEdit, onArchive, onCopy,
+// Sparkline for a tile. Same series color as the full chart's headline series,
+// no axes or labels - it is a shape, not a reading surface. The full chart
+// inside the campaign carries the values.
+function Sparkline({ daily }: { daily: CampaignDay[] }) {
+  if (!daily || daily.length < 2) {
+    return <div style={{ height: 34, display: 'flex', alignItems: 'center', fontSize: 10, color: INK_MUTED }}>No history yet</div>
+  }
+  const W = 240, H = 34, pad = 2
+  const max = Math.max(...daily.map(d => d.page_views), 1)
+  const x = (i: number) => pad + (i / (daily.length - 1)) * (W - pad * 2)
+  const y = (v: number) => pad + (1 - v / max) * (H - pad * 2)
+  const line = daily.map((d, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(d.page_views).toFixed(1)}`).join(' ')
+  const area = `${line} L${x(daily.length - 1).toFixed(1)},${H - pad} L${x(0).toFixed(1)},${H - pad} Z`
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} style={{ display: 'block' }} aria-hidden="true">
+      <path d={area} fill={SERIES.views.color} opacity="0.1" />
+      <path d={line} fill="none" stroke={SERIES.views.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CampaignTile({ campaign, onOpen }: { campaign: Campaign; onOpen: () => void }) {
+  const m = campaign.metrics
+  const stat = (label: string, value: string) => (
+    <div key={label} style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: INK_MUTED, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: INK, lineHeight: 1 }}>{value}</div>
+    </div>
+  )
+  return (
+    <button onClick={onOpen}
+      style={{
+        textAlign: 'left', background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10,
+        padding: '16px 18px', cursor: 'pointer', fontFamily: 'Montserrat, sans-serif', width: '100%',
+        display: 'flex', flexDirection: 'column', gap: 12, transition: 'box-shadow .12s, border-color .12s',
+      }}
+      onMouseOver={e => { e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = 'rgba(22,114,167,.4)' }}
+      onMouseOut={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.08)' }}>
+      <div>
+        <div style={{ fontSize: 13.5, fontWeight: 800, color: INK }}>{campaign.name}</div>
+        <div style={{ fontSize: 10.5, color: INK_MUTED, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {campaign.primary_url || campaign.page_paths[0] || ''}
+        </div>
+      </div>
+      <Sparkline daily={campaign.daily} />
+      <div style={{ display: 'flex', gap: 12, paddingTop: 10, borderTop: '1px solid #f3f4f6' }}>
+        {stat('Visitors', fmt(m?.unique_visitors ?? 0))}
+        {stat('Views', fmt(m?.page_views ?? 0))}
+        {stat('Avg. time', fmtTime(m?.avg_time_seconds ?? 0))}
+      </div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#1672A7', letterSpacing: '.4px' }}>
+        View report &rarr;
+      </div>
+    </button>
+  )
+}
+
+// A horizontal share bar for a dimension breakdown (channels, devices).
+// Sequential single hue, more-is-darker is not needed here because the rows are
+// already ordered - one hue at one step, with the value read from the label.
+function ShareRows({ rows, total }: { rows: CampaignDimension[]; total: number }) {
+  if (!rows.length) return <div style={{ fontSize: 11.5, color: INK_MUTED, padding: '8px 0' }}>No breakdown recorded for this period.</div>
+  return (
+    <div>
+      {rows.map(r => {
+        const p = pct(r.sessions, total)
+        return (
+          <div key={r.name} style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: INK, textTransform: 'capitalize' }}>{r.name}</span>
+              <span style={{ fontSize: 11.5, color: '#555', fontWeight: 600 }}>
+                {r.sessions.toLocaleString('en-US')} <span style={{ color: INK_MUTED, fontWeight: 500 }}>({p}%)</span>
+              </span>
+            </div>
+            <div style={{ height: 8, background: '#eef2f5', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ width: `${p}%`, height: '100%', background: SERIES.views.color, borderRadius: 999 }} />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function CampaignDetail({
+  campaign, onBack, onEdit, onArchive, onCopy,
 }: {
   campaign: Campaign
+  onBack: () => void
   onEdit: () => void
   onArchive: () => void
   onCopy: (text: string) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [tab, setTab] = useState<'rundown' | 'traffic' | 'sources' | 'pages'>('rundown')
   const m = campaign.metrics
   const link = campaign.primary_url || (campaign.page_paths[0] ? BWS + campaign.page_paths[0] : null)
+  const { headline, notes } = buildRundown(campaign)
 
-  // The plain-text block Marcomm pastes into an email or a Teams message.
   const summary = [
     campaign.name,
-    link ? link : '',
+    link || '',
     '',
     `Unique visitors: ${m?.unique_visitors ?? 0}`,
     `Page views: ${m?.page_views ?? 0}`,
     `Average time on page: ${fmtTime(m?.avg_time_seconds ?? 0)}`,
+    m?.engagement_rate != null ? `Engaged visits: ${Math.round(m.engagement_rate * 100)}%` : '',
+    m?.new_users != null ? `New visitors: ${m.new_users}` : '',
+    (m?.channels ?? []).length ? `Top source: ${m!.channels[0].name}` : '',
     '',
     m ? `Source: GA4, ${m.period}, last 30 days. Pulled ${new Date(m.synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.` : 'No data pulled yet.',
   ].filter(Boolean).join('\n')
 
-  const stat = (label: string, value: string, note?: string) => (
-    <div key={label} style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: '#94a3b8', marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: '#1a1a1a' }}>{value}</div>
-      {note && <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 5 }}>{note}</div>}
+  const sessions = m?.sessions ?? 0
+  const deviceTotal = (m?.devices ?? []).reduce((s, d) => s + d.sessions, 0)
+
+  const stat = (label: string, value: string, note: string) => (
+    <div key={label} style={{ flex: 1, minWidth: 130 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: INK_MUTED, marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: INK }}>{value}</div>
+      <div style={{ fontSize: 10.5, color: INK_MUTED, marginTop: 5 }}>{note}</div>
     </div>
   )
 
-  const noTraffic = !!m && (m.page_views ?? 0) === 0
+  const toneColor = { good: '#16750C', watch: '#854F0B', neutral: '#1672A7' }
+  const toneBg    = { good: 'rgba(22,117,12,.06)', watch: '#fef3e2', neutral: 'rgba(22,114,167,.05)' }
 
   return (
-    <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '18px 20px', marginBottom: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#1a1a1a' }}>{campaign.name}</div>
-          {link && (
-            <a href={link} target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: 11.5, color: '#1672A7', fontWeight: 600, textDecoration: 'none', wordBreak: 'break-all' }}>
-              {link}
-            </a>
-          )}
-          {campaign.description && (
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{campaign.description}</div>
-          )}
+    <div>
+      <button onClick={onBack}
+        style={{ fontSize: 11, fontWeight: 700, color: '#1672A7', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 12px' }}>
+        &larr; All campaigns
+      </button>
+
+      <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '18px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: INK }}>{campaign.name}</div>
+            {link && (
+              <a href={link} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 11.5, color: '#1672A7', fontWeight: 600, textDecoration: 'none', wordBreak: 'break-all' }}>
+                {link}
+              </a>
+            )}
+            {campaign.description && <div style={{ fontSize: 11, color: INK_MUTED, marginTop: 4 }}>{campaign.description}</div>}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button onClick={() => onCopy(summary)}
+              style={{ fontSize: 10.5, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
+              Copy for team
+            </button>
+            <button onClick={onEdit}
+              style={{ fontSize: 10.5, fontWeight: 700, background: '#e8f1f8', color: '#1672A7', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
+              Edit
+            </button>
+            <button onClick={onArchive}
+              style={{ fontSize: 10.5, fontWeight: 700, background: 'none', color: INK_MUTED, border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
+              Archive
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          <button onClick={() => onCopy(summary)}
-            style={{ fontSize: 10.5, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
-            Copy for team
-          </button>
-          <button onClick={onEdit}
-            style={{ fontSize: 10.5, fontWeight: 700, background: '#e8f1f8', color: '#1672A7', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
-            Edit
-          </button>
-          <button onClick={onArchive}
-            style={{ fontSize: 10.5, fontWeight: 700, background: 'none', color: '#94a3b8', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
-            Archive
-          </button>
+
+        <div style={{ display: 'flex', gap: 20, paddingTop: 14, borderTop: '1px solid #f3f4f6', flexWrap: 'wrap' }}>
+          {stat('Unique Visitors', fmt(m?.unique_visitors ?? 0), 'People, counted once')}
+          {stat('Page Views', fmt(m?.page_views ?? 0), 'Total views')}
+          {stat('Avg. Time on Page', fmtTime(m?.avg_time_seconds ?? 0), 'Engagement per view')}
+          {m?.engagement_rate != null && stat('Engaged Visits', `${Math.round(m.engagement_rate * 100)}%`, 'Stayed, not bounced')}
+          {m?.new_users != null && stat('New Visitors', `${pct(m.new_users, m.unique_visitors ?? 0)}%`, 'First time on the site')}
         </div>
-      </div>
 
-      <div style={{ display: 'flex', gap: 24, paddingTop: 14, borderTop: '1px solid #f3f4f6' }}>
-        {stat('Unique Visitors', fmt(m?.unique_visitors ?? 0), 'People, counted once')}
-        {stat('Page Views', fmt(m?.page_views ?? 0), 'Total views')}
-        {stat('Avg. Time on Page', fmtTime(m?.avg_time_seconds ?? 0), 'Engagement per view')}
-      </div>
-
-      {noTraffic && (
-        <div style={{ marginTop: 14, background: '#fef3e2', border: '1px solid rgba(133,79,11,.2)', borderRadius: 8, padding: '10px 14px', fontSize: 11.5, color: '#854F0B', fontWeight: 600, lineHeight: 1.5 }}>
-          No page views recorded for the paths on this campaign. If the link you share
-          redirects somewhere else, add the page it actually lands on under Edit.
+        <div style={{ display: 'flex', gap: 4, marginTop: 18, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+          {([
+            ['rundown', 'Rundown'],
+            ['traffic', 'Traffic'],
+            ['sources', 'Sources & Devices'],
+            ['pages', 'Pages'],
+          ] as const).map(([t, label]) => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{
+                fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px',
+                padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                color: tab === t ? '#1672A7' : INK_MUTED,
+                borderBottom: tab === t ? '2px solid #1672A7' : '2px solid transparent',
+                marginBottom: -1,
+              }}>
+              {label}
+            </button>
+          ))}
         </div>
-      )}
 
-      <CampaignTrend daily={campaign.daily} campaignName={campaign.name} />
+        {tab === 'rundown' && (
+          <div style={{ paddingTop: 16 }}>
+            {headline ? (
+              <>
+                <p style={{ fontSize: 14.5, fontWeight: 700, color: INK, margin: '0 0 16px', lineHeight: 1.5 }}>{headline}</p>
+                {notes.map(n => (
+                  <div key={n.title} style={{ background: toneBg[n.tone], borderLeft: `3px solid ${toneColor[n.tone]}`, borderRadius: '0 8px 8px 0', padding: '12px 16px', marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: toneColor[n.tone], textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 5 }}>{n.title}</div>
+                    <div style={{ fontSize: 12.5, color: '#333', lineHeight: 1.6 }}>{n.body}</div>
+                  </div>
+                ))}
+                <p style={{ fontSize: 10.5, color: INK_MUTED, marginTop: 14, lineHeight: 1.6 }}>
+                  Every line above is calculated from the same figures shown on the other
+                  tabs, so it always matches them. It is not an opinion and it is not
+                  written by hand.
+                </p>
+              </>
+            ) : (
+              <div style={{ fontSize: 12, color: INK_MUTED, padding: '12px 0' }}>
+                No data pulled yet. Click Sync Now and the rundown writes itself from the numbers.
+              </div>
+            )}
+          </div>
+        )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 10.5, color: '#94a3b8' }}>
+        {tab === 'traffic' && <CampaignTrend daily={campaign.daily} campaignName={campaign.name} />}
+
+        {tab === 'sources' && (
+          <div style={{ paddingTop: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 28 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: INK_MUTED, marginBottom: 12 }}>
+                How people arrived
+              </div>
+              <ShareRows rows={m?.channels ?? []} total={sessions} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: INK_MUTED, marginBottom: 12 }}>
+                What they used
+              </div>
+              <ShareRows rows={m?.devices ?? []} total={deviceTotal} />
+            </div>
+          </div>
+        )}
+
+        {tab === 'pages' && (
+          <div style={{ paddingTop: 12 }}>
+            {(m?.pages ?? []).length ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {['Page Path', 'Unique Visitors', 'Page Views', 'Avg. Time'].map((h, i) => (
+                      <th key={h} style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.4px', color: '#b0b8c4', textAlign: i === 0 ? 'left' : 'right', padding: '8px 10px', borderBottom: '1px solid ' + GRID }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {m!.pages.map(pg => (
+                    <tr key={pg.path} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      <td style={{ padding: '8px 10px' }}>
+                        <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer"
+                          style={{ fontSize: 11.5, color: '#1672A7', textDecoration: 'none', fontWeight: 600 }}>
+                          {pg.path}
+                        </a>
+                      </td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>{fmt(pg.unique_visitors)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, fontWeight: 600, textAlign: 'right' }}>{fmt(pg.page_views)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 11.5, color: '#555', textAlign: 'right' }}>{fmtTime(pg.avg_time_seconds)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div style={{ fontSize: 12, color: INK_MUTED, padding: '12px 0' }}>No page data yet.</div>
+            )}
+            <div style={{ fontSize: 10, color: '#b0b8c4', marginTop: 12 }}>
+              Counting: {campaign.page_paths.join('  ·  ')}
+            </div>
+          </div>
+        )}
+
+        <div style={{ fontSize: 10.5, color: INK_MUTED, marginTop: 16, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
           {m
-            ? <>GA4 {m.period} &middot; last 30 days &middot; synced {new Date(m.synced_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</>
+            ? <>GA4 {m.period} · last 30 days · synced {new Date(m.synced_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</>
             : <>No data pulled yet. Click Sync Now.</>}
         </div>
-        {!!m?.pages?.length && (
-          <button onClick={() => setExpanded(v => !v)}
-            style={{ fontSize: 10, fontWeight: 700, color: '#1672A7', background: '#e8f1f8', border: 'none', cursor: 'pointer', padding: '3px 10px', borderRadius: 5 }}>
-            {expanded ? 'Hide pages' : `Pages (${m.pages.length})`}
-          </button>
-        )}
-      </div>
-
-      {expanded && !!m?.pages?.length && (
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
-          <thead>
-            <tr>
-              {['Page Path', 'Unique Visitors', 'Page Views', 'Avg. Time'].map(h => (
-                <th key={h} style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.4px', color: '#b0b8c4', textAlign: h === 'Page Path' ? 'left' : 'right', padding: '6px 10px', borderBottom: '1px solid #e5e7eb' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {m.pages.map(pg => (
-              <tr key={pg.path} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                <td style={{ padding: '7px 10px' }}>
-                  <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: 11, color: '#1672A7', textDecoration: 'none', fontWeight: 600 }}>
-                    {pg.path}
-                  </a>
-                </td>
-                <td style={{ padding: '7px 10px', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>{fmt(pg.unique_visitors)}</td>
-                <td style={{ padding: '7px 10px', fontSize: 12, fontWeight: 600, textAlign: 'right' }}>{fmt(pg.page_views)}</td>
-                <td style={{ padding: '7px 10px', fontSize: 11, color: '#555', textAlign: 'right' }}>{fmtTime(pg.avg_time_seconds)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {/* Paths a campaign counts, shown so a zero is diagnosable at a glance. */}
-      <div style={{ fontSize: 10, color: '#b0b8c4', marginTop: 10 }}>
-        Counting: {campaign.page_paths.join('  ·  ')}
       </div>
     </div>
   )
 }
+
+
 
 // ─── Period Selector ──────────────────────────────────────────────────────────
 function PeriodSelector({
@@ -795,10 +1092,11 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'departments' | 'programs' | 'sources'>('campaigns')
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'departments' | 'programs' | 'sources'>('departments')
 
   // Campaigns
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [openCampaignId, setOpenCampaignId] = useState<string | null>(null)
   const [campaignsLoading, setCampaignsLoading] = useState(true)
   const [showCampaignForm, setShowCampaignForm] = useState(false)
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null)
@@ -1066,10 +1364,10 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
         {([
-          ['campaigns', 'Campaigns'],
           ['departments', 'Top Departments'],
           ['programs', 'Programs & Services'],
           ['sources', 'Traffic Sources'],
+          ['campaigns', 'Campaigns'],
         ] as const).map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{
@@ -1085,54 +1383,68 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
       </div>
 
       {/* Campaigns Tab */}
-      {activeTab === 'campaigns' && (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
-            <p style={{ fontSize: 11.5, color: '#94a3b8', margin: 0, maxWidth: 620, lineHeight: 1.6 }}>
-              Track a specific push by the page it lives on. Each campaign carries unique
-              visitors, page views, and average time on page, so the numbers are ready to
-              hand to your team without digging through GA4. Numbers refresh with Sync Now.
-            </p>
-            {!showCampaignForm && (
-              <button onClick={() => { setEditingCampaign(null); setShowCampaignForm(true) }}
-                style={{ fontSize: 11, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0 }}>
-                Add campaign
-              </button>
-            )}
-          </div>
+      {activeTab === 'campaigns' && (() => {
+        const open = openCampaignId ? campaigns.find(c => c.id === openCampaignId) ?? null : null
 
-          {showCampaignForm && (
-            <CampaignForm
-              key={editingCampaign?.id ?? 'new'}
-              initial={editingCampaign ?? undefined}
-              saving={savingCampaign}
-              onSave={saveCampaign}
-              onCancel={() => { setShowCampaignForm(false); setEditingCampaign(null) }}
-            />
-          )}
-
-          {campaignsLoading && (
-            <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Loading campaigns...</div>
-          )}
-
-          {!campaignsLoading && campaigns.length === 0 && !showCampaignForm && (
-            <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: 32, textAlign: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>No campaigns yet</div>
-              <div style={{ fontSize: 11.5, color: '#94a3b8' }}>Add one with the page it lives on and its numbers appear here after the next sync.</div>
-            </div>
-          )}
-
-          {!campaignsLoading && campaigns.map(c => (
-            <CampaignCard
-              key={c.id}
-              campaign={c}
-              onEdit={() => { setEditingCampaign(c); setShowCampaignForm(true) }}
-              onArchive={() => archiveCampaign(c)}
+        if (open) {
+          return (
+            <CampaignDetail
+              campaign={open}
+              onBack={() => setOpenCampaignId(null)}
+              onEdit={() => { setEditingCampaign(open); setShowCampaignForm(true); setOpenCampaignId(null) }}
+              onArchive={() => { archiveCampaign(open); setOpenCampaignId(null) }}
               onCopy={copyCampaign}
             />
-          ))}
-        </div>
-      )}
+          )
+        }
+
+        return (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
+              <p style={{ fontSize: 11.5, color: '#94a3b8', margin: 0, maxWidth: 620, lineHeight: 1.6 }}>
+                Track a specific push by the page it lives on. Open a campaign for its full
+                report: a plain-language rundown of what the numbers mean, the traffic
+                trend, where people came from, and what they read it on.
+              </p>
+              {!showCampaignForm && (
+                <button onClick={() => { setEditingCampaign(null); setShowCampaignForm(true) }}
+                  style={{ fontSize: 11, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0 }}>
+                  Add campaign
+                </button>
+              )}
+            </div>
+
+            {showCampaignForm && (
+              <CampaignForm
+                key={editingCampaign?.id ?? 'new'}
+                initial={editingCampaign ?? undefined}
+                saving={savingCampaign}
+                onSave={saveCampaign}
+                onCancel={() => { setShowCampaignForm(false); setEditingCampaign(null) }}
+              />
+            )}
+
+            {campaignsLoading && (
+              <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Loading campaigns...</div>
+            )}
+
+            {!campaignsLoading && campaigns.length === 0 && !showCampaignForm && (
+              <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: 32, textAlign: 'center' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>No campaigns yet</div>
+                <div style={{ fontSize: 11.5, color: '#94a3b8' }}>Add one with the page it lives on and its numbers appear here after the next sync.</div>
+              </div>
+            )}
+
+            {!campaignsLoading && campaigns.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 14 }}>
+                {campaigns.map(c => (
+                  <CampaignTile key={c.id} campaign={c} onOpen={() => setOpenCampaignId(c.id)} />
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Per-tab search (departments + programs only) */}
       {(activeTab === 'departments' || activeTab === 'programs') && (
