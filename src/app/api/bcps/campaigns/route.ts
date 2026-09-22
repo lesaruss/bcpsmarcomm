@@ -10,14 +10,24 @@
 // PATCH  /api/bcps/campaigns            - update (id in body)
 // DELETE /api/bcps/campaigns?id=...     - delete (metrics cascade)
 //
-// Gated on requireBcpsSuperAdmin, which is the same check that already guards
-// the analytics data these rows belong to: /api/bcps/analytics uses it, and
-// SUPERADMIN_PAGES puts 'analytics' behind it in the shell. Per
-// canon-gate-new-surfaces-on-the-same-check, the guarding check is named here
-// rather than re-derived.
+// READ and WRITE are gated differently on purpose (2026-09-22).
+//
+// GET is requireBcpsPageAccess('analytics'): whoever can open the Analytics
+// page can read the campaigns on it. That is the same acl_objects/acl_grants
+// row that decides the page's own nav entry, so data and nav cannot disagree.
+// Sean granting the Office of Communications access to Analytics is what made
+// that matter.
+//
+// POST/PATCH/DELETE stay requireBcpsAdmin. Being able to SEE a campaign report
+// is not the same as being able to create, retarget or delete a campaign -
+// deleting one cascades its whole metric history. Sean asked for OOC to see
+// these reports, not to manage them, so the write side stays where it was.
+//
+// Per canon-gate-new-surfaces-on-the-same-check, both checks are named here
+// rather than re-derived per handler.
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { requireBcpsSuperAdmin } from '@/lib/bcps-auth'
+import { requireBcpsPageAccess, requireBcpsAdmin } from '@/lib/bcps-auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -64,7 +74,7 @@ function normalizePaths(input: unknown): string[] {
 }
 
 export async function GET(req: NextRequest) {
-  const auth = await requireBcpsSuperAdmin(req)
+  const auth = await requireBcpsPageAccess(req, 'analytics')
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   try {
@@ -136,7 +146,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireBcpsSuperAdmin(req)
+  const auth = await requireBcpsAdmin(req)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   let body: Record<string, unknown>
@@ -176,7 +186,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const auth = await requireBcpsSuperAdmin(req)
+  const auth = await requireBcpsAdmin(req)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   let body: Record<string, unknown>
@@ -216,7 +226,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const auth = await requireBcpsSuperAdmin(req)
+  const auth = await requireBcpsAdmin(req)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { searchParams } = new URL(req.url)
