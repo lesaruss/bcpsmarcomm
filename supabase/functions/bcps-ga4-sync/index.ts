@@ -63,14 +63,19 @@ async function runGA4Report(accessToken: string, body: object) {
 // and its metric list/index positions are load-bearing for them. Campaigns get
 // their own reports so this block cannot change a single existing number.
 //
-// Each campaign runs TWO reports:
+// Each campaign runs FIVE reports:
 //   totals    - no dimension, so GA4 de-duplicates users itself.
 //   breakdown - dimensioned by pagePath, for the per-path drill-down.
+//   daily     - dimensioned by date, for the trend chart.
+//   channels  - dimensioned by sessionDefaultChannelGroup: HOW people arrived.
+//   devices   - dimensioned by deviceCategory: mobile vs desktop vs tablet.
 //
 // Summing totalUsers across pagePath rows would DOUBLE COUNT anyone who hit
 // more than one path in the campaign, which is exactly what a campaign with a
 // vanity alias plus a canonical path looks like. Do not "optimize" the totals
-// report away by summing the breakdown rows.
+// report away by summing the breakdown rows. The same applies to the daily,
+// channel and device rows: their user counts are de-duplicated within their
+// own dimension only, so none of them sum to the window total.
 const CAMPAIGN_LIMIT = 25;
 
 function campaignPathFilter(paths: string[], includeSubpages: boolean) {
@@ -274,10 +279,15 @@ Deno.serve(async (_req: Request) => {
       }
 
       try {
-        const [totalsReport, breakdownReport, dailyReport] = await Promise.all([
+        const [totalsReport, breakdownReport, dailyReport, channelReport, deviceReport] = await Promise.all([
           runGA4Report(accessToken, {
             dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
-            metrics: [{ name: 'totalUsers' }, { name: 'screenPageViews' }, { name: 'sessions' }, { name: 'userEngagementDuration' }],
+            metrics: [
+              { name: 'totalUsers' }, { name: 'screenPageViews' }, { name: 'sessions' }, { name: 'userEngagementDuration' },
+              // Added for the campaign report: reach vs repetition, and whether
+              // people read the page or bounced off it.
+              { name: 'newUsers' }, { name: 'engagedSessions' }, { name: 'engagementRate' },
+            ],
             dimensionFilter: filter
           }),
           runGA4Report(accessToken, {
@@ -299,6 +309,24 @@ Deno.serve(async (_req: Request) => {
             dimensionFilter: filter,
             orderBys: [{ dimension: { dimensionName: 'date' } }],
             limit: 400
+          }),
+          // HOW people arrived. The single most actionable cut of a campaign:
+          // it is what tells the team which push actually worked.
+          runGA4Report(accessToken, {
+            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+            dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+            metrics: [{ name: 'sessions' }, { name: 'totalUsers' }, { name: 'screenPageViews' }],
+            dimensionFilter: filter,
+            orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+            limit: 25
+          }),
+          runGA4Report(accessToken, {
+            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+            dimensions: [{ name: 'deviceCategory' }],
+            metrics: [{ name: 'sessions' }, { name: 'totalUsers' }, { name: 'screenPageViews' }],
+            dimensionFilter: filter,
+            orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+            limit: 10
           })
         ]);
 
@@ -307,6 +335,16 @@ Deno.serve(async (_req: Request) => {
         const pageViews      = t ? parseInt(t[1].value) : 0;
         const sessions       = t ? parseInt(t[2].value) : 0;
         const engagementSecs = t ? parseFloat(t[3].value) : 0;
+        const newUsers       = t ? parseInt(t[4].value) : 0;
+        const engagedSess    = t ? parseInt(t[5].value) : 0;
+        const engagementRate = t ? parseFloat(t[6].value) : 0;
+
+        const mapDim = (rep: any) => (rep.rows || []).map((r: any) => ({
+          name: r.dimensionValues[0].value,
+          sessions: parseInt(r.metricValues[0].value),
+          unique_visitors: parseInt(r.metricValues[1].value),
+          page_views: parseInt(r.metricValues[2].value),
+        }));
 
         // Average time on page = total engagement time / page views. GA4
         // retired Universal Analytics' avgTimeOnPage; engagement time per
@@ -337,6 +375,11 @@ Deno.serve(async (_req: Request) => {
           sessions,
           engagement_seconds: Math.round(engagementSecs * 100) / 100,
           pages,
+          new_users: newUsers,
+          engaged_sessions: engagedSess,
+          engagement_rate: Math.round(engagementRate * 10000) / 10000,
+          channels: mapDim(channelReport),
+          devices: mapDim(deviceReport),
           synced_at: new Date().toISOString()
         }, { onConflict: 'campaign_id,period' });
 
@@ -367,6 +410,10 @@ Deno.serve(async (_req: Request) => {
           paths_with_traffic: pages.filter((p: any) => p.page_views > 0).length,
           paths_configured: (c.page_paths || []).length,
           daily_days: dailyRows.length,
+          channels: mapDim(channelReport).length,
+          devices: mapDim(deviceReport).length,
+          engagement_rate: Math.round(engagementRate * 10000) / 10000,
+          new_users: newUsers,
         });
       } catch (err: any) {
         // One bad campaign must not take the whole sync down with it.
