@@ -92,6 +92,10 @@ interface DeptRow {
   avg_session_duration: number
   pages?: SubPage[]
   path?: string
+  // Set by bcps-ga4-sync v17+. false means these page views sit under
+  // /bcps-departments/ but no department row claims them, so the bucket is a
+  // district page rather than a department profile.
+  matched?: boolean
 }
 
 interface ProgramRow {
@@ -102,6 +106,41 @@ interface ProgramRow {
   engagement_rate: number
   avg_session_duration: number
   pages: SubPage[]
+}
+
+interface CampaignPage {
+  path: string
+  unique_visitors: number
+  page_views: number
+  sessions: number
+  engagement_seconds: number
+  avg_time_seconds: number
+}
+
+interface CampaignMetrics {
+  period: string
+  unique_visitors: number | null
+  page_views: number | null
+  avg_time_seconds: number | null
+  sessions: number | null
+  engagement_seconds: number | null
+  pages: CampaignPage[]
+  synced_at: string
+}
+
+interface Campaign {
+  id: string
+  name: string
+  slug: string
+  page_paths: string[]
+  primary_url: string | null
+  description: string | null
+  owner: string | null
+  status: 'active' | 'archived'
+  start_date: string | null
+  end_date: string | null
+  include_subpages: boolean
+  metrics: CampaignMetrics | null
 }
 
 interface Snapshot {
@@ -172,7 +211,226 @@ function PaginationBar({
   )
 }
 
-const DEPT_LINK = (urlSlug: string) => `/?page=departments&dept=${urlSlug}`
+// Links by the DEPARTMENT TABLE slug, which is what the departments page
+// resolves (MembersPage and DashboardPage both pass department.slug). This
+// used to pass url_slug, the GA4 URL segment, which only coincides with the
+// table slug when a department's page happens to be named after its record -
+// Instructional Innovation & Digital Learning sat at /innovative-learning, so
+// its Analytics link pointed at a department that does not exist. Falls back
+// to url_slug for buckets that match no department row.
+const DEPT_LINK = (row: { slug?: string; url_slug: string }) =>
+  `/?page=departments&dept=${row.slug || row.url_slug}`
+
+// ─── Campaigns ────────────────────────────────────────────────────────────────
+function CampaignForm({
+  initial, onSave, onCancel, saving,
+}: {
+  initial?: Partial<Campaign>
+  onSave: (payload: Record<string, unknown>) => void
+  onCancel: () => void
+  saving: boolean
+}) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [paths, setPaths] = useState((initial?.page_paths ?? []).join('\n'))
+  const [primaryUrl, setPrimaryUrl] = useState(initial?.primary_url ?? '')
+  const [owner, setOwner] = useState(initial?.owner ?? '')
+  const [description, setDescription] = useState(initial?.description ?? '')
+
+  const input: React.CSSProperties = {
+    width: '100%', fontSize: 12, fontFamily: 'Montserrat, sans-serif',
+    padding: '8px 10px', border: '1px solid rgba(0,0,0,0.15)', borderRadius: 7,
+    outline: 'none', color: '#1a1a1a', background: '#fff',
+  }
+  const label: React.CSSProperties = {
+    fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+    letterSpacing: '.5px', color: '#94a3b8', marginBottom: 4, display: 'block',
+  }
+
+  return (
+    <div style={{ background: '#f8fafc', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: 18, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 12 }}>
+        <div>
+          <label style={label} htmlFor="camp-name">Campaign name</label>
+          <input id="camp-name" style={input} value={name} onChange={e => setName(e.target.value)} placeholder="Referendum 2026" />
+        </div>
+        <div>
+          <label style={label} htmlFor="camp-url">Link you share</label>
+          <input id="camp-url" style={input} value={primaryUrl} onChange={e => setPrimaryUrl(e.target.value)} placeholder="https://www.browardschools.com/referendum2026" />
+        </div>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={label} htmlFor="camp-paths">Pages to count (one per line)</label>
+        <textarea id="camp-paths" style={{ ...input, minHeight: 68, resize: 'vertical' }} value={paths}
+          onChange={e => setPaths(e.target.value)}
+          placeholder={'/referendum2026\n/school-board/referendum-2026'} />
+        <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 5, lineHeight: 1.5 }}>
+          Paste a full URL or a path; either works. Add every address the campaign lives at.
+          A vanity link usually redirects, and analytics only records where the visitor
+          actually landed, so listing just the short link can read as zero. Sub-pages are
+          included automatically.
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 14, marginBottom: 14 }}>
+        <div>
+          <label style={label} htmlFor="camp-owner">Owner (optional)</label>
+          <input id="camp-owner" style={input} value={owner} onChange={e => setOwner(e.target.value)} placeholder="Who runs this" />
+        </div>
+        <div>
+          <label style={label} htmlFor="camp-desc">Notes (optional)</label>
+          <input id="camp-desc" style={input} value={description} onChange={e => setDescription(e.target.value)} placeholder="What this campaign is" />
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          disabled={saving || !name.trim() || !paths.trim()}
+          onClick={() => onSave({
+            name, page_paths: paths, primary_url: primaryUrl,
+            owner, description,
+            ...(initial?.id ? { id: initial.id } : {}),
+          })}
+          style={{
+            fontSize: 11, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none',
+            borderRadius: 7, padding: '8px 18px',
+            cursor: saving || !name.trim() || !paths.trim() ? 'not-allowed' : 'pointer',
+            opacity: saving || !name.trim() || !paths.trim() ? 0.5 : 1,
+          }}>
+          {saving ? 'Saving...' : initial?.id ? 'Save changes' : 'Add campaign'}
+        </button>
+        <button onClick={onCancel}
+          style={{ fontSize: 11, fontWeight: 700, background: 'none', color: '#94a3b8', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 7, padding: '8px 16px', cursor: 'pointer' }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function CampaignCard({
+  campaign, onEdit, onArchive, onCopy,
+}: {
+  campaign: Campaign
+  onEdit: () => void
+  onArchive: () => void
+  onCopy: (text: string) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const m = campaign.metrics
+  const link = campaign.primary_url || (campaign.page_paths[0] ? BWS + campaign.page_paths[0] : null)
+
+  // The plain-text block Marcomm pastes into an email or a Teams message.
+  const summary = [
+    campaign.name,
+    link ? link : '',
+    '',
+    `Unique visitors: ${m?.unique_visitors ?? 0}`,
+    `Page views: ${m?.page_views ?? 0}`,
+    `Average time on page: ${fmtTime(m?.avg_time_seconds ?? 0)}`,
+    '',
+    m ? `Source: GA4, ${m.period}, last 30 days. Pulled ${new Date(m.synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.` : 'No data pulled yet.',
+  ].filter(Boolean).join('\n')
+
+  const stat = (label: string, value: string, note?: string) => (
+    <div key={label} style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: '#94a3b8', marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: '#1a1a1a' }}>{value}</div>
+      {note && <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 5 }}>{note}</div>}
+    </div>
+  )
+
+  const noTraffic = !!m && (m.page_views ?? 0) === 0
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '18px 20px', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#1a1a1a' }}>{campaign.name}</div>
+          {link && (
+            <a href={link} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 11.5, color: '#1672A7', fontWeight: 600, textDecoration: 'none', wordBreak: 'break-all' }}>
+              {link}
+            </a>
+          )}
+          {campaign.description && (
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{campaign.description}</div>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button onClick={() => onCopy(summary)}
+            style={{ fontSize: 10.5, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
+            Copy for team
+          </button>
+          <button onClick={onEdit}
+            style={{ fontSize: 10.5, fontWeight: 700, background: '#e8f1f8', color: '#1672A7', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
+            Edit
+          </button>
+          <button onClick={onArchive}
+            style={{ fontSize: 10.5, fontWeight: 700, background: 'none', color: '#94a3b8', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
+            Archive
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 24, paddingTop: 14, borderTop: '1px solid #f3f4f6' }}>
+        {stat('Unique Visitors', fmt(m?.unique_visitors ?? 0), 'People, counted once')}
+        {stat('Page Views', fmt(m?.page_views ?? 0), 'Total views')}
+        {stat('Avg. Time on Page', fmtTime(m?.avg_time_seconds ?? 0), 'Engagement per view')}
+      </div>
+
+      {noTraffic && (
+        <div style={{ marginTop: 14, background: '#fef3e2', border: '1px solid rgba(133,79,11,.2)', borderRadius: 8, padding: '10px 14px', fontSize: 11.5, color: '#854F0B', fontWeight: 600, lineHeight: 1.5 }}>
+          No page views recorded for the paths on this campaign. If the link you share
+          redirects somewhere else, add the page it actually lands on under Edit.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 10.5, color: '#94a3b8' }}>
+          {m
+            ? <>GA4 {m.period} &middot; last 30 days &middot; synced {new Date(m.synced_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</>
+            : <>No data pulled yet. Click Sync Now.</>}
+        </div>
+        {!!m?.pages?.length && (
+          <button onClick={() => setExpanded(v => !v)}
+            style={{ fontSize: 10, fontWeight: 700, color: '#1672A7', background: '#e8f1f8', border: 'none', cursor: 'pointer', padding: '3px 10px', borderRadius: 5 }}>
+            {expanded ? 'Hide pages' : `Pages (${m.pages.length})`}
+          </button>
+        )}
+      </div>
+
+      {expanded && !!m?.pages?.length && (
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
+          <thead>
+            <tr>
+              {['Page Path', 'Unique Visitors', 'Page Views', 'Avg. Time'].map(h => (
+                <th key={h} style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.4px', color: '#b0b8c4', textAlign: h === 'Page Path' ? 'left' : 'right', padding: '6px 10px', borderBottom: '1px solid #e5e7eb' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {m.pages.map(pg => (
+              <tr key={pg.path} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                <td style={{ padding: '7px 10px' }}>
+                  <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: 11, color: '#1672A7', textDecoration: 'none', fontWeight: 600 }}>
+                    {pg.path}
+                  </a>
+                </td>
+                <td style={{ padding: '7px 10px', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>{fmt(pg.unique_visitors)}</td>
+                <td style={{ padding: '7px 10px', fontSize: 12, fontWeight: 600, textAlign: 'right' }}>{fmt(pg.page_views)}</td>
+                <td style={{ padding: '7px 10px', fontSize: 11, color: '#555', textAlign: 'right' }}>{fmtTime(pg.avg_time_seconds)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {/* Paths a campaign counts, shown so a zero is diagnosable at a glance. */}
+      <div style={{ fontSize: 10, color: '#b0b8c4', marginTop: 10 }}>
+        Counting: {campaign.page_paths.join('  ·  ')}
+      </div>
+    </div>
+  )
+}
 
 // ─── Period Selector ──────────────────────────────────────────────────────────
 function PeriodSelector({
@@ -288,7 +546,14 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'departments' | 'programs' | 'sources'>('departments')
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'departments' | 'programs' | 'sources'>('campaigns')
+
+  // Campaigns
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [campaignsLoading, setCampaignsLoading] = useState(true)
+  const [showCampaignForm, setShowCampaignForm] = useState(false)
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null)
+  const [savingCampaign, setSavingCampaign] = useState(false)
 
   // Period selection
   const [period, setPeriod] = useState<PeriodState>({
@@ -341,6 +606,65 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
 
   useEffect(() => { load() }, [load])
 
+  const loadCampaigns = useCallback(async () => {
+    setCampaignsLoading(true)
+    try {
+      const res = await fetch('/api/bcps/campaigns', { headers: await authHeaders() })
+      const data = await res.json()
+      setCampaigns(data.campaigns ?? [])
+    } catch {
+      setCampaigns([])
+    } finally {
+      setCampaignsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadCampaigns() }, [loadCampaigns])
+
+  const saveCampaign = useCallback(async (payload: Record<string, unknown>) => {
+    setSavingCampaign(true)
+    try {
+      const editing = !!payload.id
+      const res = await fetch('/api/bcps/campaigns', {
+        method: editing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Save failed')
+      setShowCampaignForm(false)
+      setEditingCampaign(null)
+      await loadCampaigns()
+      onShowToast(editing ? 'Campaign updated. Click Sync Now to pull its numbers.' : 'Campaign added. Click Sync Now to pull its numbers.')
+    } catch (e) {
+      onShowToast(e instanceof Error ? e.message : 'Could not save campaign.')
+    } finally {
+      setSavingCampaign(false)
+    }
+  }, [loadCampaigns, onShowToast])
+
+  const archiveCampaign = useCallback(async (c: Campaign) => {
+    if (!window.confirm(`Archive "${c.name}"? It stops syncing and drops off this tab. Its history is kept.`)) return
+    try {
+      const res = await fetch('/api/bcps/campaigns', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+        body: JSON.stringify({ id: c.id, status: 'archived' }),
+      })
+      if (!res.ok) throw new Error('Archive failed')
+      await loadCampaigns()
+      onShowToast('Campaign archived.')
+    } catch {
+      onShowToast('Could not archive campaign.')
+    }
+  }, [loadCampaigns, onShowToast])
+
+  const copyCampaign = useCallback((text: string) => {
+    navigator.clipboard.writeText(text)
+      .then(() => onShowToast('Copied. Paste it straight into an email or Teams.'))
+      .catch(() => onShowToast('Could not copy to clipboard.'))
+  }, [onShowToast])
+
   // Reset paging + search when switching tabs
   useEffect(() => { setQuery(''); setDeptPage(0); setProgPage(0) }, [activeTab])
 
@@ -357,7 +681,7 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
       const res = await fetch('/api/bcps/analytics', { method: 'POST', headers: await authHeaders() })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Sync failed')
-      await load()
+      await Promise.all([load(), loadCampaigns()])
       onShowToast('GA4 data synced.')
     } catch {
       onShowToast('Sync failed - check function logs.')
@@ -493,6 +817,7 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
         {([
+          ['campaigns', 'Campaigns'],
           ['departments', 'Top Departments'],
           ['programs', 'Programs & Services'],
           ['sources', 'Traffic Sources'],
@@ -510,8 +835,58 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
         ))}
       </div>
 
+      {/* Campaigns Tab */}
+      {activeTab === 'campaigns' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
+            <p style={{ fontSize: 11.5, color: '#94a3b8', margin: 0, maxWidth: 620, lineHeight: 1.6 }}>
+              Track a specific push by the page it lives on. Each campaign carries unique
+              visitors, page views, and average time on page, so the numbers are ready to
+              hand to your team without digging through GA4. Numbers refresh with Sync Now.
+            </p>
+            {!showCampaignForm && (
+              <button onClick={() => { setEditingCampaign(null); setShowCampaignForm(true) }}
+                style={{ fontSize: 11, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0 }}>
+                Add campaign
+              </button>
+            )}
+          </div>
+
+          {showCampaignForm && (
+            <CampaignForm
+              key={editingCampaign?.id ?? 'new'}
+              initial={editingCampaign ?? undefined}
+              saving={savingCampaign}
+              onSave={saveCampaign}
+              onCancel={() => { setShowCampaignForm(false); setEditingCampaign(null) }}
+            />
+          )}
+
+          {campaignsLoading && (
+            <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Loading campaigns...</div>
+          )}
+
+          {!campaignsLoading && campaigns.length === 0 && !showCampaignForm && (
+            <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: 32, textAlign: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>No campaigns yet</div>
+              <div style={{ fontSize: 11.5, color: '#94a3b8' }}>Add one with the page it lives on and its numbers appear here after the next sync.</div>
+            </div>
+          )}
+
+          {!campaignsLoading && campaigns.map(c => (
+            <CampaignCard
+              key={c.id}
+              campaign={c}
+              onEdit={() => { setEditingCampaign(c); setShowCampaignForm(true) }}
+              onArchive={() => archiveCampaign(c)}
+              onCopy={copyCampaign}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Per-tab search (departments + programs only) */}
-      {activeTab !== 'sources' && (
+      {(activeTab === 'departments' || activeTab === 'programs') && (
         <div style={{ marginBottom: 16 }}>
           <input
             type="text"
@@ -555,14 +930,17 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
                     <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #f3f4f6', background: isExpanded ? '#f8fafc' : 'white' }}>
                       <td style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{globalIdx}</td>
                       <td style={{ padding: '10px 14px' }}>
-                        <a href={DEPT_LINK(row.url_slug)}
+                        <a href={DEPT_LINK(row)}
                           style={{ fontSize: 12, fontWeight: 700, color: '#1672A7', textDecoration: 'none' }}
                           onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseOut={e => (e.currentTarget.style.textDecoration = 'none')}>
                           {row.name}
                         </a>
                         <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
-                          /bcps-departments/{row.url_slug}
+                          {row.path || `/bcps-departments/${row.url_slug}`}
+                          {row.matched === false && (
+                            <span style={{ marginLeft: 6, color: '#b45309', fontWeight: 600 }}>no department record</span>
+                          )}
                           {hasPages && <span style={{ marginLeft: 6, color: '#1672A7' }}>{row.pages!.length} pages</span>}
                         </div>
                       </td>
