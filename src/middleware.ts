@@ -118,7 +118,17 @@ export async function middleware(request: NextRequest) {
     // check ever runs -- added 2026-09-08 after live verification showed every
     // /playbooks/ URL, including intentionally public ones, hit the login wall
     // unconditionally.
-    pathname.startsWith('/playbooks/')
+    pathname.startsWith('/playbooks/') ||
+    // Campaign reports (/campaigns/[slug]). Per-campaign: a campaign with
+    // is_public = true is readable by anyone with the link, which is the whole
+    // point of it (Sean, 2026-09-22: shared with the chief and others, no
+    // obstacles). A campaign with is_public = false still falls through to
+    // checkCampaignReportAccess inside the route, which is default deny.
+    //
+    // This entry only stops the middleware bouncing every /campaigns/ request
+    // to /login before that per-campaign decision can be made. The route, not
+    // this list, is what decides.
+    pathname.startsWith('/campaigns/')
 
   if (isPublic) return supabaseResponse
 

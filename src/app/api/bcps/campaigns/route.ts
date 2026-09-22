@@ -173,6 +173,9 @@ export async function POST(req: NextRequest) {
     start_date: body.start_date || null,
     end_date: body.end_date || null,
     include_subpages: body.include_subpages !== false,
+    // Defaults to a shareable link unless explicitly turned off, matching the
+    // column default. See the migration for why.
+    is_public: body.is_public !== false,
     sort_order: Number(body.sort_order ?? 0) || 0,
   }).select('*').single()
 
@@ -204,6 +207,7 @@ export async function PATCH(req: NextRequest) {
   if (body.end_date !== undefined)    updates.end_date = body.end_date || null
   if (body.sort_order !== undefined)  updates.sort_order = Number(body.sort_order) || 0
   if (body.include_subpages !== undefined) updates.include_subpages = body.include_subpages !== false
+  if (body.is_public !== undefined)        updates.is_public = body.is_public === true
   if (body.status !== undefined) {
     const status = String(body.status)
     if (status !== 'active' && status !== 'archived') {

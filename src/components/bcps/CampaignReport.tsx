@@ -75,6 +75,7 @@ export interface Campaign {
   start_date: string | null
   end_date: string | null
   include_subpages: boolean
+  is_public: boolean
   metrics: CampaignMetrics | null
   daily: CampaignDay[]
 }

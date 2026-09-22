@@ -6,13 +6,23 @@
 // Analytics page. It should open the way a doc opens - its own page, its own
 // header, its own URL - so it can be handed to someone.
 //
-// ACCESS IS NOT PUBLIC. Sean raised public viewing and then ruled it out in the
-// same breath. This route is gated by checkCampaignReportAccess, which is
-// default deny: BCPS admins, the Office of Communications group, and named
-// individuals holding a direct grant. It deliberately does NOT use
-// checkDocAccess, which is public-unless-recipients-exist and would have made
-// these reports world-readable the moment nobody was listed. See
-// src/lib/bcps-campaign-access.ts for the full reasoning.
+// ACCESS IS PER CAMPAIGN, decided by bcps_campaigns.is_public.
+//
+// is_public = true  -> anyone with the link can read it, no sign-in. Sean,
+//   2026-09-22: "let's just make that public... we may need to share it with
+//   the chief and a whole bunch of other people. And I don't want to create any
+//   unnecessary obstacles." A campaign report is aggregate traffic about an
+//   already-public District page, so this is a reasonable thing to hand out.
+// is_public = false -> checkCampaignReportAccess, which is DEFAULT DENY: BCPS
+//   admins, the Office of Communications group, and named individuals holding a
+//   direct grant.
+//
+// The fallback deliberately does NOT use checkDocAccess, which is
+// public-unless-recipients-exist: a restricted campaign must mean nobody by
+// default, not everybody. See src/lib/bcps-campaign-access.ts.
+//
+// Public campaigns stay noindex (see generateMetadata): shareable by link is
+// not the same as listed in Google under "Broward referendum analytics".
 //
 // The SHELL follows canon-bcps-doc-template-standard: fixed BCPS-blue header
 // with the District logo linked back to the dashboard, a meta row, a plain
@@ -55,11 +65,25 @@ export default async function CampaignReportPage({ params }: Props) {
   const db = campaignServiceClient()
   if (!db) notFound()
 
-  const user = await getSessionUser()
-  if (!user) redirect(`/login?next=${encodeURIComponent(`/campaigns/${slug}`)}`)
+  const { data: campaign } = await db
+    .from('bcps_campaigns')
+    .select('id, name, slug, page_paths, primary_url, description, owner, status, start_date, end_date, include_subpages, is_public')
+    .eq('slug', slug)
+    .maybeSingle()
+  if (!campaign) notFound()
 
-  const access = await checkCampaignReportAccess(db, user.id)
-  if (!access.allowed) {
+  // A public campaign short-circuits every check: no session needed, nothing
+  // to deny. A restricted one falls back to the default-deny gate.
+  const isPublic = campaign.is_public === true
+  let denied = false
+  if (!isPublic) {
+    const user = await getSessionUser()
+    if (!user) redirect(`/login?next=${encodeURIComponent(`/campaigns/${slug}`)}`)
+    const access = await checkCampaignReportAccess(db, user.id)
+    denied = !access.allowed
+  }
+
+  if (denied) {
     return (
       <main style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'Arial, Helvetica, sans-serif', padding: '80px 24px', textAlign: 'center' }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: '#1a1a1a' }}>You do not have access to this report</h1>
@@ -70,13 +94,6 @@ export default async function CampaignReportPage({ params }: Props) {
       </main>
     )
   }
-
-  const { data: campaign } = await db
-    .from('bcps_campaigns')
-    .select('id, name, slug, page_paths, primary_url, description, owner, status, start_date, end_date, include_subpages')
-    .eq('slug', slug)
-    .maybeSingle()
-  if (!campaign) notFound()
 
   const [{ data: metricsRows }, { data: daily }] = await Promise.all([
     db.from('bcps_campaign_analytics').select('*').eq('campaign_id', campaign.id).order('period', { ascending: false }).limit(1),
@@ -135,15 +152,25 @@ export default async function CampaignReportPage({ params }: Props) {
       </header>
 
       <main>
-        <h1>{campaign.name}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h1>{campaign.name}</h1>
+          <span style={{
+            fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.1em',
+            padding: '4px 9px', borderRadius: 999,
+            background: isPublic ? 'rgba(22,114,167,.10)' : 'rgba(133,79,11,.10)',
+            color: isPublic ? 'var(--bcps-blue-dark)' : '#854F0B',
+          }}>
+            {isPublic ? 'Public link' : 'Restricted'}
+          </span>
+        </div>
         {campaign.description && (
           <p style={{ fontSize: 12.5, color: 'var(--text-50)', margin: '0 0 6px', maxWidth: 780 }}>{campaign.description}</p>
         )}
         <CampaignReportBody campaign={full} />
         <p style={{ fontSize: 10.5, color: 'var(--text-50)', marginTop: 24, lineHeight: 1.6, maxWidth: 780 }}>
-          This report is not public. It is shared with the Office of Communications and
-          named individuals. Numbers refresh from GA4 on each sync, so the link stays
-          current rather than going stale the way an exported copy would.
+          {isPublic
+            ? 'Anyone with this link can open this report, no sign-in needed. It is not listed in search engines. Numbers refresh from GA4 on each sync, so the link stays current rather than going stale the way an exported copy would.'
+            : 'This report is not public. It is shared with the Office of Communications and named individuals. Numbers refresh from GA4 on each sync, so the link stays current rather than going stale the way an exported copy would.'}
         </p>
       </main>
     </>
