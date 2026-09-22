@@ -274,7 +274,7 @@ Deno.serve(async (_req: Request) => {
       }
 
       try {
-        const [totalsReport, breakdownReport] = await Promise.all([
+        const [totalsReport, breakdownReport, dailyReport] = await Promise.all([
           runGA4Report(accessToken, {
             dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
             metrics: [{ name: 'totalUsers' }, { name: 'screenPageViews' }, { name: 'sessions' }, { name: 'userEngagementDuration' }],
@@ -287,6 +287,18 @@ Deno.serve(async (_req: Request) => {
             dimensionFilter: filter,
             orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
             limit: 200
+          }),
+          // Daily series for the trend chart. Its totalUsers is per-day
+          // de-duplicated, which is a different number from the window total
+          // above and must never be summed into one - see the note on
+          // bcps_campaign_daily.
+          runGA4Report(accessToken, {
+            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+            dimensions: [{ name: 'date' }],
+            metrics: [{ name: 'totalUsers' }, { name: 'screenPageViews' }, { name: 'sessions' }, { name: 'userEngagementDuration' }],
+            dimensionFilter: filter,
+            orderBys: [{ dimension: { dimensionName: 'date' } }],
+            limit: 400
           })
         ]);
 
@@ -328,6 +340,25 @@ Deno.serve(async (_req: Request) => {
           synced_at: new Date().toISOString()
         }, { onConflict: 'campaign_id,period' });
 
+        // GA4 returns the date dimension as YYYYMMDD; the column is a date.
+        const dailyRows = (dailyReport.rows || []).map((r: any) => {
+          const d = r.dimensionValues[0].value as string;
+          return {
+            campaign_id: c.id,
+            date: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`,
+            unique_visitors: parseInt(r.metricValues[0].value),
+            page_views: parseInt(r.metricValues[1].value),
+            sessions: parseInt(r.metricValues[2].value),
+            engagement_seconds: Math.round(parseFloat(r.metricValues[3].value) * 100) / 100,
+            synced_at: new Date().toISOString(),
+          };
+        }).filter((r: any) => /^\d{4}-\d{2}-\d{2}$/.test(r.date));
+
+        if (dailyRows.length) {
+          await supabase.from('bcps_campaign_daily')
+            .upsert(dailyRows, { onConflict: 'campaign_id,date' });
+        }
+
         campaignResults.push({
           slug: c.slug,
           unique_visitors: uniqueVisitors,
@@ -335,6 +366,7 @@ Deno.serve(async (_req: Request) => {
           avg_time_seconds: Math.round(avgTime * 100) / 100,
           paths_with_traffic: pages.filter((p: any) => p.page_views > 0).length,
           paths_configured: (c.page_paths || []).length,
+          daily_days: dailyRows.length,
         });
       } catch (err: any) {
         // One bad campaign must not take the whole sync down with it.

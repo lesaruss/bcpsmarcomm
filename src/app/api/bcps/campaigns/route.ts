@@ -98,13 +98,37 @@ export async function GET(req: NextRequest) {
       if (!latest.has(key)) latest.set(key, m)
     }
 
+    // Daily series for the trend chart. Bounded by `days` so a long-running
+    // campaign cannot return an unbounded payload.
+    const days = Math.min(Math.max(parseInt(searchParams.get('days') ?? '30', 10) || 30, 7), 365)
+    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+    const dailyByCampaign = new Map<string, Record<string, unknown>[]>()
+    if (ids.length) {
+      const { data: daily } = await supabase
+        .from('bcps_campaign_daily')
+        .select('campaign_id,date,unique_visitors,page_views,sessions,engagement_seconds')
+        .in('campaign_id', ids)
+        .gte('date', since)
+        .order('date')
+      for (const row of (daily ?? [])) {
+        const key = row.campaign_id as string
+        if (!dailyByCampaign.has(key)) dailyByCampaign.set(key, [])
+        dailyByCampaign.get(key)!.push(row)
+      }
+    }
+
     // Every available period, so the UI can offer a period picker without a
     // second round trip.
     const periods = Array.from(new Set(metrics.map(m => m.period as string))).sort().reverse()
 
     return NextResponse.json({
-      campaigns: (campaigns ?? []).map(c => ({ ...c, metrics: latest.get(c.id) ?? null })),
+      campaigns: (campaigns ?? []).map(c => ({
+        ...c,
+        metrics: latest.get(c.id) ?? null,
+        daily: dailyByCampaign.get(c.id) ?? [],
+      })),
       periods,
+      days,
     })
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
