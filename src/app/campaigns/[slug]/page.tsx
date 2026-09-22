@@ -14,10 +14,18 @@
 // these reports world-readable the moment nobody was listed. See
 // src/lib/bcps-campaign-access.ts for the full reasoning.
 //
-// The shell follows canon-bcps-doc-template-standard: fixed BCPS-blue header
+// The SHELL follows canon-bcps-doc-template-standard: fixed BCPS-blue header
 // with the District logo linked back to the dashboard, a meta row, a plain
-// green-labelled lead section, and every section below it as a closed-by-
-// default accordion. Full width, no centred column.
+// green-labelled lead section that always stays open, full width, no centred
+// column.
+//
+// The BODY navigates by tabs, not accordions. Sean, 2026-09-22: "we don't have
+// to make things documents if it's on a web page." The page keeps everything
+// that makes it shareable - its own URL, the header, the access gate - while
+// the content reads as an app surface, because four stacked accordions is a
+// long scroll where a tab strip is one click. That is a deliberate departure
+// from the accordion rule, which governs authored documents in briefings, not
+// a live report. Do not restore accordions here.
 import { notFound, redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import {
@@ -110,12 +118,6 @@ export default async function CampaignReportPage({ params }: Props) {
         .meta-label { font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--text-50); }
         .meta-value { font-size:12.5px; font-weight:700; }
         .section-block { border:1px solid var(--border); border-radius:8px; background:var(--surface); padding:18px 20px; margin-bottom:14px; }
-        details.doc-accordion { margin-bottom:14px; border:1px solid var(--border); border-radius:8px; background:var(--surface); overflow:hidden; }
-        details.doc-accordion > summary { list-style:none; cursor:pointer; padding:4px 20px; display:flex; align-items:center; }
-        details.doc-accordion > summary::-webkit-details-marker { display:none; }
-        details.doc-accordion > summary::after { content:"+"; margin-left:auto; font-size:20px; font-weight:700; color:var(--bcps-blue); }
-        details.doc-accordion[open] > summary::after { content:"\\2212"; }
-        details.doc-accordion > .section-block { border:none; border-top:1px solid var(--border); border-radius:0; margin-bottom:0; }
         @media (max-width:600px) { main { padding:80px 16px 60px; } .meta-row { gap:16px; } }
       `}</style>
 
