@@ -74,3 +74,41 @@ create policy bcps_campaign_analytics_superadmin_read on public.bcps_campaign_an
     select 1 from public.acl_member_roles r
     where r.user_id = auth.uid() and r.brand = 'bcps' and r.role = 'superadmin'
   ));
+
+-- ---------------------------------------------------------------------------
+-- Daily traffic series per campaign, for the trend chart (added same day).
+--
+-- Kept as its own table rather than a jsonb column so history ACCUMULATES:
+-- each sync refreshes the trailing 30-day window and upserts on
+-- (campaign_id, date), so days that fall out of GA4's rolling window are
+-- retained here instead of being overwritten.
+--
+-- NOTE ON unique_visitors: this column is per-day de-duplicated users. Summing
+-- it across days does NOT give the window's unique visitors, because one
+-- person visiting on three days counts once per day here and once overall in
+-- bcps_campaign_analytics.unique_visitors. Both are correct answers to
+-- different questions; do not reconcile one into the other.
+create table if not exists public.bcps_campaign_daily (
+  id                  uuid primary key default gen_random_uuid(),
+  campaign_id         uuid not null references public.bcps_campaigns(id) on delete cascade,
+  date                date not null,
+  unique_visitors     integer,
+  page_views          integer,
+  sessions            integer,
+  engagement_seconds  numeric,
+  synced_at           timestamptz not null default now(),
+  created_at          timestamptz not null default now(),
+  unique (campaign_id, date)
+);
+
+create index if not exists bcps_campaign_daily_lookup_idx
+  on public.bcps_campaign_daily (campaign_id, date);
+
+alter table public.bcps_campaign_daily enable row level security;
+
+create policy bcps_campaign_daily_superadmin_read on public.bcps_campaign_daily
+  for select to authenticated
+  using (exists (
+    select 1 from public.acl_member_roles r
+    where r.user_id = auth.uid() and r.brand = 'bcps' and r.role = 'superadmin'
+  ));

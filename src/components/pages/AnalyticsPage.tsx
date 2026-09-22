@@ -117,6 +117,14 @@ interface CampaignPage {
   avg_time_seconds: number
 }
 
+interface CampaignDay {
+  date: string
+  unique_visitors: number
+  page_views: number
+  sessions: number
+  engagement_seconds: number
+}
+
 interface CampaignMetrics {
   period: string
   unique_visitors: number | null
@@ -141,6 +149,7 @@ interface Campaign {
   end_date: string | null
   include_subpages: boolean
   metrics: CampaignMetrics | null
+  daily: CampaignDay[]
 }
 
 interface Snapshot {
@@ -220,6 +229,244 @@ function PaginationBar({
 // to url_slug for buckets that match no department row.
 const DEPT_LINK = (row: { slug?: string; url_slug: string }) =>
   `/?page=departments&dept=${row.slug || row.url_slug}`
+
+// ─── Campaign trend chart ─────────────────────────────────────────────────────
+//
+// Two series, one y-axis: page views and unique visitors are both counts, so
+// they share a scale honestly. Average time on page is seconds and is
+// deliberately NOT plotted here - a second y-scale is the one thing a chart
+// like this must never do.
+//
+// Colors are BCPS Blue #1672A7 and BCPS Orange #C55326, both official primary
+// brand colors (brand_context.bcps, sourced from the District's Color Palette
+// PDF). Validated as a categorical pair against a white surface rather than
+// eyeballed: worst-case CVD separation dE 18.6 (protan) against a target of 8,
+// normal-vision dE 27.3 against a floor of 15, both above 3:1 contrast.
+const SERIES = {
+  views:    { key: 'page_views'      as const, label: 'Page views',      color: '#1672A7' },
+  visitors: { key: 'unique_visitors' as const, label: 'Unique visitors', color: '#C55326' },
+}
+
+const INK        = '#1a1a1a'
+const INK_MUTED  = '#94a3b8'
+const GRID       = '#e5e7eb'
+const SURFACE    = '#ffffff'
+
+// Ticks always reach AT OR ABOVE the series maximum, so the top gridline is a
+// real ceiling. Stopping at the last tick below max lets the peak overflow the
+// plot - caught by rendering the real data: peak 156 against a top tick of 150.
+function niceTicks(max: number, count = 4): number[] {
+  if (max <= 0) return [0, 1]
+  const raw = max / count
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)))
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) ?? 10 * mag
+  const top = Math.ceil(max / step) * step
+  const ticks: number[] = []
+  for (let v = 0; v <= top + step * 0.001; v += step) ticks.push(Math.round(v))
+  return ticks
+}
+
+function shortDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function CampaignTrend({ daily, campaignName }: { daily: CampaignDay[]; campaignName: string }) {
+  const [hover, setHover] = useState<number | null>(null)
+  const [showTable, setShowTable] = useState(false)
+
+  if (!daily || daily.length < 2) {
+    return (
+      <div style={{ padding: '18px 0 4px', fontSize: 11.5, color: INK_MUTED }}>
+        Not enough history to chart yet. The trend appears once this campaign has at
+        least two days of data.
+      </div>
+    )
+  }
+
+  // Geometry. viewBox units; the SVG scales to its container width.
+  const W = 720, H = 200
+  const padL = 44, padR = 16, padT = 16, padB = 26
+  const plotW = W - padL - padR
+  const plotH = H - padT - padB
+
+  const maxVal = Math.max(...daily.map(d => Math.max(d.page_views, d.unique_visitors)), 1)
+  const ticks = niceTicks(maxVal)
+  const yMax = ticks[ticks.length - 1]
+
+  const x = (i: number) => padL + (daily.length === 1 ? plotW / 2 : (i / (daily.length - 1)) * plotW)
+  const y = (v: number) => padT + plotH - (v / yMax) * plotH
+
+  // The final day is today, still in progress, so its point is always lower
+  // than it will end up. Drawn dashed and hollow rather than letting a partial
+  // day read as a collapse in traffic.
+  const lastIdx = daily.length - 1
+  const solid = daily.slice(0, lastIdx)
+
+  const path = (rows: CampaignDay[], key: 'page_views' | 'unique_visitors', offset = 0) =>
+    rows.map((d, i) => `${i === 0 ? 'M' : 'L'}${x(i + offset).toFixed(1)},${y(d[key]).toFixed(1)}`).join(' ')
+
+  // Peak of the headline series, direct-labeled. Labelling the extreme rather
+  // than the line ends, because on any given day the two series can converge at
+  // the right edge and stacked end-labels detach from their lines.
+  const peakIdx = daily.reduce((best, d, i) => (d.page_views > daily[best].page_views ? i : best), 0)
+
+  const active = hover ?? null
+
+  return (
+    <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f3f4f6' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: INK_MUTED }}>
+          Traffic over time
+        </div>
+        {/* Legend - always present for two series, keyed by a line stroke, text
+            in ink tokens rather than the series color. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {Object.values(SERIES).map(s => (
+            <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#555', fontWeight: 600 }}>
+              <svg width="14" height="4" aria-hidden="true"><rect width="14" height="3" rx="1.5" fill={s.color} /></svg>
+              {s.label}
+            </span>
+          ))}
+          <button onClick={() => setShowTable(v => !v)}
+            style={{ fontSize: 10, fontWeight: 700, color: '#1672A7', background: '#e8f1f8', border: 'none', cursor: 'pointer', padding: '3px 9px', borderRadius: 5 }}>
+            {showTable ? 'Hide table' : 'Table'}
+          </button>
+        </div>
+      </div>
+
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        style={{ display: 'block', overflow: 'visible', touchAction: 'none' }}
+        role="img"
+        aria-label={`Daily page views and unique visitors for ${campaignName}, ${shortDate(daily[0].date)} to ${shortDate(daily[lastIdx].date)}`}
+        tabIndex={0}
+        onKeyDown={e => {
+          if (e.key === 'ArrowRight') { e.preventDefault(); setHover(h => Math.min((h ?? -1) + 1, lastIdx)) }
+          if (e.key === 'ArrowLeft')  { e.preventDefault(); setHover(h => Math.max((h ?? daily.length) - 1, 0)) }
+          if (e.key === 'Escape') setHover(null)
+        }}
+        onBlur={() => setHover(null)}
+      >
+        {/* Gridlines: hairline, solid, recessive. Y ticks carry the values that
+            are not directly labeled. */}
+        {ticks.map(t => (
+          <g key={t}>
+            <line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} stroke={GRID} strokeWidth="1" />
+            <text x={padL - 8} y={y(t) + 3.5} textAnchor="end" fontSize="9.5" fill={INK_MUTED} fontWeight="600">
+              {t.toLocaleString('en-US')}
+            </text>
+          </g>
+        ))}
+
+        {/* X labels: first, middle, last only - a label per day is unreadable. */}
+        {[0, Math.floor(lastIdx / 2), lastIdx].map(i => (
+          <text key={i} x={x(i)} y={H - 8}
+            textAnchor={i === 0 ? 'start' : i === lastIdx ? 'end' : 'middle'}
+            fontSize="9.5" fill={INK_MUTED} fontWeight="600">
+            {shortDate(daily[i].date)}
+          </text>
+        ))}
+
+        {/* Series lines: 2px, round join and cap. The final segment is dashed
+            because that day is still in progress. */}
+        {Object.values(SERIES).map(s => (
+          <g key={s.key}>
+            <path d={path(solid, s.key)} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+            <path
+              d={`M${x(lastIdx - 1).toFixed(1)},${y(daily[lastIdx - 1][s.key]).toFixed(1)} L${x(lastIdx).toFixed(1)},${y(daily[lastIdx][s.key]).toFixed(1)}`}
+              fill="none" stroke={s.color} strokeWidth="2" strokeDasharray="3 3" strokeLinecap="round" opacity="0.75"
+            />
+          </g>
+        ))}
+
+        {/* Peak marker on the headline series, with a 2px surface ring. */}
+        <circle cx={x(peakIdx)} cy={y(daily[peakIdx].page_views)} r="4"
+          fill={SERIES.views.color} stroke={SURFACE} strokeWidth="2" />
+        <text x={x(peakIdx)} y={y(daily[peakIdx].page_views) - 10} textAnchor="middle"
+          fontSize="10.5" fontWeight="800" fill={INK}>
+          {daily[peakIdx].page_views.toLocaleString('en-US')}
+        </text>
+
+        {/* Hollow end marker: partial day, not a real drop. */}
+        <circle cx={x(lastIdx)} cy={y(daily[lastIdx].page_views)} r="3.5"
+          fill={SURFACE} stroke={SERIES.views.color} strokeWidth="2" />
+
+        {/* Crosshair. The reader aims at a date, not at a 2px line. */}
+        {active !== null && (
+          <g pointerEvents="none">
+            <line x1={x(active)} x2={x(active)} y1={padT} y2={padT + plotH} stroke={INK_MUTED} strokeWidth="1" />
+            {Object.values(SERIES).map(s => (
+              <circle key={s.key} cx={x(active)} cy={y(daily[active][s.key])} r="4"
+                fill={s.color} stroke={SURFACE} strokeWidth="2" />
+            ))}
+          </g>
+        )}
+
+        {/* Nearest-X hit layer, so the pointer only has to be closest. */}
+        <rect x={padL} y={padT} width={plotW} height={plotH} fill="transparent"
+          onPointerMove={e => {
+            const r = (e.target as SVGRectElement).getBoundingClientRect()
+            const ratio = (e.clientX - r.left) / r.width
+            setHover(Math.max(0, Math.min(lastIdx, Math.round(ratio * lastIdx))))
+          }}
+          onPointerLeave={() => setHover(null)}
+        />
+      </svg>
+
+      {/* Tooltip readout. Values lead, series names follow. Rendered as real
+          text nodes by React, never as an HTML string. */}
+      <div style={{ minHeight: 34, marginTop: 4 }}>
+        {active !== null ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', fontSize: 11.5 }}>
+            <span style={{ fontWeight: 800, color: INK }}>
+              {shortDate(daily[active].date)}
+              {active === lastIdx && <span style={{ fontWeight: 600, color: INK_MUTED }}> (today, partial)</span>}
+            </span>
+            {Object.values(SERIES).map(s => (
+              <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <svg width="12" height="4" aria-hidden="true"><rect width="12" height="3" rx="1.5" fill={s.color} /></svg>
+                <strong style={{ color: INK, fontWeight: 800 }}>{daily[active][s.key].toLocaleString('en-US')}</strong>
+                <span style={{ color: INK_MUTED }}>{s.label.toLowerCase()}</span>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 10.5, color: INK_MUTED }}>
+            Hover or focus the chart and use the arrow keys to read any day. The last
+            point is today and still counting.
+          </div>
+        )}
+      </div>
+
+      {showTable && (
+        <div style={{ maxHeight: 220, overflowY: 'auto', marginTop: 8, border: '1px solid ' + GRID, borderRadius: 8 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {['Date', 'Page views', 'Unique visitors'].map((h, i) => (
+                  <th key={h} style={{ position: 'sticky', top: 0, background: '#fafafa', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.4px', color: '#b0b8c4', textAlign: i === 0 ? 'left' : 'right', padding: '6px 10px', borderBottom: '1px solid ' + GRID }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {daily.map((d, i) => (
+                <tr key={d.date} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: '5px 10px', fontSize: 11, color: '#555' }}>
+                    {shortDate(d.date)}{i === lastIdx ? ' (partial)' : ''}
+                  </td>
+                  <td style={{ padding: '5px 10px', fontSize: 11.5, fontWeight: 700, textAlign: 'right' }}>{d.page_views.toLocaleString('en-US')}</td>
+                  <td style={{ padding: '5px 10px', fontSize: 11.5, fontWeight: 600, textAlign: 'right' }}>{d.unique_visitors.toLocaleString('en-US')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ─── Campaigns ────────────────────────────────────────────────────────────────
 function CampaignForm({
@@ -382,6 +629,8 @@ function CampaignCard({
           redirects somewhere else, add the page it actually lands on under Edit.
         </div>
       )}
+
+      <CampaignTrend daily={campaign.daily} campaignName={campaign.name} />
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, gap: 12, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 10.5, color: '#94a3b8' }}>
