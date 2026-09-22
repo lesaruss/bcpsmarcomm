@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { requireBcpsSuperAdmin } from '@/lib/bcps-auth'
+import { requireBcpsPageAccess } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -8,12 +8,17 @@ const supabase = createClient(
 )
 
 // AUTH, added 2026-09-15 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED, third pass).
-// Both handlers were unauthenticated. Gated on requireBcpsSuperAdmin because
-// its only caller is AnalyticsPage and Sidebar.tsx lists 'analytics' in
-// SUPERADMIN_PAGES - the server matches the page's own gate.
+// Both handlers were unauthenticated.
+//
+// Widened 2026-09-22 from requireBcpsSuperAdmin to requireBcpsPageAccess:
+// Sean granted the Office of Communications access to the Analytics page, and
+// a superadmin-only data route would have handed them a nav item that 403s.
+// The page's data is now gated by the same acl_objects/acl_grants rows that
+// decide whether the page appears in their sidebar, so nav and data cannot
+// disagree and access is a data change rather than a code change.
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireBcpsSuperAdmin(req)
+    const auth = await requireBcpsPageAccess(req, 'analytics')
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
     const { searchParams } = new URL(req.url)

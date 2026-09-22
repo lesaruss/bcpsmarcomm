@@ -216,3 +216,65 @@ export async function requireBcpsAdmin(req: NextRequest): Promise<AuthResult> {
   }
   return { ok: true, user }
 }
+
+// Access to a registered PAGE, decided by the same acl_objects + acl_grants
+// rows that decide whether that page appears in the sidebar
+// (see /api/bcps/my-access, which resolves nav from exactly these tables).
+//
+// Added 2026-09-22. Before this, /api/bcps/analytics was requireBcpsSuperAdmin
+// while the nav was resolved from acl grants, so the two could disagree: a
+// group could be granted the Analytics page, see it in the sidebar, click it
+// and get a 403. Sean granting the Office of Communications access to
+// Analytics is what made that gap real.
+//
+// Gating the DATA on the same rows that gate the NAV means one source of
+// truth: granting a group a page grants them the page's data, and revoking it
+// takes both away. No code change is needed to widen or narrow access.
+//
+// Per canon-gate-new-surfaces-on-the-same-check: the check that protects the
+// page is named here once rather than re-derived per route.
+export async function requireBcpsPageAccess(req: NextRequest, pageSlug: string): Promise<AuthResult> {
+  const user = await userFromRequest(req)
+  if (!user) return { ok: false, status: 401, error: 'Sign in with your BCPS account to continue.' }
+
+  // Admins and superadmins resolve pages by role, not visibility, exactly as
+  // my-access does - so they keep every page without needing a grant.
+  const { data: roleRow } = await service
+    .from('acl_member_roles')
+    .select('role')
+    .eq('user_id', user.userId)
+    .eq('brand', BRAND)
+    .maybeSingle()
+  const role = roleRow?.role || 'user'
+  if (role === 'admin' || role === 'superadmin') return { ok: true, user }
+
+  const { data: page } = await service
+    .from('acl_objects')
+    .select('id, visibility')
+    .eq('brand', BRAND)
+    .eq('kind', 'page')
+    .eq('slug', pageSlug)
+    .maybeSingle()
+  // An unregistered page has no grants to check, so it stays admin-only rather
+  // than falling open.
+  if (!page) return { ok: false, status: 403, error: 'Forbidden' }
+  if (page.visibility === 'public') return { ok: true, user }
+
+  const { data: gm } = await service
+    .from('acl_group_members')
+    .select('group_id')
+    .eq('user_id', user.userId)
+  const gids = (gm ?? []).map(g => g.group_id)
+
+  const { data: grants } = await service
+    .from('acl_grants')
+    .select('subject_type, subject_id')
+    .eq('object_id', page.id)
+
+  const allowed = (grants ?? []).some(g =>
+    (g.subject_type === 'user' && g.subject_id === user.userId) ||
+    (g.subject_type === 'group' && gids.includes(g.subject_id)))
+
+  if (!allowed) return { ok: false, status: 403, error: 'Forbidden' }
+  return { ok: true, user }
+}
