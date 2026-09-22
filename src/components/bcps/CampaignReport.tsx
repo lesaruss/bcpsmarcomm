@@ -477,19 +477,28 @@ export function ShareRows({ rows, total }: { rows: CampaignDimension[]; total: n
   )
 }
 
-// Collapsible section, per canon-bcps-doc-template-standard: every H2 below the
-// lead is a <details class="doc-accordion">, closed by default, blue toggle.
-function DocSection({ title, children, open = false }: { title: string; children: React.ReactNode; open?: boolean }) {
-  return (
-    <details className="doc-accordion" open={open}>
-      <summary><h2>{title}</h2></summary>
-      <div className="section-block">{children}</div>
-    </details>
-  )
-}
+// This report is a PAGE, not a document, and it navigates by tabs.
+//
+// Sean, 2026-09-22: "we don't have to make things documents if it's on a web
+// page." The report keeps the document shell it lives in - its own URL, the
+// BCPS header, the access gate, shareable - but the body reads as an app
+// surface, because four sections stacked as accordions is a long scroll where
+// a tab strip is one click.
+//
+// This is a deliberate, Sean-directed departure from the every-section-is-an-
+// accordion rule in canon-bcps-doc-template-standard, which governs authored
+// documents stored in briefings. Do not "restore" accordions here.
+const REPORT_TABS = [
+  ['rundown', 'Rundown'],
+  ['traffic', 'Traffic'],
+  ['sources', 'Sources & Devices'],
+  ['pages', 'Pages'],
+] as const
+type ReportTab = typeof REPORT_TABS[number][0]
 
 export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign: Campaign; copyEnabled?: boolean }) {
   const [copied, setCopied] = useState(false)
+  const [tab, setTab] = useState<ReportTab>('rundown')
   const m = campaign.metrics
   const { headline, notes } = buildRundown(campaign)
   const link = campaign.primary_url || (campaign.page_paths[0] ? BWS + campaign.page_paths[0] : null)
@@ -561,65 +570,95 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
         )}
       </div>
 
-      <DocSection title="What the numbers say" open>
-        {notes.length ? notes.map(n => (
-          <div key={n.title} style={{ background: toneBg[n.tone], borderLeft: `3px solid ${toneColor[n.tone]}`, borderRadius: '0 8px 8px 0', padding: '12px 16px', marginBottom: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: toneColor[n.tone], textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 5 }}>{n.title}</div>
-            <div style={{ fontSize: 12.5, color: '#333', lineHeight: 1.6 }}>{n.body}</div>
-          </div>
-        )) : <p style={{ fontSize: 12, color: INK_MUTED }}>Nothing to read yet. The rundown writes itself once data is pulled.</p>}
-        <p style={{ fontSize: 10.5, color: INK_MUTED, marginTop: 14, lineHeight: 1.6 }}>
-          Every line above is calculated from the same figures shown in the sections
-          below, so it always matches them. It is not an opinion and it is not written
-          by hand.
-        </p>
-      </DocSection>
+      {/* Tab strip. Same navigation the Analytics tab used, kept because it
+          reads faster than four stacked accordions. */}
+      <div role="tablist" aria-label="Campaign report sections"
+        style={{ display: 'flex', gap: 4, margin: '22px 0 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
+        {REPORT_TABS.map(([t, label]) => (
+          <button key={t} role="tab" id={`tab-${t}`} aria-selected={tab === t} aria-controls={`panel-${t}`}
+            onClick={() => setTab(t)}
+            style={{
+              fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px',
+              padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer',
+              fontFamily: 'inherit',
+              color: tab === t ? '#1672A7' : INK_MUTED,
+              borderBottom: tab === t ? '2px solid #1672A7' : '2px solid transparent',
+              marginBottom: -1,
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
 
-      <DocSection title="Traffic over time">
-        <CampaignTrend daily={campaign.daily} campaignName={campaign.name} />
-      </DocSection>
-
-      <DocSection title="Where people came from">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 28 }}>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: INK_MUTED, marginBottom: 12 }}>How people arrived</div>
-            <ShareRows rows={m?.channels ?? []} total={sessions} />
+      <div className="section-block" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: 0 }}>
+        {tab === 'rundown' && (
+          <div role="tabpanel" id="panel-rundown" aria-labelledby="tab-rundown">
+            {notes.length ? notes.map(n => (
+              <div key={n.title} style={{ background: toneBg[n.tone], borderLeft: `3px solid ${toneColor[n.tone]}`, borderRadius: '0 8px 8px 0', padding: '12px 16px', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: toneColor[n.tone], textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 5 }}>{n.title}</div>
+                <div style={{ fontSize: 12.5, color: '#333', lineHeight: 1.6 }}>{n.body}</div>
+              </div>
+            )) : <p style={{ fontSize: 12, color: INK_MUTED, margin: 0 }}>Nothing to read yet. The rundown writes itself once data is pulled.</p>}
+            <p style={{ fontSize: 10.5, color: INK_MUTED, marginTop: 14, lineHeight: 1.6 }}>
+              Every line above is calculated from the same figures shown on the other
+              tabs, so it always matches them. It is not an opinion and it is not
+              written by hand.
+            </p>
           </div>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: INK_MUTED, marginBottom: 12 }}>What they used</div>
-            <ShareRows rows={m?.devices ?? []} total={deviceTotal} />
-          </div>
-        </div>
-      </DocSection>
+        )}
 
-      <DocSection title="Pages counted">
-        {(m?.pages ?? []).length ? (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                {['Page Path', 'Unique Visitors', 'Page Views', 'Avg. Time'].map((h, i) => (
-                  <th key={h} style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.4px', color: '#b0b8c4', textAlign: i === 0 ? 'left' : 'right', padding: '8px 10px', borderBottom: '1px solid ' + GRID }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {m!.pages.map(pg => (
-                <tr key={pg.path} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '8px 10px' }}>
-                    <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: '#1672A7', textDecoration: 'none', fontWeight: 600 }}>{pg.path}</a>
-                  </td>
-                  <td style={{ padding: '8px 10px', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>{fmt(pg.unique_visitors)}</td>
-                  <td style={{ padding: '8px 10px', fontSize: 12, fontWeight: 600, textAlign: 'right' }}>{fmt(pg.page_views)}</td>
-                  <td style={{ padding: '8px 10px', fontSize: 11.5, color: '#555', textAlign: 'right' }}>{fmtTime(pg.avg_time_seconds)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : <p style={{ fontSize: 12, color: INK_MUTED }}>No page data yet.</p>}
-        <div style={{ fontSize: 10.5, color: '#b0b8c4', marginTop: 12 }}>
-          Counting: {campaign.page_paths.join('  ·  ')}
-        </div>
-      </DocSection>
+        {tab === 'traffic' && (
+          <div role="tabpanel" id="panel-traffic" aria-labelledby="tab-traffic">
+            <CampaignTrend daily={campaign.daily} campaignName={campaign.name} />
+          </div>
+        )}
+
+        {tab === 'sources' && (
+          <div role="tabpanel" id="panel-sources" aria-labelledby="tab-sources"
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 28 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: INK_MUTED, marginBottom: 12 }}>How people arrived</div>
+              <ShareRows rows={m?.channels ?? []} total={sessions} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: INK_MUTED, marginBottom: 12 }}>What they used</div>
+              <ShareRows rows={m?.devices ?? []} total={deviceTotal} />
+            </div>
+          </div>
+        )}
+
+        {tab === 'pages' && (
+          <div role="tabpanel" id="panel-pages" aria-labelledby="tab-pages">
+            {(m?.pages ?? []).length ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {['Page Path', 'Unique Visitors', 'Page Views', 'Avg. Time'].map((h, i) => (
+                      <th key={h} style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.4px', color: '#b0b8c4', textAlign: i === 0 ? 'left' : 'right', padding: '8px 10px', borderBottom: '1px solid ' + GRID }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {m!.pages.map(pg => (
+                    <tr key={pg.path} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      <td style={{ padding: '8px 10px' }}>
+                        <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: '#1672A7', textDecoration: 'none', fontWeight: 600 }}>{pg.path}</a>
+                      </td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>{fmt(pg.unique_visitors)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, fontWeight: 600, textAlign: 'right' }}>{fmt(pg.page_views)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 11.5, color: '#555', textAlign: 'right' }}>{fmtTime(pg.avg_time_seconds)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : <p style={{ fontSize: 12, color: INK_MUTED, margin: 0 }}>No page data yet.</p>}
+            <div style={{ fontSize: 10.5, color: '#b0b8c4', marginTop: 12 }}>
+              Counting: {campaign.page_paths.join('  ·  ')}
+            </div>
+          </div>
+        )}
+      </div>
+
     </>
   )
 }
