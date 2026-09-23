@@ -62,6 +62,7 @@ interface RosterSubmission {
   submitter_name: string | null
   submitter_role: string | null
   action: 'add' | 'remove' | 'na' | 'confirm' | null
+  raw_payload?: { identity_reason?: string } | null
 }
 
 // What approving a submission will do, stated on the card. Without it a
@@ -437,9 +438,13 @@ function DepartmentRosterSection() {
               </div>
               {s.identity_flag && (
                 <>
-                  <div className="roster-flag-badge">&#9888; Not the director on file</div>
+                  <div className="roster-flag-badge">&#9888; Could not verify the director</div>
                   <div className="roster-flag-detail">
-                    Submitted by <strong>{s.submitter_name}</strong> ({s.submitter_role}) - {s.submitter_email}<br />
+                    {/* The server's own reason (2026-09-23): a flag used to always read
+                        "Not the director on file", even when the only issue was that the
+                        director had not signed in or no director was on file to check. */}
+                    {s.raw_payload?.identity_reason && <>{s.raw_payload.identity_reason}<br /></>}
+                    Submitted by {s.submitter_name ? <><strong>{s.submitter_name}</strong>{s.submitter_role ? ` (${s.submitter_role})` : ''} - </> : null}{s.submitter_email}<br />
                     Form listed director as &quot;{s.director_name}&quot;. Confirm before approving.
                   </div>
                 </>

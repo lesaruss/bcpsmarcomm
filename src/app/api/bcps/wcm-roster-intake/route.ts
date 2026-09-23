@@ -205,14 +205,32 @@ export async function POST(req: NextRequest) {
     }
 
     // Server-side identity verification (replaces the self-declared checkbox).
-    const verdict = emailVerified
-      ? verifyDirector({
+    //
+    // 2026-09-23: signed-out submissions used to skip the name check and be
+    // flagged unconditionally, so every director using the public form (the
+    // path Sean opened on 2026-09-15 precisely because directors have no
+    // accounts yet) landed in the queue badged "Not the director on file" -
+    // Heather Parente and David Azzarito did exactly what they were asked and
+    // were flagged anyway. The same check now runs on the typed address. A
+    // match clears the flag; what still separates it from a signed-in match is
+    // submitter_email_session_verified = false below, which keeps the address
+    // self_declared at approval (it can never outrank a proven one) and every
+    // submission still needs a human approval. A miss is a real mismatch and
+    // keeps the flag and the review email.
+    const baseVerdict = verifyDirector({
       sessionEmail,
       onFileDirector: onFileDirectorName,
       claimedDirector: (director_name as string).trim(),
       onFileDirectorEmail,
     })
-      : { verified: false, reason: 'Submitted through the public form without signing in - address is self-declared.' }
+    const verdict = emailVerified
+      ? baseVerdict
+      : !baseVerdict.verified
+      ? { verified: false, reason: baseVerdict.reason.replace(/^Signed-in address/, 'Typed address (not signed in)') }
+      : {
+          verified: true,
+          reason: 'Typed address matches the director on file. Submitted without signing in, so the address is self-declared.',
+        }
     const isFlagged = !verdict.verified
 
     const { data: inserted, error } = await supabase
