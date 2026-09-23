@@ -308,6 +308,9 @@ export async function GET(req: NextRequest) {
 //                             bcps_wcm_roster_members. No new row added.
 // approve + action=na     -> updates director_name only, no member change (the
 //                             department is confirming it has no dedicated WCM).
+// approve + action=confirm -> same as na: director_name only, no member change.
+//                             The director reviewed the WCM(s) on file and they
+//                             stand; wcm_name holds those names for display only.
 // reject                  -> marks the submission rejected with reviewer notes,
 //                             no roster/member change either way.
 export async function PATCH(req: NextRequest) {
@@ -345,7 +348,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true, action: 'rejected' })
     }
 
-    const submissionAction: 'add' | 'remove' | 'na' = submission.action ?? 'add'
+    const submissionAction: 'add' | 'remove' | 'na' | 'confirm' = submission.action ?? 'add'
 
     // Approve: find (or create) the roster row for this department.
     let { data: rosterRow } = await supabase
@@ -400,7 +403,7 @@ export async function PATCH(req: NextRequest) {
       }).select('id').single()
       memberId = insertedMember?.id ?? null
     }
-    // action === 'na': roster director already updated above, no member row change.
+    // action === 'na' | 'confirm': roster director already updated above, no member row change.
 
     // Mirror onto the website-audit tool's department record, if this
     // department is one of the ones already tracked there. Approving is
@@ -444,9 +447,11 @@ export async function PATCH(req: NextRequest) {
     let directorEmailRecordedAs: string | null = null
     if (rosterRow.matched_department_id && submissionAction !== 'remove') {
       const deptUpdate: Record<string, string> = {
-        wcm_name: submission.wcm_name,
         director_name: submission.director_name,
       }
+      // A confirm's wcm_name is a display list of everyone confirmed, not one
+      // WCM of record, so it must not overwrite the department's wcm_name.
+      if (submissionAction !== 'confirm') deptUpdate.wcm_name = submission.wcm_name
       // Sean, 2026-09-15: a district address given on the roster form IS
       // recorded as the working director of record. There is no authoritative
       // district source yet, an Active Directory export is not available, and
@@ -520,7 +525,9 @@ export async function PATCH(req: NextRequest) {
         directorName: submission.director_name || 'there',
         departmentName: departmentDisplayName,
         departmentSlug,
-        wcmName: submissionAction === 'add' ? (submission.wcm_name || null) : null,
+        // A confirm names the WCM(s) the director just re-confirmed, so the
+        // email says who is on record rather than "no dedicated WCM".
+        wcmName: submissionAction === 'add' || submissionAction === 'confirm' ? (submission.wcm_name || null) : null,
         wcmNotified: !!wcmNotice?.email_sent,
         rosterMemberId: memberId,
         submissionId: submission.id,

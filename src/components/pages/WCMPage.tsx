@@ -61,6 +61,16 @@ interface RosterSubmission {
   identity_flag: boolean
   submitter_name: string | null
   submitter_role: string | null
+  action: 'add' | 'remove' | 'na' | 'confirm' | null
+}
+
+// What approving a submission will do, stated on the card. Without it a
+// removal and an addition render identically as "WCM: <name>".
+const SUBMISSION_ACTION_LABEL: Record<string, string> = {
+  add: 'Add WCM',
+  remove: 'Remove WCM',
+  na: 'No dedicated WCM this year',
+  confirm: 'Confirms roster as-is',
 }
 
 function titleCase(s: string): string {
@@ -435,6 +445,7 @@ function DepartmentRosterSection() {
                 </>
               )}
               <div className="roster-pending-detail">
+                Request: <strong>{SUBMISSION_ACTION_LABEL[s.action ?? 'add']}</strong><br />
                 Director: <strong>{s.director_name}</strong><br />
                 WCM: <strong>{s.wcm_name}</strong>
                 {s.wcm_personnel_number ? ` (#${s.wcm_personnel_number})` : ''}
