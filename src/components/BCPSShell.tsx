@@ -334,7 +334,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
               redundant always-visible duplicate. See Sidebar.tsx. */}
 
           {/* Pulse strip - superadmin only */}
-          <PulseWidget role={role} />
+          <PulseWidget role={role} onOpenDoc={setDocPreview} />
 
           {children}
         </div>
