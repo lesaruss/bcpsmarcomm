@@ -379,9 +379,9 @@ export default function WCMRosterSignupPage() {
                 <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   Once approved, you&apos;ll get an email confirming you&apos;re set for 2026/27.
                 </li>
-                {!submittedConfirm && <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   Your designated Web Content Manager gets their own confirmation email at the same time, with a one-click link to log in or finish setting up their account, so nothing depends on you passing along a password or a set of instructions.
-                </li>}
+                </li>
                 <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   Watch for <strong>Communique</strong>, our monthly newsletter: that&apos;s where you&apos;ll get your own BCPS Web Team Portal access and a tour of what&apos;s available for your department.
                 </li>

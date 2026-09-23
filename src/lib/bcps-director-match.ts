@@ -94,3 +94,15 @@ export function verifyDirector(opts: {
     reason: `Signed-in address does not match the director on file (${opts.onFileDirector}) - submitted on the director's behalf, or a director change.`,
   }
 }
+
+// True when the first and last name of `a` both appear among the name tokens
+// of `b` (titles, suffixes, middle initials ignored), e.g. "Lindsey M. Way"
+// matches "Lindsey Way". Added 2026-09-23 so an approved roster confirm can
+// find a WCM's address on their portal account when the roster row has none.
+// Callers must still require a UNIQUE match before trusting it.
+export function namesMatch(a: string, b: string): boolean {
+  const at = nameTokens(a)
+  const bt = nameTokens(b)
+  if (at.length < 2 || bt.length < 2) return false
+  return bt.includes(at[0]) && bt.includes(at[at.length - 1])
+}

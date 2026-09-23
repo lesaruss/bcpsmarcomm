@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
 import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, wcmConfirmationEmail, directorConfirmationEmail, SITE } from '@/lib/bcps-portal-account'
 import { requireBcpsAdmin, requireBcpsPageAccess, isDistrictEmail, normalizeDistrictEmail } from '@/lib/bcps-auth'
+import { namesMatch } from '@/lib/bcps-director-match'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -79,8 +80,9 @@ async function notifyDirector(opts: {
   }
 }
 
-// WCM account + email, sent only when this approval actually designates a
-// WCM (action === 'add'). Mirrors wcm-invite's manual "Send Portal Invite"
+// WCM account + email, sent when this approval designates a WCM (action ===
+// 'add') or, since 2026-09-23, confirms the WCMs already on file (one per
+// confirmed WCM with an address). Mirrors wcm-invite's manual "Send Portal Invite"
 // button exactly, just fired automatically at the moment of approval
 // instead of waiting for someone to click it separately on the department
 // page.
@@ -393,6 +395,9 @@ export async function PATCH(req: NextRequest) {
     const wcmEmail = normalizeDistrictEmail(submission.wcm_email)
 
     let memberId: string | null = null
+    // Members a confirm vouches for, each with the address their own
+    // confirmation email goes to (filled below). Empty for every other action.
+    let confirmedMembers: { id: string; wcm_name: string; wcm_email: string | null }[] = []
 
     if (submissionAction === 'remove' && submission.target_member_id) {
       await supabase.from('bcps_wcm_roster_members').delete().eq('id', submission.target_member_id)
@@ -422,6 +427,31 @@ export async function PATCH(req: NextRequest) {
         approved_at: now,
         approved_from_submission_id: submission.id,
       }).eq('roster_id', rosterRow.id)
+
+      // Each confirmed WCM also gets their own confirmation email (Sean,
+      // 2026-09-23), the same one an add sends. 13 of 68 roster rows have no
+      // address, including both Early Childhood Education WCMs, so a missing
+      // one is filled from the WCM's own portal account when exactly one
+      // account's name matches. Ambiguous or no match: left blank and reported
+      // as skipped, never guessed.
+      const { data: members } = await supabase
+        .from('bcps_wcm_roster_members')
+        .select('id, wcm_name, wcm_email')
+        .eq('roster_id', rosterRow.id)
+      const list = (members ?? []).filter(m => (m.wcm_name || '').trim().toUpperCase() !== 'TBD')
+      if (list.some(m => !m.wcm_email)) {
+        const { data: accounts } = await supabase.from('wcm_cert_users').select('full_name, email')
+        for (const m of list) {
+          if (m.wcm_email) continue
+          const hits = (accounts ?? []).filter(a => a.full_name && a.email && namesMatch(m.wcm_name, a.full_name))
+          const found = hits.length === 1 ? normalizeDistrictEmail(hits[0].email) : null
+          if (found && isDistrictEmail(found)) {
+            await supabase.from('bcps_wcm_roster_members').update({ wcm_email: found }).eq('id', m.id)
+            m.wcm_email = found
+          }
+        }
+      }
+      confirmedMembers = list.map(m => ({ id: m.id, wcm_name: m.wcm_name, wcm_email: normalizeDistrictEmail(m.wcm_email) }))
     }
     // action === 'na': roster director already updated above, no member row change.
 
@@ -522,6 +552,10 @@ export async function PATCH(req: NextRequest) {
     if (submissionAction === 'add' && !wcmEmail) {
       wcmSkipped = `No WCM email address on this submission, so ${submission.wcm_name || 'the WCM'} was not emailed and no account was created.`
     }
+    const unreachable = confirmedMembers.filter(m => !m.wcm_email).map(m => m.wcm_name)
+    if (unreachable.length) {
+      wcmSkipped = `No email address on file for ${unreachable.join(', ')}, so ${unreachable.length === 1 ? 'they were' : 'they were each'} not emailed.`
+    }
     if (!submitterEmail) {
       directorSkipped = 'No submitter address on this submission, so the director was not emailed.'
     }
@@ -537,6 +571,24 @@ export async function PATCH(req: NextRequest) {
         submissionId: submission.id,
       })
     }
+    // A confirm notifies every confirmed WCM with an address. wcmNotice carries
+    // the first failure if any (the console reports it), else the last success,
+    // so the existing single-notice reporting keeps working unchanged.
+    const confirmNotices: Awaited<ReturnType<typeof notifyWcm>>[] = []
+    for (const m of confirmedMembers) {
+      if (!m.wcm_email) continue
+      confirmNotices.push(await notifyWcm({
+        wcmEmail: m.wcm_email,
+        wcmName: m.wcm_name || 'there',
+        departmentName: departmentDisplayName,
+        departmentSlug,
+        rosterMemberId: m.id,
+        submissionId: submission.id,
+      }))
+    }
+    if (confirmNotices.length) {
+      wcmNotice = confirmNotices.find(n => !n.account_ok || !n.email_sent) ?? confirmNotices[confirmNotices.length - 1]
+    }
 
     let directorNotice: Awaited<ReturnType<typeof notifyDirector>> | null = null
     if (submitterUsable) {
@@ -548,7 +600,11 @@ export async function PATCH(req: NextRequest) {
         // A confirm names the WCM(s) the director just re-confirmed, so the
         // email says who is on record rather than "no dedicated WCM".
         wcmName: submissionAction === 'add' || submissionAction === 'confirm' ? (submission.wcm_name || null) : null,
-        wcmNotified: !!wcmNotice?.email_sent,
+        // For a confirm, "your WCM has been emailed" is only true when every
+        // confirmed WCM was reached.
+        wcmNotified: submissionAction === 'confirm'
+          ? confirmNotices.length > 0 && unreachable.length === 0 && confirmNotices.every(n => n.email_sent)
+          : !!wcmNotice?.email_sent,
         rosterMemberId: memberId,
         submissionId: submission.id,
       })
