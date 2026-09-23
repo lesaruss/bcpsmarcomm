@@ -410,8 +410,20 @@ export async function PATCH(req: NextRequest) {
         approved_from_submission_id: submission.id,
       }).select('id').single()
       memberId = insertedMember?.id ?? null
+    } else if (submissionAction === 'confirm') {
+      // 2026-09-23: a confirm is the director vouching for the WCMs already on
+      // file, so those rows get the same approval stamp an add gets. Without
+      // it, David Azzarito's approved confirm left Patricia Sapp's row (added
+      // by hand earlier) reading "On roster" instead of "Confirmed" on
+      // Members and the roster - the director did their part and the badge
+      // didn't show it. Every current member is stamped, since the confirm
+      // covers the whole list the director saw.
+      await supabase.from('bcps_wcm_roster_members').update({
+        approved_at: now,
+        approved_from_submission_id: submission.id,
+      }).eq('roster_id', rosterRow.id)
     }
-    // action === 'na' | 'confirm': roster director already updated above, no member row change.
+    // action === 'na': roster director already updated above, no member row change.
 
     // Mirror onto the website-audit tool's department record, if this
     // department is one of the ones already tracked there. Approving is
