@@ -75,8 +75,19 @@ export default function WCMRosterSignupPage() {
   // raw submission - so this panel sets expectations rather than promising
   // something that hasn't happened yet.
   const [submittedCount, setSubmittedCount] = useState(0)
+  const [submittedConfirm, setSubmittedConfirm] = useState(false)
 
   const boxRef = useRef<HTMLDivElement>(null)
+  const errorRef = useRef<HTMLDivElement>(null)
+  const topRef = useRef<HTMLDivElement>(null)
+
+  // Every outcome is brought into view. 2026-09-23: two directors reported
+  // Submit "does nothing" - the error was printed at the top of the page while
+  // they were scrolled down at the button, so a blocked submit looked dead.
+  useEffect(() => {
+    if (result?.type === 'error') errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (result?.type === 'success') topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [result])
 
   useEffect(() => {
     let cancelled = false
@@ -232,8 +243,15 @@ export default function WCMRosterSignupPage() {
       setResult({ type: 'error', text: 'Each new WCM you add needs at least a name.' })
       return
     }
-    if (removals.length === 0 && additions.length === 0) {
-      setResult({ type: 'error', text: 'Remove someone or add someone before submitting. Every department needs a Web Content Manager on file.' })
+    // Nothing added or removed means the director is confirming the WCM(s)
+    // on file - which is what the "Still correct? Leave as-is" hint tells them
+    // to do. This used to be refused outright, so a director whose roster was
+    // already right had no way to respond at all (2026-09-23). Only refused
+    // now when there is no real WCM on file to confirm.
+    const confirmable = (currentWcms ?? []).filter(w => w.wcm_name.trim().toUpperCase() !== 'TBD')
+    const isConfirm = removals.length === 0 && additions.length === 0
+    if (isConfirm && confirmable.length === 0) {
+      setResult({ type: 'error', text: 'There is no Web Content Manager on file for this department yet. Add one with "+ Add a WCM" before submitting.' })
       return
     }
 
@@ -252,6 +270,9 @@ export default function WCMRosterSignupPage() {
         submitter_role: submitterRole.trim() || undefined,
       }
 
+      if (isConfirm) {
+        await postChange({ ...common, action: 'confirm', wcm_name: confirmable.map(w => w.wcm_name).join(', ') })
+      }
       for (const w of removals) {
         await postChange({ ...common, action: 'remove', target_member_id: w.id, wcm_name: w.wcm_name })
       }
@@ -267,6 +288,7 @@ export default function WCMRosterSignupPage() {
 
       const count = removals.length + additions.length
       setSubmittedCount(count)
+      setSubmittedConfirm(isConfirm)
       setResult({ type: 'success', text: '' })
       setNewRows([])
       setRemoveIds(new Set())
@@ -317,7 +339,7 @@ export default function WCMRosterSignupPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 640, margin: '0 auto', padding: '32px 28px' }}>
+      <main ref={topRef} style={{ maxWidth: 640, margin: '0 auto', padding: '32px 28px' }}>
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--blue)', marginBottom: 8 }}>
             Department Web Managers
@@ -334,17 +356,6 @@ export default function WCMRosterSignupPage() {
           </p>
         </div>
 
-        {result?.type === 'error' && (
-          <div
-            style={{
-              padding: '14px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14, fontWeight: 600,
-              background: '#FEF2F2', color: '#DC2626', border: '1px solid rgba(220,38,38,0.25)',
-            }}
-          >
-            {result.text}
-          </div>
-        )}
-
         {result?.type === 'success' && (
           <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
             <div style={{ background: '#ECFDF5', borderBottom: '1px solid rgba(5,150,105,0.25)', padding: '18px 24px' }}>
@@ -352,7 +363,9 @@ export default function WCMRosterSignupPage() {
                 Submitted
               </div>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                Thank you. {submittedCount} update{submittedCount === 1 ? '' : 's'} submitted for the 2026/27 school year.
+                {submittedConfirm
+                  ? 'Thank you. Your Web Content Manager roster is confirmed as-is for the 2026/27 school year.'
+                  : `Thank you. ${submittedCount} update${submittedCount === 1 ? '' : 's'} submitted for the 2026/27 school year.`}
               </div>
             </div>
             <div style={{ padding: '20px 24px' }}>
@@ -366,9 +379,9 @@ export default function WCMRosterSignupPage() {
                 <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   Once approved, you&apos;ll get an email confirming you&apos;re set for 2026/27.
                 </li>
-                <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                {!submittedConfirm && <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   Your designated Web Content Manager gets their own confirmation email at the same time, with a one-click link to log in or finish setting up their account, so nothing depends on you passing along a password or a set of instructions.
-                </li>
+                </li>}
                 <li style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   Watch for <strong>Communique</strong>, our monthly newsletter: that&apos;s where you&apos;ll get your own BCPS Web Team Portal access and a tour of what&apos;s available for your department.
                 </li>
@@ -566,7 +579,7 @@ export default function WCMRosterSignupPage() {
                   </div>
                 )}
                 <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 6 }}>
-                  Still correct? Leave as-is, nothing to do. Wrong or someone&apos;s gone? Mark it for removal and add their replacement below.
+                  Still correct? Leave as-is and click Submit to confirm. Wrong or someone&apos;s gone? Mark it for removal and add their replacement below.
                 </p>
               </div>
             )}
@@ -618,6 +631,19 @@ export default function WCMRosterSignupPage() {
                 + Add a WCM
               </button>
             </div>
+
+            {result?.type === 'error' && (
+              <div
+                ref={errorRef}
+                role="alert"
+                style={{
+                  padding: '14px 16px', borderRadius: 8, marginBottom: 16, fontSize: 14, fontWeight: 600,
+                  background: '#FEF2F2', color: '#DC2626', border: '1px solid rgba(220,38,38,0.25)',
+                }}
+              >
+                {result.text}
+              </div>
+            )}
 
             <button type="submit" className="btn-primary" disabled={submitting} style={{ padding: '11px 28px', fontSize: 14 }}>
               {submitting ? 'Submitting...' : 'Submit'}

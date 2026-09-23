@@ -89,8 +89,11 @@ async function notifyIdentityMismatch(opts: {
 // Intake endpoint for WCM roster changes, submitted from the native BCPS
 // Marcom form at bcpsmarcomm.com/wcm-roster-signup. One submission carries
 // 'add' (a new WCM), 'remove' (target_member_id points at the
-// bcps_wcm_roster_members row that is no longer correct) or 'na' (the
-// department has no dedicated WCM this cycle).
+// bcps_wcm_roster_members row that is no longer correct), 'na' (the
+// department has no dedicated WCM this cycle) or 'confirm' (the WCM(s) on
+// file are still correct; wcm_name carries the names confirmed, for the
+// reviewer - added 2026-09-23, before which a director with nothing to change
+// could not submit at all).
 //
 // AUTH, rewritten 2026-09-14 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED):
 // this route used to accept a shared static ACCESS_KEY (value withheld)
@@ -155,7 +158,8 @@ export async function POST(req: NextRequest) {
       submitter_role,
     } = body as Record<string, string | boolean | undefined>
 
-    const submissionAction = action === 'remove' || action === 'na' ? action : 'add'
+    const submissionAction =
+      action === 'remove' || action === 'na' || action === 'confirm' ? action : 'add'
 
     if (!department_name || !director_name) {
       return NextResponse.json(
@@ -248,6 +252,7 @@ export async function POST(req: NextRequest) {
     const actionLabel =
       submissionAction === 'remove' ? `remove ${wcm_name || 'a WCM'}` :
       submissionAction === 'na' ? 'mark as no dedicated WCM this year' :
+      submissionAction === 'confirm' ? `confirm the WCM(s) on file as-is (${(wcm_name as string)?.trim() || 'names not given'})` :
       `add WCM ${(wcm_name as string)?.trim()}`
 
     // Surface it on the stream so it's not missed.
