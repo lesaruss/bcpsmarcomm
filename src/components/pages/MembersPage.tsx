@@ -461,7 +461,16 @@ export default function MembersPage() {
     if (divisionFilter && m.department?.division !== divisionFilter) return false
     const q = search.trim().toLowerCase()
     if (!q) return true
-    return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || (m.title || '').toLowerCase().includes(q)
+    // Department and division match too, per Sean, Hot Lab 2026-09-22:
+    // "let's also make them be able to search by department and division
+    // as well when they type in the search bar, not just by name." Both
+    // come from the member's bcps_departments row (name + division); slug
+    // is included so a pasted department URL segment also finds people.
+    const hay = [
+      m.name, m.email, m.title || '',
+      m.department?.name || '', m.department?.slug || '', m.department?.division || '',
+    ].join(' ').toLowerCase()
+    return hay.includes(q)
   })
 
   function compare(a: Member, b: Member): number {
@@ -752,7 +761,7 @@ export default function MembersPage() {
         <input
           className="mp-search"
           type="search"
-          placeholder="Search name, email, or title..."
+          placeholder="Search name, email, title, department, or division..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           aria-label="Search members"
