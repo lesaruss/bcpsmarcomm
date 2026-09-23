@@ -74,6 +74,14 @@ function getPeriodRange(p: PeriodState): PeriodRange | null {
 // ─── Analytics interfaces ─────────────────────────────────────────────────────
 interface AnalyticsPageProps {
   onShowToast: (msg: string) => void
+  // 2026-09-23 (Sean, Hot Lab 2026-09-17: "Do not let them sync. Only super
+  // admin should have the ability to sync."). The page opened past superadmin
+  // to whoever holds an analytics grant, so the Sync button and every "click
+  // Sync Now" hint now key off canSync; POST /api/bcps/analytics enforces the
+  // same on the server. canManageCampaigns mirrors /api/bcps/campaigns'
+  // requireBcpsAdmin on POST/PATCH/DELETE so a viewer never gets a 403 button.
+  canSync?: boolean
+  canManageCampaigns?: boolean
 }
 
 interface SubPage {
@@ -466,7 +474,8 @@ function KpiDelta({ cur, prev, lowerIsBetter = false, prevLabel }: { cur?: numbe
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
+export default function AnalyticsPage({ onShowToast, canSync = false, canManageCampaigns = false }: AnalyticsPageProps) {
+  const syncHint = canSync ? ' Click Sync Now.' : ''
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [prevSnapshot, setPrevSnapshot] = useState<Snapshot | null>(null)
   const [loading, setLoading] = useState(true)
@@ -521,10 +530,14 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
       }
       const res = await fetch(url, { headers: await authHeaders() })
       const data = await res.json()
+      // A 403 used to fall through to snapshot=null and read as "no data for
+      // this period" - which is how a gated page looked empty rather than
+      // denied (2026-09-23).
+      if (!res.ok) throw new Error(data.error || 'Failed to load analytics data.')
       setSnapshot(data.snapshot ?? null)
       setPrevSnapshot(data.prevSnapshot ?? null)
-    } catch {
-      setError('Failed to load analytics data.')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load analytics data.')
     } finally {
       setLoading(false)
     }
@@ -561,13 +574,14 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
       setShowCampaignForm(false)
       setEditingCampaign(null)
       await loadCampaigns()
-      onShowToast(editing ? 'Campaign updated. Click Sync Now to pull its numbers.' : 'Campaign added. Click Sync Now to pull its numbers.')
+      const next = canSync ? 'Click Sync Now to pull its numbers.' : 'Its numbers appear after the next sync.'
+      onShowToast(editing ? `Campaign updated. ${next}` : `Campaign added. ${next}`)
     } catch (e) {
       onShowToast(e instanceof Error ? e.message : 'Could not save campaign.')
     } finally {
       setSavingCampaign(false)
     }
-  }, [loadCampaigns, onShowToast])
+  }, [loadCampaigns, onShowToast, canSync])
 
   const archiveCampaign = useCallback(async (c: Campaign) => {
     if (!window.confirm(`Archive "${c.name}"? It stops syncing and drops off this tab. Its history is kept.`)) return
@@ -688,16 +702,18 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
             {syncedAt && <> &nbsp;&middot;&nbsp; Last synced {syncedAt}</>}
           </p>
         </div>
-        <button onClick={handleSync} disabled={syncing}
-          style={{ fontSize: 11, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: syncing ? 'not-allowed' : 'pointer', opacity: syncing ? 0.6 : 1 }}>
-          {syncing ? 'Syncing...' : 'Sync Now'}
-        </button>
+        {canSync && (
+          <button onClick={handleSync} disabled={syncing}
+            style={{ fontSize: 11, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: syncing ? 'not-allowed' : 'pointer', opacity: syncing ? 0.6 : 1 }}>
+            {syncing ? 'Syncing...' : 'Sync Now'}
+          </button>
+        )}
       </div>
 
       {/* No data for selected period */}
       {!snapshot && !loading && (
         <div style={{ background: '#fef3e2', border: '1px solid rgba(133,79,11,.2)', borderRadius: 10, padding: '16px 20px', marginBottom: 20, fontSize: 12, color: '#854F0B', fontWeight: 600 }}>
-          No snapshot data found for {pr?.label || 'this period'}. Data syncs automatically each month. Try another period or click Sync Now.
+          No snapshot data found for {pr?.label || 'this period'}. Data syncs automatically each month. Try another period{canSync ? ' or click Sync Now' : ''}.
         </div>
       )}
 
@@ -770,7 +786,7 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
                 report: a plain-language rundown of what the numbers mean, the traffic
                 trend, where people came from, and what they read it on.
               </p>
-              {!showCampaignForm && (
+              {canManageCampaigns && !showCampaignForm && (
                 <button onClick={() => { setEditingCampaign(null); setShowCampaignForm(true) }}
                   style={{ fontSize: 11, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0 }}>
                   Add campaign
@@ -840,7 +856,7 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
             </thead>
             <tbody>
               {depts.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>{allDepts.length === 0 ? 'No data yet. Click Sync Now.' : 'No departments match your search.'}</td></tr>
+                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>{allDepts.length === 0 ? `No data yet.${syncHint}` : 'No departments match your search.'}</td></tr>
               )}
               {pagedDepts.map((row, i) => {
                 const globalIdx = deptPage * deptPageSize + i + 1
@@ -942,7 +958,7 @@ export default function AnalyticsPage({ onShowToast }: AnalyticsPageProps) {
             </thead>
             <tbody>
               {programs.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>{allPrograms.length === 0 ? 'No program data yet. Click Sync Now.' : 'No programs match your search.'}</td></tr>
+                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>{allPrograms.length === 0 ? `No program data yet.${syncHint}` : 'No programs match your search.'}</td></tr>
               )}
               {pagedPrograms.map((row, i) => {
                 const globalIdx = progPage * progPageSize + i + 1

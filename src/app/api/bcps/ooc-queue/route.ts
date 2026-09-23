@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { requireDistrictUser } from '@/lib/bcps-auth'
+import { requireBcpsPageAccess } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,9 +19,16 @@ const supabase = createClient(
 // the check that actually guards this data today, per
 // canon-gate-new-surfaces-on-the-same-check - gating harder here would break the
 // page for the members it is built for.
+//
+// 2026-09-23 (Sean, Hot Lab 2026-09-17: "let's remove the queue from the
+// district [WCMs]"): the Queue page's acl_objects row went public ->
+// restricted with a District Web Team grant, so it drops out of a WCM's
+// sidebar. The same check now guards this route (requireBcpsPageAccess
+// 'queue') - otherwise a WCM could still read or edit the DWT task list by
+// calling the API directly. Admins/superadmins pass by role, as everywhere.
 
 export async function GET(req: NextRequest) {
-  const auth = await requireDistrictUser(req)
+  const auth = await requireBcpsPageAccess(req, 'queue')
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { data, error } = await supabase
@@ -36,7 +43,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireDistrictUser(req)
+    const auth = await requireBcpsPageAccess(req, 'queue')
     if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
     const body = await req.json()

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { requireBcpsPageAccess } from '@/lib/bcps-auth'
+import { requireBcpsPageAccess, requireBcpsSuperAdmin } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -71,8 +71,15 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST() {
+// Sync (POST) had NO auth check at all until 2026-09-23 - anyone who found
+// the URL could fire the bcps-ga4-sync edge function with the service key.
+// Superadmin only, per Sean (Hot Lab 2026-09-17: "Only super admin should
+// have the ability to sync"), while GET widened to analytics page grants.
+export async function POST(req: NextRequest) {
   try {
+    const auth = await requireBcpsSuperAdmin(req)
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
     const url = process.env.LESARUSS_SUPABASE_URL! + '/functions/v1/bcps-ga4-sync'
     const res = await fetch(url, {
       method: 'POST',
