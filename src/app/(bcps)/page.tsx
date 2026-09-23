@@ -40,7 +40,7 @@ import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages
 function HomeInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { role, viewAs } = useBCPSShell()
+  const { role, viewAs, canManageMessages } = useBCPSShell()
   // The fictitious Superadmin sample identity previews the real superadmin
   // experience instead of collapsing to 'user' like every other viewAs pick.
   const effectiveRole: UserRole = viewAs ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? 'superadmin' : 'user') : role
@@ -86,7 +86,11 @@ function HomeInner() {
       {nav.page === 'notes'                  && <NotesPage />}
       {nav.page === 'profile'                && <ProfilePage subPage={nav.subPage} onNavigate={navigate} />}
       {nav.page === 'departments'            && <DepartmentsPage subPage={nav.subPage} onNavigate={navigate} />}
-      {nav.page === 'analytics'              && effectiveRole === 'superadmin' && <AnalyticsPage onShowToast={showToast} />}
+      {/* Analytics renders for anyone the engine lets onto the page (acl grants,
+          BCPSShell bounces the rest); only a superadmin may trigger a GA4 sync and
+          only admins may add campaigns (canManageMessages is the raw admin-or-superadmin
+          role; UserRole has no admin tier), matching the routes (2026-09-23). */}
+      {nav.page === 'analytics'              && <AnalyticsPage onShowToast={showToast} canSync={effectiveRole === 'superadmin'} canManageCampaigns={effectiveRole === 'superadmin' || (!viewAs && canManageMessages)} />}
       {nav.page === 'documents'             && <DocumentsPage />}
       {nav.page === 'permissions'             && effectiveRole === 'superadmin' && <PermissionsPanel />}
       {nav.page === 'superadmin'             && effectiveRole === 'superadmin' && <SuperAdminPage onShowToast={showToast} />}

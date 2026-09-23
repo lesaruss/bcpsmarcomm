@@ -17,6 +17,16 @@ import type { PageId } from './types'
 // page's own !readOnly check (driven by requireBcpsAdmin) still gates the
 // actual admin actions (approve/reject/edit/delete).
 //
+// 'analytics' left this list on 2026-09-23 (Sean, Hot Lab 2026-09-17: "I
+// don't mind them having access to analytics... nothing's showing"). Being
+// here hid the page from every non-superadmin sidebar and page.tsx refused
+// to render it, so the 2026-09-22 Office of Communications grant (and
+// /api/bcps/analytics widening to requireBcpsPageAccess) never reached
+// anyone: a WCM who got to ?page=analytics saw an empty shell. Access is
+// now decided by the analytics acl_objects row and its grants alone, the
+// same rows the data route checks. Sync stays superadmin-only, in the page
+// (canSync) and in the route (requireBcpsSuperAdmin on POST).
+//
 // This is deliberately narrower than server-side "who gets which acl_objects
 // row" logic (see api/bcps/my-access's SUPERADMIN_ONLY) - that list decides
 // the admin-vs-superadmin split for acl-registered pages and has its own
@@ -25,7 +35,6 @@ import type { PageId } from './types'
 export const SUPERADMIN_PAGES: readonly PageId[] = [
   'superadmin',
   'permissions',
-  'analytics',
   'marcomm',
   'graphics',
   'reports',
