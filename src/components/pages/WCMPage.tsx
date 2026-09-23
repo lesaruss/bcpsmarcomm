@@ -579,7 +579,28 @@ function DepartmentRosterSection() {
                     const state = w.delivery?.state ?? 'not_sent'
                     const when = w.delivery?.at ?? w.approved_at
                     let statusEl: React.ReactNode
-                    if (state === 'failed') {
+                    // Read-only viewers (WCMs, non-admin district users) get
+                    // no delivery data at all - the GET's read-only branch
+                    // never computes it, on purpose, since the outbound email
+                    // log is admin detail. So every row fell through to 'No
+                    // email sent', even approved ones sitting next to
+                    // "Approved <date>" (Sean, Hot Lab 2026-09-22: "it's
+                    // showing approved but the pill is still showing no
+                    // e-mail sent"). For them the question is membership,
+                    // not mail delivery: approved means Confirmed. Rows an
+                    // admin added by hand (no approved_at) are still on the
+                    // official roster, so they read "On roster", never a
+                    // mail status. The admin view below is unchanged.
+                    if (readOnly) {
+                      statusEl = w.approved_at ? (
+                        <>
+                          <span className="pill pill-confirmed">● Confirmed</span>
+                          <span className="pill-date">Approved {formatDate(w.approved_at)}</span>
+                        </>
+                      ) : (
+                        <span className="pill pill-none">On roster</span>
+                      )
+                    } else if (state === 'failed') {
                       statusEl = (
                         <>
                           <button className="pill pill-failed" onClick={() => setFailureDetail(w)} title="See why this failed">● Failed</button>

@@ -105,6 +105,13 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   // apart from allowedPages so resetting the preview restores the real one
   // without a refetch.
   const [previewPages, setPreviewPages] = useState<string[] | null>(null)
+  // Group names from my-access (real, and the previewed group's while "View
+  // as" is active). Decides only whether the District Web Team nav section
+  // shows (Sean, Hot Lab 2026-09-22: that section is for District Web Team
+  // people, not WCMs). null = not loaded yet, which keeps today's layout.
+  const [myGroups, setMyGroups] = useState<string[] | null>(null)
+  const [myRawRole, setMyRawRole] = useState<string | null>(null)
+  const [previewGroups, setPreviewGroups] = useState<string[] | null>(null)
   const [unreadMessages, setUnreadMessages] = useState(0)
   // canManageMessages tracks the raw backend role (admin OR superadmin) for
   // the notification bell / dashboard inbox specifically. Deliberately kept
@@ -135,6 +142,8 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           setRole(j.role === 'superadmin' || SUPERADMIN_EMAILS.has(email) ? 'superadmin' : 'user')
           setCanManageMessages(j.role === 'admin' || j.role === 'superadmin' || SUPERADMIN_EMAILS.has(email))
           setAllowedPages(j.pages as string[])
+          setMyGroups(Array.isArray(j.groups) ? j.groups as string[] : null)
+          setMyRawRole(typeof j.role === 'string' ? j.role : null)
           return
         }
       } catch { /* fall through to safe default */ }
@@ -151,6 +160,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID || !viewAs.previewGroup) {
       setPreviewPages(null)
+      setPreviewGroups(null)
       return
     }
     let cancelled = false
@@ -162,7 +172,10 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           { headers: { Authorization: `Bearer ${token}` } })
         if (!r.ok) return
         const j = await r.json()
-        if (!cancelled) setPreviewPages(j.pages as string[])
+        if (!cancelled) {
+          setPreviewPages(j.pages as string[])
+          setPreviewGroups(Array.isArray(j.groups) ? j.groups as string[] : [viewAs.previewGroup!])
+        }
       } catch { /* leave the preview on the real page set */ }
     })()
     return () => { cancelled = true }
@@ -212,6 +225,18 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const effectivePages = viewAs
     ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? allowedPages : previewPages)
     : allowedPages
+
+  // District Web Team nav section: admins/superadmins and District Web Team
+  // members see it; everyone else (WCMs) gets any DWT-section tool they are
+  // granted listed under Web Content Managers instead (see Sidebar). While
+  // previewing, the previewed group decides. Unknown (not loaded, or a
+  // preview identity with no group) keeps the section, the prior behavior.
+  const DWT_GROUP = 'District Web Team'
+  const showDistrictWebTeam = viewAs
+    ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? true : previewGroups ? previewGroups.includes(DWT_GROUP) : true)
+    : (myRawRole === 'admin' || myRawRole === 'superadmin' || role === 'superadmin'
+        ? true
+        : myGroups ? myGroups.includes(DWT_GROUP) : true)
 
   // Engine-driven page enforcement: if the user lands on a page they may not reach, send to dashboard.
   useEffect(() => {
@@ -267,6 +292,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           viewAs={viewAs}
           onViewAs={handleViewAs}
           allowedPages={effectivePages ?? undefined}
+          showDistrictWebTeam={showDistrictWebTeam}
           onOpenDoc={(title, url) => setDocPreview({ title, url })}
         />
 
@@ -334,7 +360,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
               redundant always-visible duplicate. See Sidebar.tsx. */}
 
           {/* Pulse strip - superadmin only */}
-          <PulseWidget role={role} />
+          <PulseWidget role={role} onOpenDoc={setDocPreview} />
 
           {children}
         </div>

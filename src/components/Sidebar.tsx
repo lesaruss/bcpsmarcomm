@@ -48,6 +48,12 @@ interface SidebarProps {
   viewAs?: TeamMember | null
   onViewAs?: (member: TeamMember | null) => void
   onOpenDoc?: (title: string, url: string) => void
+  // False hides the District Web Team section (Sean, Hot Lab 2026-09-22:
+  // that section is only for District Web Team people). Any page in it the
+  // viewer is still granted (ADA Scanner, ADA Manager, Banner Submissions
+  // for WCMs today) is listed under Web Content Managers instead, so hiding
+  // the heading never takes a working tool away. Defaults to true.
+  showDistrictWebTeam?: boolean
 }
 
 // ── Flat SVG icons ──────────────────────────────────────────────────────────
@@ -387,6 +393,7 @@ export default function Sidebar({
   viewAs = null, onViewAs,
   allowedPages,
   onOpenDoc,
+  showDistrictWebTeam = true,
 }: SidebarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false)
 
@@ -452,15 +459,27 @@ export default function Sidebar({
 
         {/* Nav */}
         <nav className="sidebar-nav">
-          {SECTIONS.map((section, si) => {
+          {(() => {
             // allowedPages is the real page set: the signed-in user's own, or -
             // while previewing - the previewed subject's, fetched from
             // my-access?preview_group. Only fall back to the role-only filter
             // when there is no page set to honour (preview still loading, or a
             // preview identity with no group mapped).
-            const items = allowedPages
-              ? section.items.filter(item => allowedPages.includes(gateOf(item)) || (effectiveRole === 'superadmin' && SUPERADMIN_PAGES.has(gateOf(item))))
-              : section.items.filter(item => canSee(effectiveRole, item))
+            const visible = (list: NavItem[]) => allowedPages
+              ? list.filter(item => allowedPages.includes(gateOf(item)) || (effectiveRole === 'superadmin' && SUPERADMIN_PAGES.has(gateOf(item))))
+              : list.filter(item => canSee(effectiveRole, item))
+            // Non-DWT viewers: drop the District Web Team heading and fold
+            // whatever of it they can still reach into Web Content Managers.
+            const dwt = SECTIONS.find(sec => sec.label === 'District Web Team')
+            const carried = !showDistrictWebTeam && dwt ? visible(dwt.items) : []
+            return SECTIONS
+              .filter(sec => showDistrictWebTeam || sec.label !== 'District Web Team')
+              .map(sec => ({
+                label: sec.label,
+                items: sec.label === 'Web Content Managers' ? [...visible(sec.items), ...carried] : visible(sec.items),
+              }))
+          })().map((section, si) => {
+            const items = section.items
             if (items.length === 0) return null
             return (
               <div key={section.label}>

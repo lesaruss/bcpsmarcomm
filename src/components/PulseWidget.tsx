@@ -15,6 +15,10 @@ import type { UserRole } from '@/components/Sidebar'
 
 interface PulseWidgetProps {
   role: UserRole
+  // 2026-09-23: lets a ticker link to a playbook open in the shell's doc
+  // preview (BCPSShell setDocPreview), the same way the sidebar's inlineDoc
+  // playbook links do, instead of hard-navigating out of the app.
+  onOpenDoc?: (doc: { title: string; url: string }) => void
 }
 
 interface PulseStats {
@@ -31,7 +35,9 @@ interface PulseStats {
 // a code push). linkHref is null where a real destination doesn't exist
 // yet - those spans render as plain text, not a link, so nothing points
 // to a dead page.
-interface TickerMessage { text: string; linkText: string | null; linkHref: string | null }
+// docTitle marks a linkHref that is a document route (/playbooks/...): it
+// opens in the in-shell preview when the shell provides onOpenDoc.
+interface TickerMessage { text: string; linkText: string | null; linkHref: string | null; docTitle?: string }
 
 const TICKER_MESSAGES: TickerMessage[] = [
   {
@@ -44,10 +50,18 @@ const TICKER_MESSAGES: TickerMessage[] = [
     linkText: 'Register today',
     linkHref: null, // TODO(Sean): no registration page/form exists yet
   },
+  // Per Sean, Hot Lab 2026-09-22: "I even have it in the top level up
+  // here, which I'm noticing is not clickable... make sure that that's
+  // clickable." It was plain text because linkHref was null (no rollout
+  // Playbook existed). Now points at the published Department WCM
+  // Playbook, the same URL the sidebar and WCM_PLAYBOOK_URL use. The old
+  // copy promised a "rollout timeline", which that playbook does not
+  // contain, so the line now names the playbook itself.
   {
-    text: 'See the full rollout timeline.',
+    text: 'The Department WCM Playbook is live.',
     linkText: 'View the Playbook',
-    linkHref: null, // TODO(Sean): no kickoff/rollout Playbook exists yet
+    linkHref: '/playbooks/wcm-department',
+    docTitle: 'Department WCM Playbook',
   },
 ]
 
@@ -58,7 +72,7 @@ const TICKER_MESSAGES: TickerMessage[] = [
 const SLIDE_HOLD_MS = 10000
 const SLIDE_FADE_MS = 300
 
-export default function PulseWidget({ role }: PulseWidgetProps) {
+export default function PulseWidget({ role, onOpenDoc }: PulseWidgetProps) {
   const [stats, setStats] = useState<PulseStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [collapsed, setCollapsed] = useState(false)
@@ -135,17 +149,26 @@ export default function PulseWidget({ role }: PulseWidgetProps) {
       ]
     : []
 
+  // Real <a href> either way (so open-in-new-tab still works); a plain
+  // click on a doc link opens the in-shell preview when available.
+  const docClick = (m: TickerMessage) => (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!m.docTitle || !m.linkHref || !onOpenDoc) return
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+    e.preventDefault()
+    onOpenDoc({ title: m.docTitle, url: m.linkHref })
+  }
+
   const renderMessage = (m: TickerMessage) => {
     // No separate link phrase - the whole message links (or doesn't) as one unit.
     if (!m.linkText) {
-      return m.linkHref ? <a href={m.linkHref} style={{ color: 'white', textDecoration: 'none' }}>{m.text}</a> : m.text
+      return m.linkHref ? <a href={m.linkHref} onClick={docClick(m)} style={{ color: 'white', textDecoration: 'none' }}>{m.text}</a> : m.text
     }
     // Separate link phrase appended after the message text.
     return (
       <>
         {m.text}{' '}
         {m.linkHref ? (
-          <a href={m.linkHref} style={{ color: '#a5f3fc', textDecoration: 'underline', fontWeight: 800 }}>{m.linkText}</a>
+          <a href={m.linkHref} onClick={docClick(m)} style={{ color: '#a5f3fc', textDecoration: 'underline', fontWeight: 800 }}>{m.linkText}</a>
         ) : (
           <span style={{ color: '#a5f3fc', fontWeight: 800 }}>{m.linkText}</span>
         )}
