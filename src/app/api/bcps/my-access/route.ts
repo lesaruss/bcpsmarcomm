@@ -56,9 +56,22 @@ export async function GET(req: NextRequest) {
     const previewPages = all
       .filter(p => p.visibility === 'public' || grantedObjIds.has(p.id))
       .map(p => p.slug)
-    const previewRes = NextResponse.json({ ok: true, role: 'user', preview_group: previewGroup, pages: previewPages })
+    const previewRes = NextResponse.json({ ok: true, role: 'user', preview_group: previewGroup, pages: previewPages, groups: [previewGroup] })
     previewRes.headers.set('Cache-Control', 'no-store')
     return previewRes
+  }
+
+  // The caller's group names, returned alongside pages (2026-09-23) so the
+  // sidebar can show the District Web Team section only to District Web
+  // Team members (Sean, Hot Lab 2026-09-22). Page access itself is still
+  // decided by grants below; this only decides which heading a granted
+  // page is listed under.
+  const { data: gm } = await svc.from('acl_group_members').select('group_id').eq('user_id', user.id)
+  const gids = (gm ?? []).map(g => g.group_id)
+  let groups: string[] = []
+  if (gids.length) {
+    const { data: gRows } = await svc.from('acl_groups').select('name').eq('brand', BRAND).in('id', gids)
+    groups = (gRows ?? []).map(g => g.name as string)
   }
 
   let allowed: string[]
@@ -67,8 +80,6 @@ export async function GET(req: NextRequest) {
   } else if (role === 'admin') {
     allowed = all.filter(p => !SUPERADMIN_ONLY.includes(p.slug)).map(p => p.slug)
   } else {
-    const { data: gm } = await svc.from('acl_group_members').select('group_id').eq('user_id', user.id)
-    const gids = (gm ?? []).map(g => g.group_id)
     const { data: grants } = await svc.from('acl_grants').select('object_id, subject_type, subject_id')
     const grantedObjIds = new Set((grants ?? []).filter(g =>
       (g.subject_type === 'user' && g.subject_id === user.id) ||
@@ -76,7 +87,7 @@ export async function GET(req: NextRequest) {
     allowed = all.filter(p => p.visibility === 'public' || grantedObjIds.has(p.id)).map(p => p.slug)
   }
 
-  const res = NextResponse.json({ ok: true, role, pages: allowed })
+  const res = NextResponse.json({ ok: true, role, pages: allowed, groups })
   res.headers.set('Cache-Control', 'no-store')
   return res
 }

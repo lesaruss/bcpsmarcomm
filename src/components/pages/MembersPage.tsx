@@ -13,6 +13,8 @@ type Member = {
   // themselves (matched by email at registration time, see wcm-pilot-register).
   // Never set true by an admin manually reassigning a department below.
   department_confirmed: boolean
+  // WCM Roster standing, from /api/bcps/members (2026-09-23).
+  roster_status?: 'confirmed' | 'on_roster' | 'unassigned'
 }
 type DeptOption = { slug: string; name: string; division: string | null }
 
@@ -325,11 +327,19 @@ export default function MembersPage() {
                   {m.groups.length ? m.groups.map(g => <span key={g} style={tag}>{g}</span>) : <span style={{ fontSize: 13, color: '#9ca3af' }}>No groups</span>}
                 </div>
               </div>
+              {(m.roster_status && (m.roster_status !== 'unassigned' || m.groups.includes('Web Content Management'))) && (
+                <div style={{ marginTop: 22 }}>
+                  <div style={sub}>WCM Roster</div>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: m.roster_status === 'confirmed' ? '#1a7f37' : m.roster_status === 'on_roster' ? '#0e4e73' : '#6b7280' }}>
+                    {m.roster_status === 'confirmed' ? '✓ Confirmed' : m.roster_status === 'on_roster' ? 'On roster, not yet approved' : 'Unassigned (not on the WCM Roster)'}
+                  </span>
+                </div>
+              )}
               <div style={{ marginTop: 22 }}>
                 <div style={sub}>Department</div>
                 {m.department ? (
                   <button onClick={() => go(`/?page=departments&dept=${m.department!.slug}`)} style={{ ...card, cursor: 'pointer', textAlign: 'left' }}>
-                    <div style={{ fontWeight: 800, fontSize: 14 }}>{m.department.name}{m.department_confirmed && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 800, color: '#1a7f37' }}>✓ Confirmed</span>}</div>
+                    <div style={{ fontWeight: 800, fontSize: 14 }}>{m.department.name}{m.department_confirmed && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 800, color: '#1a7f37' }}>✓ Director confirmed</span>}</div>
                     <div style={{ fontSize: 12, color: '#6b7280' }}>{m.department.division || ''}</div>
                     <div style={{ fontSize: 12, color: '#0e4e73', marginTop: 6, fontWeight: 700 }}>View Department Profile &rarr;</div>
                   </button>
@@ -339,7 +349,12 @@ export default function MembersPage() {
           )}
         </div>
 
-        {/* ── Dossier: ADA scans, certifications, pages accepted ── */}
+        {/* ── Dossier: ADA scans, certifications, pages accepted ──
+            2026-09-23: rendered only where member-dossier answers (your own
+            profile, or admin/superadmin). WCMs can open Members now, and
+            for anyone else's profile the API returns 403, which left an
+            empty Dossier card. */}
+        {(isMe || isPrivileged) && (
         <div style={{ marginTop: 22 }}>
           <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: 24 }}>
             <h2 style={{ fontSize: 15, fontWeight: 900, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.03em' }}>Dossier</h2>
@@ -415,6 +430,7 @@ export default function MembersPage() {
             )}
           </div>
         </div>
+        )}
       </div>
     )
   }
@@ -486,9 +502,26 @@ export default function MembersPage() {
   // director completed registration themselves (see wcm-pilot-register) -
   // this is the one signal that the director finished their process, so it
   // never appears just because someone (including an admin) set a department.
+  //
+  // 2026-09-23: relabeled "Director confirmed" so it cannot be mistaken for
+  // the WCM Roster "Confirmed" badge below, which means something else (the
+  // WCM is approved on the roster). Sean read this one as roster status in
+  // the 2026-09-22 Hot Lab.
   const confirmedBadge = (m: Member) => m.department_confirmed ? (
-    <span className="mp-confirmed" title="Confirmed by the department director">✓ Confirmed</span>
+    <span className="mp-confirmed" title="The department director completed this registration">✓ Director confirmed</span>
   ) : null
+
+  // WCM Roster standing (Sean, Hot Lab 2026-09-22): WCMs check this here now
+  // instead of on the WCM Roster page. Shown for members of the Web Content
+  // Management group and for anyone who is on the roster; "Unassigned"
+  // means not on the WCM Roster.
+  const rosterBadge = (m: Member) => {
+    const st = m.roster_status ?? 'unassigned'
+    if (st === 'unassigned' && !m.groups.includes('Web Content Management')) return null
+    if (st === 'confirmed') return <span className="mp-roster mp-roster-ok" title="Approved on the WCM Roster">✓ Confirmed</span>
+    if (st === 'on_roster') return <span className="mp-roster mp-roster-on" title="Listed on the WCM Roster, not yet approved">On roster</span>
+    return <span className="mp-roster mp-roster-none" title="Not on the WCM Roster">Unassigned</span>
+  }
 
   const deptSelect = (m: Member) => (
     <select
@@ -541,6 +574,7 @@ export default function MembersPage() {
               : <b>{m.department?.name || 'Unassigned'}</b>}
           {' '}{confirmedBadge(m)}
         </div>
+        {rosterBadge(m) && <div className="mp-row">WCM Roster: {rosterBadge(m)}</div>}
         {m.groups.length > 0 && <div className="mp-tags">{m.groups.map(g => <span key={g} className="mp-tag">{g}</span>)}</div>}
         <div className="mp-row">Last login: <b>{fmtLogin(m.last_sign_in_at)}</b></div>
       </div>
@@ -584,6 +618,7 @@ export default function MembersPage() {
             : (m.department?.name || 'Unassigned')}
         {' '}{confirmedBadge(m)}
       </td>
+      <td>{rosterBadge(m) ?? '—'}</td>
       <td>{m.department?.division ? <span className="mp-pill">{m.department.division}</span> : '—'}</td>
       <td>{m.groups.length ? m.groups.join(', ') : '—'}</td>
       <td>{fmtLogin(m.last_sign_in_at)}</td>
@@ -616,6 +651,7 @@ export default function MembersPage() {
               : (m.department?.name || 'Unassigned')}
           {' '}{confirmedBadge(m)}
         </>)}
+        {rosterBadge(m) && cardRow('WCM Roster', rosterBadge(m))}
         {cardRow('Groups', m.groups.length ? m.groups.join(', ') : '—')}
         {cardRow('Last login', fmtLogin(m.last_sign_in_at))}
       </div>
@@ -635,6 +671,7 @@ export default function MembersPage() {
           <tr>
             <Th col="name" label="Name" />
             <Th col="department" label="Department" />
+            <th>WCM Roster</th>
             <Th col="division" label="Division" />
             <Th col="groups" label="Groups" />
             <Th col="login" label="Last Login" />
@@ -702,6 +739,10 @@ export default function MembersPage() {
         .mp-mc-row span:last-child{text-align:right}
         @media(max-width:860px){.mp-table-wrap .mp-native-table{display:none}.mp-table-wrap .mp-cards{display:block}}
 
+        .mp-roster{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:10px;white-space:nowrap}
+        .mp-roster-ok{background:#e6f6ea;color:#1a7f37}
+        .mp-roster-on{background:#e8f1f8;color:#0e4e73}
+        .mp-roster-none{background:#f3f4f6;color:#6b7280}
         .mp-empty{padding:50px 20px;text-align:center;color:#6b7280;font-size:13px}
       `}</style>
       <h1 style={{ fontSize: 24, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Members</h1>

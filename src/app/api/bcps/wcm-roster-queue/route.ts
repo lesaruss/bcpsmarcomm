@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
 import { esc, brandedEmail, resolveOrInviteAccount, enrollBcpsMember, wcmConfirmationEmail, directorConfirmationEmail, SITE } from '@/lib/bcps-portal-account'
-import { requireBcpsAdmin, requireDistrictUser, isDistrictEmail, normalizeDistrictEmail } from '@/lib/bcps-auth'
+import { requireBcpsAdmin, requireBcpsPageAccess, isDistrictEmail, normalizeDistrictEmail } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -212,7 +212,7 @@ async function directorEmailsByDepartment(deptIds: string[]): Promise<Map<string
 // current director + assigned WCM(s), plus any submissions still awaiting
 // review. Backs the "WCM Roster" tab in the Department WCMS Portal.
 export async function GET(req: NextRequest) {
-  // Open to every district user, not just admins (Sean, 2026-09-18): the
+  // (Superseded 2026-09-23, see below.) Open to every district user, not just admins (Sean, 2026-09-18): the
   // roster is a directory anyone should be able to browse and pull a BCC
   // list from. Approving/editing/deleting stays admin-only - the PATCH/
   // PUT/DELETE handlers below are unchanged and still require
@@ -220,9 +220,17 @@ export async function GET(req: NextRequest) {
   // emails for the BCC tool, but no pending-submission queue and no
   // personnel numbers - those are the staff record the admin queue is, not
   // the directory this view is.
+  //
+  // 2026-09-23, per Sean (Hot Lab 2026-09-22): the roster is a District Web
+  // Team tool again, not a directory for every district user. The
+  // non-admin branch now gates on the wcm-roster page grant
+  // (requireBcpsPageAccess), the same acl rows that decide whether the page
+  // shows in the sidebar, so WCMs lose the page and its data together.
+  // Today that grant is the District Web Team group; widening it later is a
+  // data change, not a code change.
   const admin = await requireBcpsAdmin(req)
   if (!admin.ok) {
-    const viewer = await requireDistrictUser(req)
+    const viewer = await requireBcpsPageAccess(req, 'wcm-roster')
     if (!viewer.ok) return NextResponse.json({ error: viewer.error }, { status: viewer.status })
 
     const [{ data: roster }, { data: members }] = await Promise.all([

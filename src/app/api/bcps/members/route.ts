@@ -28,13 +28,28 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await asUser.auth.getUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  const [{ data: roles }, { data: groups }, { data: gm }, { data: depts }, { data: authList }] = await Promise.all([
+  const [{ data: roles }, { data: groups }, { data: gm }, { data: depts }, { data: authList }, { data: rosterMembers }] = await Promise.all([
     svc.from('acl_member_roles').select('user_id, role, department_slug, department_confirmed, title, bio, photo_url').eq('brand', BRAND),
     svc.from('acl_groups').select('id, name').eq('brand', BRAND),
     svc.from('acl_group_members').select('group_id, user_id'),
     svc.from('bcps_departments').select('slug, name, division, director_name'),
     svc.auth.admin.listUsers({ perPage: 1000 }),
+    svc.from('bcps_wcm_roster_members').select('wcm_email, approved_at'),
   ])
+  // WCM Roster standing per email (2026-09-23, per Sean, Hot Lab
+  // 2026-09-22): WCMs no longer see the WCM Roster page, so Members is where
+  // they check who is confirmed. 'confirmed' = on the roster with an
+  // approval date; 'on_roster' = listed but added by hand (no approval);
+  // 'unassigned' = not on the roster at all. Matched by lowercased email,
+  // the only key the roster and auth share. Emails only leave this route as
+  // a status, never as roster rows.
+  const rosterByEmail = new Map<string, 'confirmed' | 'on_roster'>()
+  for (const rm of rosterMembers ?? []) {
+    const e = (rm.wcm_email || '').trim().toLowerCase()
+    if (!e) continue
+    if (rm.approved_at) rosterByEmail.set(e, 'confirmed')
+    else if (!rosterByEmail.has(e)) rosterByEmail.set(e, 'on_roster')
+  }
   const byId = new Map((authList?.users ?? []).map(u => [u.id, u]))
   const groupName = new Map((groups ?? []).map(g => [g.id, g.name]))
   const deptBySlug = new Map((depts ?? []).map(d => [d.slug, d]))
@@ -63,6 +78,7 @@ export async function GET(req: NextRequest) {
       // bcps_departments.director_email at registration time). Never set by
       // an admin manual reassignment - see admin-set-department.
       department_confirmed: !!r.department_confirmed,
+      roster_status: rosterByEmail.get((u?.email || '').trim().toLowerCase()) ?? 'unassigned',
     }
   }).sort((a, b) => a.name.localeCompare(b.name))
 
