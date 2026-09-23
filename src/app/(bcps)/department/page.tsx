@@ -15,7 +15,7 @@ const CUR_SCHOOL_START_D = CUR_MONTH_D >= 8 ? CUR_YEAR_D : CUR_YEAR_D - 1
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Dept { id: string; slug?: string; name: string; division?: string; health_status?: string; website_url?: string; wcm_name?: string; wcm_email?: string; director_name?: string; director_email?: string; chief_name?: string; chief_title?: string; audit_status?: string; ada_score?: number }
-interface Audit { id: string; audited_at: string; overall_score: number | null; layout_score: number | null; content_score: number | null; nav_score: number | null; ada_score: number | null; status: string; auditor?: string; issues?: unknown; ada_violations?: unknown; ada_violations_critical?: number; ada_violations_serious?: number; ada_violations_moderate?: number; ada_violations_minor?: number }
+interface Audit { id: string; audited_at: string; page_url?: string | null; overall_score: number | null; layout_score: number | null; content_score: number | null; nav_score: number | null; ada_score: number | null; status: string; auditor?: string; issues?: unknown; ada_violations?: unknown; ada_violations_critical?: number; ada_violations_serious?: number; ada_violations_moderate?: number; ada_violations_minor?: number }
 interface AnalyticsRow { period: string; synced_at?: string; monthly_visitors?: number; avg_time_seconds?: number; bounce_rate?: number; mobile_pct?: number; top_pages?: Array<{ title: string; url: string; views: number }>; traffic_sources?: Array<{ source: string; sessions: number | string; pct: string }>; top_queries?: Array<{ query: string; clicks: number; impressions: number }> }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -210,7 +210,17 @@ function DepartmentContent() {
     setAuditStep(steps[0])
     const interval = setInterval(() => { i++; if (i < steps.length) setAuditStep(steps[i]) }, 900)
     try {
-      const res = await fetch('/api/bcps/run-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ department_id: dept.id }) })
+      // 2026-09-23: run-audit has required an admin bearer token since the
+      // Hot Lab 2026-07-28 gate (requireBcpsAdmin), but this call never sent
+      // one, so Run Audit on this profile answered 401 for admins too. That
+      // is why IIDL, Labor Relations and Professional Practices kept showing
+      // their June audits of the old addresses after website_url moved on
+      // 2026-07-27. Same token pattern as sendWcmInvite below and
+      // DepartmentsPage.runAudit.
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error('Session expired. Please refresh and try again.')
+      const res = await fetch('/api/bcps/run-audit', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ department_id: dept.id }) })
       const json = await res.json()
       if (!res.ok || json.error) throw new Error(json.error || 'Audit failed')
       setAudit(json.result)
@@ -223,7 +233,7 @@ function DepartmentContent() {
       setAuditRunning(false)
       setAuditStep('')
     }
-  }, [dept, showToast])
+  }, [dept, supabase, showToast])
 
   const [inviteSending, setInviteSending] = useState(false)
   const sendWcmInvite = useCallback(async () => {
@@ -292,6 +302,32 @@ function DepartmentContent() {
   const adaWcmItems = adaSorted.filter(v => WCM_FIXABLE_IDS.has(v.id))
   const adaFinalsiteItems = adaSorted.filter(v => !WCM_FIXABLE_IDS.has(v.id))
   const adaScoped = adaScope === 'wcm' ? adaWcmItems : adaFinalsiteItems
+
+  // "Page audited" now names the page the stored audit ACTUALLY scanned
+  // (bcps_audit_results.page_url), per Sean, Hot Lab 2026-09-22: on the
+  // IIDL profile it linked to website_url (the current page) while the
+  // findings under it came from a June scan of the retired
+  // /innovative-learning address, so the audit looked like it was reading
+  // the right page when it was not. Falls back to website_url for older
+  // rows with no page_url. When the two differ, say so and point at the
+  // fix (a re-run always scans website_url, see run-audit).
+  const normUrl = (u?: string | null) => (u || '').trim().replace(/\/+$/, '').toLowerCase()
+  const auditedUrl = a?.page_url || dept.website_url || null
+  const auditedStale = !!(a?.page_url && dept.website_url && normUrl(a.page_url) !== normUrl(dept.website_url))
+  const pageAuditedRow = auditedUrl ? (
+    <div style={{marginBottom:14}}>
+      <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',fontSize:11,color:'var(--lr-text-50)',padding:'8px 12px',background:'#f8fafb',border:'1px solid var(--lr-border)',borderRadius:8}}>
+        <span style={{fontWeight:700,color:'var(--lr-text)'}}>Page audited:</span>
+        <a href={auditedUrl} target="_blank" rel="noopener" style={{color:'#1672A7',fontWeight:600,wordBreak:'break-all'}}>{auditedStale ? auditedUrl : `${dept.name} on Finalsite`}</a>
+      </div>
+      {auditedStale && (
+        <div style={{marginTop:6,padding:'8px 12px',background:'#FFF7E6',border:'1px solid #F5D28A',borderRadius:8,fontSize:11,color:'#7A4B00',lineHeight:1.45}}>
+          This audit scanned an old address. The department page is now <a href={dept.website_url} target="_blank" rel="noopener" style={{color:'#1672A7',fontWeight:700,wordBreak:'break-all'}}>{dept.website_url}</a>.
+          {isAdmin ? ' Run Audit to scan the current page.' : ' The District Web Team will re-run the audit on the current page.'}
+        </div>
+      )}
+    </div>
+  ) : null
 
   // Analytics - period-aware
   const analyticsRows = [...analytics].sort((a, b) => b.period.localeCompare(a.period))
@@ -569,13 +605,10 @@ function DepartmentContent() {
                           only ever audits the department's one website_url
                           (no multi-page crawl exists yet), so every finding
                           below applies to this exact page - state that
-                          plainly instead of leaving it implicit. */}
-                      {dept.website_url && (
-                        <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'var(--lr-text-50)',marginBottom:14,padding:'8px 12px',background:'#f8fafb',border:'1px solid var(--lr-border)',borderRadius:8}}>
-                          <span style={{fontWeight:700,color:'var(--lr-text)'}}>Page audited:</span>
-                          <a href={dept.website_url} target="_blank" rel="noopener" style={{color:'#1672A7',fontWeight:600}}>{dept.name} on Finalsite</a>
-                        </div>
-                      )}
+                          plainly instead of leaving it implicit.
+                          2026-09-23: the row now shows the audit's own
+                          page_url (see pageAuditedRow), not website_url. */}
+                      {pageAuditedRow}
                       <div className="issue-list">
                         {visibleIssues.map((issue, idx) => {
                           const hasSteps = !issue.passed && (issue.fix_instructions?.length ?? 0) > 0
@@ -621,12 +654,7 @@ function DepartmentContent() {
               {/* ADA ACCESSIBILITY TAB */}
               {activeTab === 'ada' && (
                 <div className="panel-body">
-                  {dept.website_url && (
-                    <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'var(--lr-text-50)',marginBottom:14,padding:'8px 12px',background:'#f8fafb',border:'1px solid var(--lr-border)',borderRadius:8}}>
-                      <span style={{fontWeight:700,color:'var(--lr-text)'}}>Page audited:</span>
-                      <a href={dept.website_url} target="_blank" rel="noopener" style={{color:'#1672A7',fontWeight:600}}>{dept.name} on Finalsite</a>
-                    </div>
-                  )}
+                  {pageAuditedRow}
                   {adaSorted.length > 0 ? (
                     <>
                       <div className="ada-scope-row">
