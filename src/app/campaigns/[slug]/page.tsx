@@ -100,7 +100,9 @@ export default async function CampaignReportPage({ params }: Props) {
     db.from('bcps_campaign_daily')
       .select('date, unique_visitors, page_views, sessions, engagement_seconds')
       .eq('campaign_id', campaign.id)
-      .gte('date', new Date(Date.now() - DAYS * 86400000).toISOString().slice(0, 10))
+      // A campaign measured from its start_date charts from that day too;
+      // otherwise the trailing DAYS.
+      .gte('date', campaign.start_date || new Date(Date.now() - DAYS * 86400000).toISOString().slice(0, 10))
       .order('date'),
   ])
 

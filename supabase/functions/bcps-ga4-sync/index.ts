@@ -1,10 +1,10 @@
 // supabase/functions/bcps-ga4-sync/index.ts
 //
 // Source of the deployed bcps-ga4-sync Edge Function (Supabase project
-// fwbhwfxpncrsfhttimna), checked in 2026-09-22 at version 17. Per-campaign
-// GA4 property and whole-site "/" campaigns added 2026-09-25. It had lived
+// fwbhwfxpncrsfhttimna), checked in 2026-09-22 at version 17. It had lived
 // only in Supabase until then, so there was no history for a function that
-// feeds every number on the Analytics page.
+// feeds every number on the Analytics page. Per-campaign GA4 property,
+// whole-site "/" campaigns and start_date windows added 2026-09-25 (v21).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -284,7 +284,7 @@ Deno.serve(async (_req: Request) => {
     // ---- Campaigns --------------------------------------------------------
     const { data: campaigns } = await supabase
       .from('bcps_campaigns')
-      .select('id, name, slug, page_paths, include_subpages, ga4_property_id')
+      .select('id, name, slug, page_paths, include_subpages, ga4_property_id, start_date, end_date')
       .eq('status', 'active')
       .order('sort_order')
       .limit(CAMPAIGN_LIMIT);
@@ -302,10 +302,18 @@ Deno.serve(async (_req: Request) => {
       // no dimensionFilter at all rather than an empty one GA4 would reject.
       const run = (body: object) => runGA4Report(accessToken, body, propertyId);
 
+      // Window. A campaign with a start_date is measured from that day (for
+      // browardschools.ai, the day its GA4 tag went live) instead of a rolling
+      // 30 days, so the report can answer "since launch". end_date closes the
+      // window for a campaign that is over. Neither set = the original rolling
+      // 30 days, which is what Referendum 2026 still reads.
+      const isoDate = (d: unknown) => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : null;
+      const dateRanges = [{ startDate: isoDate(c.start_date) ?? '30daysAgo', endDate: isoDate(c.end_date) ?? 'today' }];
+
       try {
         const [totalsReport, breakdownReport, dailyReport, channelReport, deviceReport] = await Promise.all([
           run({
-            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+            dateRanges,
             metrics: [
               { name: 'totalUsers' }, { name: 'screenPageViews' }, { name: 'sessions' }, { name: 'userEngagementDuration' },
               // Added for the campaign report: reach vs repetition, and whether
@@ -315,7 +323,7 @@ Deno.serve(async (_req: Request) => {
             dimensionFilter: filter
           }),
           run({
-            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+            dateRanges,
             dimensions: [{ name: 'pagePath' }],
             metrics: [{ name: 'totalUsers' }, { name: 'screenPageViews' }, { name: 'sessions' }, { name: 'userEngagementDuration' }],
             dimensionFilter: filter,
@@ -327,7 +335,7 @@ Deno.serve(async (_req: Request) => {
           // above and must never be summed into one - see the note on
           // bcps_campaign_daily.
           run({
-            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+            dateRanges,
             dimensions: [{ name: 'date' }],
             metrics: [{ name: 'totalUsers' }, { name: 'screenPageViews' }, { name: 'sessions' }, { name: 'userEngagementDuration' }],
             dimensionFilter: filter,
@@ -337,7 +345,7 @@ Deno.serve(async (_req: Request) => {
           // HOW people arrived. The single most actionable cut of a campaign:
           // it is what tells the team which push actually worked.
           run({
-            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+            dateRanges,
             dimensions: [{ name: 'sessionDefaultChannelGroup' }],
             metrics: [{ name: 'sessions' }, { name: 'totalUsers' }, { name: 'screenPageViews' }],
             dimensionFilter: filter,
@@ -345,7 +353,7 @@ Deno.serve(async (_req: Request) => {
             limit: 25
           }),
           run({
-            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+            dateRanges,
             dimensions: [{ name: 'deviceCategory' }],
             metrics: [{ name: 'sessions' }, { name: 'totalUsers' }, { name: 'screenPageViews' }],
             dimensionFilter: filter,

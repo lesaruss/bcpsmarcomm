@@ -24,6 +24,17 @@ function siteOrigin(campaign: Campaign): string {
   return BWS
 }
 
+// The window a campaign's numbers cover. start_date set = measured from that
+// day (see bcps-ga4-sync); otherwise the rolling 30 days. Formatted in UTC so
+// a YYYY-MM-DD date cannot slip a day between server and browser.
+export function fmtDate(iso: string, month: 'long' | 'short' = 'long') {
+  return new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', { month, day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
+
+export function windowLabel(c: { start_date: string | null }, month: 'long' | 'short' = 'short') {
+  return c.start_date ? `since ${fmtDate(c.start_date, month)}` : 'last 30 days'
+}
+
 export function fmt(n: number) {
   return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n)
 }
@@ -359,7 +370,9 @@ export function buildRundown(c: Campaign): { headline: string | null; notes: Run
   const visitors = m.unique_visitors ?? 0
   const sessions = m.sessions ?? 0
 
-  const headline = daily.length
+  const headline = c.start_date
+    ? `${visitors.toLocaleString('en-US')} people opened this page ${views.toLocaleString('en-US')} times ${windowLabel(c, 'long')}.`
+    : daily.length
     ? `${visitors.toLocaleString('en-US')} people opened this page ${views.toLocaleString('en-US')} times over the last ${daily.length} days.`
     : `${visitors.toLocaleString('en-US')} people opened this page ${views.toLocaleString('en-US')} times.`
 
@@ -532,7 +545,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
     m?.new_users != null ? `New visitors: ${m.new_users}` : '',
     (m?.channels ?? []).length ? `Top source: ${m!.channels[0].name}` : '',
     '',
-    m ? `Source: GA4, ${m.period}, last 30 days. Pulled ${new Date(m.synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.` : 'No data pulled yet.',
+    m ? `Source: GA4, ${windowLabel(campaign, 'long')}. Pulled ${new Date(m.synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.` : 'No data pulled yet.',
   ].filter(Boolean).join('\n')
 
   const toneColor = { good: '#16750C', watch: '#854F0B', neutral: '#1672A7' }
@@ -551,7 +564,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
       {/* Meta row, the shape every BCPS document uses. */}
       <div className="meta-row">
         <div className="meta-item"><span className="meta-label">Type</span><span className="meta-value">Campaign report</span></div>
-        <div className="meta-item"><span className="meta-label">Period</span><span className="meta-value">{m ? `${m.period} · last 30 days` : 'Not yet pulled'}</span></div>
+        <div className="meta-item"><span className="meta-label">Period</span><span className="meta-value">{m ? (campaign.start_date ? `Since ${fmtDate(campaign.start_date, 'short')}` : `${m.period} · last 30 days`) : 'Not yet pulled'}</span></div>
         <div className="meta-item"><span className="meta-label">Source</span><span className="meta-value">GA4 property {campaign.ga4_property_id || DISTRICT_GA4_PROPERTY}</span></div>
         <div className="meta-item"><span className="meta-label">Updated</span><span className="meta-value">
           {m ? new Date(m.synced_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'}
