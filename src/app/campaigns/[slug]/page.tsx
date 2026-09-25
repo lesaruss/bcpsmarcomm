@@ -67,7 +67,7 @@ export default async function CampaignReportPage({ params }: Props) {
 
   const { data: campaign } = await db
     .from('bcps_campaigns')
-    .select('id, name, slug, page_paths, primary_url, description, owner, status, start_date, end_date, include_subpages, is_public')
+    .select('id, name, slug, page_paths, primary_url, description, owner, status, start_date, end_date, include_subpages, is_public, ga4_property_id, show_pages_tab')
     .eq('slug', slug)
     .maybeSingle()
   if (!campaign) notFound()
@@ -100,7 +100,9 @@ export default async function CampaignReportPage({ params }: Props) {
     db.from('bcps_campaign_daily')
       .select('date, unique_visitors, page_views, sessions, engagement_seconds')
       .eq('campaign_id', campaign.id)
-      .gte('date', new Date(Date.now() - DAYS * 86400000).toISOString().slice(0, 10))
+      // A campaign measured from its start_date charts from that day too;
+      // otherwise the trailing DAYS.
+      .gte('date', campaign.start_date || new Date(Date.now() - DAYS * 86400000).toISOString().slice(0, 10))
       .order('date'),
   ])
 

@@ -11,6 +11,29 @@
 import React, { useState } from 'react'
 
 const BWS = 'https://www.browardschools.com'
+const DISTRICT_GA4_PROPERTY = '527326342'
+
+// A campaign on browardschools.com links its paths back to browardschools.com;
+// one on another District site (browardschools.ai) has to link to that site
+// instead, or every row in the Pages tab points at a page that does not exist.
+// primary_url already carries the site, so it decides.
+function siteOrigin(campaign: Campaign): string {
+  if (campaign.primary_url) {
+    try { return new URL(campaign.primary_url).origin } catch { /* fall through */ }
+  }
+  return BWS
+}
+
+// The window a campaign's numbers cover. start_date set = measured from that
+// day (see bcps-ga4-sync); otherwise the rolling 30 days. Formatted in UTC so
+// a YYYY-MM-DD date cannot slip a day between server and browser.
+export function fmtDate(iso: string, month: 'long' | 'short' = 'long') {
+  return new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', { month, day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
+
+export function windowLabel(c: { start_date: string | null }, month: 'long' | 'short' = 'short') {
+  return c.start_date ? `since ${fmtDate(c.start_date, month)}` : 'last 30 days'
+}
 
 export function fmt(n: number) {
   return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n)
@@ -76,6 +99,10 @@ export interface Campaign {
   end_date: string | null
   include_subpages: boolean
   is_public: boolean
+  // NULL = the District property. See the bcps_campaigns.ga4_property_id comment.
+  ga4_property_id?: string | null
+  // false hides the Pages tab. See the bcps_campaigns.show_pages_tab comment.
+  show_pages_tab?: boolean
   metrics: CampaignMetrics | null
   daily: CampaignDay[]
 }
@@ -345,9 +372,13 @@ export function buildRundown(c: Campaign): { headline: string | null; notes: Run
   const visitors = m.unique_visitors ?? 0
   const sessions = m.sessions ?? 0
 
-  const headline = daily.length
-    ? `${visitors.toLocaleString('en-US')} people opened this page ${views.toLocaleString('en-US')} times over the last ${daily.length} days.`
-    : `${visitors.toLocaleString('en-US')} people opened this page ${views.toLocaleString('en-US')} times.`
+  // A campaign counting "/" with every subpage is a whole site, not one page.
+  const verb = c.include_subpages && c.page_paths.includes('/') ? 'viewed this site' : 'opened this page'
+  const headline = c.start_date
+    ? `${visitors.toLocaleString('en-US')} people ${verb} ${views.toLocaleString('en-US')} times ${windowLabel(c, 'long')}.`
+    : daily.length
+    ? `${visitors.toLocaleString('en-US')} people ${verb} ${views.toLocaleString('en-US')} times over the last ${daily.length} days.`
+    : `${visitors.toLocaleString('en-US')} people ${verb} ${views.toLocaleString('en-US')} times.`
 
   // Trend. The last complete day is used as the right edge - today is partial
   // and would always read as a decline.
@@ -502,7 +533,8 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
   const [tab, setTab] = useState<ReportTab>('rundown')
   const m = campaign.metrics
   const { headline, notes } = buildRundown(campaign)
-  const link = campaign.primary_url || (campaign.page_paths[0] ? BWS + campaign.page_paths[0] : null)
+  const origin = siteOrigin(campaign)
+  const link = campaign.primary_url || (campaign.page_paths[0] ? origin + campaign.page_paths[0] : null)
   const sessions = m?.sessions ?? 0
   const deviceTotal = (m?.devices ?? []).reduce((s, d) => s + d.sessions, 0)
 
@@ -517,7 +549,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
     m?.new_users != null ? `New visitors: ${m.new_users}` : '',
     (m?.channels ?? []).length ? `Top source: ${m!.channels[0].name}` : '',
     '',
-    m ? `Source: GA4, ${m.period}, last 30 days. Pulled ${new Date(m.synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.` : 'No data pulled yet.',
+    m ? `Source: GA4, ${windowLabel(campaign, 'long')}. Pulled ${new Date(m.synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.` : 'No data pulled yet.',
   ].filter(Boolean).join('\n')
 
   const toneColor = { good: '#16750C', watch: '#854F0B', neutral: '#1672A7' }
@@ -536,8 +568,8 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
       {/* Meta row, the shape every BCPS document uses. */}
       <div className="meta-row">
         <div className="meta-item"><span className="meta-label">Type</span><span className="meta-value">Campaign report</span></div>
-        <div className="meta-item"><span className="meta-label">Period</span><span className="meta-value">{m ? `${m.period} · last 30 days` : 'Not yet pulled'}</span></div>
-        <div className="meta-item"><span className="meta-label">Source</span><span className="meta-value">GA4 property 527326342</span></div>
+        <div className="meta-item"><span className="meta-label">Period</span><span className="meta-value">{m ? (campaign.start_date ? `Since ${fmtDate(campaign.start_date, 'short')}` : `${m.period} · last 30 days`) : 'Not yet pulled'}</span></div>
+        <div className="meta-item"><span className="meta-label">Source</span><span className="meta-value">GA4 property {campaign.ga4_property_id || DISTRICT_GA4_PROPERTY}</span></div>
         <div className="meta-item"><span className="meta-label">Updated</span><span className="meta-value">
           {m ? new Date(m.synced_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'}
         </span></div>
@@ -575,7 +607,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
           reads faster than four stacked accordions. */}
       <div role="tablist" aria-label="Campaign report sections"
         style={{ display: 'flex', gap: 4, margin: '22px 0 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
-        {REPORT_TABS.map(([t, label]) => (
+        {REPORT_TABS.filter(([t]) => t !== 'pages' || campaign.show_pages_tab !== false).map(([t, label]) => (
           <button key={t} role="tab" id={`tab-${t}`} aria-selected={tab === t} aria-controls={`panel-${t}`}
             onClick={() => setTab(t)}
             style={{
@@ -628,7 +660,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
           </div>
         )}
 
-        {tab === 'pages' && (
+        {tab === 'pages' && campaign.show_pages_tab !== false && (
           <div role="tabpanel" id="panel-pages" aria-labelledby="tab-pages">
             {(m?.pages ?? []).length ? (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -643,7 +675,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
                   {m!.pages.map(pg => (
                     <tr key={pg.path} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       <td style={{ padding: '8px 10px' }}>
-                        <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: '#1672A7', textDecoration: 'none', fontWeight: 600 }}>{pg.path}</a>
+                        <a href={`${origin}${pg.path}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: '#1672A7', textDecoration: 'none', fontWeight: 600 }}>{pg.path}</a>
                       </td>
                       <td style={{ padding: '8px 10px', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>{fmt(pg.unique_visitors)}</td>
                       <td style={{ padding: '8px 10px', fontSize: 12, fontWeight: 600, textAlign: 'right' }}>{fmt(pg.page_views)}</td>

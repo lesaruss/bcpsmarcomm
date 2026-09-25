@@ -3,7 +3,8 @@
 // Source of the deployed bcps-ga4-sync Edge Function (Supabase project
 // fwbhwfxpncrsfhttimna), checked in 2026-09-22 at version 17. It had lived
 // only in Supabase until then, so there was no history for a function that
-// feeds every number on the Analytics page.
+// feeds every number on the Analytics page. Per-campaign GA4 property,
+// whole-site "/" campaigns and start_date windows added 2026-09-25 (v21).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -17,6 +18,9 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+// District default: browardschools.com. A campaign can name its own property
+// in bcps_campaigns.ga4_property_id (browardschools.ai has one); NULL means
+// this one. Departments and programs always read this property.
 const GA4_PROPERTY_ID = '527326342';
 
 async function getAccessToken(serviceAccountJson: string): Promise<string> {
@@ -47,9 +51,9 @@ async function getAccessToken(serviceAccountJson: string): Promise<string> {
   return tokenData.access_token;
 }
 
-async function runGA4Report(accessToken: string, body: object) {
+async function runGA4Report(accessToken: string, body: object, propertyId: string = GA4_PROPERTY_ID) {
   const resp = await fetch(
-    `https://analyticsdata.googleapis.com/v1beta/properties/${GA4_PROPERTY_ID}:runReport`,
+    `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
     { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
   );
   if (!resp.ok) throw new Error(`GA4 API error ${resp.status}: ${await resp.text()}`);
@@ -78,10 +82,25 @@ async function runGA4Report(accessToken: string, body: object) {
 // own dimension only, so none of them sum to the window total.
 const CAMPAIGN_LIMIT = 25;
 
+// Returns the GA4 dimensionFilter for a campaign, `undefined` for a
+// whole-site campaign, or null when nothing usable is configured.
+//
+// A path of "/" with include_subpages means EVERY page on the property, which
+// is what a site-level campaign on its own dedicated property (browardschools.ai)
+// is. Stripping the trailing slash used to turn "/" into "" and skip the
+// campaign, and a literal BEGINS_WITH "//" would have matched nothing. On the
+// shared District property "/" without include_subpages still means just the
+// homepage.
 function campaignPathFilter(paths: string[], includeSubpages: boolean) {
   const expressions: object[] = [];
   for (const raw of paths) {
-    const p = String(raw || '').trim().replace(/\/+$/, '');
+    const trimmed = String(raw || '').trim();
+    if (trimmed === '/') {
+      if (includeSubpages) return undefined;
+      expressions.push({ filter: { fieldName: 'pagePath', stringFilter: { matchType: 'EXACT', value: '/' } } });
+      continue;
+    }
+    const p = trimmed.replace(/\/+$/, '');
     if (!p) continue;
     expressions.push({ filter: { fieldName: 'pagePath', stringFilter: { matchType: 'EXACT', value: p } } });
     if (includeSubpages) {
@@ -265,7 +284,7 @@ Deno.serve(async (_req: Request) => {
     // ---- Campaigns --------------------------------------------------------
     const { data: campaigns } = await supabase
       .from('bcps_campaigns')
-      .select('id, name, slug, page_paths, include_subpages')
+      .select('id, name, slug, page_paths, include_subpages, ga4_property_id, start_date, end_date')
       .eq('status', 'active')
       .order('sort_order')
       .limit(CAMPAIGN_LIMIT);
@@ -273,15 +292,28 @@ Deno.serve(async (_req: Request) => {
     const campaignResults: any[] = [];
     for (const c of (campaigns || [])) {
       const filter = campaignPathFilter(c.page_paths || [], c.include_subpages !== false);
-      if (!filter) {
+      if (filter === null) {
         campaignResults.push({ slug: c.slug, skipped: 'no page_paths configured' });
         continue;
       }
 
+      const propertyId = c.ga4_property_id || GA4_PROPERTY_ID;
+      // JSON.stringify drops an undefined key, so a whole-site campaign sends
+      // no dimensionFilter at all rather than an empty one GA4 would reject.
+      const run = (body: object) => runGA4Report(accessToken, body, propertyId);
+
+      // Window. A campaign with a start_date is measured from that day (for
+      // browardschools.ai, the day its GA4 tag went live) instead of a rolling
+      // 30 days, so the report can answer "since launch". end_date closes the
+      // window for a campaign that is over. Neither set = the original rolling
+      // 30 days, which is what Referendum 2026 still reads.
+      const isoDate = (d: unknown) => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : null;
+      const dateRanges = [{ startDate: isoDate(c.start_date) ?? '30daysAgo', endDate: isoDate(c.end_date) ?? 'today' }];
+
       try {
         const [totalsReport, breakdownReport, dailyReport, channelReport, deviceReport] = await Promise.all([
-          runGA4Report(accessToken, {
-            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+          run({
+            dateRanges,
             metrics: [
               { name: 'totalUsers' }, { name: 'screenPageViews' }, { name: 'sessions' }, { name: 'userEngagementDuration' },
               // Added for the campaign report: reach vs repetition, and whether
@@ -290,8 +322,8 @@ Deno.serve(async (_req: Request) => {
             ],
             dimensionFilter: filter
           }),
-          runGA4Report(accessToken, {
-            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+          run({
+            dateRanges,
             dimensions: [{ name: 'pagePath' }],
             metrics: [{ name: 'totalUsers' }, { name: 'screenPageViews' }, { name: 'sessions' }, { name: 'userEngagementDuration' }],
             dimensionFilter: filter,
@@ -302,8 +334,8 @@ Deno.serve(async (_req: Request) => {
           // de-duplicated, which is a different number from the window total
           // above and must never be summed into one - see the note on
           // bcps_campaign_daily.
-          runGA4Report(accessToken, {
-            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+          run({
+            dateRanges,
             dimensions: [{ name: 'date' }],
             metrics: [{ name: 'totalUsers' }, { name: 'screenPageViews' }, { name: 'sessions' }, { name: 'userEngagementDuration' }],
             dimensionFilter: filter,
@@ -312,16 +344,16 @@ Deno.serve(async (_req: Request) => {
           }),
           // HOW people arrived. The single most actionable cut of a campaign:
           // it is what tells the team which push actually worked.
-          runGA4Report(accessToken, {
-            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+          run({
+            dateRanges,
             dimensions: [{ name: 'sessionDefaultChannelGroup' }],
             metrics: [{ name: 'sessions' }, { name: 'totalUsers' }, { name: 'screenPageViews' }],
             dimensionFilter: filter,
             orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
             limit: 25
           }),
-          runGA4Report(accessToken, {
-            dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+          run({
+            dateRanges,
             dimensions: [{ name: 'deviceCategory' }],
             metrics: [{ name: 'sessions' }, { name: 'totalUsers' }, { name: 'screenPageViews' }],
             dimensionFilter: filter,
@@ -404,6 +436,7 @@ Deno.serve(async (_req: Request) => {
 
         campaignResults.push({
           slug: c.slug,
+          property: propertyId,
           unique_visitors: uniqueVisitors,
           page_views: pageViews,
           avg_time_seconds: Math.round(avgTime * 100) / 100,
@@ -417,7 +450,7 @@ Deno.serve(async (_req: Request) => {
         });
       } catch (err: any) {
         // One bad campaign must not take the whole sync down with it.
-        campaignResults.push({ slug: c.slug, error: err.message });
+        campaignResults.push({ slug: c.slug, property: propertyId, error: err.message });
       }
     }
 
