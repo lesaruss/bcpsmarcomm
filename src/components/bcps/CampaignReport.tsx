@@ -11,6 +11,18 @@
 import React, { useState } from 'react'
 
 const BWS = 'https://www.browardschools.com'
+const DISTRICT_GA4_PROPERTY = '527326342'
+
+// A campaign on browardschools.com links its paths back to browardschools.com;
+// one on another District site (browardschools.ai) has to link to that site
+// instead, or every row in the Pages tab points at a page that does not exist.
+// primary_url already carries the site, so it decides.
+function siteOrigin(campaign: Campaign): string {
+  if (campaign.primary_url) {
+    try { return new URL(campaign.primary_url).origin } catch { /* fall through */ }
+  }
+  return BWS
+}
 
 export function fmt(n: number) {
   return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n)
@@ -76,6 +88,8 @@ export interface Campaign {
   end_date: string | null
   include_subpages: boolean
   is_public: boolean
+  // NULL = the District property. See the bcps_campaigns.ga4_property_id comment.
+  ga4_property_id?: string | null
   metrics: CampaignMetrics | null
   daily: CampaignDay[]
 }
@@ -502,7 +516,8 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
   const [tab, setTab] = useState<ReportTab>('rundown')
   const m = campaign.metrics
   const { headline, notes } = buildRundown(campaign)
-  const link = campaign.primary_url || (campaign.page_paths[0] ? BWS + campaign.page_paths[0] : null)
+  const origin = siteOrigin(campaign)
+  const link = campaign.primary_url || (campaign.page_paths[0] ? origin + campaign.page_paths[0] : null)
   const sessions = m?.sessions ?? 0
   const deviceTotal = (m?.devices ?? []).reduce((s, d) => s + d.sessions, 0)
 
@@ -537,7 +552,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
       <div className="meta-row">
         <div className="meta-item"><span className="meta-label">Type</span><span className="meta-value">Campaign report</span></div>
         <div className="meta-item"><span className="meta-label">Period</span><span className="meta-value">{m ? `${m.period} · last 30 days` : 'Not yet pulled'}</span></div>
-        <div className="meta-item"><span className="meta-label">Source</span><span className="meta-value">GA4 property 527326342</span></div>
+        <div className="meta-item"><span className="meta-label">Source</span><span className="meta-value">GA4 property {campaign.ga4_property_id || DISTRICT_GA4_PROPERTY}</span></div>
         <div className="meta-item"><span className="meta-label">Updated</span><span className="meta-value">
           {m ? new Date(m.synced_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'}
         </span></div>
@@ -643,7 +658,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
                   {m!.pages.map(pg => (
                     <tr key={pg.path} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       <td style={{ padding: '8px 10px' }}>
-                        <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: '#1672A7', textDecoration: 'none', fontWeight: 600 }}>{pg.path}</a>
+                        <a href={`${origin}${pg.path}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: '#1672A7', textDecoration: 'none', fontWeight: 600 }}>{pg.path}</a>
                       </td>
                       <td style={{ padding: '8px 10px', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>{fmt(pg.unique_visitors)}</td>
                       <td style={{ padding: '8px 10px', fontSize: 12, fontWeight: 600, textAlign: 'right' }}>{fmt(pg.page_views)}</td>
