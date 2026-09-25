@@ -101,6 +101,8 @@ export interface Campaign {
   is_public: boolean
   // NULL = the District property. See the bcps_campaigns.ga4_property_id comment.
   ga4_property_id?: string | null
+  // false hides the Pages tab. See the bcps_campaigns.show_pages_tab comment.
+  show_pages_tab?: boolean
   metrics: CampaignMetrics | null
   daily: CampaignDay[]
 }
@@ -370,11 +372,13 @@ export function buildRundown(c: Campaign): { headline: string | null; notes: Run
   const visitors = m.unique_visitors ?? 0
   const sessions = m.sessions ?? 0
 
+  // A campaign counting "/" with every subpage is a whole site, not one page.
+  const verb = c.include_subpages && c.page_paths.includes('/') ? 'viewed this site' : 'opened this page'
   const headline = c.start_date
-    ? `${visitors.toLocaleString('en-US')} people opened this page ${views.toLocaleString('en-US')} times ${windowLabel(c, 'long')}.`
+    ? `${visitors.toLocaleString('en-US')} people ${verb} ${views.toLocaleString('en-US')} times ${windowLabel(c, 'long')}.`
     : daily.length
-    ? `${visitors.toLocaleString('en-US')} people opened this page ${views.toLocaleString('en-US')} times over the last ${daily.length} days.`
-    : `${visitors.toLocaleString('en-US')} people opened this page ${views.toLocaleString('en-US')} times.`
+    ? `${visitors.toLocaleString('en-US')} people ${verb} ${views.toLocaleString('en-US')} times over the last ${daily.length} days.`
+    : `${visitors.toLocaleString('en-US')} people ${verb} ${views.toLocaleString('en-US')} times.`
 
   // Trend. The last complete day is used as the right edge - today is partial
   // and would always read as a decline.
@@ -603,7 +607,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
           reads faster than four stacked accordions. */}
       <div role="tablist" aria-label="Campaign report sections"
         style={{ display: 'flex', gap: 4, margin: '22px 0 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
-        {REPORT_TABS.map(([t, label]) => (
+        {REPORT_TABS.filter(([t]) => t !== 'pages' || campaign.show_pages_tab !== false).map(([t, label]) => (
           <button key={t} role="tab" id={`tab-${t}`} aria-selected={tab === t} aria-controls={`panel-${t}`}
             onClick={() => setTab(t)}
             style={{
@@ -656,7 +660,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
           </div>
         )}
 
-        {tab === 'pages' && (
+        {tab === 'pages' && campaign.show_pages_tab !== false && (
           <div role="tabpanel" id="panel-pages" aria-labelledby="tab-pages">
             {(m?.pages ?? []).length ? (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>

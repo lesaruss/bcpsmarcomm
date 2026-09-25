@@ -67,7 +67,7 @@ export default async function CampaignReportPage({ params }: Props) {
 
   const { data: campaign } = await db
     .from('bcps_campaigns')
-    .select('id, name, slug, page_paths, primary_url, description, owner, status, start_date, end_date, include_subpages, is_public, ga4_property_id')
+    .select('id, name, slug, page_paths, primary_url, description, owner, status, start_date, end_date, include_subpages, is_public, ga4_property_id, show_pages_tab')
     .eq('slug', slug)
     .maybeSingle()
   if (!campaign) notFound()
