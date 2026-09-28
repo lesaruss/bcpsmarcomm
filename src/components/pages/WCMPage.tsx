@@ -24,6 +24,10 @@ interface RosterMember {
   // When the director submission designating this WCM was approved. Null for
   // rows an admin added by hand, which have no submission behind them.
   approved_at: string | null
+  // Area within the department this WCM covers (e.g. Library Media
+  // Services); null when they cover the whole department. Shown under the
+  // name so it is clear at a glance who to contact (Sean, 2026-09-28).
+  sub_department?: string | null
   // Whether the approval emails for this WCM actually went out.
   delivery?: {
     state: 'confirmed' | 'failed' | 'pending' | 'not_sent'
@@ -41,6 +45,8 @@ interface RosterRow {
   // roster itself only ever stored the name. Folded in from the retired
   // standalone "Roster" BCC tool (Sean, 2026-09-18).
   director_email: string | null
+  // A roster submission from this department's director has been approved.
+  director_confirmed?: boolean
   updated_at: string
   wcms: RosterMember[]
 }
@@ -96,7 +102,7 @@ function DepartmentRosterSection() {
   const [failureDetail, setFailureDetail] = useState<RosterMember | null>(null)
   // The WCM member row currently open for inline editing, and its draft values.
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editDraft, setEditDraft] = useState({ wcm_name: '', wcm_personnel_number: '', wcm_email: '' })
+  const [editDraft, setEditDraft] = useState({ wcm_name: '', wcm_personnel_number: '', wcm_email: '', sub_department: '' })
   const [deleting, setDeleting] = useState<string | null>(null)
   // BCC-list selection, open to every viewer (not just admins) since it only
   // reads emails already on the page - folded in from the retired
@@ -202,7 +208,7 @@ function DepartmentRosterSection() {
 
   function startEdit(m: RosterMember) {
     setEditingId(m.id)
-    setEditDraft({ wcm_name: m.wcm_name, wcm_personnel_number: m.wcm_personnel_number ?? '', wcm_email: m.wcm_email ?? '' })
+    setEditDraft({ wcm_name: m.wcm_name, wcm_personnel_number: m.wcm_personnel_number ?? '', wcm_email: m.wcm_email ?? '', sub_department: m.sub_department ?? '' })
   }
 
   async function saveEdit(id: string) {
@@ -239,7 +245,7 @@ function DepartmentRosterSection() {
     return sortedRoster.filter(r =>
       r.department_name.toLowerCase().includes(q) ||
       (r.director_name || '').toLowerCase().includes(q) ||
-      r.wcms.some(w => w.wcm_name.toLowerCase().includes(q))
+      r.wcms.some(w => w.wcm_name.toLowerCase().includes(q) || (w.sub_department || '').toLowerCase().includes(q))
     )
   }, [sortedRoster, search])
 
@@ -250,11 +256,19 @@ function DepartmentRosterSection() {
   // Every selectable {key, email} across the whole roster (not just the
   // filtered/visible rows), so a BCC list built before searching stays intact
   // once the search box is cleared.
+  // Each row carries its role and confirmation so the Select menu can build
+  // a list as granular as Sean asked for (2026-09-28 OOC huddle): directors
+  // or WCMs, confirmed or not. Unconfirmed people are the point of most
+  // reminders, so they are always selectable when an email is on file. A
+  // director counts as confirmed once a submission from them was approved,
+  // or once any WCM they designated is approved (the grandfathered
+  // old-process departments have approvals but no submission row).
   const selectableRows = useMemo(() => {
-    const rows: { key: string; email: string }[] = []
+    const rows: { key: string; email: string; role: 'dir' | 'wcm'; confirmed: boolean }[] = []
     for (const r of roster) {
-      if (r.director_email) rows.push({ key: `dir:${r.id}`, email: r.director_email })
-      for (const w of r.wcms) if (w.wcm_email) rows.push({ key: `wcm:${w.id}`, email: w.wcm_email })
+      const dirConfirmed = !!r.director_confirmed || r.wcms.some(w => !!w.approved_at)
+      if (r.director_email) rows.push({ key: `dir:${r.id}`, email: r.director_email, role: 'dir', confirmed: dirConfirmed })
+      for (const w of r.wcms) if (w.wcm_email) rows.push({ key: `wcm:${w.id}`, email: w.wcm_email, role: 'wcm', confirmed: !!w.approved_at })
     }
     return rows
   }, [roster])
@@ -271,11 +285,23 @@ function DepartmentRosterSection() {
       return next
     })
   }
-  const selectAllConfirmed = () => {
+  // Adds a group to the current selection, so groups can be combined
+  // (e.g. unconfirmed directors plus unconfirmed WCMs).
+  const selectGroup = (group: string) => {
+    const [role, conf] = group.split(':')
     const next = { ...selected }
-    selectableRows.forEach(r => { next[r.key] = true })
+    selectableRows.forEach(r => {
+      if (role !== 'all' && r.role !== role) return
+      if (conf === 'confirmed' && !r.confirmed) return
+      if (conf === 'unconfirmed' && r.confirmed) return
+      next[r.key] = true
+    })
     setSelected(next)
   }
+  const groupCount = (role: string, conf: string) => selectableRows.filter(r =>
+    (role === 'all' || r.role === role) &&
+    (conf === 'any' || (conf === 'confirmed') === r.confirmed)
+  ).length
   const clearSelection = () => setSelected({})
 
   const showBccToast = (msg: string) => { setBccToast(msg); setTimeout(() => setBccToast(''), 1800) }
@@ -297,6 +323,8 @@ function DepartmentRosterSection() {
   return (
     <div className="wcm-content-section">
       <style>{`
+        .roster-select-group { font: inherit; font-size: 13px; font-weight: 600; color: #0e4e73; padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; cursor: pointer; max-width: 100%; }
+        .wcm-member-subdept { font-size: 11.5px; color: #6b7280; margin-top: 1px; }
         .roster-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
         .roster-search { flex: 1; min-width: 220px; padding: 9px 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: inherit; }
         .roster-count { font-size: 12px; color: #9ca3af; white-space: nowrap; }
@@ -477,7 +505,26 @@ function DepartmentRosterSection() {
           onChange={e => setSearch(e.target.value)}
         />
         <span className="roster-count">{loading ? 'Loading...' : `${filteredRoster.length} of ${roster.length} departments`}</span>
-        <button className="roster-btn reject" onClick={selectAllConfirmed} disabled={selectableRows.length === 0}>Select all emails</button>
+        <select
+          className="roster-select-group"
+          value=""
+          onChange={e => { if (e.target.value) selectGroup(e.target.value) }}
+          disabled={selectableRows.length === 0}
+          aria-label="Add a group of emails to the BCC list"
+        >
+          <option value="">Select emails...</option>
+          <option value="all:any">Everyone ({groupCount('all', 'any')})</option>
+          <optgroup label="Directors">
+            <option value="dir:any">All directors ({groupCount('dir', 'any')})</option>
+            <option value="dir:confirmed">Confirmed directors ({groupCount('dir', 'confirmed')})</option>
+            <option value="dir:unconfirmed">Unconfirmed directors ({groupCount('dir', 'unconfirmed')})</option>
+          </optgroup>
+          <optgroup label="Web Content Managers">
+            <option value="wcm:any">All WCMs ({groupCount('wcm', 'any')})</option>
+            <option value="wcm:confirmed">Confirmed WCMs ({groupCount('wcm', 'confirmed')})</option>
+            <option value="wcm:unconfirmed">Unconfirmed WCMs ({groupCount('wcm', 'unconfirmed')})</option>
+          </optgroup>
+        </select>
         <button className="roster-btn reject" onClick={clearSelection} disabled={selectedEmails.length === 0}>Clear selection</button>
       </div>
 
@@ -569,6 +616,11 @@ function DepartmentRosterSection() {
                             placeholder="Email"
                           />
                           <input
+                            value={editDraft.sub_department}
+                            onChange={e => setEditDraft(d => ({ ...d, sub_department: e.target.value }))}
+                            placeholder="Sub-department (blank = whole department)"
+                          />
+                          <input
                             value={editDraft.wcm_personnel_number}
                             onChange={e => setEditDraft(d => ({ ...d, wcm_personnel_number: e.target.value }))}
                             placeholder="Personnel #"
@@ -639,6 +691,7 @@ function DepartmentRosterSection() {
                       <div key={w.id} className="wcm-member-row">
                         <div className="wcm-member-info">
                           <div className="wcm-member-name">{w.wcm_name}</div>
+                          {w.sub_department && <div className="wcm-member-subdept">{w.sub_department}</div>}
                           {w.wcm_email && (
                             <label className="roster-select-row">
                               <input type="checkbox" checked={!!selected[`wcm:${w.id}`]} onChange={() => toggleSelect(`wcm:${w.id}`)} />

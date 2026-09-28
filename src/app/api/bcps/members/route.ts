@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     svc.from('acl_group_members').select('group_id, user_id'),
     svc.from('bcps_departments').select('slug, name, division, director_name'),
     svc.auth.admin.listUsers({ perPage: 1000 }),
-    svc.from('bcps_wcm_roster_members').select('wcm_email, approved_at'),
+    svc.from('bcps_wcm_roster_members').select('wcm_email, approved_at, sub_department'),
   ])
   // WCM Roster standing per email (2026-09-23, per Sean, Hot Lab
   // 2026-09-22): WCMs no longer see the WCM Roster page, so Members is where
@@ -49,6 +49,13 @@ export async function GET(req: NextRequest) {
     if (!e) continue
     if (rm.approved_at) rosterByEmail.set(e, 'confirmed')
     else if (!rosterByEmail.has(e)) rosterByEmail.set(e, 'on_roster')
+  }
+  // Sub-department per email, carried over from the WCM Roster so Members
+  // shows who covers which area (Sean, 2026-09-28 OOC huddle).
+  const subDeptByEmail = new Map<string, string>()
+  for (const rm of rosterMembers ?? []) {
+    const e = (rm.wcm_email || '').trim().toLowerCase()
+    if (e && rm.sub_department) subDeptByEmail.set(e, rm.sub_department)
   }
   const byId = new Map((authList?.users ?? []).map(u => [u.id, u]))
   const groupName = new Map((groups ?? []).map(g => [g.id, g.name]))
@@ -79,6 +86,7 @@ export async function GET(req: NextRequest) {
       // an admin manual reassignment - see admin-set-department.
       department_confirmed: !!r.department_confirmed,
       roster_status: rosterByEmail.get((u?.email || '').trim().toLowerCase()) ?? 'unassigned',
+      sub_department: subDeptByEmail.get((u?.email || '').trim().toLowerCase()) ?? null,
     }
   }).sort((a, b) => a.name.localeCompare(b.name))
 

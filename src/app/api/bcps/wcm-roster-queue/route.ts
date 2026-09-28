@@ -210,6 +210,17 @@ async function directorEmailsByDepartment(deptIds: string[]): Promise<Map<string
   return out
 }
 
+// Department names whose director has had a roster submission approved, so
+// the BCC list can split confirmed from unconfirmed directors (Sean,
+// 2026-09-28 OOC huddle: reminders have to reach the ones who have not
+// confirmed yet, or they never hear about it). Lowercased, matching how an
+// approval finds its roster row (ilike on department_name).
+async function confirmedDirectorDepartments(): Promise<Set<string>> {
+  const { data } = await supabase.from('bcps_wcm_roster_submissions')
+    .select('department_name').eq('status', 'approved')
+  return new Set((data ?? []).map(d => (d.department_name || '').trim().toLowerCase()))
+}
+
 // GET: full roster (departments, alphabetical) with each department's
 // current director + assigned WCM(s), plus any submissions still awaiting
 // review. Backs the "WCM Roster" tab in the Department WCMS Portal.
@@ -240,14 +251,17 @@ export async function GET(req: NextRequest) {
         .select('id, department_name, location_number, matched_department_id, director_name, updated_at')
         .order('department_name', { ascending: true }),
       supabase.from('bcps_wcm_roster_members')
-        .select('id, roster_id, wcm_name, wcm_email, approved_at, added_at')
+        .select('id, roster_id, wcm_name, wcm_email, approved_at, added_at, sub_department')
         .order('added_at', { ascending: true }),
     ])
-    const directorEmails = await directorEmailsByDepartment((roster ?? []).map(r => r.matched_department_id).filter(Boolean))
+    const [directorEmails, confirmedDirs] = await Promise.all([
+      directorEmailsByDepartment((roster ?? []).map(r => r.matched_department_id).filter(Boolean)),
+      confirmedDirectorDepartments(),
+    ])
     const byRoster = new Map<string, unknown[]>()
     for (const m of members ?? []) {
       const list = byRoster.get(m.roster_id) ?? []
-      list.push({ id: m.id, wcm_name: m.wcm_name, approved_at: m.approved_at, wcm_email: m.wcm_email, wcm_personnel_number: null })
+      list.push({ id: m.id, wcm_name: m.wcm_name, approved_at: m.approved_at, wcm_email: m.wcm_email, wcm_personnel_number: null, sub_department: m.sub_department })
       byRoster.set(m.roster_id, list)
     }
     const res = NextResponse.json({
@@ -255,6 +269,7 @@ export async function GET(req: NextRequest) {
       roster: (roster ?? []).map(r => ({
         ...r,
         director_email: r.matched_department_id ? directorEmails.get(r.matched_department_id) ?? null : null,
+        director_confirmed: confirmedDirs.has(r.department_name.trim().toLowerCase()),
         wcms: byRoster.get(r.id) ?? [],
       })),
       submissions: [],
@@ -270,7 +285,7 @@ export async function GET(req: NextRequest) {
         .select('id, department_name, location_number, matched_department_id, director_name, updated_at')
         .order('department_name', { ascending: true }),
       supabase.from('bcps_wcm_roster_members')
-        .select('id, roster_id, wcm_name, wcm_personnel_number, wcm_email, added_at, approved_at')
+        .select('id, roster_id, wcm_name, wcm_personnel_number, wcm_email, added_at, approved_at, sub_department')
         .order('added_at', { ascending: true }),
       supabase.from('bcps_wcm_roster_submissions')
         .select('*')
@@ -281,9 +296,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: (rosterErr || memberErr || subErr)?.message }, { status: 500 })
   }
 
-  const [delivery, directorEmails] = await Promise.all([
+  const [delivery, directorEmails, confirmedDirs] = await Promise.all([
     deliveryByMember((members ?? []).map(m => m.id)),
     directorEmailsByDepartment((roster ?? []).map(r => r.matched_department_id).filter(Boolean)),
+    confirmedDirectorDepartments(),
   ])
 
   const membersByRoster = new Map<string, unknown[]>()
@@ -301,6 +317,7 @@ export async function GET(req: NextRequest) {
   const rosterWithMembers = (roster ?? []).map(r => ({
     ...r,
     director_email: r.matched_department_id ? directorEmails.get(r.matched_department_id) ?? null : null,
+    director_confirmed: confirmedDirs.has(r.department_name.trim().toLowerCase()),
     wcms: membersByRoster.get(r.id) ?? [],
   }))
 
@@ -654,8 +671,8 @@ export async function PUT(req: NextRequest) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   try {
-    const { id, wcm_name, wcm_personnel_number, wcm_email } = await req.json() as {
-      id?: string; wcm_name?: string; wcm_personnel_number?: string | null; wcm_email?: string | null
+    const { id, wcm_name, wcm_personnel_number, wcm_email, sub_department } = await req.json() as {
+      id?: string; wcm_name?: string; wcm_personnel_number?: string | null; wcm_email?: string | null; sub_department?: string | null
     }
     if (!id || !wcm_name?.trim()) {
       return NextResponse.json({ error: 'id and wcm_name are required' }, { status: 400 })
@@ -665,6 +682,7 @@ export async function PUT(req: NextRequest) {
       wcm_name: wcm_name.trim(),
       wcm_personnel_number: wcm_personnel_number?.trim() || null,
       wcm_email: wcm_email?.trim() ? normalizeDistrictEmail(wcm_email.trim()) : null,
+      sub_department: sub_department?.trim() || null,
     }).eq('id', id)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

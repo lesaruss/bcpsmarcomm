@@ -15,6 +15,8 @@ type Member = {
   department_confirmed: boolean
   // WCM Roster standing, from /api/bcps/members (2026-09-23).
   roster_status?: 'confirmed' | 'on_roster' | 'unassigned'
+  // Area within the department they cover, from the WCM Roster.
+  sub_department?: string | null
 }
 type DeptOption = { slug: string; name: string; division: string | null }
 
@@ -550,13 +552,21 @@ export default function MembersPage() {
     </select>
   )
 
+  // A hotlinked "Email" rather than the address itself (Sean, 2026-09-28):
+  // it is the practice the web team teaches WCMs, and long addresses were
+  // running out of the tiles. The address is still the link target, and
+  // the hover title, so nothing is lost.
+  const emailLink = (m: Member) => m.email
+    ? <a className="mp-email-link" href={`mailto:${m.email}`} title={m.email} onClick={e => e.stopPropagation()}>Email</a>
+    : null
+
   const tile = (m: Member) => (
     <div
       key={m.user_id}
       className="mp-card"
       role="button"
       tabIndex={0}
-      onClick={(e) => { if ((e.target as HTMLElement).closest('select, button')) return; go(`/?page=members&member=${m.user_id}`) }}
+      onClick={(e) => { if ((e.target as HTMLElement).closest('select, button, a')) return; go(`/?page=members&member=${m.user_id}`) }}
       onKeyDown={(e) => { if (e.key === 'Enter') go(`/?page=members&member=${m.user_id}`) }}
       style={{ cursor: 'pointer' }}
     >
@@ -566,8 +576,9 @@ export default function MembersPage() {
           : <div style={{ width: 52, height: 52, borderRadius: '50%', background: m.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, flexShrink: 0 }}>{m.initials}</div>}
         <div style={{ minWidth: 0 }}>
           <div className="mp-name">{m.name}</div>
+          {m.sub_department && <div className="mp-subdept">{m.sub_department}</div>}
           <div className="mp-title">{m.title || roleLabelFor(m)}</div>
-          <a className="mp-email" href={`mailto:${m.email}`}>{m.email}</a>
+          {emailLink(m)}
         </div>
       </div>
       {m.department?.division && <div className="mp-division">{m.department.division}</div>}
@@ -613,11 +624,12 @@ export default function MembersPage() {
     <tr
       key={m.user_id}
       style={{ cursor: 'pointer' }}
-      onClick={(e) => { if ((e.target as HTMLElement).closest('select, button')) return; go(`/?page=members&member=${m.user_id}`) }}
+      onClick={(e) => { if ((e.target as HTMLElement).closest('select, button, a')) return; go(`/?page=members&member=${m.user_id}`) }}
     >
       <td>
         <div className="mp-t-name">{m.name}</div>
-        <div className="mp-t-email">{m.email}</div>
+        {m.sub_department && <div className="mp-subdept">{m.sub_department}</div>}
+        {emailLink(m)}
       </td>
       <td>
         {editingDeptFor === m.user_id
@@ -643,12 +655,13 @@ export default function MembersPage() {
         key={m.user_id}
         className="mp-mc"
         style={{ cursor: 'pointer' }}
-        onClick={(e) => { if ((e.target as HTMLElement).closest('select, button')) return; go(`/?page=members&member=${m.user_id}`) }}
+        onClick={(e) => { if ((e.target as HTMLElement).closest('select, button, a')) return; go(`/?page=members&member=${m.user_id}`) }}
       >
         <div className="mp-mc-top">
           <div>
             <div className="mp-t-name">{m.name}</div>
-            <div className="mp-t-email">{m.email}</div>
+            {m.sub_department && <div className="mp-subdept">{m.sub_department}</div>}
+            {emailLink(m)}
           </div>
           {m.department?.division && <span className="mp-pill">{m.department.division}</span>}
         </div>
@@ -701,7 +714,9 @@ export default function MembersPage() {
         .mp-top{display:flex;align-items:center;gap:14px;margin-bottom:14px}
         .mp-name{font-size:16px;font-weight:800;color:#1a1a1a;line-height:1.2}
         .mp-title{font-size:12px;color:#525252;font-weight:600;margin-top:2px}
-        .mp-email{font-size:12px;color:#0e4e73;text-decoration:none}
+        .mp-email-link{display:inline-block;margin-top:5px;font-size:11px;font-weight:800;color:#0e4e73;background:#e8f1f8;padding:2px 10px;border-radius:100px;text-decoration:none}
+        .mp-email-link:hover{background:#1672A7;color:#fff}
+        .mp-subdept{font-size:11.5px;color:#6b7280;margin-top:1px}
         .mp-division{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#1672A7;margin-bottom:8px;text-align:left}
         .mp-meta{border-top:1px solid #eef1f5;padding-top:12px;margin-top:auto;display:flex;flex-direction:column;gap:8px;text-align:left}
         .mp-row{font-size:12px;color:#525252;text-align:left}
