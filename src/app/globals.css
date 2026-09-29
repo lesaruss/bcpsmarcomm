@@ -466,12 +466,19 @@ body {
 .main-area {
   margin-left: 0;
   flex: 1;
+  /* A flex item defaults to min-width: auto, so any wide page content
+     (a roster table, a tile row) stretched this column, and the topbar
+     with it, past a phone screen. min-width: 0 pins the column to the
+     viewport; wide content scrolls inside its own container instead
+     (Sean, 2026-09-29, canon-mobile-fit-check). */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 .page-content {
   flex: 1;
+  min-width: 0;
   padding: 28px;
   overflow-y: auto;
 }
@@ -638,12 +645,14 @@ body {
    so they naturally stay on one row (no wrap needed). Desktop layout
    (single row, search inline) is untouched above this breakpoint. */
 @media (max-width: 640px) {
-  .topbar { flex-wrap: nowrap; padding-bottom: 56px; }
+  .topbar { flex-wrap: nowrap; padding: 14px 16px 56px; gap: 10px; }
   .topbar-right { flex-wrap: nowrap; }
   .topbar-search {
     position: absolute;
-    left: 0;
-    right: 0;
+    /* Inset to the topbar's own side padding, as the note above intends;
+       left/right 0 ran the field into both screen edges (2026-09-29). */
+    left: 16px;
+    right: 16px;
     bottom: 14px;
   }
   .search-input { width: 100%; box-sizing: border-box; }
@@ -892,7 +901,11 @@ body {
 /* Two-column desktop / one-column mobile, per Sean 2026-08-27 - the
    dashboard grid had no mobile collapse before this. */
 @media (max-width: 860px) {
-  .dashboard-grid, .stats-grid { grid-template-columns: 1fr; }
+  .dashboard-grid, .stats-grid { grid-template-columns: minmax(0, 1fr); }
+  /* A span-2 card in a one-column grid creates an implicit second track and
+     pushed the dashboard past a phone screen (2026-09-29). One column means
+     every card spans just that one. */
+  .dash-cell.span-2 { grid-column: span 1; }
 }
 
 /* ── NOTES PAGE (React ver) ── */

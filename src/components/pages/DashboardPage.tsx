@@ -905,14 +905,16 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                       {certProgress.allDone ? 'View certificate →' : 'Continue →'}
                     </a>
                   </div>
-                  <div style={{ padding: '4px 0 8px', display: 'flex', alignItems: 'center', gap: 24 }}>
+                  {/* Wraps on narrow screens so the Begin/Continue button drops to its own
+                      line instead of pushing past a 320px phone (2026-09-29). */}
+                  <div style={{ padding: '4px 0 8px', display: 'flex', alignItems: 'center', gap: 24, rowGap: 12, flexWrap: 'wrap' }}>
                     <div style={{ flexShrink: 0, minWidth: 90 }}>
                       <div style={{ fontSize: '28px', fontWeight: 900, color: certProgress.allDone ? '#16750C' : 'var(--primary)', lineHeight: 1 }}>{certProgress.pct}%</div>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 3, whiteSpace: 'nowrap' }}>
                         {certProgress.allDone ? 'Complete' : `${certProgress.completed} of ${certProgress.total} pages`}
                       </div>
                     </div>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: '1 1 120px' }}>
                       <div style={{ height: 8, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: certProgress.pct + '%', background: certProgress.allDone ? '#16750C' : 'var(--primary)', borderRadius: 8, transition: 'width 0.4s ease' }} />
                       </div>

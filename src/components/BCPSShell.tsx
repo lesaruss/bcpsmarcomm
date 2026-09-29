@@ -351,7 +351,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
                 style={{
                   background: 'none', border: '1.5px solid var(--border)', borderRadius: '8px',
                   color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px 12px',
-                  fontSize: '12px', fontWeight: '600', transition: 'all 0.15s',
+                  fontSize: '12px', fontWeight: '600', transition: 'all 0.15s', whiteSpace: 'nowrap',
                 }}
                 onMouseOver={e => (e.currentTarget.style.borderColor = 'var(--blue)')}
                 onMouseOut={e => (e.currentTarget.style.borderColor = 'var(--border)')}

@@ -392,7 +392,7 @@ function DepartmentRosterSection() {
           border: 1px solid rgba(220,38,38,0.25); border-radius: 5px; padding: 3px 8px; margin-bottom: 8px;
         }
         .roster-flag-detail { font-size: 12.5px; color: #7F1D1D; line-height: 1.6; margin-bottom: 8px; }
-        .roster-table-wrap { border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; overflow: hidden; }
+        .roster-table-wrap { border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .roster-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .roster-table th { text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(26,26,26,0.45); background: #f9fafb; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.08); }
         .roster-table td { padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.06); vertical-align: top; }
@@ -585,7 +585,10 @@ function DepartmentRosterSection() {
         </div>
       )}
 
-      <div className="roster-table-wrap">
+      {/* Scrolls sideways inside its own box on phones rather than stretching
+          the page (the table needs ~760px); a deliberate scroll strip per
+          canon-mobile-fit-check. */}
+      <div className="roster-table-wrap" data-scroll-strip>
         <table className="roster-table">
           <thead>
             <tr>
