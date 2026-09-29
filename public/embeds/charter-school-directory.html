@@ -119,7 +119,11 @@
     white-space: nowrap;
   }
   .grade-btn:hover { border-color: var(--blue); color: var(--blue); }
-  .grade-btn.active {
+  .grade-btn:focus-visible, .pg-btn:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+  .grade-btn[aria-pressed="true"] {
     background: var(--blue);
     border-color: var(--blue);
     color: #fff;
@@ -180,7 +184,9 @@
   }
   .badge-grade {
     background: var(--teal-light);
-    color: var(--teal);
+    /* Darker than --teal so the badge text clears WCAG AA 4.5:1 on the
+       teal-light fill (--teal measured about 3.9:1). */
+    color: #006A74;
     border: 1px solid rgba(0,131,143,0.2);
   }
   .badge-city {
@@ -297,13 +303,13 @@
   </div>
   <div class="grade-filters" role="group" aria-label="Filter by grade level">
     <span class="grade-label">Grades:</span>
-    <button class="grade-btn active" data-grade="all">All</button>
-    <button class="grade-btn" data-grade="K-3">K-3</button>
-    <button class="grade-btn" data-grade="K-5">K-5</button>
-    <button class="grade-btn" data-grade="K-8">K-8</button>
-    <button class="grade-btn" data-grade="6-8">6-8</button>
-    <button class="grade-btn" data-grade="6-12">6-12</button>
-    <button class="grade-btn" data-grade="9-12">9-12</button>
+    <button type="button" class="grade-btn" data-grade="all" aria-pressed="true">All</button>
+    <button type="button" class="grade-btn" data-grade="K-3" aria-pressed="false">K-3</button>
+    <button type="button" class="grade-btn" data-grade="K-5" aria-pressed="false">K-5</button>
+    <button type="button" class="grade-btn" data-grade="K-8" aria-pressed="false">K-8</button>
+    <button type="button" class="grade-btn" data-grade="6-8" aria-pressed="false">6-8</button>
+    <button type="button" class="grade-btn" data-grade="6-12" aria-pressed="false">6-12</button>
+    <button type="button" class="grade-btn" data-grade="9-12" aria-pressed="false">9-12</button>
   </div>
 </div>
 
@@ -374,14 +380,14 @@ function renderPagination(total) {
   }
 
   pg.innerHTML = `
-    <button class="pg-btn" id="pg-prev" aria-label="Previous page" ${currentPage === 1 ? 'disabled' : ''}>
+    <button type="button" class="pg-btn" id="pg-prev" aria-label="Previous page" ${currentPage === 1 ? 'disabled' : ''}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
     ${pages.map(p => p === '...'
       ? `<span class="pg-ellipsis">...</span>`
-      : `<button class="pg-btn${p === currentPage ? ' active' : ''}" data-page="${p}" aria-label="Page ${p}" aria-current="${p === currentPage ? 'page' : 'false'}">${p}</button>`
+      : `<button type="button" class="pg-btn${p === currentPage ? ' active' : ''}" data-page="${p}" aria-label="Page ${p}"${p === currentPage ? ' aria-current="page"' : ''}>${p}</button>`
     ).join('')}
-    <button class="pg-btn" id="pg-next" aria-label="Next page" ${currentPage === totalPages ? 'disabled' : ''}>
+    <button type="button" class="pg-btn" id="pg-next" aria-label="Next page" ${currentPage === totalPages ? 'disabled' : ''}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
   `;
@@ -485,8 +491,7 @@ cityFilter.addEventListener('change', e => {
 
 document.querySelectorAll('.grade-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.grade-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    document.querySelectorAll('.grade-btn').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
     activeGrade = btn.dataset.grade;
     currentPage = 1;
     render();
