@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { VIEW_AS_GROUP_TIER, previewableGroups } from '@/lib/view-as'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,9 +33,33 @@ export async function GET(req: NextRequest) {
     .select('id, slug, visibility').eq('brand', BRAND).eq('kind', 'page')
   const all = pages ?? []
 
+  // The caller's group names, returned alongside pages (2026-09-23) so the
+  // sidebar can show the District Web Team section only to District Web
+  // Team members (Sean, Hot Lab 2026-09-22). Page access itself is still
+  // decided by grants below; this only decides which heading a granted
+  // page is listed under.
+  const { data: gm } = await svc.from('acl_group_members').select('group_id').eq('user_id', user.id)
+  const gids = (gm ?? []).map(g => g.group_id)
+  let groups: string[] = []
+  if (gids.length) {
+    const { data: gRows } = await svc.from('acl_groups').select('name').eq('brand', BRAND).in('id', gids)
+    groups = (gRows ?? []).map(g => g.name as string)
+  }
+
+  // Who may use "View as", and which tiers they may preview. SuperAdmin:
+  // everything. Anyone else: only with a bcps_view_as_grants row (assigned by
+  // SuperAdmin - Sean, 2026-09-29), and only their own tier and below.
+  let viewAsGroups: string[] = []
+  if (role === 'superadmin') {
+    viewAsGroups = Object.keys(VIEW_AS_GROUP_TIER)
+  } else {
+    const { data: grant } = await svc.from('bcps_view_as_grants').select('user_id').eq('user_id', user.id).maybeSingle()
+    if (grant) viewAsGroups = previewableGroups(role, groups)
+  }
+
   // ?preview_group=<group name> - the page set a plain member of that group
-  // would get, for SuperAdmin's "View as" preview. Added 2026-09-15 (Sean):
-  // the preview used to ignore the permission model entirely and render the
+  // would get, for the "View as" preview. Added 2026-09-15 (Sean): the
+  // preview used to ignore the permission model entirely and render the
   // full user-tier menu, so it showed pages the previewed person cannot
   // reach (this is how the unregistered Minibase page appeared under a
   // sample Web Content Manager while it was invisible to every real
@@ -42,11 +67,11 @@ export async function GET(req: NextRequest) {
   // person sees is worse than no preview - it was being used to verify
   // other people's access.
   //
-  // SuperAdmin only: this reads another subject's effective access, so it
-  // must never answer for a caller who is not already entitled to see it.
+  // Gated on viewAsGroups: SuperAdmin, or a granted user previewing a tier
+  // at or below their own. Never answers for anyone else.
   const previewGroup = req.nextUrl.searchParams.get('preview_group')
   if (previewGroup) {
-    if (role !== 'superadmin') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    if (!viewAsGroups.includes(previewGroup)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
     const { data: group } = await svc.from('acl_groups')
       .select('id').eq('brand', BRAND).eq('name', previewGroup).maybeSingle()
     if (!group) return NextResponse.json({ error: 'unknown group' }, { status: 404 })
@@ -59,19 +84,6 @@ export async function GET(req: NextRequest) {
     const previewRes = NextResponse.json({ ok: true, role: 'user', preview_group: previewGroup, pages: previewPages, groups: [previewGroup] })
     previewRes.headers.set('Cache-Control', 'no-store')
     return previewRes
-  }
-
-  // The caller's group names, returned alongside pages (2026-09-23) so the
-  // sidebar can show the District Web Team section only to District Web
-  // Team members (Sean, Hot Lab 2026-09-22). Page access itself is still
-  // decided by grants below; this only decides which heading a granted
-  // page is listed under.
-  const { data: gm } = await svc.from('acl_group_members').select('group_id').eq('user_id', user.id)
-  const gids = (gm ?? []).map(g => g.group_id)
-  let groups: string[] = []
-  if (gids.length) {
-    const { data: gRows } = await svc.from('acl_groups').select('name').eq('brand', BRAND).in('id', gids)
-    groups = (gRows ?? []).map(g => g.name as string)
   }
 
   let allowed: string[]
@@ -87,7 +99,7 @@ export async function GET(req: NextRequest) {
     allowed = all.filter(p => p.visibility === 'public' || grantedObjIds.has(p.id)).map(p => p.slug)
   }
 
-  const res = NextResponse.json({ ok: true, role, pages: allowed, groups })
+  const res = NextResponse.json({ ok: true, role, pages: allowed, groups, view_as_groups: viewAsGroups })
   res.headers.set('Cache-Control', 'no-store')
   return res
 }

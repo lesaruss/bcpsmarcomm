@@ -26,6 +26,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { useBCPSShell } from '@/components/BCPSShell'
+import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
 
 type SubmissionType = 'upload' | 'removal'
 type SubmissionStatus = 'pending' | 'approved' | 'rejected'
@@ -50,6 +52,8 @@ interface MySubmission {
 interface ReviewSubmission extends MySubmission {
   wcm_email: string | null
   signed_url: string | null
+  content_scan: { text_detected?: boolean; text_reason?: string } | null
+  checklist_ack: { in_scene_text?: boolean } | null
 }
 
 interface BannerAdminRow {
@@ -152,11 +156,15 @@ const VALIDATION_CHECKLIST = [
 // blocking, but it should not feel punitive - the WCM is being told what to
 // re-shoot, not told off. The inset ring separates it from the gray Pending
 // chip at a glance without adding a border (no row-height shift).
-type ValidationState = 'pass' | 'fail' | 'pending'
+// 'confirm' (added 2026-09-29): the scan found text, which may be a real sign
+// in the scene rather than an overlay - the WCM has to confirm which before
+// the row passes. Amber, same palette as the degraded-scan notice.
+type ValidationState = 'pass' | 'fail' | 'pending' | 'confirm'
 
 const VALIDATION_CHIP: Record<ValidationState, { bg: string; fg: string; ring: string; label: string }> = {
   pass:    { bg: '#1e6b3a', fg: '#fff',    ring: 'none',                       label: 'Pass' },
   fail:    { bg: '#fbe9e7', fg: '#a13a2f', ring: 'inset 0 0 0 1px #f0c4bd',    label: 'Fail' },
+  confirm: { bg: '#fdf3e0', fg: '#8a5a00', ring: 'inset 0 0 0 1px #f0d9a8',    label: 'Confirm' },
   pending: { bg: '#e4e4e4', fg: '#666',    ring: 'none',                       label: 'Pending' },
 }
 
@@ -191,6 +199,9 @@ function statusBadge(status: SubmissionStatus) {
 
 export default function BannerWidget() {
   const [tab, setTab] = useState<Tab>('upload')
+  // "View as" preview state, see canReview below.
+  const { viewAs } = useBCPSShell()
+  const previewingWcm = !!viewAs && viewAs.id !== SAMPLE_SUPERADMIN_ID
   const previewFrameRef = useRef<HTMLDivElement | null>(null)
   // null resets to fluid (100% of the column, grows/shrinks with the page -
   // per Sean, 2026-09-03, so the preview always matches the width of the
@@ -220,7 +231,7 @@ export default function BannerWidget() {
   // no_overlays/nav_clearance rows in validationStatus below - there is no
   // manual checkbox for these anymore, per Sean, 2026-09-03.
   const [scanState, setScanState] = useState<'idle' | 'scanning' | 'done' | 'degraded' | 'error'>('idle')
-  const [scanResult, setScanResult] = useState<{ no_overlays_pass: boolean; nav_clearance_pass: boolean; nav_clearance_note?: string; reasons: string[] } | null>(null)
+  const [scanResult, setScanResult] = useState<{ no_overlays_pass: boolean; nav_clearance_pass: boolean; nav_clearance_note?: string; text_detected?: boolean; text_reason?: string; reasons: string[] } | null>(null)
   const [scanError, setScanError] = useState<string | null>(null)
   const [bannerTitle, setBannerTitle] = useState('')
   const [bannerCaption, setBannerCaption] = useState('')
@@ -231,7 +242,6 @@ export default function BannerWidget() {
 
   // ---- Request Removal state ----
   const [removalTargetId, setRemovalTargetId] = useState('')
-  const [removalDate, setRemovalDate] = useState('')
   const [removalDesc, setRemovalDesc] = useState('')
   const [removalSubmitting, setRemovalSubmitting] = useState(false)
   const [removalNotice, setRemovalNotice] = useState<string | null>(null)
@@ -305,6 +315,11 @@ export default function BannerWidget() {
     loadMyRoleAndAdmins()
   }, [])
 
+  // Leaving an internal tab when a preview hides it.
+  useEffect(() => {
+    if (previewingWcm && (tab === 'review' || tab === 'admins')) setTab('upload')
+  }, [previewingWcm, tab])
+
   useEffect(() => {
     if (tab === 'review') loadReviewQueue()
     if (tab === 'admins') loadMyRoleAndAdmins()
@@ -333,6 +348,7 @@ export default function BannerWidget() {
     // gate; this call is for fast in-form feedback.
     let cancelled = false
     setScanState('scanning'); setScanResult(null); setScanError(null)
+    setChecks(prev => ({ ...prev, in_scene_text: false }))
     ;(async () => {
       try {
         if (kind === 'video') {
@@ -362,6 +378,8 @@ export default function BannerWidget() {
             no_overlays_pass: !!data.no_overlays_pass,
             nav_clearance_pass: !!data.nav_clearance_pass,
             nav_clearance_note: data.nav_clearance_note,
+            text_detected: !!data.text_detected,
+            text_reason: data.text_reason,
             reasons: data.reasons || [],
           })
           setScanState('done')
@@ -381,7 +399,7 @@ export default function BannerWidget() {
   const validationStatus: Record<string, boolean> = {
     files: !!file,
     dims: fileKind === 'video' ? true : !!(fileDims && fileDims.width >= 2000 && fileDims.height >= 800),
-    no_overlays: !!scanResult?.no_overlays_pass,
+    no_overlays: !!scanResult?.no_overlays_pass && (!scanResult?.text_detected || !!checks.in_scene_text),
     nav_clearance: !!scanResult?.nav_clearance_pass,
     title: bannerTitle.trim() !== '',
     alt: altText.trim() !== '',
@@ -407,15 +425,21 @@ export default function BannerWidget() {
     // A video is exempt from the pixel minimum (see validationStatus), so
     // only a measured still image can fail this row.
     dims: validationStatus.dims ? 'pass' : (fileKind === 'image' && fileDims ? 'fail' : 'pending'),
-    no_overlays: validationStatus.no_overlays ? 'pass' : (scanVerdictIn ? 'fail' : 'pending'),
+    no_overlays: validationStatus.no_overlays ? 'pass'
+      : (scanVerdictIn && scanResult?.no_overlays_pass && scanResult?.text_detected) ? 'confirm'
+      : (scanVerdictIn ? 'fail' : 'pending'),
     nav_clearance: validationStatus.nav_clearance ? 'pass' : (scanVerdictIn ? 'fail' : 'pending'),
     title: validationStatus.title ? 'pass' : 'pending',
     alt: validationStatus.alt ? 'pass' : 'pending',
     approvals: validationStatus.approvals ? 'pass' : 'pending',
     final_ack: validationStatus.final_ack ? 'pass' : 'pending',
   }
-  const canReview = myRole === 'admin' || myRole === 'manager'
-  const isAdmin = myRole === 'admin'
+  // "View as" a WCM or District Web Team sample: show only the WCM tabs, the
+  // way a WCM sees this page (Sean + Vanessa Deslandes, 2026-09-29). Data is
+  // still the real signed-in account's - submissions made while previewing
+  // are real and land in the review queue like any other.
+  const canReview = !previewingWcm && (myRole === 'admin' || myRole === 'manager')
+  const isAdmin = !previewingWcm && myRole === 'admin'
   const myUploads = mine.filter(m => m.type === 'upload')
 
   // ---- School selector (Explicit model) ----
@@ -452,12 +476,13 @@ export default function BannerWidget() {
     setUploadNotice(null)
     if (!selectedSchool) { setUploadNotice('Select your school first.'); return }
     if (!file) { setUploadNotice('Choose a photo or video first.'); return }
-    if (!bannerTitle.trim()) { setUploadNotice('Banner type/title is required.'); return }
+    if (!bannerTitle.trim()) { setUploadNotice('Banner title is required.'); return }
     if (!altText.trim()) { setUploadNotice('Alternative text is required.'); return }
     if (!allChecked) { setUploadNotice('Both requirement checkboxes must be checked before submitting.'); return }
     if (scanState === 'scanning') { setUploadNotice('Still running the automated content scan - one moment.'); return }
     if (scanState === 'error') { setUploadNotice(scanError || 'The automated content scan failed - please try re-selecting the file.'); return }
     if (!scanResult?.no_overlays_pass || !scanResult?.nav_clearance_pass) { setUploadNotice('This image needs to pass the automated content scan before it can be submitted.'); return }
+    if (scanResult?.text_detected && !checks.in_scene_text) { setUploadNotice('Text was detected - confirm it is part of the actual scene before submitting.'); return }
 
     setSubmitting(true)
     try {
@@ -498,14 +523,13 @@ export default function BannerWidget() {
         method: 'POST',
         body: JSON.stringify({
           target_submission_id: removalTargetId,
-          requested_removal_date: removalDate || null,
           removal_description: removalDesc,
         }),
       })
       const data = await res.json()
       if (!res.ok) { setRemovalNotice(data.error || 'Request failed.'); return }
       setRemovalNotice('Removal request sent to the District Web Team.')
-      setRemovalTargetId(''); setRemovalDate(''); setRemovalDesc('')
+      setRemovalTargetId(''); setRemovalDesc('')
       loadMine()
     } catch {
       setRemovalNotice('Request failed - please try again.')
@@ -596,8 +620,16 @@ export default function BannerWidget() {
     { id: 'removal', label: 'Request Removal' },
     { id: 'mine', label: 'My Submissions' },
   ]
-  if (canReview) tabs.push({ id: 'review', label: 'Review Queue' })
-  if (isAdmin) tabs.push({ id: 'admins', label: 'Manage Admins' })
+  // Internal District Web Team tabs, kept visually apart from the three WCM
+  // tabs (Vanessa Deslandes, 2026-09-29): BCPS gold instead of navy, behind
+  // a divider and a "District Web Team" label, so nobody mistakes the review
+  // tools for part of the WCM flow.
+  const internalTabs: Array<{ id: Tab; label: string }> = []
+  if (canReview) internalTabs.push({ id: 'review', label: 'Review Queue' })
+  if (isAdmin) internalTabs.push({ id: 'admins', label: 'Manage Admins' })
+
+  const GOLD = '#F4C436'
+  const GOLD_TEXT = '#5c4300'
 
   return (
     <div className="dash-panel">
@@ -605,7 +637,14 @@ export default function BannerWidget() {
         <h3>Banner Submissions</h3>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
+      {previewingWcm && (
+        <div style={{ fontSize: 12, background: '#fffaeb', color: '#5c4300', border: '1px solid #F4C436', borderRadius: 6, padding: '8px 12px', marginBottom: 12 }}>
+          <strong>Viewing as {viewAs!.roleLabel.replace(' (Sample)', '')}.</strong> You see what a WCM sees. Anything you submit
+          here is a real submission from your own account and goes to the Review Queue.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
         {tabs.map(t => (
           <button
             key={t.id}
@@ -616,6 +655,28 @@ export default function BannerWidget() {
             {t.label}
           </button>
         ))}
+        {internalTabs.length > 0 && (
+          <>
+            <span aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', background: 'var(--border)', margin: '0 6px' }} />
+            <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: GOLD_TEXT }}>
+              District Web Team
+            </span>
+            {internalTabs.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className="btn-outline"
+                style={{
+                  fontSize: 12, padding: '6px 12px', fontWeight: 700,
+                  background: tab === t.id ? GOLD : '#fffaeb',
+                  borderColor: GOLD, color: GOLD_TEXT,
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </>
+        )}
       </div>
 
       {tab === 'upload' && (
@@ -766,20 +827,27 @@ export default function BannerWidget() {
                         </div>
                       ))}
                     </div>
-                    <div className="bwp-wide-only" style={{
-                      position: 'absolute', left: '3cqw', bottom: '4cqw', color: '#fff',
-                      fontSize: '4.2cqw', fontWeight: 800, textShadow: '0 1px 6px rgba(0,0,0,0.5)',
-                    }}>
-                      Welcome to Your School!
-                    </div>
+                    {/* The WCM's own banner title, live as they type - nothing
+                        until they enter one (Vanessa Deslandes, 2026-09-29: no
+                        stand-in "Welcome" text on first load). */}
+                    {bannerTitle.trim() && (
+                      <div className="bwp-wide-only" style={{
+                        position: 'absolute', left: '3cqw', bottom: '4cqw', right: '25%', color: '#fff',
+                        fontSize: '4.2cqw', fontWeight: 800, textShadow: '0 1px 6px rgba(0,0,0,0.5)',
+                      }}>
+                        {bannerTitle}
+                      </div>
+                    )}
                   </div>
 
                   {/* Narrow-container variant: welcome text + full-width stacked nav
                       rows below the image, matching the real sites' mobile layout. */}
                   <div className="bwp-narrow-only">
-                    <div style={{ background: '#0a3764', color: '#fff', textAlign: 'center', fontWeight: 800, fontSize: 18, padding: '16px 10px' }}>
-                      Welcome to Your School!
-                    </div>
+                    {bannerTitle.trim() && (
+                      <div style={{ background: '#0a3764', color: '#fff', textAlign: 'center', fontWeight: 800, fontSize: 18, padding: '16px 10px' }}>
+                        {bannerTitle}
+                      </div>
+                    )}
                     {RIGHT_NAV_ITEMS.map(item => (
                       <div key={item} style={{
                         background: '#fff', color: '#0a3764', fontWeight: 700, fontSize: 13,
@@ -807,24 +875,46 @@ export default function BannerWidget() {
                     background: scanState === 'scanning' ? '#f3f4f6'
                       : scanState === 'error' ? '#fbe9e7'
                       : scanState === 'degraded' ? '#fdf3e0'
-                      : (scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass) ? '#e6f4ea' : '#fbe9e7',
+                      : !(scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass) ? '#fbe9e7'
+                      : scanResult?.text_detected ? '#fdf3e0' : '#e6f4ea',
                     color: scanState === 'scanning' ? '#4b5563'
                       : scanState === 'error' ? '#a13a2f'
                       : scanState === 'degraded' ? '#8a5a00'
-                      : (scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass) ? '#1e6b3a' : '#a13a2f',
+                      : !(scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass) ? '#a13a2f'
+                      : scanResult?.text_detected ? '#8a5a00' : '#1e6b3a',
                   }}>
                     <div style={{ fontWeight: 700, marginBottom: scanResult?.reasons?.length ? 4 : 0 }}>
                       {scanState === 'scanning' && 'Scanning image for graphics, text overlays, and nav clearance...'}
                       {scanState === 'error' && `Automated scan failed: ${scanError}`}
                       {scanState === 'degraded' && 'Automated scan unavailable right now - this submission will be flagged for the District Web Team to review manually.'}
-                      {scanState === 'done' && (scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass
-                        ? 'Automated content scan passed.'
-                        : 'Automated content scan flagged this image - it cannot be submitted as-is.')}
+                      {scanState === 'done' && (!(scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass)
+                        ? 'Automated content scan flagged this image - it cannot be submitted as-is.'
+                        : scanResult?.text_detected
+                          ? 'Text detected in this image - please confirm below.'
+                          : 'Automated content scan passed.')}
                     </div>
                     {scanResult?.reasons && scanResult.reasons.length > 0 && (
                       <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
                         {scanResult.reasons.map((r, i) => <li key={i}>{r}</li>)}
                       </ul>
+                    )}
+                    {/* In-scene text attestation (Vanessa Deslandes, 2026-09-29):
+                        a sign someone is holding is fine; text added on top of
+                        the photo is not. OCR can't tell which, so the WCM says,
+                        and the District Web Team makes the final call. */}
+                    {scanState === 'done' && scanResult?.no_overlays_pass && scanResult?.text_detected && (
+                      <div style={{ marginTop: 6 }}>
+                        {scanResult.text_reason && <div style={{ fontWeight: 400, marginBottom: 6 }}>{scanResult.text_reason}</div>}
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', color: '#4b3200' }}>
+                          <input
+                            type="checkbox"
+                            checked={!!checks.in_scene_text}
+                            onChange={e => setChecks(prev => ({ ...prev, in_scene_text: e.target.checked }))}
+                            style={{ marginTop: 2 }}
+                          />
+                          <span>The text is part of the actual scene (a sign or banner in the photo), not added as a graphic. The District Web Team will make the final call.</span>
+                        </label>
+                      </div>
                     )}
                     {scanState === 'done' && scanResult?.nav_clearance_note && (
                       <div style={{ marginTop: 6, fontWeight: 400, color: '#8a5a00' }}>{scanResult.nav_clearance_note}</div>
@@ -836,7 +926,7 @@ export default function BannerWidget() {
             })()}
 
             <div>
-              <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner type / title *</label>
+              <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner title *</label>
               <input type="text" value={bannerTitle} onChange={e => setBannerTitle(e.target.value)} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
             </div>
             <div>
@@ -931,9 +1021,11 @@ export default function BannerWidget() {
             </select>
             {myUploads.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>You have no prior uploads to remove yet.</div>}
           </div>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Target removal date</label>
-            <input type="date" value={removalDate} onChange={e => setRemovalDate(e.target.value)} className="form-input" />
+          {/* No target removal date (Vanessa Deslandes, 2026-09-29): removals
+              can't be scheduled in advance, and a future date risks the team
+              missing it. The day a request comes in is the day it's worked. */}
+          <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+            The District Web Team works removal requests as they come in - no need to pick a date.
           </div>
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Description identifying the file *</label>
@@ -994,6 +1086,12 @@ export default function BannerWidget() {
                   </div>
                   {statusBadge(r.status)}
                 </div>
+                {r.type === 'upload' && r.content_scan?.text_detected && (
+                  <div style={{ marginTop: 8, fontSize: 12, background: '#fdf3e0', color: '#8a5a00', padding: '6px 10px', borderRadius: 5 }}>
+                    <strong>Text detected</strong> - {r.checklist_ack?.in_scene_text ? 'WCM says it is part of the scene (sign or banner in the photo).' : 'not confirmed by the WCM.'}
+                    {r.content_scan.text_reason && <div style={{ marginTop: 2 }}>{r.content_scan.text_reason}</div>}
+                  </div>
+                )}
                 {r.type === 'upload' && r.signed_url && (
                   <div style={{ marginTop: 8 }}>
                     {r.file_type === 'video' ? (

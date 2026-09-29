@@ -60,6 +60,13 @@ export interface BannerScanResult {
   no_overlays_pass: boolean
   nav_clearance_pass: boolean
   nav_clearance_note?: string
+  // Text found by OCR. Reported separately from no_overlays_pass since
+  // 2026-09-29 (Vanessa Deslandes): OCR cannot tell a sign physically in the
+  // scene (a student holding a banner) from text laid over the photo, so
+  // text is a WARNING the WCM must attest to, not a hard block. Borders and
+  // frames stay hard blocks via no_overlays_pass / reasons.
+  text_detected?: boolean
+  text_reason?: string
   reasons: string[]
   skipped?: boolean
   error?: string
@@ -190,11 +197,12 @@ export async function analyzeBannerImage(opts: {
       detectBorderOverlay(buffer),
     ])
 
-    if (ocr.hit && ocr.reason) reasons.push(ocr.reason)
     if (border.hit && border.reason) reasons.push(border.reason)
 
     return {
       no_overlays_pass: reasons.length === 0,
+      text_detected: ocr.hit,
+      text_reason: ocr.hit ? ocr.reason : undefined,
       nav_clearance_pass: true,
       nav_clearance_note: NAV_NOTE,
       reasons,

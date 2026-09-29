@@ -112,6 +112,11 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const [myGroups, setMyGroups] = useState<string[] | null>(null)
   const [myRawRole, setMyRawRole] = useState<string | null>(null)
   const [previewGroups, setPreviewGroups] = useState<string[] | null>(null)
+  // Tiers this person may preview with "View as" (my-access decides: all for
+  // SuperAdmin, own tier and below for anyone SuperAdmin granted it to,
+  // nothing otherwise - Sean, 2026-09-29).
+  const [viewAsGroups, setViewAsGroups] = useState<string[]>([])
+  const [selfEmail, setSelfEmail] = useState('')
   const [unreadMessages, setUnreadMessages] = useState(0)
   // canManageMessages tracks the raw backend role (admin OR superadmin) for
   // the notification bell / dashboard inbox specifically. Deliberately kept
@@ -135,6 +140,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
       const email = sess.session?.user?.email ?? ''
       if (!token) return
       tokenRef.current = token
+      setSelfEmail(email)
       try {
         const r = await fetch('/api/bcps/my-access', { headers: { Authorization: `Bearer ${token}` } })
         if (r.ok) {
@@ -144,6 +150,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           setAllowedPages(j.pages as string[])
           setMyGroups(Array.isArray(j.groups) ? j.groups as string[] : null)
           setMyRawRole(typeof j.role === 'string' ? j.role : null)
+          setViewAsGroups(Array.isArray(j.view_as_groups) ? j.view_as_groups as string[] : [])
           return
         }
       } catch { /* fall through to safe default */ }
@@ -293,6 +300,8 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           onViewAs={handleViewAs}
           allowedPages={effectivePages ?? undefined}
           showDistrictWebTeam={showDistrictWebTeam}
+          viewAsGroups={viewAsGroups}
+          selfEmail={selfEmail}
           onOpenDoc={(title, url) => setDocPreview({ title, url })}
         />
 

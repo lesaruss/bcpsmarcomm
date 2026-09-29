@@ -54,6 +54,11 @@ interface SidebarProps {
   // for WCMs today) is listed under Web Content Managers instead, so hiding
   // the heading never takes a working tool away. Defaults to true.
   showDistrictWebTeam?: boolean
+  // Tiers the signed-in person may preview (from my-access). Non-empty for
+  // SuperAdmin and for anyone SuperAdmin granted "View as" to (Sean,
+  // 2026-09-29), who get the same switcher limited to their tier and below.
+  viewAsGroups?: string[]
+  selfEmail?: string
 }
 
 // ── Flat SVG icons ──────────────────────────────────────────────────────────
@@ -394,6 +399,8 @@ export default function Sidebar({
   allowedPages,
   onOpenDoc,
   showDistrictWebTeam = true,
+  viewAsGroups = [],
+  selfEmail = '',
 }: SidebarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false)
 
@@ -423,7 +430,20 @@ export default function Sidebar({
   }
 
   const isSuperAdmin = role === 'superadmin'
-  const displayUser = viewAs ?? (isSuperAdmin ? { id: 'SA', name: 'Sean A. Russell', initials: 'SA', color: '#003087', roleLabel: 'SuperAdmin' } : null)
+  // Granted (non-SuperAdmin) View as: same switcher, only the sample
+  // identities at or below this person's tier, and "exit" returns to them.
+  const canViewAs = isSuperAdmin || viewAsGroups.length > 0
+  const previewMembers = isSuperAdmin
+    ? SAMPLE_ROLE_MEMBERS
+    : SAMPLE_ROLE_MEMBERS.filter(m => m.previewGroup && viewAsGroups.includes(m.previewGroup))
+  const selfName = selfEmail
+    ? selfEmail.split('@')[0].split(/[._-]+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
+    : 'My account'
+  const selfInitials = selfName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'ME'
+  const self = isSuperAdmin
+    ? { id: 'SA', name: 'Sean A. Russell', initials: 'SA', color: '#003087', roleLabel: 'SuperAdmin' }
+    : { id: 'SELF', name: selfName, initials: selfInitials, color: '#003087', roleLabel: 'My account' }
+  const displayUser = viewAs ?? (canViewAs ? self : null)
 
   return (
     <>
@@ -501,7 +521,7 @@ export default function Sidebar({
 
         {/* Footer - user switcher for SuperAdmin, static display for users */}
         <div className="sidebar-footer" style={{ position: 'relative' }}>
-          {isSuperAdmin ? (
+          {canViewAs ? (
             <>
               {/* Switcher dropdown */}
               {switcherOpen && (
@@ -514,7 +534,7 @@ export default function Sidebar({
                   <div style={{ padding: '10px 14px 6px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255,255,255,0.4)' }}>
                     Preview a role (sample data)
                   </div>
-                  {SAMPLE_ROLE_MEMBERS.map(member => (
+                  {previewMembers.map(member => (
                     <button
                       key={member.id}
                       onClick={() => selectViewAs(member)}
@@ -551,10 +571,10 @@ export default function Sidebar({
                       border: 'none', cursor: 'pointer', textAlign: 'left',
                     }}
                   >
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#003087', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>SA</div>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#003087', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{self.initials}</div>
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>Sean A. Russell</div>
-                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>SuperAdmin</div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{self.name}</div>
+                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>{self.roleLabel}</div>
                     </div>
                     {!viewAs && (
                       <svg style={{ marginLeft: 'auto' }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F4C436" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -580,7 +600,7 @@ export default function Sidebar({
                 </div>
                 <div className="sidebar-user-info" style={{ flex: 1, textAlign: 'left' }}>
                   <strong>{displayUser?.name ?? 'Team Member'}</strong>
-                  <span>{viewAs ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? 'Viewing as superadmin (sample)' : 'Viewing as user') : 'SuperAdmin'}</span>
+                  <span>{viewAs ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? 'Viewing as superadmin (sample)' : `Viewing as ${viewAs.roleLabel.replace(' (Sample)', '')}`) : self.roleLabel}</span>
                 </div>
                 <span style={{ color: 'rgba(255,255,255,0.4)', marginRight: 2 }}>
                   <ChevronIcon up={switcherOpen} />

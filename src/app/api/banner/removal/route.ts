@@ -5,8 +5,10 @@ import { sendEmail } from '@/lib/resend'
 
 // WCM Banner Submission App - Request Removal.
 // WCM selects one of their OWN prior submissions and asks the District Web
-// Team to take it down, giving a target removal date and a description
-// identifying the file. Routes into the same review queue as uploads
+// Team to take it down, with a description identifying the file. No target
+// removal date since 2026-09-29 (Vanessa Deslandes): removals can't be
+// scheduled in advance, so the request date is the working date. The
+// requested_removal_date column stays for older rows but is no longer set. Routes into the same review queue as uploads
 // (bcps_banner_submissions, type='removal').
 //
 // Submission-received notification, per Sean, 2026-09-02: "Can I send
@@ -66,8 +68,8 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
-  const { target_submission_id, requested_removal_date, removal_description } = body as {
-    target_submission_id?: string; requested_removal_date?: string; removal_description?: string
+  const { target_submission_id, removal_description } = body as {
+    target_submission_id?: string; removal_description?: string
   }
 
   if (!target_submission_id) return NextResponse.json({ error: 'target_submission_id is required' }, { status: 400 })
@@ -88,7 +90,6 @@ export async function POST(req: NextRequest) {
     type: 'removal',
     status: 'pending',
     target_submission_id,
-    requested_removal_date: requested_removal_date || null,
     removal_description: removal_description.trim(),
   }).select('id, removal_description, wcm_email').single()
 

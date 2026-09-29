@@ -22,12 +22,13 @@ interface SuperAdminPageProps {
   onShowToast: (msg: string) => void
 }
 
-type AdminTab = 'invites' | 'domain' | 'members' | 'platform'
+type AdminTab = 'invites' | 'domain' | 'members' | 'viewas' | 'platform'
 
 const ADMIN_TABS: { id: AdminTab; label: string; icon: string }[] = [
   { id: 'invites', label: 'Beta Invitations', icon: '✉️' },
   { id: 'domain', label: 'Domain Rules', icon: '🔒' },
   { id: 'members', label: 'All Members', icon: '👥' },
+  { id: 'viewas', label: 'View As Access', icon: '👁️' },
   { id: 'platform', label: 'Platform Settings', icon: '⚙️' },
 ]
 
@@ -403,6 +404,87 @@ function PlatformTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
   )
 }
 
+// Who besides SuperAdmin gets the sidebar "View as" switcher (Sean, Hot Lab
+// 2026-09-29, first grant: Vanessa Deslandes). A grantee can only preview
+// their own tier and below; /api/bcps/my-access enforces that.
+function ViewAsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
+  const [grants, setGrants] = useState<Array<{ user_id: string; email: string | null; granted_by_email: string | null; created_at: string }>>([])
+  const [loading, setLoading] = useState(true)
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function load() {
+    setLoading(true)
+    try {
+      const r = await fetch('/api/bcps/view-as-grants', { headers: await authHeaders() })
+      const j = await r.json()
+      if (r.ok) setGrants(j.grants || [])
+      else onShowToast(j.error || 'Could not load View As access.')
+    } catch { onShowToast('Could not load View As access.') }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [])
+
+  async function post(body: Record<string, string>, ok: string) {
+    setBusy(true)
+    try {
+      const r = await fetch('/api/bcps/view-as-grants', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify(body),
+      })
+      const j = await r.json()
+      if (!r.ok) { onShowToast(j.error || 'Request failed.'); return }
+      onShowToast(ok)
+      setEmail('')
+      load()
+    } catch { onShowToast('Request failed.') }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="admin-section">
+      <div className="admin-section-header">
+        <div>
+          <h3>View As Access</h3>
+          <p>People listed here get the &quot;View as&quot; switcher in the sidebar, so they can see the platform the way a lower tier sees it. They can only preview their own level and below, never above, and it never gives them extra access.</p>
+        </div>
+      </div>
+
+      <div className="invite-table-wrap">
+        <table className="invite-table">
+          <thead><tr><th>Person</th><th>Granted by</th><th>Since</th><th></th></tr></thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={4}>Loading...</td></tr>
+            ) : grants.length === 0 ? (
+              <tr><td colSpan={4}>No one yet.</td></tr>
+            ) : grants.map(g => (
+              <tr key={g.user_id}>
+                <td>{g.email}</td>
+                <td>{g.granted_by_email || '-'}</td>
+                <td>{new Date(g.created_at).toLocaleDateString()}</td>
+                <td>
+                  <button className="icon-btn danger" disabled={busy} title="Remove"
+                    onClick={() => post({ action: 'remove', user_id: g.user_id }, 'View As access removed.')}>✕</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="add-domain-row">
+        <input
+          type="email" placeholder="name@browardschools.com" value={email}
+          onChange={e => setEmail(e.target.value)} className="form-input"
+          onKeyDown={e => e.key === 'Enter' && email.trim() && post({ action: 'add', email }, 'View As access granted.')}
+        />
+        <button className="btn btn-primary" disabled={busy || !email.trim()}
+          onClick={() => post({ action: 'add', email }, 'View As access granted.')}>+ Grant access</button>
+      </div>
+    </div>
+  )
+}
+
 export default function SuperAdminPage({ onShowToast }: SuperAdminPageProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('invites')
 
@@ -431,6 +513,7 @@ export default function SuperAdminPage({ onShowToast }: SuperAdminPageProps) {
         {activeTab === 'invites' && <InvitesTab onShowToast={onShowToast} />}
         {activeTab === 'domain' && <DomainTab onShowToast={onShowToast} />}
         {activeTab === 'members' && <MembersTab onShowToast={onShowToast} />}
+        {activeTab === 'viewas' && <ViewAsTab onShowToast={onShowToast} />}
         {activeTab === 'platform' && <PlatformTab onShowToast={onShowToast} />}
       </div>
     </div>

@@ -163,6 +163,14 @@ export async function POST(req: NextRequest) {
         error: 'This image did not pass the automated content scan.',
         reasons: contentScan.reasons,
       }, { status: 400 })
+    } else if (contentScan.text_detected && checklist_ack?.in_scene_text !== true) {
+      // Text found, but OCR can't tell an in-scene sign from an overlay
+      // (Vanessa Deslandes, 2026-09-29). The WCM must attest it's part of the
+      // scene; the row then lands in the review queue flagged for the team.
+      return NextResponse.json({
+        error: 'Text was detected in this image. Confirm it is part of the actual scene (a sign or banner in the photo), not added as a graphic.',
+        reasons: contentScan.text_reason ? [contentScan.text_reason] : [],
+      }, { status: 400 })
     }
   } else {
     // Video: no frame-analysis pipeline yet, same exemption as the
