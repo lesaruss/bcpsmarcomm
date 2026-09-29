@@ -42,6 +42,7 @@ interface ProfileSubmission {
   archived_at: string | null
   is_test: boolean
   signed_url: string | null
+  download_url: string | null
 }
 
 interface School {
@@ -292,6 +293,14 @@ export default function SchoolProfile() {
                         {s.file_type === 'video'
                           ? <video src={s.signed_url} controls style={{ maxWidth: 280, borderRadius: 6 }} />
                           : <img src={s.signed_url} alt={s.banner_title || 'Banner submission'} style={{ maxWidth: 280, borderRadius: 6 }} />}
+                        {s.download_url && (
+                          <div style={{ marginTop: 6 }}>
+                            <a href={s.download_url}
+                              style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 700, padding: '5px 10px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#111827', textDecoration: 'none' }}>
+                              Download original
+                            </a>
+                          </div>
+                        )}
                       </div>
                     )}
 

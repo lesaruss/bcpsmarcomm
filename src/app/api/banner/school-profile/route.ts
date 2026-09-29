@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase-admin'
+import { signBannerFile } from '@/lib/bannerFiles'
 
 // School Profile - the per-school profile model Sean asked for 2026-09-03
 // ("similar to departments... only tracking the banner for now, then the ADA
@@ -71,10 +72,9 @@ export async function GET(req: NextRequest) {
 
   const submissions = await Promise.all((rows ?? []).map(async (row) => {
     if (row.type === 'upload' && row.file_path) {
-      const { data: signed } = await svc.storage.from('bcps-client').createSignedUrl(row.file_path, 60 * 30)
-      return { ...row, signed_url: signed?.signedUrl ?? null }
+      return { ...row, ...(await signBannerFile(svc, row)) }
     }
-    return { ...row, signed_url: null }
+    return { ...row, signed_url: null, download_url: null }
   }))
 
   const active = submissions.filter(s => !s.archived_at)

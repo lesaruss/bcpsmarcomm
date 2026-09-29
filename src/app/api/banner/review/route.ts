@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase-admin'
+import { signBannerFile } from '@/lib/bannerFiles'
 import { sendEmail } from '@/lib/resend'
 
 // WCM Banner Submission App - Internal Dashboard (District Web Team review
@@ -66,10 +67,9 @@ export async function GET(req: NextRequest) {
 
   const withUrls = await Promise.all((data ?? []).map(async (row) => {
     if (row.type === 'upload' && row.file_path) {
-      const { data: signed } = await svc.storage.from('bcps-client').createSignedUrl(row.file_path, 60 * 30)
-      return { ...row, signed_url: signed?.signedUrl ?? null }
+      return { ...row, ...(await signBannerFile(svc, row)) }
     }
-    return { ...row, signed_url: null }
+    return { ...row, signed_url: null, download_url: null }
   }))
 
   return NextResponse.json({ submissions: withUrls, my_role: auth.role })

@@ -52,6 +52,8 @@ interface MySubmission {
 interface ReviewSubmission extends MySubmission {
   wcm_email: string | null
   signed_url: string | null
+  download_url: string | null
+  school_name: string | null
   content_scan: { text_detected?: boolean; text_reason?: string } | null
   checklist_ack: { in_scene_text?: boolean } | null
 }
@@ -257,6 +259,9 @@ export default function BannerWidget() {
   const [rejectCategory, setRejectCategory] = useState('')
   const [rejectOtherComment, setRejectOtherComment] = useState('')
   const [reviewNotice, setReviewNotice] = useState<string | null>(null)
+  // Status filter (Vanessa Deslandes, 2026-09-29): "Approved" doubles as the
+  // team's ready-to-post list. Defaults to Pending, the work waiting on them.
+  const [reviewFilter, setReviewFilter] = useState<'all' | SubmissionStatus>('pending')
 
   // ---- Admin management (admin only) ----
   const [admins, setAdmins] = useState<BannerAdminRow[]>([])
@@ -1070,19 +1075,48 @@ export default function BannerWidget() {
       {tab === 'review' && (
         <div>
           {reviewNotice && <div style={{ fontSize: 12.5, marginBottom: 10, color: reviewNotice.startsWith('Approved') || reviewNotice.startsWith('Rejected') ? '#1e6b3a' : '#a13a2f' }}>{reviewNotice}</div>}
+          <div role="group" aria-label="Filter by status" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+            {([
+              { id: 'pending', label: 'Pending' },
+              { id: 'approved', label: 'Approved' },
+              { id: 'rejected', label: 'Rejected' },
+              { id: 'all', label: 'All' },
+            ] as const).map(f => {
+              const count = f.id === 'all' ? reviewItems.length : reviewItems.filter(r => r.status === f.id).length
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  aria-pressed={reviewFilter === f.id}
+                  onClick={() => setReviewFilter(f.id)}
+                  className={reviewFilter === f.id ? 'btn-primary' : 'btn-outline'}
+                  style={{ fontSize: 11.5, padding: '4px 10px' }}
+                >
+                  {f.label} ({count})
+                </button>
+              )
+            })}
+          </div>
+          {reviewFilter === 'approved' && (
+            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 8 }}>
+              Approved and ready to post. Use Download original to get the full-resolution file for the school site.
+            </div>
+          )}
           <div className="note-list">
             {reviewLoading ? (
               <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: 13 }}>Loading...</div>
             ) : reviewItems.length === 0 ? (
               <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: 13 }}>Nothing submitted yet.</div>
-            ) : reviewItems.map(r => (
+            ) : reviewItems.filter(r => reviewFilter === 'all' || r.status === reviewFilter).length === 0 ? (
+              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: 13 }}>Nothing {reviewFilter} right now.</div>
+            ) : reviewItems.filter(r => reviewFilter === 'all' || r.status === reviewFilter).map(r => (
               <div key={r.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 13 }}>
                       {r.type === 'upload' ? (r.banner_title || r.file_name) : `Removal request: ${r.removal_description?.slice(0, 60)}`}
                     </div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{r.wcm_email} &middot; {new Date(r.submitted_at).toLocaleDateString()}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{r.school_name ? `${r.school_name} · ` : ''}{r.wcm_email} &middot; {new Date(r.submitted_at).toLocaleDateString()}</div>
                   </div>
                   {statusBadge(r.status)}
                 </div>
@@ -1100,6 +1134,11 @@ export default function BannerWidget() {
                       <img src={r.signed_url} alt={r.alt_text || ''} style={{ maxWidth: 320, borderRadius: 5 }} />
                     )}
                     {r.alt_text && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Alt text: {r.alt_text}</div>}
+                    {r.download_url && (
+                      <a href={r.download_url} className="btn-outline" style={{ display: 'inline-flex', fontSize: 12, padding: '5px 10px', marginTop: 6, textDecoration: 'none', borderRadius: 8 }}>
+                        Download original
+                      </a>
+                    )}
                   </div>
                 )}
                 {r.status === 'pending' && (
