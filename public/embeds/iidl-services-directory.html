@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>II&amp;DL Services Directory - Broward County Public Schools</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Same BCPS tokens as the Charter School Directory embed
+       (public/embeds/charter-school-directory.html): BCPS Blue as the primary
+       interactive color, Century Gothic headlines, Arial body, and no internal
+       title/header, since the destination page supplies its own heading. */
+    --blue: #1672A7;
+    --blue-dark: #0E4E73;
+    --blue-faint: #EBF1F8;
+    --teal: #00838F;
+    --teal-dark: #006A74;
+    --teal-light: #E0F4F5;
+    --border: #D0D7E2;
+    --text: #1A1A2E;
+    --text-mid: #444;
+    --text-muted: #5F6672;
+    --white: #FFFFFF;
+    --bg: #F5F7FA;
+    --radius: 8px;
+    --font-head: "Century Gothic", "Apple Gothic", Arial, Helvetica, sans-serif;
+    --font-body: Arial, Helvetica, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--white);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* CONTROLS */
+  .controls {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .search-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+  }
+  .search-wrap svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  input[type="search"], select {
+    width: 100%;
+    padding: 8px 10px 8px 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--white);
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+  input[type="search"]:focus, select:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(22,114,167,0.15);
+  }
+  select {
+    padding-left: 10px;
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+  }
+
+  /* SHOW FILTER (same chip treatment as the charter grade filters) */
+  .chip-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .chip-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 2px;
+  }
+  .chip-btn {
+    padding: 4px 10px;
+    min-height: 26px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--white);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .chip-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .chip-btn:focus-visible, .pg-btn:focus-visible, .clear-btn:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+  .chip-btn[aria-pressed="true"] {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: #fff;
+  }
+
+  /* UNIT INTRO STRIP (shown only while one unit is selected) */
+  .unit-intro {
+    padding: 12px 20px;
+    background: var(--blue-faint);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+  }
+  .unit-intro[hidden] { display: none; }
+  .unit-intro-name {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--blue-dark);
+  }
+  .unit-intro-summary {
+    flex: 1 1 280px;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--text-mid);
+  }
+
+  /* RESULTS BAR */
+  .results-bar {
+    padding: 8px 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .results-bar strong { color: var(--text); }
+  .clear-btn {
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--blue);
+    cursor: pointer;
+    padding: 2px 0;
+  }
+  .clear-btn:hover { color: var(--blue-dark); text-decoration: underline; }
+  .clear-btn[hidden] { display: none; }
+
+  /* GRID */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+    gap: 1px;
+    background: var(--border);
+  }
+
+  /* CARD */
+  .card {
+    background: var(--white);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    transition: background 0.1s;
+  }
+  .card:hover { background: var(--blue-faint); }
+
+  .card-name {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    line-height: 1.4;
+  }
+  .badge-unit {
+    background: var(--blue-faint);
+    color: var(--blue-dark);
+    border: 1px solid rgba(22,114,167,0.2);
+  }
+  .badge-book {
+    background: var(--teal-light);
+    color: var(--teal-dark);
+    border: 1px solid rgba(0,131,143,0.2);
+  }
+
+  .card-desc {
+    font-size: 12.5px;
+    color: var(--text-mid);
+    line-height: 1.45;
+  }
+
+  .card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 2px;
+  }
+  .meta-row {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 0;
+  }
+  .meta-row svg { flex-shrink: 0; margin-top: 2px; }
+  .meta-row span, .meta-row a { line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
+  .meta-row a { color: var(--blue); text-decoration: none; }
+  /* Email and phone rows are tap targets: 24px tall so they meet WCAG 2.2
+     target size (2.5.8) even when stacked. */
+  .meta-row.meta-link { align-items: center; }
+  .meta-row.meta-link svg { margin-top: 0; }
+  .meta-row.meta-link a { display: inline-flex; align-items: center; min-height: 24px; }
+  .meta-row a:hover { color: var(--blue-dark); text-decoration: underline; }
+
+  .book-note {
+    font-size: 12px;
+    color: var(--text-mid);
+    background: var(--bg);
+    border-left: 3px solid var(--teal);
+    padding: 6px 9px;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .card-footer {
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+  }
+  .card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--blue);
+    text-decoration: none;
+    transition: color 0.1s;
+  }
+  .card-link:hover { color: var(--blue-dark); text-decoration: underline; }
+  .book-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    background: var(--blue);
+    border: 1px solid var(--blue);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.12s;
+  }
+  .book-btn:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
+  .card-link:focus-visible, .book-btn:focus-visible, .meta-row a:focus-visible, .unit-intro a:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* EMPTY / ERROR */
+  .empty {
+    grid-column: 1 / -1;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    background: var(--white);
+  }
+  .empty svg { display: block; margin: 0 auto 10px; opacity: 0.35; }
+
+  /* PAGINATION */
+  .pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--white);
+  }
+  .pagination:empty { display: none; }
+  .pg-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--white);
+    color: var(--text-mid);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s;
+    line-height: 1;
+  }
+  .pg-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+  .pg-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .pg-ellipsis { color: var(--text-muted); font-size: 13px; padding: 0 4px; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  @media (max-width: 480px) {
+    .search-row { flex-direction: column; align-items: stretch; }
+    .controls, .results-bar, .unit-intro { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- No internal title/header, same as the charter embed: this module sits
+     inside a page section that already has its own heading. -->
+<div class="controls">
+  <div class="search-row">
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input type="search" id="searchInput" placeholder="Search services, tools, or support topics..." aria-label="Search II&amp;DL services">
+    </div>
+    <select id="unitFilter" aria-label="Filter by unit">
+      <option value="">All Units</option>
+    </select>
+  </div>
+  <div class="chip-filters" role="group" aria-label="Filter by booking">
+    <span class="chip-label" aria-hidden="true">Show:</span>
+    <button type="button" class="chip-btn" data-bookable="all" aria-pressed="true">All services</button>
+    <button type="button" class="chip-btn" data-bookable="yes" aria-pressed="false">Bookable sessions</button>
+  </div>
+</div>
+
+<div class="unit-intro" id="unitIntro" hidden>
+  <span class="unit-intro-name" id="unitIntroName"></span>
+  <span class="unit-intro-summary" id="unitIntroSummary"></span>
+  <a class="card-link" id="unitIntroLink" href="#" target="_blank" rel="noopener noreferrer">
+    Visit the unit page
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    <span class="sr-only">(opens in a new tab)</span>
+  </a>
+</div>
+
+<div class="results-bar">
+  <span role="status">Showing <strong id="resultCount">&hellip;</strong> of <span id="totalCount">&hellip;</span> services</span>
+  <button type="button" class="clear-btn" id="clearFilters" hidden>Clear filters</button>
+</div>
+
+<div class="grid" id="serviceGrid" aria-label="Service results"></div>
+<nav class="pagination" id="pagination" aria-label="Results pages"></nav>
+
+<script>
+let SERVICES = [];
+let UNITS = [];
+let LOAD_FAILED = false;
+const unitFilter = document.getElementById('unitFilter');
+
+// State
+let activeUnit = '';
+let activeBookable = 'all';
+let activeSearch = '';
+let currentPage = 1;
+const PAGE_SIZE = 12; // fills 1-, 2- and 3-column grids evenly
+
+const ICON_EXT = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+const NEW_TAB = '<span class="sr-only">(opens in a new tab)</span>';
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function highlight(text, query) {
+  if (!query) return escapeHtml(text);
+  const re = new RegExp('(' + escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  return escapeHtml(text).replace(re, '<mark style="background:#FFF3CD;color:inherit;border-radius:2px;padding:0 1px">$1</mark>');
+}
+
+// Only http(s) and mailto links ever reach an href.
+function safeUrl(u) {
+  return /^(https?:|mailto:)/i.test(u || '') ? u : '';
+}
+
+function unitBySlug(slug) { return UNITS.find(u => u.slug === slug); }
+
+function populateUnitFilter() {
+  unitFilter.innerHTML = '<option value="">All Units</option>';
+  UNITS.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u.slug; opt.textContent = u.name;
+    unitFilter.appendChild(opt);
+  });
+  unitFilter.value = activeUnit;
+}
+
+function getFiltered() {
+  const q = activeSearch.toLowerCase().trim();
+  return SERVICES.filter(s => {
+    const matchUnit = !activeUnit || s.unit_slug === activeUnit;
+    const matchBook = activeBookable === 'all' || !!s.booking_url;
+    const unitName = unitBySlug(s.unit_slug)?.name || '';
+    const matchSearch = !q || [s.name, s.description, s.booking_note, s.contact_name, unitName]
+      .some(v => (v || '').toLowerCase().includes(q));
+    return matchUnit && matchBook && matchSearch;
+  });
+}
+
+function renderUnitIntro() {
+  const intro = document.getElementById('unitIntro');
+  const u = activeUnit && unitBySlug(activeUnit);
+  if (!u) { intro.hidden = true; return; }
+  intro.hidden = false;
+  document.getElementById('unitIntroName').textContent = u.name;
+  document.getElementById('unitIntroSummary').textContent = u.summary || '';
+  const link = document.getElementById('unitIntroLink');
+  const href = safeUrl(u.page_url);
+  link.hidden = !href;
+  if (href) link.href = href;
+}
+
+function renderPagination(total) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pg = document.getElementById('pagination');
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (currentPage > 3) pages.push('...');
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+    if (currentPage < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  pg.innerHTML = `
+    <button type="button" class="pg-btn" id="pg-prev" aria-label="Previous page" ${currentPage === 1 ? 'disabled' : ''}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    ${pages.map(p => p === '...'
+      ? `<span class="pg-ellipsis" aria-hidden="true">...</span>`
+      : `<button type="button" class="pg-btn${p === currentPage ? ' active' : ''}" data-page="${p}" aria-label="Page ${p}"${p === currentPage ? ' aria-current="page"' : ''}>${p}</button>`
+    ).join('')}
+    <button type="button" class="pg-btn" id="pg-next" aria-label="Next page" ${currentPage === totalPages ? 'disabled' : ''}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  `;
+
+  pg.querySelector('#pg-prev')?.addEventListener('click', () => goToPage(currentPage - 1));
+  pg.querySelector('#pg-next')?.addEventListener('click', () => goToPage(currentPage + 1));
+  pg.querySelectorAll('[data-page]').forEach(btn => {
+    btn.addEventListener('click', () => goToPage(Number(btn.dataset.page)));
+  });
+}
+
+// Auto height for iframe embeds, same contract as the charter embed: posts
+// { type: 'bcps-widget-resize', slug, height } to the parent so the embed
+// code copied from the Widgets hub can size the iframe.
+let lastPostedHeight = 0;
+function postHeight() {
+  const height = Math.ceil(document.body.getBoundingClientRect().height);
+  if (Math.abs(height - lastPostedHeight) < 2) return;
+  lastPostedHeight = height;
+  window.parent.postMessage({ type: 'bcps-widget-resize', slug: 'iidl-services-directory', height }, '*');
+}
+
+function goToPage(page) {
+  currentPage = page;
+  render();
+  document.getElementById('serviceGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cardHtml(s, q) {
+  const unit = unitBySlug(s.unit_slug);
+  const book = safeUrl(s.booking_url);
+  const unitPage = safeUrl(unit?.page_url);
+  const email = s.contact_email ? safeUrl('mailto:' + s.contact_email) : '';
+  const tel = (s.contact_phone || '').replace(/[^0-9+]/g, '');
+
+  const meta = [];
+  if (s.contact_name) {
+    meta.push(`<div class="meta-row">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>${highlight(s.contact_name, q)}${s.contact_title ? ', ' + escapeHtml(s.contact_title) : ''}</span>
+    </div>`);
+  }
+  if (email) {
+    meta.push(`<div class="meta-row meta-link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
+      <a href="${escapeHtml(email)}">${escapeHtml(s.contact_email)}</a>
+    </div>`);
+  }
+  if (tel) {
+    meta.push(`<div class="meta-row meta-link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.64 19.79 19.79 0 01.22 1.05 2 2 0 012.22 3h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 10.91a16 16 0 006.18 6.18l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+      <a href="tel:${escapeHtml(tel)}">${escapeHtml(s.contact_phone)}</a>
+    </div>`);
+  }
+
+  const footer = [];
+  if (book) {
+    footer.push(`<a href="${escapeHtml(book)}" class="book-btn" target="_blank" rel="noopener noreferrer" aria-label="Book a session for ${escapeHtml(s.name)} (opens in a new tab)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Book a session
+    </a>`);
+  }
+  if (unitPage) {
+    footer.push(`<a href="${escapeHtml(unitPage)}" class="card-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(unit.name)} unit page (opens in a new tab)">
+      Unit page ${ICON_EXT}
+    </a>`);
+  }
+
+  return `<article class="card">
+    <div class="card-name">${highlight(s.name, q)}</div>
+    <div class="card-badges">
+      ${unit ? `<span class="badge badge-unit">${highlight(unit.name, q)}</span>` : ''}
+      ${book ? `<span class="badge badge-book">Bookable</span>` : ''}
+    </div>
+    ${s.description ? `<p class="card-desc">${highlight(s.description, q)}</p>` : ''}
+    ${meta.length ? `<div class="card-meta">${meta.join('')}</div>` : ''}
+    ${book && s.booking_note ? `<p class="book-note">${highlight(s.booking_note, q)}</p>` : ''}
+    ${footer.length ? `<div class="card-footer">${footer.join('')}</div>` : ''}
+  </article>`;
+}
+
+function render() {
+  const q = activeSearch.toLowerCase().trim();
+  const filtered = getFiltered();
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = 1;
+
+  document.getElementById('resultCount').textContent = filtered.length;
+  document.getElementById('clearFilters').hidden = !(activeUnit || activeSearch.trim() || activeBookable !== 'all');
+  renderUnitIntro();
+
+  const grid = document.getElementById('serviceGrid');
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      ${LOAD_FAILED
+        ? 'The services list could not be loaded right now. Please refresh the page to try again.'
+        : 'No services match your filters. Try adjusting your search.'}
+    </div>`;
+    renderPagination(0);
+    postHeight();
+    return;
+  }
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+  grid.innerHTML = filtered.slice(start, start + PAGE_SIZE).map(s => cardHtml(s, q)).join('');
+
+  renderPagination(filtered.length);
+  postHeight();
+}
+
+function setBookable(value) {
+  activeBookable = value;
+  document.querySelectorAll('.chip-btn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.bookable === value)));
+}
+
+// Event listeners
+document.getElementById('searchInput').addEventListener('input', e => {
+  activeSearch = e.target.value;
+  currentPage = 1;
+  render();
+});
+
+unitFilter.addEventListener('change', e => {
+  activeUnit = e.target.value;
+  currentPage = 1;
+  render();
+});
+
+document.querySelectorAll('.chip-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    setBookable(btn.dataset.bookable);
+    currentPage = 1;
+    render();
+  });
+});
+
+document.getElementById('clearFilters').addEventListener('click', () => {
+  activeUnit = ''; activeSearch = ''; currentPage = 1;
+  unitFilter.value = '';
+  document.getElementById('searchInput').value = '';
+  setBookable('all');
+  render();
+});
+
+// Live data, same model as the charter embed: public anon read of
+// bcps_iidl_units and bcps_iidl_services (RLS select policies plus
+// column-level grants that leave out the internal review_note), so edits
+// made in the Widgets hub editor show up here with no deploy.
+const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+const SERVICE_COLS = 'id,name,unit_slug,description,contact_name,contact_title,contact_email,contact_phone,booking_url,booking_note,sort_order';
+
+async function fetchRows(path) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const rows = await res.json();
+  if (!Array.isArray(rows)) throw new Error('Unexpected response');
+  return rows;
+}
+
+async function init() {
+  // Pre-filter by unit from the URL (?unit=library-media-services) so the
+  // same embed can sit on each unit's own page.
+  const params = new URLSearchParams(location.search);
+  activeUnit = params.get('unit') || '';
+  if (params.get('bookable') === '1') setBookable('yes');
+
+  try {
+    [UNITS, SERVICES] = await Promise.all([
+      fetchRows('bcps_iidl_units?select=slug,name,summary,page_url&order=sort_order.asc'),
+      fetchRows('bcps_iidl_services?select=' + SERVICE_COLS + '&order=sort_order.asc'),
+    ]);
+  } catch (e) {
+    UNITS = []; SERVICES = []; LOAD_FAILED = true;
+  }
+  if (activeUnit && !unitBySlug(activeUnit)) activeUnit = '';
+  document.getElementById('totalCount').textContent = SERVICES.length;
+  populateUnitFilter();
+  render();
+}
+
+window.addEventListener('load', postHeight);
+window.addEventListener('resize', postHeight);
+if (window.ResizeObserver) {
+  new ResizeObserver(postHeight).observe(document.body);
+} else {
+  setInterval(postHeight, 500);
+}
+
+init();
+</script>
+</body>
+</html>

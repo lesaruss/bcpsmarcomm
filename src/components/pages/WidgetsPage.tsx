@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import FindItFastPage from './FindItFastPage'
 import CharterSchoolsPage from './CharterSchoolsPage'
+import IidlServicesPage from './IidlServicesPage'
 import { useEffectiveRole } from '@/components/BCPSShell'
 
 interface Widget {
@@ -27,6 +28,7 @@ type Grant = { id: string; object_id: string; subject_type: string; subject_id: 
 const EDITORS: Record<string, React.ComponentType> = {
   'find-it-fast': FindItFastPage,
   'charter-school-directory': CharterSchoolsPage,
+  'iidl-services-directory': IidlServicesPage,
 }
 
 const ROLE_OPTS = ['view', 'edit', 'manage']
