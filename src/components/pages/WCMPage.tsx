@@ -319,7 +319,12 @@ function DepartmentRosterSection() {
   const showBccToast = (msg: string) => { setBccToast(msg); setTimeout(() => setBccToast(''), 1800) }
   const copyBcc = async () => {
     if (!selectedEmails.length) return
-    const list = selectedEmails.join(', ')
+    // Semicolons, not commas: Outlook splits pasted recipients on ';' and
+    // only treats ',' as a separator when its "Commas can be used to
+    // separate multiple message recipients" option is on, so a comma list
+    // pasted into BCC read as one long address (Sean, 2026-09-29). Gmail
+    // splits on either.
+    const list = selectedEmails.join('; ')
     try {
       await navigator.clipboard.writeText(list)
       showBccToast(`Copied ${selectedEmails.length} email${selectedEmails.length === 1 ? '' : 's'}`)
