@@ -248,7 +248,7 @@ export async function GET(req: NextRequest) {
 
     const [{ data: roster }, { data: members }] = await Promise.all([
       supabase.from('bcps_wcm_roster')
-        .select('id, department_name, location_number, matched_department_id, director_name, updated_at')
+        .select('id, department_name, location_number, matched_department_id, director_name, updated_at, no_website, no_website_note')
         .order('department_name', { ascending: true }),
       supabase.from('bcps_wcm_roster_members')
         .select('id, roster_id, wcm_name, wcm_email, approved_at, added_at, sub_department')
@@ -282,7 +282,7 @@ export async function GET(req: NextRequest) {
   const [{ data: roster, error: rosterErr }, { data: members, error: memberErr }, { data: submissions, error: subErr }] =
     await Promise.all([
       supabase.from('bcps_wcm_roster')
-        .select('id, department_name, location_number, matched_department_id, director_name, updated_at')
+        .select('id, department_name, location_number, matched_department_id, director_name, updated_at, no_website, no_website_note')
         .order('department_name', { ascending: true }),
       supabase.from('bcps_wcm_roster_members')
         .select('id, roster_id, wcm_name, wcm_personnel_number, wcm_email, added_at, approved_at, sub_department')

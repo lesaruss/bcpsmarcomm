@@ -47,6 +47,12 @@ interface RosterRow {
   director_email: string | null
   // A roster submission from this department's director has been approved.
   director_confirmed?: boolean
+  // Department has no website, so no WCM or director outreach is needed
+  // (bcps_wcm_roster.no_website, set by Sean 2026-09-23 and 2026-09-29).
+  // These rows sit in their own collapsed section, out of the tracked
+  // list, the counts and every BCC selection.
+  no_website?: boolean
+  no_website_note?: string | null
   updated_at: string
   wcms: RosterMember[]
 }
@@ -234,10 +240,16 @@ function DepartmentRosterSection() {
   // placeholder rows - Sean, 2026-09-18: in Bilingual/ESOL the confirmed WCM
   // was sorting to the bottom, below three unconfirmed legacy names, just
   // because it was added to the roster later.
-  const sortedRoster = useMemo(() => roster.map(r => ({
+  const trackedRoster = useMemo(() => roster.filter(r => !r.no_website), [roster])
+  const untrackedRoster = useMemo(
+    () => roster.filter(r => r.no_website).sort((a, b) => a.department_name.localeCompare(b.department_name)),
+    [roster]
+  )
+
+  const sortedRoster = useMemo(() => trackedRoster.map(r => ({
     ...r,
     wcms: [...r.wcms].sort((a, b) => (a.wcm_email ? 0 : 1) - (b.wcm_email ? 0 : 1)),
-  })), [roster])
+  })), [trackedRoster])
 
   const filteredRoster = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -265,13 +277,13 @@ function DepartmentRosterSection() {
   // old-process departments have approvals but no submission row).
   const selectableRows = useMemo(() => {
     const rows: { key: string; email: string; role: 'dir' | 'wcm'; confirmed: boolean }[] = []
-    for (const r of roster) {
+    for (const r of trackedRoster) {
       const dirConfirmed = !!r.director_confirmed || r.wcms.some(w => !!w.approved_at)
       if (r.director_email) rows.push({ key: `dir:${r.id}`, email: r.director_email, role: 'dir', confirmed: dirConfirmed })
       for (const w of r.wcms) if (w.wcm_email) rows.push({ key: `wcm:${w.id}`, email: w.wcm_email, role: 'wcm', confirmed: !!w.approved_at })
     }
     return rows
-  }, [roster])
+  }, [trackedRoster])
 
   const selectedEmails = useMemo(
     () => selectableRows.filter(r => selected[r.key]).map(r => r.email),
@@ -323,6 +335,10 @@ function DepartmentRosterSection() {
   return (
     <div className="wcm-content-section">
       <style>{`
+        .roster-untracked { margin: 18px 0 4px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; padding: 12px 16px; }
+        .roster-untracked summary { cursor: pointer; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #6b7280; }
+        .roster-untracked-note { font-size: 13px; color: #6b7280; margin: 10px 0 8px; }
+        .roster-untracked ul { margin: 0; padding-left: 18px; font-size: 13px; color: #374151; line-height: 1.8; }
         .roster-select-group { font: inherit; font-size: 13px; font-weight: 600; color: #0e4e73; padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; cursor: pointer; max-width: 100%; }
         .wcm-member-subdept { font-size: 11.5px; color: #6b7280; margin-top: 1px; }
         .roster-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -504,7 +520,7 @@ function DepartmentRosterSection() {
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <span className="roster-count">{loading ? 'Loading...' : `${filteredRoster.length} of ${roster.length} departments`}</span>
+        <span className="roster-count">{loading ? 'Loading...' : `${filteredRoster.length} of ${trackedRoster.length} departments`}</span>
         <select
           className="roster-select-group"
           value=""
@@ -723,6 +739,21 @@ function DepartmentRosterSection() {
           </tbody>
         </table>
       </div>
+
+      {untrackedRoster.length > 0 && (
+        <details className="roster-untracked">
+          <summary>No website, not tracked ({untrackedRoster.length})</summary>
+          <p className="roster-untracked-note">These departments have no website, so they need no WCM or director outreach. They are left out of the counts and email lists above.</p>
+          <ul>
+            {untrackedRoster.map(r => (
+              <li key={r.id}>
+                <strong>{titleCase(r.department_name)}</strong>
+                {r.director_name && <span> - {r.director_name}</span>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       <div className="roster-bcc-bar">
         <div className="roster-bcc-count"><strong>{selectedEmails.length}</strong> selected</div>
