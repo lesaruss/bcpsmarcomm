@@ -75,15 +75,36 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ submissions: withUrls, my_role: auth.role })
 }
 
-// POST: approve or reject one submission.
-// body: { id, action: 'approve' | 'reject', rejection_reason? }
+// POST: approve or reject one submission, or mark an approved upload as
+// posted to the school site (Sean + Vanessa Deslandes, 2026-09-29).
+// body: { id, action: 'approve' | 'reject' | 'mark_posted' | 'unmark_posted', rejection_reason? }
 export async function POST(req: NextRequest) {
   const auth = await requireBannerReviewer(req)
   if (!auth.ok) return NextResponse.json({ error: 'Forbidden' }, { status: auth.status })
 
   const body = await req.json().catch(() => ({}))
-  const { id, action, rejection_reason } = body as { id?: string; action?: 'approve' | 'reject'; rejection_reason?: string }
+  const { id, action, rejection_reason } = body as { id?: string; action?: 'approve' | 'reject' | 'mark_posted' | 'unmark_posted'; rejection_reason?: string }
   if (!id || !action) return NextResponse.json({ error: 'id and action are required' }, { status: 400 })
+
+  // Posted tracking: only an approved upload can be marked as on the site.
+  // Undo clears it back to ready-to-post. Never touches review status.
+  if (action === 'mark_posted' || action === 'unmark_posted') {
+    const { data: row } = await svc.from('bcps_banner_submissions').select('id, type, status').eq('id', id).maybeSingle()
+    if (!row) return NextResponse.json({ error: 'Submission not found' }, { status: 404 })
+    if (row.type !== 'upload' || row.status !== 'approved') {
+      return NextResponse.json({ error: 'Only approved uploads can be marked as posted.' }, { status: 400 })
+    }
+    const posting = action === 'mark_posted'
+    const { error } = await svc.from('bcps_banner_submissions').update({
+      posted_at: posting ? new Date().toISOString() : null,
+      posted_by: posting ? auth.user.id : null,
+      posted_by_email: posting ? auth.user.email : null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
+  if (action !== 'approve' && action !== 'reject') return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   if (action === 'reject') {
     if (!rejection_reason?.trim()) {
       return NextResponse.json({ error: 'A rejection reason is required.' }, { status: 400 })

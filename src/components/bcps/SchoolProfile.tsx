@@ -43,6 +43,7 @@ interface ProfileSubmission {
   is_test: boolean
   signed_url: string | null
   download_url: string | null
+  posted_at: string | null
 }
 
 interface School {
@@ -265,6 +266,7 @@ export default function SchoolProfile() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {s.posted_at && pill('#e0f2f1', '#0f766e', `Posted ${new Date(s.posted_at).toLocaleDateString()}`)}
                         {statusBadge(s.status)}
                         {s.is_test && pill('#e0edff', '#1d4ed8', 'Test run')}
                         {s.archived_at && pill('#f3f4f6', '#6b7280', 'Archived')}

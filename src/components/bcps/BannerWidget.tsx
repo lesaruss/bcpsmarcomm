@@ -54,6 +54,8 @@ interface ReviewSubmission extends MySubmission {
   signed_url: string | null
   download_url: string | null
   school_name: string | null
+  posted_at: string | null
+  posted_by_email: string | null
   content_scan: { text_detected?: boolean; text_reason?: string } | null
   checklist_ack: { in_scene_text?: boolean } | null
 }
@@ -259,9 +261,19 @@ export default function BannerWidget() {
   const [rejectCategory, setRejectCategory] = useState('')
   const [rejectOtherComment, setRejectOtherComment] = useState('')
   const [reviewNotice, setReviewNotice] = useState<string | null>(null)
-  // Status filter (Vanessa Deslandes, 2026-09-29): "Approved" doubles as the
-  // team's ready-to-post list. Defaults to Pending, the work waiting on them.
-  const [reviewFilter, setReviewFilter] = useState<'all' | SubmissionStatus>('pending')
+  // Status filter (Vanessa Deslandes, 2026-09-29). Approved splits in two:
+  // Ready to post (approved, not yet on the school site) and Posted (marked
+  // done by the team). Defaults to Pending, the work waiting on them.
+  type ReviewFilter = 'pending' | 'ready' | 'posted' | 'rejected' | 'all'
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('pending')
+  const [postingId, setPostingId] = useState<string | null>(null)
+  const matchesReviewFilter = (r: ReviewSubmission, f: ReviewFilter) =>
+    f === 'all' ? true
+      : f === 'ready' ? r.status === 'approved' && !r.posted_at && r.type === 'upload'
+      : f === 'posted' ? r.status === 'approved' && !!r.posted_at
+      : f === 'pending' ? r.status === 'pending'
+      : f === 'rejected' ? r.status === 'rejected'
+      : false
 
   // ---- Admin management (admin only) ----
   const [admins, setAdmins] = useState<BannerAdminRow[]>([])
@@ -579,6 +591,24 @@ export default function BannerWidget() {
       loadReviewQueue()
     } catch {
       setReviewNotice('Action failed - please try again.')
+    }
+  }
+
+  async function handleMarkPosted(id: string, posted: boolean) {
+    setReviewNotice(null)
+    setPostingId(id)
+    try {
+      const res = await authedFetch('/api/banner/review', {
+        method: 'POST',
+        body: JSON.stringify({ id, action: posted ? 'mark_posted' : 'unmark_posted' }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setReviewNotice(data.error || 'Could not update.'); return }
+      loadReviewQueue()
+    } catch {
+      setReviewNotice('Could not update - please try again.')
+    } finally {
+      setPostingId(null)
     }
   }
 
@@ -1078,11 +1108,12 @@ export default function BannerWidget() {
           <div role="group" aria-label="Filter by status" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
             {([
               { id: 'pending', label: 'Pending' },
-              { id: 'approved', label: 'Approved' },
+              { id: 'ready', label: 'Ready to post' },
+              { id: 'posted', label: 'Posted' },
               { id: 'rejected', label: 'Rejected' },
               { id: 'all', label: 'All' },
             ] as const).map(f => {
-              const count = f.id === 'all' ? reviewItems.length : reviewItems.filter(r => r.status === f.id).length
+              const count = reviewItems.filter(r => matchesReviewFilter(r, f.id)).length
               return (
                 <button
                   key={f.id}
@@ -1097,9 +1128,9 @@ export default function BannerWidget() {
               )
             })}
           </div>
-          {reviewFilter === 'approved' && (
+          {reviewFilter === 'ready' && (
             <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 8 }}>
-              Approved and ready to post. Use Download original to get the full-resolution file for the school site.
+              Approved and not on the school site yet. Download original, post it, then click Mark as posted.
             </div>
           )}
           <div className="note-list">
@@ -1107,9 +1138,9 @@ export default function BannerWidget() {
               <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: 13 }}>Loading...</div>
             ) : reviewItems.length === 0 ? (
               <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: 13 }}>Nothing submitted yet.</div>
-            ) : reviewItems.filter(r => reviewFilter === 'all' || r.status === reviewFilter).length === 0 ? (
-              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: 13 }}>Nothing {reviewFilter} right now.</div>
-            ) : reviewItems.filter(r => reviewFilter === 'all' || r.status === reviewFilter).map(r => (
+            ) : reviewItems.filter(r => matchesReviewFilter(r, reviewFilter)).length === 0 ? (
+              <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: 13 }}>Nothing here right now.</div>
+            ) : reviewItems.filter(r => matchesReviewFilter(r, reviewFilter)).map(r => (
               <div key={r.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <div>
@@ -1118,7 +1149,12 @@ export default function BannerWidget() {
                     </div>
                     <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{r.school_name ? `${r.school_name} · ` : ''}{r.wcm_email} &middot; {new Date(r.submitted_at).toLocaleDateString()}</div>
                   </div>
-                  {statusBadge(r.status)}
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {r.posted_at && (
+                      <span style={{ background: '#e0f2f1', color: '#0f766e', fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999 }}>Posted</span>
+                    )}
+                    {statusBadge(r.status)}
+                  </div>
                 </div>
                 {r.type === 'upload' && r.content_scan?.text_detected && (
                   <div style={{ marginTop: 8, fontSize: 12, background: '#fdf3e0', color: '#8a5a00', padding: '6px 10px', borderRadius: 5 }}>
@@ -1134,11 +1170,30 @@ export default function BannerWidget() {
                       <img src={r.signed_url} alt={r.alt_text || ''} style={{ maxWidth: 320, borderRadius: 5 }} />
                     )}
                     {r.alt_text && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Alt text: {r.alt_text}</div>}
-                    {r.download_url && (
-                      <a href={r.download_url} className="btn-outline" style={{ display: 'inline-flex', fontSize: 12, padding: '5px 10px', marginTop: 6, textDecoration: 'none', borderRadius: 8 }}>
-                        Download original
-                      </a>
-                    )}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 6 }}>
+                      {r.download_url && (
+                        <a href={r.download_url} className="btn-outline" style={{ display: 'inline-flex', fontSize: 12, padding: '5px 10px', textDecoration: 'none', borderRadius: 8 }}>
+                          Download original
+                        </a>
+                      )}
+                      {/* Mark as posted (Sean + Vanessa Deslandes, 2026-09-29):
+                          approved uploads only - moves it from Ready to post
+                          to Posted, with who and when. Undo puts it back. */}
+                      {r.status === 'approved' && (r.posted_at ? (
+                        <>
+                          <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                            Posted {new Date(r.posted_at).toLocaleDateString()}{r.posted_by_email ? ` by ${r.posted_by_email}` : ''}
+                          </span>
+                          <button className="btn-outline" style={{ fontSize: 11.5, padding: '4px 8px' }} disabled={postingId === r.id} onClick={() => handleMarkPosted(r.id, false)}>
+                            Undo
+                          </button>
+                        </>
+                      ) : (
+                        <button className="btn-primary" style={{ fontSize: 12, padding: '5px 10px' }} disabled={postingId === r.id} onClick={() => handleMarkPosted(r.id, true)}>
+                          {postingId === r.id ? 'Saving...' : 'Mark as posted'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {r.status === 'pending' && (
