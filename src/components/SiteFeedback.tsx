@@ -56,6 +56,26 @@ export default function SiteFeedback() {
     return () => { cancelled = true }
   }, [])
 
+  // Other surfaces can open this panel instead of carrying their own
+  // messaging widget: in-app callers dispatch a 'bcps:open-feedback' window
+  // event (WCM Hub "Ask the District Web Team" card), and briefs served in
+  // the same-origin brief-raw iframe post { type: 'bcps:open-feedback' } to
+  // the parent (Certification Complete page, which replaced its orange Pulse
+  // widget with this one, Sean 2026-09-29).
+  useEffect(() => {
+    const openPanel = () => { setOpen(true); setSent(false); setError('') }
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return
+      if (e.data && e.data.type === 'bcps:open-feedback') openPanel()
+    }
+    window.addEventListener('bcps:open-feedback', openPanel)
+    window.addEventListener('message', onMessage)
+    return () => {
+      window.removeEventListener('bcps:open-feedback', openPanel)
+      window.removeEventListener('message', onMessage)
+    }
+  }, [])
+
   const whoLabel = identity
     ? [identity.full_name, identity.department].filter(Boolean).join(' · ') || identity.email
     : null

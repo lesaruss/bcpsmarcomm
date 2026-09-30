@@ -123,12 +123,14 @@ export default function DashboardPage() {
             <a href={getResumeHref()} style={{ display: 'inline-block', padding: '13px 30px', background: '#1672A7', color: '#fff', borderRadius: 8, fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
               {completedCount === 0 ? 'Begin Certification' : 'Resume Where You Left Off'}
             </a>
+            <a href="/?page=wcm" style={{ marginLeft: 18, fontSize: 13, fontWeight: 700, color: '#1672A7', textDecoration: 'underline' }}>WCM Hub</a>
           </div>
         ) : (
           <div style={{ marginBottom: 28 }}>
             <a href="/certification/departments/complete" style={{ display: 'inline-block', padding: '13px 30px', background: '#16750C', color: '#fff', borderRadius: 8, fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
               View Your Certificate
             </a>
+            <a href="/?page=wcm" style={{ marginLeft: 18, fontSize: 13, fontWeight: 700, color: '#1672A7', textDecoration: 'underline' }}>WCM Hub</a>
           </div>
         )}
 

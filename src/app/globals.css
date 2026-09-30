@@ -1598,6 +1598,57 @@ body {
 .wcm-quick-info strong { display: block; font-size: 13px; font-weight: 700; margin-bottom: 2px; }
 .wcm-quick-info span   { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
 
+/* ── WCM Community Hub (2026-09-30, cards from bcps_wcm_hub_items) ── */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.wcm-hub2 { max-width: none; }
+.wcm-hub2-hero {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+  gap: 28px; align-items: center;
+  background: #fff; border-radius: 14px; border: 1px solid var(--border);
+  padding: 32px 36px; margin-bottom: 24px;
+}
+.wcm-hub2-title { font-size: 28px; font-weight: 900; color: var(--blue); line-height: 1.15; margin: 0 0 12px; }
+.wcm-hub2-hero p { font-size: 14px; color: var(--text-secondary); line-height: 1.7; margin: 0; max-width: 620px; }
+.wcm-hub2-status { border: 1px solid rgba(22,114,167,0.25); background: rgba(22,114,167,0.05); border-radius: 12px; padding: 18px 20px; min-width: 0; }
+.wcm-hub2-status.certified { border-color: rgba(22,117,12,0.3); background: rgba(22,117,12,0.06); }
+.wcm-hub2-status-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 4px; }
+.wcm-hub2-status-value { font-size: 20px; font-weight: 900; color: #0e4e73; }
+.wcm-hub2-status.certified .wcm-hub2-status-value { color: #16750C; }
+.wcm-hub2-status-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.wcm-hub2-meter { height: 8px; background: #e6ecf2; border-radius: 8px; overflow: hidden; margin-top: 10px; }
+.wcm-hub2-meter > div { height: 100%; background: var(--blue); border-radius: 8px; }
+.wcm-hub2-status-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 14px; }
+.wcm-hub2-status-btn { display: inline-block; background: var(--blue); color: #fff; font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 8px; text-decoration: none; }
+.wcm-hub2-status.certified .wcm-hub2-status-btn { background: #16750C; }
+.wcm-hub2-status-link { font-size: 13px; font-weight: 700; color: #0e4e73; text-decoration: underline; }
+.wcm-hub2-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+.wcm-hub2-tab {
+  appearance: none; background: none; border: none; cursor: pointer; font: inherit;
+  font-size: 14px; font-weight: 700; color: var(--text-muted);
+  padding: 12px 16px 13px; border-bottom: 3px solid transparent; margin-bottom: -2px; border-radius: 8px 8px 0 0;
+}
+.wcm-hub2-tab:hover { color: var(--text-primary); background: rgba(0,0,0,0.03); }
+.wcm-hub2-tab.active { color: #0e4e73; border-bottom-color: var(--blue); }
+.wcm-hub2-intro { font-size: 14px; color: var(--text-muted); margin: 0 0 16px; line-height: 1.6; }
+.wcm-hub2-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 16px; }
+.wcm-hub2-card { display: flex; flex-direction: column; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; min-width: 0; }
+.wcm-hub2-card h3 { font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0 0 8px; }
+.wcm-hub2-card p { font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; margin: 0 0 16px; flex: 1; }
+.wcm-hub2-card-btn {
+  align-self: flex-start; display: inline-block; background: #fff; color: #0e4e73;
+  border: 1.5px solid var(--blue); border-radius: 8px; padding: 8px 14px;
+  font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer;
+}
+.wcm-hub2-card-btn:hover { background: var(--blue); color: #fff; }
+.wcm-hub2-empty { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 24px; font-size: 14px; color: var(--text-secondary); }
+.wcm-hub2-empty a { color: #0e4e73; font-weight: 700; text-decoration: underline; }
+@media (max-width: 760px) {
+  .wcm-hub2-hero { grid-template-columns: minmax(0, 1fr); padding: 22px 20px; }
+  .wcm-hub2-title { font-size: 22px; }
+  .wcm-hub2-tabs { flex-wrap: nowrap; overflow-x: auto; gap: 0; }
+  .wcm-hub2-tab { padding: 11px 10px 12px; font-size: 13px; white-space: nowrap; flex: 0 0 auto; }
+}
+
 /* ── Portal Pages ── */
 .wcm-portal-page { max-width: 1100px; }
 .wcm-back-btn {

@@ -70,11 +70,16 @@ export default async function CompletePage() {
           </div>
 
           <p style={S.nextSteps}>
-            Next: get into Finalsite to actually update your department page. Recertifying WCMs already have access &mdash; first-time WCMs submit a short access request first.
+            Next: get into Finalsite to update your department page. The What&apos;s Next page walks you through it, whether you are recertifying or getting access for the first time.
           </p>
 
-          <a href="https://bcpsmarcomm.com/briefs/bcps-wcm-cert-complete-2026-27" style={S.dashBtn}>Get Into Finalsite</a>
-          <div style={{ marginTop: 12 }}>
+          {/* "What's Next" replaces "Get Into Finalsite" (Sean, 2026-09-29 Hot Lab): the
+              brief covers more than Finalsite login. Certified WCMs are added to that
+              brief's recipient list by the bcps_cert_complete_add_recipient trigger, so
+              this link always opens for the person who just earned the certificate. */}
+          <a href="/briefs/bcps-wcm-cert-complete-2026-27" style={S.dashBtn}>What&apos;s Next</a>
+          <div style={{ marginTop: 14, display: 'flex', gap: 18, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/?page=wcm" style={{ fontSize: 13, color: '#1672A7', fontWeight: 700, textDecoration: 'underline' }}>Go to the WCM Hub</Link>
             <Link href="/" style={{ fontSize: 13, color: '#888', textDecoration: 'underline' }}>Return to Dashboard</Link>
           </div>
         </div>
