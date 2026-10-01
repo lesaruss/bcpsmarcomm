@@ -786,7 +786,7 @@ function DepartmentRosterSection() {
 // 2026-09-18: school WCMs are out of scope) were removed here; both are in
 // git history if school support comes back.
 
-type HubTab = 'start' | 'build' | 'maintain' | 'compliance' | 'learn'
+export type HubTab = 'start' | 'build' | 'maintain' | 'compliance' | 'learn'
 
 interface HubItem {
   id: string
@@ -799,7 +799,7 @@ interface HubItem {
   sort_order: number
 }
 
-const HUB_TABS: { id: HubTab; label: string; intro: string }[] = [
+export const HUB_TABS: { id: HubTab; label: string; intro: string }[] = [
   { id: 'start', label: 'Start Here', intro: 'Your certification, your roster status, and the playbook that keeps you current.' },
   { id: 'build', label: 'Build Kit', intro: 'Reusable pieces so you are not building from scratch.' },
   { id: 'maintain', label: 'Maintain', intro: 'Keep your department pages accurate once they are live.' },
@@ -1001,4 +1001,50 @@ export function WcmRosterStandalonePage() {
 /* ─── ROOT ────────────────────────────────────────────── */
 export default function WCMPage() {
   return <WcmCommunityHub />
+}
+
+// One hub tab's cards, without the hub's own header or tab strip, for the
+// WCM dashboard's tabs (2026-10-01, mock v3). Same managed list and rules
+// as WcmCommunityHub: live rows only, "certified" cards only once certified.
+export function WcmHubCards({ tab, certified }: { tab: HubTab; certified: boolean }) {
+  const [items, setItems] = useState<HubItem[] | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    supabase
+      .from('bcps_wcm_hub_items')
+      .select('id,tab,title,description,href,link_label,requires,sort_order')
+      .eq('tab', tab)
+      .order('sort_order', { ascending: true })
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) { setLoadError(true); setItems([]) } else setItems((data || []) as HubItem[])
+      })
+    return () => { cancelled = true }
+  }, [tab])
+  const intro = HUB_TABS.find((x) => x.id === tab)?.intro
+  if (items === null) return <div className="wcm-hub2-empty">Loading...</div>
+  const visible = items.filter((i) => i.requires !== 'certified' || certified)
+  if (!visible.length) {
+    return (
+      <div className="wcm-hub2-empty">
+        {loadError ? 'These cards could not load right now. ' : 'Nothing is posted here yet. '}
+        In the meantime, the <a href="/playbooks/wcm-department">Department WCM Playbook</a> has everything current.
+      </div>
+    )
+  }
+  return (
+    <>
+      {intro && <p className="wcm-hub2-intro">{intro}</p>}
+      <div className="wcm-hub2-grid">
+        {visible.map((item) => (
+          <div key={item.id} className="wcm-hub2-card">
+            <h3>{item.title}</h3>
+            <p>{item.description}</p>
+            <HubCardAction item={item} />
+          </div>
+        ))}
+      </div>
+    </>
+  )
 }

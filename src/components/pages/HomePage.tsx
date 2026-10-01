@@ -7,7 +7,7 @@ import DepartmentsPage from './DepartmentsPage'
 import AnalyticsPage from './AnalyticsPage'
 import WidgetsPage from './WidgetsPage'
 import DashboardPage from './DashboardPage'
-import { WcmCommunityHub, type CertStatus } from './WCMPage'
+import { WcmCommunityHub, WcmHubCards, type CertStatus, type HubTab } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
 import { SAMPLE_SUPERADMIN_ID, SAMPLE_ROLE_MEMBERS, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
@@ -225,6 +225,7 @@ interface HomeData {
   is_director: boolean
   is_superadmin?: boolean
   my_certified?: boolean
+  my_cert?: { certified: boolean; done: number; total: number; pct: number } | null
   team_kind?: 'comms' | 'appsvc' | null
   team_home?: TeamHomeData | null
   is_wcm: boolean
@@ -300,8 +301,10 @@ function sampleWcmData(): HomeData {
   return {
     experience: 'wcm', is_dwt: false, is_director: false, is_wcm: true,
     name: 'Wendy Ramirez', email: 'sample-wcm@preview.local', led_department_ids: [],
-    departments: [{ id: 'sample-a', name: 'Sample Purchasing Services', division: 'Finance', website_url: null, audit_status: 'wcm_notified', findings_open: 3, findings_fixed: 2, wcms: [] }],
+    departments: [{ id: 'sample-a', name: 'Sample Purchasing Services', division: 'Finance', website_url: null, audit_status: 'wcm_notified', findings_open: 3, findings_fixed: 2, wcms: [], analytics: sampleAnalytics(1) }],
     team: null,
+    my_certified: false,
+    my_cert: { certified: false, done: 41, total: 66, pct: 62 },
   }
 }
 const SAMPLE_WCM_CERT: CertStatus = { state: 'in_progress', pct: 62 }
@@ -828,63 +831,152 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 }
 
 /* ─── WCM ──────────────────────────────────────────────── */
+// The WCM dashboard, laid out like the other dashboards (Sean approved,
+// mock v3): heading, status strip, then tabs. Start Here opens with the
+// first steps; My Department holds the audit, the site's visitors and the
+// review; Build Kit, Maintain and Learn are the hub cards.
+type WcmTab = 'start' | 'dept' | 'build' | 'maintain' | 'learn'
+
 function WcmHome({ data, preview }: { data: HomeData; preview?: boolean }) {
+  const [tab, setTab] = useState<WcmTab>('start')
   const mine = data.departments
+  const primary = mine[0]
+  const cert = data.my_cert ?? { certified: !!data.my_certified, done: 0, total: 0, pct: data.my_certified ? 100 : 0 }
+  const w = primary ? windowForDivision(primary.division) : null
+  const open = mine.reduce((n, d) => n + d.findings_open, 0)
+  const fixed = mine.reduce((n, d) => n + d.findings_fixed, 0)
+  const name = firstName(data)
+  const tabs: { id: WcmTab; label: string }[] = [
+    { id: 'start', label: 'Start Here' },
+    ...(mine.length ? [{ id: 'dept' as WcmTab, label: mine.length > 1 ? 'My Departments' : 'My Department' }] : []),
+    { id: 'build', label: 'Build Kit' },
+    { id: 'maintain', label: 'Maintain' },
+    { id: 'learn', label: 'Learn' },
+  ]
   return (
     <div className="home">
       {preview && <PreviewBanner who="WCM" />}
-      {mine.length > 0 && (
-        <div className="home-strip">
-          {mine.map((d) => (
-            <StatTile
-              key={d.id}
-              label={d.name}
-              value="Confirmed"
-              note={d.audit_status ? `Audit: ${AUDIT_LABELS[d.audit_status] || d.audit_status}` : 'Confirmed by your director'}
-            />
-          ))}
+      <div className="home-hero">
+        <div className="home-hero-label">BCPS MarComm Web Content Manager</div>
+        <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
+        <p>Your certification, your department&apos;s website, and everything you need to keep it current.</p>
+        <div className="home-actions">
+          {cert.certified
+            ? <a className="home-btn" href="/briefs/bcps-wcm-cert-complete-2026-27">Certified: what&apos;s next</a>
+            : <a className="home-btn" href="/certification/departments/dashboard">{cert.pct > 0 ? 'Continue certification' : 'Start certification'}</a>}
+          <a className="wcm-hub2-card-btn" href="/playbooks/wcm-department">Department WCM Playbook</a>
         </div>
-      )}
+      </div>
+
       {mine.length === 0 && data.is_wcm && (
         <div className="home-notice">
           Your director has not confirmed you on the WCM roster yet. Send them the{' '}
           <a href={ROSTER_SIGNUP_URL}>confirmation form</a> so you are listed for your department.
         </div>
       )}
-      {mine.map((d) => <WcmAuditSteps key={d.id} dept={d} certified={!!data.my_certified} />)}
-      <WcmCommunityHub previewCert={preview ? SAMPLE_WCM_CERT : undefined} />
+
+      <div className="home-strip">
+        <StatTile
+          label="Certification"
+          value={cert.certified ? 'Certified' : `${cert.pct}%`}
+          note={cert.certified ? 'Department WCM Certification complete' : `${cert.total ? `${cert.done} of ${cert.total} pages. ` : ''}Due ${DEPT_CERT_DEADLINE}.`}
+          tone={cert.certified ? undefined : 'warn'}
+        />
+        {w && <StatTile label="Your review window" value={formatWindowRange(w)} note={`${w.label}. Bring your director.`} />}
+        {mine.length > 0 && (
+          <StatTile
+            label="Audit items to fix"
+            value={open ? `${open} open` : open + fixed ? 'All fixed' : 'None yet'}
+            note={open + fixed ? `${fixed} already fixed` : 'Your audit items will show here'}
+            tone={open ? 'warn' : undefined}
+          />
+        )}
+        <StatTile label="Next Hot Lab" value={nextHotLab()} note="Tuesdays and Thursdays" />
+      </div>
+
+      <HomeTabs tabs={tabs} active={tab} onChange={(x) => setTab(x as WcmTab)} />
+
+      {tab === 'start' && (
+        <>
+          <div className="home-dept home-section">
+            <h3 className="home-card-title">Your next steps</h3>
+            <ol className="home-wsteps">
+              <li className={cert.certified ? 'done' : 'now'}>
+                <b>Finish your certification</b>
+                <span>{cert.certified ? 'Done. Your certificate and what comes next are on the What\u2019s Next page.' : `The Department WCM Certification is due ${DEPT_CERT_DEADLINE}. It covers how the audit works.`}</span>
+                {!cert.certified && <a className="wcm-hub2-card-btn" href="/certification/departments/dashboard">Open certification</a>}
+              </li>
+              <li className={cert.certified ? 'now' : undefined}>
+                <b>Scan your pages</b>
+                <span>Run the ADA Scanner on your department pages so you know what the audit will find.</span>
+                {cert.certified && <a className="wcm-hub2-card-btn" href="/?page=ada-scanner">Open ADA Scanner</a>}
+              </li>
+              {mine.length > 0 && (
+                <li>
+                  <b>Work through your audit</b>
+                  <span>The rest of your steps are on the {mine.length > 1 ? 'My Departments' : 'My Department'} tab.</span>
+                  <button type="button" className="home-link-btn" onClick={() => setTab('dept')}>Go to {mine.length > 1 ? 'My Departments' : 'My Department'}</button>
+                </li>
+              )}
+            </ol>
+          </div>
+          <WcmHubCards tab="start" certified={cert.certified} />
+        </>
+      )}
+      {tab === 'dept' && mine.map((d) => <WcmDepartmentTab key={d.id} dept={d} />)}
+      {(tab === 'build' || tab === 'maintain' || tab === 'learn') && <WcmHubCards tab={tab as HubTab} certified={cert.certified} />}
     </div>
   )
 }
 
-// What a WCM should do with their department's audit, step by step, with the
-// step they are on marked (Sean, 2026-10-01).
-function WcmAuditSteps({ dept, certified }: { dept: DepartmentSummary; certified: boolean }) {
+// One department on the WCM's My Department tab: what the audit found, how
+// many people use the site, when it is reviewed, then the audit steps.
+function WcmDepartmentTab({ dept }: { dept: DepartmentSummary }) {
   const s = dept.audit_status || 'not_started'
   const w = windowForDivision(dept.division)
+  const total = dept.findings_open + dept.findings_fixed
+  const a = dept.analytics
   const steps: { title: string; body: string; done: boolean; href?: string; cta?: string }[] = [
-    { title: 'Finish your certification', body: `The Department WCM Certification is due ${DEPT_CERT_DEADLINE}. It covers how the audit works.`, done: certified, href: '/certification/departments/dashboard', cta: 'Open certification' },
-    { title: 'Scan your pages', body: 'Run the ADA Scanner on your department pages so you know what will come up.', done: ['wcm_notified', 'wcm_submitted', 'admin_review', 'needs_rework', 'complete'].includes(s), href: '/?page=ada-scanner', cta: 'Open ADA Scanner' },
-    { title: 'Fix what the audit found', body: dept.findings_open + dept.findings_fixed ? `${dept.findings_open} item${dept.findings_open === 1 ? '' : 's'} to fix, ${dept.findings_fixed} fixed. Mark each one as you fix it.` : 'When the District Web Team audits your site, each item to fix is listed in your audit.', done: ['wcm_submitted', 'admin_review', 'complete'].includes(s), href: '/wcm-portal', cta: 'Open my audit' },
-    { title: 'Submit for review', body: 'When every item is fixed, submit your audit. The District Web Team checks the fixes.', done: ['admin_review', 'complete'].includes(s) || s === 'wcm_submitted', href: '/wcm-portal', cta: 'Submit in my audit' },
+    { title: 'Fix what the audit found', body: total ? `${dept.findings_open} item${dept.findings_open === 1 ? '' : 's'} to fix, ${dept.findings_fixed} fixed. Mark each one as you fix it.` : 'When the District Web Team audits your site, each item to fix is listed in your audit.', done: ['wcm_submitted', 'admin_review', 'complete'].includes(s), href: '/wcm-portal', cta: 'Open my audit' },
+    { title: 'Submit for review', body: 'When every item is fixed, submit your audit. The District Web Team checks the fixes.', done: ['wcm_submitted', 'admin_review', 'complete'].includes(s), href: '/wcm-portal', cta: 'Submit in my audit' },
     { title: 'Bring your director to the review', body: w ? `${dept.division} is in ${w.label}, ${formatWindowRange(w)}. Your director books the one-hour meeting.` : 'Your director books the one-hour review meeting with the District Web Team.', done: s === 'complete' },
   ]
   const current = steps.findIndex((x) => !x.done)
   return (
-    <div className="home-dept home-section">
-      <div className="home-dept-head">
-        <h3>Your audit, step by step: {dept.name}</h3>
-        <span className="home-chip">{AUDIT_LABELS[s] || s}</span>
+    <div className="home-section">
+      <p className="wcm-hub2-intro">{dept.name}: what the audit found, how many people use the site, and when it is reviewed.</p>
+      <div className="home-dept-grid home-section">
+        <div className="home-dept">
+          <div className="home-dept-head"><h3>Audit items</h3><span className="home-chip">{AUDIT_LABELS[s] || s}</span></div>
+          <p className="home-card-text">{total ? `${dept.findings_open} open, ${dept.findings_fixed} fixed. Mark each one fixed in your audit; the District Web Team reviews it.` : 'No audit items yet. They show here once your site is audited.'}</p>
+          <a className="home-btn" href="/wcm-portal">Open my audit</a>
+        </div>
+        <div className="home-dept">
+          <h3 className="home-card-title">{a ? `${monthLabel(a.period).split(' ')[0]} visitors` : 'Visitors'}</h3>
+          {a ? (
+            <div className="home-kpis">
+              <div className="home-kpi"><b>{fmtNum(a.visitors)}</b><span>Visitors</span></div>
+              {a.engaged_pct !== null && <div className="home-kpi"><b>{a.engaged_pct}%</b><span>Engaged visits</span></div>}
+            </div>
+          ) : <p className="home-card-text">Visitor numbers for your pages are not connected yet.</p>}
+        </div>
+        <div className="home-dept">
+          <h3 className="home-card-title">Your review</h3>
+          <p className="home-card-text">{w ? `${w.label}, ${formatWindowRange(w)}. Complete the page checklist first, then bring your director to the one-hour meeting.` : 'Complete the page checklist first, then bring your director to the one-hour meeting.'}</p>
+        </div>
       </div>
-      <ol className="home-wsteps">
-        {steps.map((x, i) => (
-          <li key={x.title} className={x.done ? 'done' : i === current ? 'now' : undefined}>
-            <b>{x.title}</b>
-            <span>{x.body}</span>
-            {i === current && x.href && <a className="wcm-hub2-card-btn" href={x.href}>{x.cta}</a>}
-          </li>
-        ))}
-      </ol>
+      <div className="home-dept">
+        <h3 className="home-card-title">Your audit, step by step</h3>
+        <ol className="home-wsteps">
+          {steps.map((x, i) => (
+            <li key={x.title} className={x.done ? 'done' : i === current ? 'now' : undefined}>
+              <b>{x.title}</b>
+              <span>{x.body}</span>
+              {i === current && x.href && <a className="wcm-hub2-card-btn" href={x.href}>{x.cta}</a>}
+            </li>
+          ))}
+        </ol>
+      </div>
     </div>
   )
 }

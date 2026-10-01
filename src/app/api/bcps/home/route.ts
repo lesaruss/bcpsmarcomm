@@ -171,6 +171,22 @@ export async function GET(req: NextRequest) {
     const analytics = await loadAnalytics(ledIds, departments)
     for (const d of departments) if (ledIds.includes(d.id)) d.analytics = analytics.get(d.id) ?? null
     directorNotes = await loadDirectorNotes(ledIds, email)
+  } else if (isWcm && !isDwt && departments.length) {
+    // A WCM's own department site visitors, for the My Department tab.
+    const ids = departments.map((d) => d.id)
+    const analytics = await loadAnalytics(ids, departments)
+    for (const d of departments) d.analytics = analytics.get(d.id) ?? null
+  }
+
+  // The caller's own certification progress (WCM status strip). Only
+  // pages in the current course count, same as the director view.
+  let myCert: { certified: boolean; done: number; total: number; pct: number } | null = null
+  if (isWcm || isDirector) {
+    const prog = await fetchAll<{ module_id: string; page_id: string }>((a, b) => svc.from('wcm_cert_progress')
+      .select('module_id, page_id').eq('user_id', user.id).eq('course_id', COURSE_ID).eq('completed', true).order('id').range(a, b))
+    const done = new Set(prog.map((p) => `${p.module_id}::${p.page_id}`).filter((k) => COURSE_PAGE_KEYS.has(k))).size
+    const certified = !!certRes.data?.issued_at
+    myCert = { certified, done: certified ? TOTAL_PAGES : done, total: TOTAL_PAGES, pct: certified ? 100 : TOTAL_PAGES ? Math.min(99, Math.round((done / TOTAL_PAGES) * 100)) : 0 }
   }
   // The widget catalog is the same for everyone. The team gets it with
   // their own edit rights (also used by the "View as" director preview).
@@ -234,6 +250,7 @@ export async function GET(req: NextRequest) {
     is_director: isDirector,
     is_superadmin: isSuperadmin,
     my_certified: !!certRes.data?.issued_at,
+    my_cert: myCert,
     team_kind: teamKind,
     is_wcm: isWcm,
     name: profileRes.data?.full_name ?? null,
