@@ -91,7 +91,7 @@ function HomeInner() {
 
   return (
     <div className="page-content">
-      {nav.page === 'dashboard'              && <HomePage onNavigate={navigate} viewAsUserId={viewAs?.id} />}
+      {nav.page === 'dashboard'              && <HomePage onNavigate={navigate} viewAsUserId={viewAs?.id} onShowToast={showToast} />}
       {nav.page === 'notes'                  && <NotesPage />}
       {nav.page === 'profile'                && <ProfilePage subPage={nav.subPage} onNavigate={navigate} />}
       {nav.page === 'departments'            && <DepartmentsPage subPage={nav.subPage} onNavigate={navigate} />}

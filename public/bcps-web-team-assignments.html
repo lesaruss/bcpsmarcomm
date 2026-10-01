@@ -5516,6 +5516,25 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
 })();
 </script>
 
+<script>
+  // Deep link from the BCPS MarComm dashboard (2026-10-01): #open=<slug>
+  // scrolls to that assignment in the newest section and opens its notes.
+  window.addEventListener('load', function () {
+    var m = /[#&]open=([^&]+)/.exec(location.hash);
+    if (!m) return;
+    var slug = decodeURIComponent(m[1]).replace(/["\\]/g, '');
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.assignment-row[data-slug="' + slug + '"]'));
+    var best = null, bestV = -1;
+    rows.forEach(function (r) {
+      var mm = /toggleTag(\d*)\(/.exec(r.innerHTML);
+      var v = mm ? Number(mm[1] || 0) : -1;
+      if (v > bestV) { bestV = v; best = r; }
+    });
+    if (!best) return;
+    best.scrollIntoView({ block: 'center' });
+    openNotes(best);
+  });
+</script>
 </body>
 </html>
 

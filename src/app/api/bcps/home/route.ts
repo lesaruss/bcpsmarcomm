@@ -437,15 +437,33 @@ async function loadTeamMembers(rows: Awaited<ReturnType<typeof loadAssignments>>
   const { data: members } = await svc.from('acl_group_members').select('user_id, group_id').in('group_id', [dwtId, oocId].filter(Boolean) as string[])
   const dwtUsers = Array.from(new Set((members ?? []).filter((m) => m.group_id === dwtId).map((m) => m.user_id as string)))
   const oocUsers = new Set((members ?? []).filter((m) => m.group_id === oocId).map((m) => m.user_id as string))
-  const { data: profiles } = await svc.from('wcm_cert_users').select('user_id, full_name').in('user_id', dwtUsers)
+  const [{ data: profiles }, { data: roles }] = await Promise.all([
+    svc.from('wcm_cert_users').select('user_id, full_name').in('user_id', dwtUsers),
+    svc.from('acl_member_roles').select('user_id, title, department_slug').eq('brand', BRAND).in('user_id', dwtUsers),
+  ])
   const nameById = new Map((profiles ?? []).map((p) => [p.user_id as string, p.full_name as string | null]))
+  const roleById = new Map((roles ?? []).map((r) => [r.user_id as string, r]))
+  const slugs = Array.from(new Set((roles ?? []).map((r) => r.department_slug).filter(Boolean))) as string[]
+  const { data: deptRows } = slugs.length
+    ? await svc.from('bcps_departments').select('slug, name').in('slug', slugs)
+    : { data: [] as { slug: string; name: string }[] }
+  const deptBySlug = new Map((deptRows ?? []).map((d) => [d.slug as string, d.name as string]))
   const out: TeamMemberWork[] = []
   for (const id of dwtUsers) {
     const { data } = await svc.auth.admin.getUserById(id)
     const email = (data.user?.email || '').toLowerCase()
     if (!email) continue
     const name = nameById.get(id) || nameFromEmail(email)
-    out.push({ name, email, team: oocUsers.has(id) ? 'comms' : 'appsvc', assignments: assignmentsFor(rows, name.split(/\s+/)[0], name) })
+    const role = roleById.get(id)
+    out.push({
+      user_id: id,
+      name,
+      email,
+      title: (role?.title as string | null) || null,
+      department: role?.department_slug ? deptBySlug.get(role.department_slug as string) ?? null : null,
+      team: oocUsers.has(id) ? 'comms' : 'appsvc',
+      assignments: assignmentsFor(rows, name.split(/\s+/)[0], name),
+    })
   }
   return out.sort((a, b) => (a.team === b.team ? 0 : a.team === 'comms' ? -1 : 1) || b.assignments.length - a.assignments.length)
 }

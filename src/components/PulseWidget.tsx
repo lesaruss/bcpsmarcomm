@@ -45,11 +45,8 @@ const TICKER_MESSAGES: TickerMessage[] = [
     linkText: null,
     linkHref: '?page=bcps-certification',
   },
-  {
-    text: 'District Web Team kickoff is September 10.',
-    linkText: 'Register today',
-    linkHref: null, // TODO(Sean): no registration page/form exists yet
-  },
+  // The September 10 District Web Team kickoff line was removed on
+  // 2026-10-01 at Sean's request (the date had passed).
   // Per Sean, Hot Lab 2026-09-22: "I even have it in the top level up
   // here, which I'm noticing is not clickable... make sure that that's
   // clickable." It was plain text because linkHref was null (no rollout

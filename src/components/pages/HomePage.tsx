@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import type { PageId, BreadcrumbItem } from '@/lib/types'
 import DepartmentsPage from './DepartmentsPage'
+import AnalyticsPage from './AnalyticsPage'
+import WidgetsPage from './WidgetsPage'
 import DashboardPage from './DashboardPage'
 import { WcmCommunityHub, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
@@ -132,9 +134,44 @@ interface Assignment {
   date_label: string | null
   date_iso: string | null
   past_date: boolean
+  priority: 'high' | 'medium' | 'low' | null
 }
 
-interface TeamMemberWork { name: string; email: string; team: 'comms' | 'appsvc'; assignments: Assignment[] }
+interface TeamMemberWork {
+  user_id: string
+  name: string
+  email: string
+  title: string | null
+  department: string | null
+  team: 'comms' | 'appsvc'
+  assignments: Assignment[]
+}
+
+// Same initials and color rule as /api/bcps/members, so a person's avatar
+// matches the one on the Members page and the previous Team tile.
+const AVATAR_COLORS = ['#1672A7', '#7B5EA7', '#2E8B57', '#D4600A', '#C0392B', '#0E7C86', '#8E44AD', '#B7791F']
+function avatarColor(seed: string) {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
+  return AVATAR_COLORS[h % AVATAR_COLORS.length]
+}
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/)
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || name.slice(0, 2).toUpperCase()
+}
+
+// Opens one assignment's notes on the Web Team Assignments page.
+function openAssignment(slug: string) {
+  window.location.href = `/?page=bcps-assignments&row=${encodeURIComponent(slug)}`
+}
+
+// Analytics and Widgets tabs render the same pages the menu opens, so a tab
+// never shows less than its page (Sean, 2026-10-01).
+function AnalyticsTabPage({ onShowToast }: { onShowToast?: (msg: string) => void }) {
+  const { role, viewAs, canManageMessages } = useBCPSShell()
+  const sa = role === 'superadmin' && (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID)
+  return <AnalyticsPage onShowToast={onShowToast ?? (() => {})} canSync={sa} canManageCampaigns={sa || (!viewAs && canManageMessages)} />
+}
 
 interface TeamProgram {
   certification: { division: string; wcms: number; certified: number }[]
@@ -917,29 +954,6 @@ function BannersPanel({ b, onNavigate }: { b: TeamBanners; onNavigate: (page: Pa
   )
 }
 
-function TeamWidgetsPanel({ widgets, onNavigate }: { widgets: WidgetItem[]; onNavigate: (page: PageId) => void }) {
-  return (
-    <>
-      <p className="wcm-hub2-intro">Every widget the District Web Team has built. Everyone on the team can open and click through each one; who can edit it is set per widget.</p>
-      <div className="wcm-hub2-grid">
-        {widgets.map((w) => (
-          <div key={w.slug} className="wcm-hub2-card">
-            <div className="home-dept-head">
-              <h3>{w.title}</h3>
-              <span className={`home-status ${w.can_edit ? 'done' : 'progress'}`}>{w.can_edit ? 'You can edit' : 'View only'}</span>
-            </div>
-            {w.description && <p>{w.description}</p>}
-            <div className="home-actions home-actions-tight">
-              <a className="wcm-hub2-card-btn" href={w.preview_path!} target="_blank" rel="noopener noreferrer">Preview</a>
-              {w.can_edit && <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('widgets')}>Edit</button>}
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
-  )
-}
-
 function MyWorkPanel({ items, who, onNavigate }: { items: Assignment[]; who?: string; onNavigate: (page: PageId) => void }) {
   const [all, setAll] = useState(false)
   const shown = all ? items : items.slice(0, 10)
@@ -1084,11 +1098,8 @@ interface InboxMessage {
 // 2026-10-01): decisions to make, the inbox (site feedback, questions and
 // director meeting requests, answered right here), and their own tasks
 // from Web Team Assignments that are past their date or pending.
-function DecisionsPanel({ th, team, onNavigate, onOpenOps }: { th: TeamHomeData; team: HomeData['team']; onNavigate: Navigate; onOpenOps: () => void }) {
+function DecisionsPanel({ th, team, onNavigate, onOpenOps, onOpenInbox }: { th: TeamHomeData; team: HomeData['team']; onNavigate: Navigate; onOpenOps: () => void; onOpenInbox: () => void }) {
   const roster = th.decisions?.roster_pending ?? []
-  const tasks = th.my_assignments
-  const pastTasks = tasks.filter((a) => a.past_date)
-  const pendingTasks = tasks.filter((a) => !a.past_date && a.status === 'pending')
   return (
     <>
       <p className="wcm-hub2-intro">Everything waiting on you, in one place: decisions to make, your inbox, and your own tasks.</p>
@@ -1096,7 +1107,7 @@ function DecisionsPanel({ th, team, onNavigate, onOpenOps }: { th: TeamHomeData;
       <div className="home-dcols">
       <section className="home-dcol" aria-label="Decide">
       <h3 className="home-grp">Decide</h3>
-      <div className="home-dept">
+      <div className="home-dept home-dbox"><div className="home-dscroll">
         {roster.map((r) => (
           <div key={r.id} className="home-dec">
             <div className="home-dec-what">Roster submission: {r.department_name || 'Department'}
@@ -1113,44 +1124,54 @@ function DecisionsPanel({ th, team, onNavigate, onOpenOps }: { th: TeamHomeData;
           <div className="home-dec-what">Access requests<small>Someone asking to help with a report.</small></div>
           {team?.access_requests ? <button type="button" className="wcm-hub2-card-btn" onClick={onOpenOps}>{team.access_requests} waiting</button> : <span className="home-hint">None waiting</span>}
         </div>
-      </div>
-
+      </div></div>
       </section>
       <section className="home-dcol" aria-label="Inbox">
       <h3 className="home-grp">Inbox</h3>
-      <InboxSection onOpenOps={onOpenOps} />
+      <InboxSection onOpenOps={onOpenOps} onOpenInbox={onOpenInbox} />
       </section>
       <section className="home-dcol" aria-label="Your tasks">
       <h3 className="home-grp">Your tasks</h3>
-      <div className="home-dept">
-        {pastTasks.length === 0 && pendingTasks.length === 0 ? (
-          <p className="home-card-text">Nothing past its date or pending on the Web Team Assignments page.</p>
-        ) : (
-          <>
-            {pastTasks.length > 0 && <TaskList title={`Past their date (${pastTasks.length})`} items={pastTasks} />}
-            {pendingTasks.length > 0 && <TaskList title={`Pending (${pendingTasks.length})`} items={pendingTasks} />}
-          </>
-        )}
-        <div className="home-actions">
-          <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
-        </div>
-      </div>
+      <TopTasks items={th.my_assignments} onNavigate={onNavigate} />
       </section>
       </div>
     </>
   )
 }
 
-function TaskList({ title, items }: { title: string; items: Assignment[] }) {
-  const [all, setAll] = useState(false)
-  const shown = all ? items : items.slice(0, 5)
+// The five tasks that matter most: high priority first, then anything past
+// its date, soonest first (Sean, 2026-10-01). Each opens that assignment's
+// notes; the button below opens the whole page.
+function TopTasks({ items, onNavigate }: { items: Assignment[]; onNavigate: Navigate }) {
+  const high = items.filter((a) => a.priority === 'high')
+  const late = items.filter((a) => a.priority !== 'high' && a.past_date)
+  const top = [...high, ...late].slice(0, 5)
   return (
-    <div className="home-tasklist">
-      <div className="home-dec-what">{title}</div>
-      <ul className="home-mini">
-        {shown.map((a) => <li key={a.slug}><span>{a.title}</span>{a.date_label && <b>{a.date_label}</b>}</li>)}
-      </ul>
-      {items.length > 5 && <button type="button" className="home-link-btn" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${items.length}`}</button>}
+    <div className="home-dept home-dbox">
+      <div className="home-dscroll">
+        <p className="home-card-text">{high.length ? `${high.length} high priority` : 'No high priority tasks'}{late.length ? `, ${late.length} past their date` : ''}. Your top five:</p>
+        {top.length === 0 ? (
+          <p className="home-card-text">Nothing high priority or past its date on the Web Team Assignments page.</p>
+        ) : (
+          <ul className="home-tasks">
+            {top.map((a) => (
+              <li key={a.slug}>
+                <button type="button" className="home-task" onClick={() => openAssignment(a.slug)}>
+                  <span className="home-task-title">{a.title}</span>
+                  <span className="home-task-meta">
+                    {a.priority === 'high' && <span className="home-tag late">High</span>}
+                    {a.past_date && a.priority !== 'high' && <span className="home-tag late">Past date</span>}
+                    <span>{a.date_label || 'No date'}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="home-dfoot">
+        <button type="button" className="home-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
+      </div>
     </div>
   )
 }
@@ -1158,7 +1179,7 @@ function TaskList({ title, items }: { title: string; items: Assignment[] }) {
 // The site inbox (wcm_pilot_feedback via /api/bcps/messages, the same one
 // Team Operations shows). Unanswered messages first; open one to read it and
 // reply in place. Voice replies and account access stay in Team Operations.
-function InboxSection({ onOpenOps }: { onOpenOps: () => void }) {
+function InboxSection({ onOpenOps, onOpenInbox }: { onOpenOps: () => void; onOpenInbox: () => void }) {
   const [messages, setMessages] = useState<InboxMessage[] | null>(null)
   const [failed, setFailed] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -1201,13 +1222,18 @@ function InboxSection({ onOpenOps }: { onOpenOps: () => void }) {
     finally { setSending(false) }
   }
 
-  if (failed) return <div className="home-dept"><p className="home-card-text">The inbox could not load right now. It is also in Team Operations.</p></div>
-  if (!messages) return <div className="home-dept"><p className="home-card-text">Loading your inbox...</p></div>
+  const foot = (
+    <div className="home-dfoot">
+      <button type="button" className="home-btn" onClick={onOpenInbox}>Open the full inbox</button>
+    </div>
+  )
+  if (failed) return <div className="home-dept home-dbox"><div className="home-dscroll"><p className="home-card-text">The inbox could not load right now.</p></div>{foot}</div>
+  if (!messages) return <div className="home-dept home-dbox"><div className="home-dscroll"><p className="home-card-text">Loading your inbox...</p></div>{foot}</div>
   const sorted = [...messages].sort((a, b) => Number(!!a.replied_at) - Number(!!b.replied_at) || b.created_at.localeCompare(a.created_at))
   const waiting = sorted.filter((m) => !m.replied_at).length
   const shown = all ? sorted : sorted.slice(0, 6)
   return (
-    <div className="home-dept">
+    <div className="home-dept home-dbox"><div className="home-dscroll">
       <p className="home-card-text">{waiting ? `${waiting} waiting for a reply.` : 'Everything has a reply.'} Site feedback, questions and director meeting requests land here.</p>
       {shown.length === 0 && <p className="home-card-text">No messages yet.</p>}
       {shown.map((m) => (
@@ -1237,7 +1263,7 @@ function InboxSection({ onOpenOps }: { onOpenOps: () => void }) {
         </div>
       ))}
       {sorted.length > 6 && <button type="button" className="home-link-btn" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${sorted.length}`}</button>}
-    </div>
+    </div>{foot}</div>
   )
 }
 
@@ -1257,12 +1283,23 @@ function TeamPanel({ members, onPreview }: { members: TeamMemberWork[]; onPrevie
                 const past = m.assignments.filter((a) => a.past_date).length
                 return (
                   <div key={m.email} className="home-dept">
-                    <div className="home-dept-head"><h3>{m.name}</h3><span className="home-chip">{m.assignments.length} open</span></div>
+                    <div className="home-person">
+                      <div className="avatar" style={{ background: avatarColor(m.user_id) }} aria-hidden="true">{initialsOf(m.name)}</div>
+                      <div className="home-person-info">
+                        <h3>{m.name}</h3>
+                        {m.title && <span>{m.title}</span>}
+                        {m.department && <span>{m.department}</span>}
+                      </div>
+                      <span className="home-chip">{m.assignments.length} open</span>
+                    </div>
                     {past > 0 && <div className="home-dept-sub">{past} past their date</div>}
                     <ul className="home-mini">
                       {m.assignments.slice(0, 3).map((a) => <li key={a.slug}><span>{a.title}</span>{a.date_label && <b>{a.date_label}</b>}</li>)}
                     </ul>
-                    <button type="button" className="wcm-hub2-card-btn" onClick={() => onPreview(m)}>Preview {m.name.split(/\s+/)[0]}&apos;s dashboard</button>
+                    <button type="button" className="wcm-hub2-card-btn home-person-btn" onClick={() => onPreview(m)}>
+                      <span className="avatar avatar-xs" style={{ background: avatarColor(m.user_id) }} aria-hidden="true">{initialsOf(m.name)}</span>
+                      Preview {m.name.split(/\s+/)[0]}&apos;s dashboard
+                    </button>
                   </div>
                 )
               })}
@@ -1306,8 +1343,13 @@ function DepartmentsPanel({ onNavigate }: { onNavigate: Navigate }) {
   return <DepartmentsPage onNavigate={onNavigate} />
 }
 
-function SuperAdminHome({ data, onNavigate, viewAsUserId, preview }: { data: HomeData; onNavigate: Navigate; viewAsUserId?: string; preview?: boolean }) {
+function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }: { data: HomeData; onNavigate: Navigate; viewAsUserId?: string; preview?: boolean; onShowToast?: (msg: string) => void }) {
   const [tab, setTab] = useState('decisions')
+  // The full inbox lives in Team Operations (voice replies, account access).
+  const openInbox = () => {
+    setTab('ops')
+    setTimeout(() => document.getElementById('dashboard-messages-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400)
+  }
   const { setViewAs } = useBCPSShell()
   const th = data.team_home!
   const p = th.program
@@ -1328,8 +1370,9 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview }: { data: Hom
     { id: 'program', label: 'Program' },
     ...((th.team_members?.length ?? 0) > 0 ? [{ id: 'team', label: 'Team' }] : []),
     { id: 'departments', label: 'Departments' },
+    { id: 'analytics', label: 'Analytics' },
     { id: 'ada', label: 'ADA' },
-    ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets', label: 'Widgets' }] : []),
+    { id: 'widgets', label: 'Widgets' },
     { id: 'tools', label: 'Tools' },
     { id: 'admin', label: 'Admin' },
     { id: 'ops', label: 'Team Operations' },
@@ -1353,12 +1396,13 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview }: { data: Hom
         <StatTile label={`${w.label} ${windowState(w) === 'open' ? 'open' : 'next'}`} value={`${wStats?.departments ?? 0} depts`} note={`${formatWindowRange(w)}. ${wStats?.signed_off ?? 0} signed off.`} />
       </div>
       <HomeTabs tabs={tabs} active={tab} onChange={setTab} />
-      {tab === 'decisions' && <DecisionsPanel th={th} team={data.team} onNavigate={onNavigate} onOpenOps={() => setTab('ops')} />}
+      {tab === 'decisions' && <DecisionsPanel th={th} team={data.team} onNavigate={onNavigate} onOpenOps={() => setTab('ops')} onOpenInbox={openInbox} />}
+      {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'team' && <TeamPanel members={th.team_members ?? []} onPreview={preview_} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
-      {tab === 'widgets' && <TeamWidgetsPanel widgets={data.widgets ?? []} onNavigate={onNavigate} />}
+      {tab === 'widgets' && <WidgetsPage />}
       {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} />}
       {tab === 'admin' && <AdminPanel onNavigate={onNavigate} />}
       {tab === 'ops' && <DashboardPage onNavigate={onNavigate} viewAsUserId={viewAsUserId} />}
@@ -1366,15 +1410,18 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview }: { data: Hom
   )
 }
 
-function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote }: {
+function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, onShowToast }: {
   data: HomeData
   kind: TeamKind
   onNavigate: Navigate
   assignments: Assignment[]
   who?: string
   previewNote?: string
+  onShowToast?: (msg: string) => void
 }) {
   const [tab, setTab] = useState('work')
+  const { pages } = useBCPSShell()
+  const canAnalytics = !pages || pages.includes('analytics')
   const th = data.team_home!
   const p = th.program
   const w = currentWindow()
@@ -1388,17 +1435,19 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote }: 
         { id: 'window', label: 'Review Window' },
         { id: 'program', label: 'Program' },
         { id: 'departments', label: 'Departments' },
+        ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
         { id: 'banners', label: 'Banners' },
-        ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets', label: 'Widgets' }] : []),
+        { id: 'widgets', label: 'Widgets' },
         { id: 'wcm', label: 'WCM View' },
         { id: 'tools', label: 'Tools' },
       ]
     : [
         { id: 'work', label: 'My Work' },
         { id: 'ada', label: 'ADA' },
-        ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets', label: 'Widgets' }] : []),
+        { id: 'widgets', label: 'Widgets' },
         { id: 'banners', label: 'Banners' },
         { id: 'program', label: 'Program' },
+        ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
         { id: 'tools', label: 'Tools' },
       ]
   return (
@@ -1437,7 +1486,8 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote }: 
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'banners' && <BannersPanel b={th.banners} onNavigate={onNavigate} />}
       {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
-      {tab === 'widgets' && <TeamWidgetsPanel widgets={data.widgets ?? []} onNavigate={onNavigate} />}
+      {tab === 'widgets' && <WidgetsPage />}
+      {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'wcm' && <WcmCommunityHub />}
       {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} />}
     </div>
@@ -1463,7 +1513,7 @@ function HomeTabs({ tabs, active, onChange }: { tabs: { id: string; label: strin
   )
 }
 
-export default function HomePage({ onNavigate, viewAsUserId }: { onNavigate: Navigate; viewAsUserId?: string }) {
+export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { onNavigate: Navigate; viewAsUserId?: string; onShowToast?: (msg: string) => void }) {
   const [data, setData] = useState<HomeData | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -1502,7 +1552,7 @@ export default function HomePage({ onNavigate, viewAsUserId }: { onNavigate: Nav
     const th = data?.team_home
     if (data && th) {
       if (viewAsUserId === SAMPLE_SUPERADMIN_ID && data.experience === 'superadmin') {
-        return <SuperAdminHome key="preview-sa" data={data} onNavigate={onNavigate} viewAsUserId={viewAsUserId} preview />
+        return <SuperAdminHome key="preview-sa" data={data} onNavigate={onNavigate} viewAsUserId={viewAsUserId} preview onShowToast={onShowToast} />
       }
       const members = th.team_members ?? []
       const me = firstName(data).toLowerCase()
@@ -1520,6 +1570,7 @@ export default function HomePage({ onNavigate, viewAsUserId }: { onNavigate: Nav
             onNavigate={onNavigate}
             assignments={target?.assignments ?? []}
             who={target?.name}
+            onShowToast={onShowToast}
             previewNote={target
               ? `Previewing ${target.name}\u2019s dashboard: their real assignments, with the program numbers the whole team sees.`
               : 'Previewing the web team dashboard with live program numbers.'}
@@ -1533,9 +1584,9 @@ export default function HomePage({ onNavigate, viewAsUserId }: { onNavigate: Nav
   if (failed) return <DashboardPage onNavigate={onNavigate} />
   if (!data) return <div className="wcm-hub2-empty">Loading your dashboard...</div>
 
-  if (data.experience === 'superadmin' && data.team_home) return <SuperAdminHome data={data} onNavigate={onNavigate} />
+  if (data.experience === 'superadmin' && data.team_home) return <SuperAdminHome data={data} onNavigate={onNavigate} onShowToast={onShowToast} />
   if (data.experience === 'dwt' && data.team_home) {
-    return <WebTeamHome data={data} kind={data.team_kind ?? 'comms'} onNavigate={onNavigate} assignments={data.team_home.my_assignments} />
+    return <WebTeamHome data={data} kind={data.team_kind ?? 'comms'} onNavigate={onNavigate} assignments={data.team_home.my_assignments} onShowToast={onShowToast} />
   }
   if (data.experience === 'director') return <DirectorHome data={data} />
   if (data.experience === 'wcm') return <WcmHome data={data} />

@@ -1744,12 +1744,30 @@ body {
 .home-tasklist + .home-tasklist { margin-top: 10px; }
 .home-dcols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 18px; align-items: start; }
 .home-dcol > .home-grp:first-child { margin-top: 4px; }
+.home-dbox { display: flex; flex-direction: column; }
+.home-dfoot { padding-top: 12px; margin-top: 8px; border-top: 1px solid var(--border); }
+.home-tasks { list-style: none; margin: 0; padding: 0; }
+.home-tasks li + li { border-top: 1px solid var(--border); }
+.home-task { display: block; width: 100%; background: none; border: 0; padding: 11px 0; font: inherit; text-align: left; cursor: pointer; }
+.home-task-title { display: block; font-size: 14px; font-weight: 700; color: #0e4e73; text-decoration: underline; text-underline-offset: 2px; }
+.home-task:hover .home-task-title { color: var(--blue); }
+.home-task-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.home-task-meta .home-tag { margin-left: 0; }
+.home-person { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.home-person-info { flex: 1; min-width: 0; }
+.home-person-info h3 { font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0; }
+.home-person-info span { display: block; font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+.home-person-btn { display: inline-flex; align-items: center; gap: 8px; }
+.home-person-btn .avatar { width: 22px; height: 22px; font-size: 10px; }
 @media (min-width: 1200px) {
   .home-dcols { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   /* In a column, a message is two lines: sender and status, then the text. */
   .home-dcols .home-msg-head { grid-template-columns: minmax(0, 1fr) auto; }
   .home-dcols .home-msg-snip { grid-column: 1 / -1; grid-row: 2; }
   .home-dcols .home-dec { align-items: flex-start; }
+  /* Equal-height boxes; anything longer scrolls inside its own column. */
+  .home-dcols .home-dbox { height: 560px; }
+  .home-dcols .home-dscroll { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
 }
 .home-msg { border-top: 1px solid var(--border); }
 .home-msg:first-of-type { border-top: 0; }
