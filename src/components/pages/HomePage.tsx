@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import type { PageId } from '@/lib/types'
+import type { PageId, BreadcrumbItem } from '@/lib/types'
+import DepartmentsPage from './DepartmentsPage'
 import DashboardPage from './DashboardPage'
 import { WcmCommunityHub, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
@@ -33,6 +34,7 @@ import {
 // WCM can open.
 
 const supabase = createClient()
+type Navigate = (page: PageId, breadcrumb?: BreadcrumbItem, subPage?: string) => void
 async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
@@ -1067,11 +1069,31 @@ function ToolsPanel({ kind, onNavigate }: { kind: 'superadmin' | TeamKind; onNav
   )
 }
 
-function DecisionsPanel({ th, team, onNavigate, onOpenOps }: { th: TeamHomeData; team: HomeData['team']; onNavigate: (page: PageId) => void; onOpenOps: () => void }) {
+interface InboxMessage {
+  id: string
+  created_at: string
+  email: string | null
+  page: string | null
+  message: string
+  read_at: string | null
+  admin_reply: string | null
+  replied_at: string | null
+}
+
+// Decisions: everything waiting on the SuperAdmin in three groups (Sean,
+// 2026-10-01): decisions to make, the inbox (site feedback, questions and
+// director meeting requests, answered right here), and their own tasks
+// from Web Team Assignments that are past their date or pending.
+function DecisionsPanel({ th, team, onNavigate, onOpenOps }: { th: TeamHomeData; team: HomeData['team']; onNavigate: Navigate; onOpenOps: () => void }) {
   const roster = th.decisions?.roster_pending ?? []
+  const tasks = th.my_assignments
+  const pastTasks = tasks.filter((a) => a.past_date)
+  const pendingTasks = tasks.filter((a) => !a.past_date && a.status === 'pending')
   return (
     <>
-      <p className="wcm-hub2-intro">Everything waiting on you, in one list. Each item opens where you act on it.</p>
+      <p className="wcm-hub2-intro">Everything waiting on you, in one place: decisions to make, your inbox, and your own tasks.</p>
+
+      <h3 className="home-grp">Decide</h3>
       <div className="home-dept">
         {roster.map((r) => (
           <div key={r.id} className="home-dec">
@@ -1086,15 +1108,129 @@ function DecisionsPanel({ th, team, onNavigate, onOpenOps }: { th: TeamHomeData;
           {th.banners.pending ? <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('banner-submissions')}>{th.banners.pending} waiting</button> : <span className="home-hint">None waiting</span>}
         </div>
         <div className="home-dec">
-          <div className="home-dec-what">Messages<small>Report an issue, Ask the District Web Team, and director meeting requests.</small></div>
-          {team?.messages_unread ? <button type="button" className="wcm-hub2-card-btn" onClick={onOpenOps}>{team.messages_unread} unread</button> : <span className="home-hint">0 unread</span>}
-        </div>
-        <div className="home-dec">
           <div className="home-dec-what">Access requests<small>Someone asking to help with a report.</small></div>
           {team?.access_requests ? <button type="button" className="wcm-hub2-card-btn" onClick={onOpenOps}>{team.access_requests} waiting</button> : <span className="home-hint">None waiting</span>}
         </div>
       </div>
+
+      <h3 className="home-grp">Inbox</h3>
+      <InboxSection onOpenOps={onOpenOps} />
+
+      <h3 className="home-grp">Your tasks</h3>
+      <div className="home-dept">
+        {pastTasks.length === 0 && pendingTasks.length === 0 ? (
+          <p className="home-card-text">Nothing past its date or pending on the Web Team Assignments page.</p>
+        ) : (
+          <>
+            {pastTasks.length > 0 && <TaskList title={`Past their date (${pastTasks.length})`} items={pastTasks} />}
+            {pendingTasks.length > 0 && <TaskList title={`Pending (${pendingTasks.length})`} items={pendingTasks} />}
+          </>
+        )}
+        <div className="home-actions">
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
+        </div>
+      </div>
     </>
+  )
+}
+
+function TaskList({ title, items }: { title: string; items: Assignment[] }) {
+  const [all, setAll] = useState(false)
+  const shown = all ? items : items.slice(0, 5)
+  return (
+    <div className="home-tasklist">
+      <div className="home-dec-what">{title}</div>
+      <ul className="home-mini">
+        {shown.map((a) => <li key={a.slug}><span>{a.title}</span>{a.date_label && <b>{a.date_label}</b>}</li>)}
+      </ul>
+      {items.length > 5 && <button type="button" className="home-link-btn" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${items.length}`}</button>}
+    </div>
+  )
+}
+
+// The site inbox (wcm_pilot_feedback via /api/bcps/messages, the same one
+// Team Operations shows). Unanswered messages first; open one to read it and
+// reply in place. Voice replies and account access stay in Team Operations.
+function InboxSection({ onOpenOps }: { onOpenOps: () => void }) {
+  const [messages, setMessages] = useState<InboxMessage[] | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [reply, setReply] = useState('')
+  const [sending, setSending] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [all, setAll] = useState(false)
+
+  async function load() {
+    try {
+      const r = await fetch('/api/bcps/messages', { headers: await authHeaders(), cache: 'no-store' })
+      if (!r.ok) throw new Error(String(r.status))
+      const j = await r.json()
+      setMessages((j.messages ?? []) as InboxMessage[])
+    } catch { setFailed(true) }
+  }
+  useEffect(() => { load() }, [])
+
+  async function post(body: Record<string, unknown>) {
+    const r = await fetch('/api/bcps/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify(body) })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(j.error || 'Could not send.')
+    return j
+  }
+
+  async function open(m: InboxMessage) {
+    setNotice(null); setReply('')
+    setOpenId(openId === m.id ? null : m.id)
+    if (!m.read_at) { try { await post({ id: m.id, action: 'read' }); load() } catch { /* still readable */ } }
+  }
+
+  async function send(m: InboxMessage) {
+    if (!reply.trim()) return
+    setSending(true); setNotice(null)
+    try {
+      const j = await post({ id: m.id, action: 'reply', reply_text: reply.trim() })
+      setNotice(j.warning ? `Saved, but not emailed: ${j.warning}` : 'Reply sent.')
+      setReply(''); load()
+    } catch (e) { setNotice(e instanceof Error ? e.message : 'Could not send.') }
+    finally { setSending(false) }
+  }
+
+  if (failed) return <div className="home-dept"><p className="home-card-text">The inbox could not load right now. It is also in Team Operations.</p></div>
+  if (!messages) return <div className="home-dept"><p className="home-card-text">Loading your inbox...</p></div>
+  const sorted = [...messages].sort((a, b) => Number(!!a.replied_at) - Number(!!b.replied_at) || b.created_at.localeCompare(a.created_at))
+  const waiting = sorted.filter((m) => !m.replied_at).length
+  const shown = all ? sorted : sorted.slice(0, 6)
+  return (
+    <div className="home-dept">
+      <p className="home-card-text">{waiting ? `${waiting} waiting for a reply.` : 'Everything has a reply.'} Site feedback, questions and director meeting requests land here.</p>
+      {shown.length === 0 && <p className="home-card-text">No messages yet.</p>}
+      {shown.map((m) => (
+        <div key={m.id} className="home-msg">
+          <button type="button" className="home-msg-head" aria-expanded={openId === m.id} onClick={() => open(m)}>
+            <span className="home-msg-from">
+              {!m.read_at && <span className="home-dot" aria-label="Unread" />}
+              {m.email || 'Not identified'}
+              <small>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{m.page ? ` \u00b7 ${m.page}` : ''}</small>
+            </span>
+            <span className="home-msg-snip">{m.message.length > 110 && openId !== m.id ? m.message.slice(0, 110) + '\u2026' : (openId === m.id ? '' : m.message)}</span>
+            <span className={`home-status ${m.replied_at ? 'done' : 'todo'}`}>{m.replied_at ? 'Replied' : 'Needs reply'}</span>
+          </button>
+          {openId === m.id && (
+            <div className="home-msg-body">
+              <p>{m.message}</p>
+              {m.admin_reply && <p className="home-msg-reply"><b>Your reply:</b> {m.admin_reply}</p>}
+              <label className="sr-only" htmlFor={`reply-${m.id}`}>Reply</label>
+              <textarea id={`reply-${m.id}`} rows={3} value={reply} onChange={(e) => setReply(e.target.value)} placeholder={m.email ? `Reply to ${m.email}` : 'Reply'} />
+              <div className="home-actions home-actions-tight">
+                <button type="button" className="home-btn" disabled={sending || !reply.trim() || !m.email} onClick={() => send(m)}>{sending ? 'Sending...' : 'Send reply'}</button>
+                <button type="button" className="wcm-hub2-card-btn" onClick={onOpenOps}>Voice reply or account access</button>
+                {notice && <span className="home-hint">{notice}</span>}
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      {sorted.length > 6 && <button type="button" className="home-link-btn" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${sorted.length}`}</button>}
+    </div>
   )
 }
 
@@ -1157,19 +1293,13 @@ function AdminPanel({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   )
 }
 
-function DepartmentsPanel({ depts }: { depts: DepartmentSummary[] }) {
-  const withWcm = depts.filter((d) => d.wcms.length > 0)
-  return (
-    <>
-      <p className="wcm-hub2-intro">Every department&apos;s WCMs and audit status. {withWcm.length} of {depts.length} departments with a website have a confirmed WCM. To see a director&apos;s dashboard, use View as, Director (Sample).</p>
-      <div className="home-dept-grid">
-        {depts.map((d) => <DepartmentCard key={d.id} dept={d} />)}
-      </div>
-    </>
-  )
+// The full Departments page (scores, traffic, audit), the same one the
+// menu opens, so the tab never shows less than the page (Sean, 2026-10-01).
+function DepartmentsPanel({ onNavigate }: { onNavigate: Navigate }) {
+  return <DepartmentsPage onNavigate={onNavigate} />
 }
 
-function SuperAdminHome({ data, onNavigate, viewAsUserId, preview }: { data: HomeData; onNavigate: (page: PageId) => void; viewAsUserId?: string; preview?: boolean }) {
+function SuperAdminHome({ data, onNavigate, viewAsUserId, preview }: { data: HomeData; onNavigate: Navigate; viewAsUserId?: string; preview?: boolean }) {
   const [tab, setTab] = useState('decisions')
   const { setViewAs } = useBCPSShell()
   const th = data.team_home!
@@ -1219,7 +1349,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview }: { data: Hom
       {tab === 'decisions' && <DecisionsPanel th={th} team={data.team} onNavigate={onNavigate} onOpenOps={() => setTab('ops')} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'team' && <TeamPanel members={th.team_members ?? []} onPreview={preview_} />}
-      {tab === 'departments' && <DepartmentsPanel depts={data.departments} />}
+      {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
       {tab === 'widgets' && <TeamWidgetsPanel widgets={data.widgets ?? []} onNavigate={onNavigate} />}
       {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} />}
@@ -1232,7 +1362,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview }: { data: Hom
 function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote }: {
   data: HomeData
   kind: TeamKind
-  onNavigate: (page: PageId) => void
+  onNavigate: Navigate
   assignments: Assignment[]
   who?: string
   previewNote?: string
@@ -1297,7 +1427,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote }: 
       {tab === 'work' && <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />}
       {tab === 'window' && <ReviewWindowPanel depts={data.departments} />}
       {tab === 'program' && <ProgramPanel p={p} />}
-      {tab === 'departments' && <DepartmentsPanel depts={data.departments} />}
+      {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'banners' && <BannersPanel b={th.banners} onNavigate={onNavigate} />}
       {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
       {tab === 'widgets' && <TeamWidgetsPanel widgets={data.widgets ?? []} onNavigate={onNavigate} />}
@@ -1326,7 +1456,7 @@ function HomeTabs({ tabs, active, onChange }: { tabs: { id: string; label: strin
   )
 }
 
-export default function HomePage({ onNavigate, viewAsUserId }: { onNavigate: (page: PageId) => void; viewAsUserId?: string }) {
+export default function HomePage({ onNavigate, viewAsUserId }: { onNavigate: Navigate; viewAsUserId?: string }) {
   const [data, setData] = useState<HomeData | null>(null)
   const [failed, setFailed] = useState(false)
 

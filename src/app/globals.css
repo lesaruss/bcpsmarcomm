@@ -1741,6 +1741,18 @@ body {
 .home-note-text { font-size: 12.5px; color: var(--text-secondary); }
 .home-link-btn { background: none; border: 0; padding: 0; font: inherit; color: #0e4e73; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .home-actions-tight { margin-top: 4px; }
+.home-tasklist + .home-tasklist { margin-top: 10px; }
+.home-msg { border-top: 1px solid var(--border); }
+.home-msg:first-of-type { border-top: 0; }
+.home-msg-head { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; width: 100%; background: none; border: 0; padding: 12px 0; font: inherit; text-align: left; cursor: pointer; }
+.home-msg-from { font-size: 13.5px; font-weight: 700; color: var(--text-primary); overflow-wrap: anywhere; }
+.home-msg-from small { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.home-msg-snip { font-size: 13px; color: var(--text-secondary); min-width: 0; overflow-wrap: anywhere; }
+.home-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #C55326; margin-right: 6px; vertical-align: middle; }
+.home-msg-body { padding: 0 0 14px; }
+.home-msg-body p { font-size: 14px; color: var(--text-primary); line-height: 1.6; margin: 0 0 10px; white-space: pre-wrap; }
+.home-msg-reply { background: rgba(22,114,167,0.06); border-radius: 8px; padding: 8px 12px; }
+.home-msg-body textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; padding: 10px 12px; border: 1.5px solid rgba(22,114,167,0.35); border-radius: 8px; resize: vertical; }
 .home-table th.num { text-align: right; }
 .home-barrow { display: grid; grid-template-columns: minmax(0, 170px) minmax(0, 1fr) 64px; gap: 10px; align-items: center; padding: 6px 0; font-size: 13px; color: var(--text-secondary); }
 .home-bar { height: 8px; background: #e6ecf2; border-radius: 8px; overflow: hidden; }
@@ -1778,6 +1790,8 @@ td > .home-tag:first-child { margin-left: 0; }
   .home-hero { padding: 20px; }
   .home-hero.with-side, .home-review-top.with-video { grid-template-columns: minmax(0, 1fr); }
   .home-barrow { grid-template-columns: minmax(0, 1fr) 64px; }
+  .home-msg-head { grid-template-columns: minmax(0, 1fr) auto; }
+  .home-msg-snip { grid-column: 1 / -1; grid-row: 2; }
   .home-barrow .home-bar { grid-column: 1 / -1; grid-row: 2; }
   .home-title { font-size: 22px; }
 }
