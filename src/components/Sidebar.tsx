@@ -37,7 +37,11 @@ export const SAMPLE_ROLE_MEMBERS: TeamMember[] = [
   // departments, and the public page set a real director gets.
   { id: 'SDR', name: 'Marcus Bell',   initials: 'SDR', color: '#9CA3AF', roleLabel: 'Director (Sample)', previewGroup: 'Director' },
   { id: 'SWC', name: 'Wendy Ramirez', initials: 'SWC', color: '#9CA3AF', roleLabel: 'Web Content Manager (Sample)', previewGroup: 'Web Content Management' },
-  { id: 'SDW', name: 'Dana Okafor',   initials: 'SDW', color: '#9CA3AF', roleLabel: 'District Web Team Member (Sample)', previewGroup: 'District Web Team' },
+  // Web team previews (2026-10-01): the two team views, Communications
+  // (department side) and Application Services (ADA, schools, tools). My
+  // Work shows a real team member's assignments, labeled on the page.
+  { id: 'SDW', name: 'Dana Okafor',   initials: 'SDW', color: '#9CA3AF', roleLabel: 'Web Team: Communications (Sample)', previewGroup: 'District Web Team' },
+  { id: 'SDA', name: 'Chris Morgan',  initials: 'SDA', color: '#9CA3AF', roleLabel: 'Web Team: Application Services (Sample)', previewGroup: 'District Web Team' },
   { id: SAMPLE_SUPERADMIN_ID, name: 'Sam Rivera', initials: 'SSA', color: '#9CA3AF', roleLabel: 'Superadmin (Sample)' },
 ]
 

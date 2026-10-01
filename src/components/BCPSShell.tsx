@@ -13,11 +13,18 @@ interface BCPSShellContextValue {
   role: UserRole
   viewAs: TeamMember | null
   canManageMessages: boolean
+  // The page set in force (the previewed person's while previewing); null
+  // until my-access answers. The dashboard's Tools tab lists only these.
+  pages: string[] | null
+  // Starts or ends a "View as" preview, the same as the sidebar switcher.
+  setViewAs: (member: TeamMember | null) => void
 }
 export const BCPSShellContext = createContext<BCPSShellContextValue>({
   role: 'user',
   viewAs: null,
   canManageMessages: false,
+  pages: null,
+  setViewAs: () => {},
 })
 export function useBCPSShell() { return useContext(BCPSShellContext) }
 
@@ -288,7 +295,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <BCPSShellContext.Provider value={{ role, viewAs, canManageMessages }}>
+    <BCPSShellContext.Provider value={{ role, viewAs, canManageMessages, pages: effectivePages, setViewAs: handleViewAs }}>
       <div className="app-shell">
         <Sidebar
           activePage={activePage}

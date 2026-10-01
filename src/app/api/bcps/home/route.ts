@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { MODULES, COURSE_ID } from '@/lib/cert-data'
+import {
+  loadAssignments, assignmentsFor, loadProgram, loadAda, loadBanners, loadWidgets, loadDecisions,
+  type TeamMemberWork,
+} from '@/lib/bcps-team-home'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,8 +28,14 @@ const svc = createClient(URL, SERVICE, { auth: { persistSession: false }, global
 //     them (directors have no group, so the Analytics and Widgets pages are
 //     closed to them; their dashboard carries that data itself).
 //   WCM: "Web Content Management" group, or listed on a department roster.
-// Precedence is District Web Team > Director > WCM; the flags tell the page
-// which extra cards someone who fits more than one also gets.
+// Precedence is SuperAdmin > District Web Team > Director > WCM; the flags
+// tell the page which extra cards someone who fits more than one also gets.
+//
+// The District Web Team has two views (Sean, 2026-10-01): team members also
+// in the "Office of Communications" group work the department side
+// ('comms'); everyone else is Application Services ('appsvc'), focused on
+// ADA, schools and tools. The SuperAdmin gets the team data plus decisions
+// waiting on them and each team member's assignments.
 //
 // Gate: department rosters and per-WCM certification status are scoped here,
 // server-side, by the caller's own email (director) or role/group (team). The
@@ -115,6 +125,9 @@ export async function GET(req: NextRequest) {
   }
 
   const isDwt = role === 'admin' || role === 'superadmin' || groups.includes('District Web Team')
+  const isSuperadmin = role === 'superadmin'
+  const teamKind: 'comms' | 'appsvc' | null = !isDwt ? null
+    : (role === 'admin' || isSuperadmin || groups.includes('Office of Communications')) ? 'comms' : 'appsvc'
 
   // Exact, case-insensitive email matches done here rather than with ilike,
   // where '_' in an address is a wildcard and could match another person.
@@ -131,7 +144,7 @@ export async function GET(req: NextRequest) {
     .filter((m) => (m.wcm_email || '').trim().toLowerCase() === email)
   const isWcm = groups.includes('Web Content Management') || myRosterRows.length > 0
 
-  const experience = isDwt ? 'dwt' : isDirector ? 'director' : isWcm ? 'wcm' : 'member'
+  const experience = isSuperadmin ? 'superadmin' : isDwt ? 'dwt' : isDirector ? 'director' : isWcm ? 'wcm' : 'member'
 
   // Departments shown: every department for the team, the led ones for a
   // director, the caller's own roster departments for a WCM.
@@ -156,12 +169,37 @@ export async function GET(req: NextRequest) {
     for (const d of departments) if (ledIds.includes(d.id)) d.analytics = analytics.get(d.id) ?? null
     directorNotes = await loadDirectorNotes(ledIds, email)
   }
-  // The widget catalog is the same for everyone. The team gets it too, for
-  // the "View as" director preview.
-  if (isDirector || isDwt) {
+  // The widget catalog is the same for everyone. The team gets it with
+  // their own edit rights (also used by the "View as" director preview).
+  if (isDwt) {
+    widgets = await loadWidgets(svc, BRAND, user.id, gids, role === 'admin' || isSuperadmin)
+  } else if (isDirector) {
     const { data: wRows } = await svc.from('bcps_widgets').select('slug, title, description, preview_path').order('sort_order')
     widgets = (wRows ?? []).filter((w) => w.preview_path)
   }
+
+  const displayName = profileRes.data?.full_name || nameFromEmail(email)
+
+  let teamHome: Record<string, unknown> | null = null
+  if (isDwt) {
+    const [program, ada, banners, rows] = await Promise.all([
+      loadProgram(svc, departments),
+      loadAda(svc, departments),
+      loadBanners(svc),
+      loadAssignments(svc, req.nextUrl.origin),
+    ])
+    teamHome = {
+      program,
+      ada,
+      banners,
+      my_assignments: assignmentsFor(rows, displayName.split(/\s+/)[0], displayName),
+    }
+    if (isSuperadmin) {
+      teamHome.decisions = await loadDecisions(svc)
+      teamHome.team_members = await loadTeamMembers(rows)
+    }
+  }
+
 
   let team: Record<string, number> | null = null
   if (isDwt) {
@@ -184,6 +222,8 @@ export async function GET(req: NextRequest) {
     experience,
     is_dwt: isDwt,
     is_director: isDirector,
+    is_superadmin: isSuperadmin,
+    team_kind: teamKind,
     is_wcm: isWcm,
     name: profileRes.data?.full_name ?? null,
     email,
@@ -192,6 +232,7 @@ export async function GET(req: NextRequest) {
     team,
     widgets,
     director_notes: directorNotes,
+    team_home: teamHome,
   })
 }
 
@@ -379,4 +420,32 @@ async function loadDirectorNotes(ledIds: string[], email: string): Promise<Direc
       department_id: n.department_id,
       posted_at: n.created_at,
     }))
+}
+
+// "vanessa.deslandes@browardschools.com" -> "Vanessa Deslandes"
+function nameFromEmail(email: string): string {
+  return email.split('@')[0].split(/[._-]+/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')
+}
+
+// Every District Web Team member with their open assignments, for the
+// SuperAdmin's Team tab and the web team "View as" previews.
+async function loadTeamMembers(rows: Awaited<ReturnType<typeof loadAssignments>>): Promise<TeamMemberWork[]> {
+  const { data: groupRows } = await svc.from('acl_groups').select('id, name').eq('brand', BRAND).in('name', ['District Web Team', 'Office of Communications'])
+  const dwtId = groupRows?.find((g) => g.name === 'District Web Team')?.id
+  const oocId = groupRows?.find((g) => g.name === 'Office of Communications')?.id
+  if (!dwtId) return []
+  const { data: members } = await svc.from('acl_group_members').select('user_id, group_id').in('group_id', [dwtId, oocId].filter(Boolean) as string[])
+  const dwtUsers = Array.from(new Set((members ?? []).filter((m) => m.group_id === dwtId).map((m) => m.user_id as string)))
+  const oocUsers = new Set((members ?? []).filter((m) => m.group_id === oocId).map((m) => m.user_id as string))
+  const { data: profiles } = await svc.from('wcm_cert_users').select('user_id, full_name').in('user_id', dwtUsers)
+  const nameById = new Map((profiles ?? []).map((p) => [p.user_id as string, p.full_name as string | null]))
+  const out: TeamMemberWork[] = []
+  for (const id of dwtUsers) {
+    const { data } = await svc.auth.admin.getUserById(id)
+    const email = (data.user?.email || '').toLowerCase()
+    if (!email) continue
+    const name = nameById.get(id) || nameFromEmail(email)
+    out.push({ name, email, team: oocUsers.has(id) ? 'comms' : 'appsvc', assignments: assignmentsFor(rows, name.split(/\s+/)[0], name) })
+  }
+  return out.sort((a, b) => (a.team === b.team ? 0 : a.team === 'comms' ? -1 : 1) || b.assignments.length - a.assignments.length)
 }

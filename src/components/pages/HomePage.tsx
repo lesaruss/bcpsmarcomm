@@ -5,6 +5,10 @@ import { createClient } from '@/lib/supabase'
 import type { PageId } from '@/lib/types'
 import DashboardPage from './DashboardPage'
 import { WcmCommunityHub, type CertStatus } from './WCMPage'
+import { useBCPSShell } from '@/components/BCPSShell'
+import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
+import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
+import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
 import {
   REVIEW_CYCLE, REVIEW_WINDOWS, NEXT_CYCLE_START, windowForDivision, windowState,
   formatWindowDate, formatWindowRange, type ReviewWindow,
@@ -116,7 +120,50 @@ interface DepartmentSummary {
   analytics?: DepartmentAnalytics | null
 }
 
-interface WidgetItem { slug: string; title: string; description: string | null; preview_path: string | null }
+interface WidgetItem { slug: string; title: string; description: string | null; preview_path: string | null; can_edit?: boolean }
+
+interface Assignment {
+  slug: string
+  title: string
+  role: 'lead' | 'support'
+  status: string
+  date_label: string | null
+  date_iso: string | null
+  past_date: boolean
+}
+
+interface TeamMemberWork { name: string; email: string; team: 'comms' | 'appsvc'; assignments: Assignment[] }
+
+interface TeamProgram {
+  certification: { division: string; wcms: number; certified: number }[]
+  wcms_total: number
+  wcms_certified: number
+  directors_on_file: number
+  directors_signed_in: number
+  departments_total: number
+  departments_with_wcm: number
+  open_findings: number
+  windows: { id: number; departments: number; signed_off: number }[]
+}
+
+interface TeamAda {
+  sites_scanned: number
+  average_score: number | null
+  scans_30d: number
+  last_scan: string | null
+  lowest: { department: string; score: number }[]
+}
+
+interface TeamBanners { pending: number; approved: number; rejected: number }
+
+interface TeamHomeData {
+  program: TeamProgram
+  ada: TeamAda
+  banners: TeamBanners
+  my_assignments: Assignment[]
+  decisions?: { roster_pending: { id: string; department_name: string | null; director_name: string | null; wcm_name: string | null; submitted_at: string | null }[] }
+  team_members?: TeamMemberWork[]
+}
 
 interface DirectorNote {
   id: string
@@ -129,9 +176,12 @@ interface DirectorNote {
 }
 
 interface HomeData {
-  experience: 'dwt' | 'director' | 'wcm' | 'member'
+  experience: 'superadmin' | 'dwt' | 'director' | 'wcm' | 'member'
   is_dwt: boolean
   is_director: boolean
+  is_superadmin?: boolean
+  team_kind?: 'comms' | 'appsvc' | null
+  team_home?: TeamHomeData | null
   is_wcm: boolean
   name: string | null
   email: string
@@ -742,38 +792,517 @@ function MemberHome({ data }: { data: HomeData }) {
   )
 }
 
-/* ─── DISTRICT WEB TEAM ───────────────────────────────── */
-function TeamHome({ data, onNavigate, viewAsUserId }: { data: HomeData; onNavigate: (page: PageId) => void; viewAsUserId?: string }) {
-  const [tab, setTab] = useState<'ops' | 'departments' | 'wcm'>('ops')
-  const t = data.team
-  const depts = data.departments
-  const withWcm = depts.filter((d) => d.wcms.length > 0)
-  const allWcms = depts.flatMap((d) => d.wcms)
-  const certified = allWcms.filter((w) => w.certified).length
+/* ─── DISTRICT WEB TEAM AND SUPERADMIN ────────────────── */
+// Two web team views plus the SuperAdmin's (Sean, 2026-10-01, mock v3). The
+// team members also in the Office of Communications group work the
+// department side ('comms'); Application Services ('appsvc') works ADA,
+// schools and tools. Everyone on the team sees the program numbers, ADA,
+// banners and widgets. Decisions, the Team tab, Admin and Team Operations
+// are the SuperAdmin's.
 
+type TeamKind = 'comms' | 'appsvc'
+
+function nextHotLab(today: Date = new Date()): string {
+  // Department WCM Hot Labs run Tuesdays and Thursdays.
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i)
+    if (d.getDay() === 2 || d.getDay() === 4) {
+      return i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    }
+  }
+  return 'Tuesdays and Thursdays'
+}
+
+function currentWindow(): ReviewWindow {
+  return REVIEW_WINDOWS.find((w) => windowState(w) === 'open')
+    ?? REVIEW_WINDOWS.find((w) => windowState(w) === 'upcoming')
+    ?? REVIEW_WINDOWS[REVIEW_WINDOWS.length - 1]
+}
+
+function BarRow({ label, value, total, tone }: { label: string; value: number; total: number; tone?: 'green' }) {
+  const pct = total ? Math.round((value / total) * 100) : 0
+  return (
+    <div className="home-barrow">
+      <span>{label}</span>
+      <div className={`home-bar${tone ? ` ${tone}` : ''}`} role="img" aria-label={`${value} of ${total}`}><div style={{ width: `${pct}%` }} /></div>
+      <span className="home-barrow-n">{value} / {total}</span>
+    </div>
+  )
+}
+
+function ProgramPanel({ p }: { p: TeamProgram }) {
+  return (
+    <>
+      <p className="wcm-hub2-intro">The whole program at a glance. Everyone on the District Web Team sees this tab.</p>
+      <div className="home-dept-grid">
+        <div className="home-dept">
+          <h3 className="home-card-title">Certification by division</h3>
+          <p className="home-card-text">Rostered department WCMs certified, due {DEPT_CERT_DEADLINE}.</p>
+          {p.certification.map((c) => <BarRow key={c.division} label={c.division} value={c.certified} total={c.wcms} />)}
+        </div>
+        <div className="home-dept">
+          <h3 className="home-card-title">Director launch</h3>
+          <p className="home-card-text">Directors on file and how many have signed in.</p>
+          <div className="home-kpis">
+            <div className="home-kpi"><b>{p.directors_on_file}</b><span>Directors on file</span></div>
+            <div className="home-kpi"><b>{p.directors_signed_in}</b><span>Signed in</span></div>
+            <div className="home-kpi"><b>{p.departments_with_wcm} of {p.departments_total}</b><span>Departments with a WCM</span></div>
+          </div>
+        </div>
+        <div className="home-dept">
+          <h3 className="home-card-title">Review windows</h3>
+          <p className="home-card-text">Departments with a signed-off review this school year.</p>
+          {p.windows.map((w) => {
+            const win = REVIEW_WINDOWS.find((x) => x.id === w.id)!
+            const s = windowState(win)
+            return <BarRow key={w.id} label={`${win.label} · ${s === 'open' ? 'open' : s === 'closed' ? 'finished' : formatWindowDate(win.start)}`} value={w.signed_off} total={w.departments} tone="green" />
+          })}
+          <p className="home-card-text home-gap">{p.open_findings} audit finding{p.open_findings === 1 ? ' is' : 's are'} open across all department sites.</p>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function AdaPanel({ ada, onNavigate }: { ada: TeamAda; onNavigate: (page: PageId) => void }) {
+  return (
+    <>
+      <p className="wcm-hub2-intro">Accessibility across department sites. Wave is the ADA standard; results separate what a WCM can fix from what Finalsite has to fix.</p>
+      <div className="home-kpis">
+        <div className="home-kpi"><b>{ada.average_score ?? '-'}</b><span>Average ADA score, department sites</span></div>
+        <div className="home-kpi"><b>{ada.sites_scanned}</b><span>Department sites scanned</span></div>
+        <div className="home-kpi"><b>{ada.scans_30d}</b><span>Scans in the last 30 days</span></div>
+        {ada.last_scan && <div className="home-kpi"><b>{new Date(ada.last_scan).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</b><span>Most recent scan</span></div>}
+      </div>
+      <div className="wcm-hub2-grid">
+        <div className="wcm-hub2-card">
+          <h3>ADA Scanner</h3>
+          <p>Scan any page and see every issue, in plain language.</p>
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('ada-scanner')}>Open ADA Scanner</button>
+        </div>
+        <div className="wcm-hub2-card">
+          <h3>ADA Manager</h3>
+          <p>Full-site school scans and per-page issue detail.</p>
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('ada-manager')}>Open ADA Manager</button>
+        </div>
+        {ada.lowest.length > 0 && (
+          <div className="wcm-hub2-card">
+            <h3>Lowest scoring sites</h3>
+            <ul className="home-mini">
+              {ada.lowest.map((l) => <li key={l.department}><span>{l.department}</span><b>{l.score}</b></li>)}
+            </ul>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+function BannersPanel({ b, onNavigate }: { b: TeamBanners; onNavigate: (page: PageId) => void }) {
+  return (
+    <>
+      <p className="wcm-hub2-intro">Banner submissions from WCMs. Approving and rejecting happens in the Banner Submissions tool.</p>
+      <div className="home-dept">
+        <div className="home-dec">
+          <div className="home-dec-what">{b.pending} waiting for review<small>Submitted through the Banner Submission tool.</small></div>
+          <button type="button" className="home-btn" onClick={() => onNavigate('banner-submissions')}>Open Banner Submissions</button>
+        </div>
+        <div className="home-dec">
+          <div className="home-dec-what">{b.approved} approved, {b.rejected} rejected<small>The full history stays in the tool.</small></div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function TeamWidgetsPanel({ widgets, onNavigate }: { widgets: WidgetItem[]; onNavigate: (page: PageId) => void }) {
+  return (
+    <>
+      <p className="wcm-hub2-intro">Every widget the District Web Team has built. Everyone on the team can open and click through each one; who can edit it is set per widget.</p>
+      <div className="wcm-hub2-grid">
+        {widgets.map((w) => (
+          <div key={w.slug} className="wcm-hub2-card">
+            <div className="home-dept-head">
+              <h3>{w.title}</h3>
+              <span className={`home-status ${w.can_edit ? 'done' : 'progress'}`}>{w.can_edit ? 'You can edit' : 'View only'}</span>
+            </div>
+            {w.description && <p>{w.description}</p>}
+            <div className="home-actions home-actions-tight">
+              <a className="wcm-hub2-card-btn" href={w.preview_path!} target="_blank" rel="noopener noreferrer">Preview</a>
+              {w.can_edit && <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('widgets')}>Edit</button>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function MyWorkPanel({ items, who, onNavigate }: { items: Assignment[]; who?: string; onNavigate: (page: PageId) => void }) {
+  const [all, setAll] = useState(false)
+  const shown = all ? items : items.slice(0, 10)
+  if (!items.length) {
+    return <div className="wcm-hub2-empty">{who ? `${who} has` : 'You have'} no open rows on the Web Team Assignments page.</div>
+  }
+  return (
+    <>
+      <p className="wcm-hub2-intro">{who ? `${who}’s` : 'Your'} rows from the Web Team Assignments page, soonest date first.</p>
+      <div className="home-dept">
+        <div className="home-table-wrap">
+          <table className="home-table">
+            <thead><tr><th>Assignment</th><th>Role</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+              {shown.map((a) => (
+                <tr key={a.slug}>
+                  <td>{a.title}</td>
+                  <td><span className={`home-tag ${a.role}`}>{a.role === 'lead' ? 'Lead' : 'Support'}</span></td>
+                  <td>{STATUS_LABELS[a.status] || a.status}</td>
+                  <td>{a.date_label || 'Not set'}{a.past_date && <span className="home-tag late">Past date</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="home-actions">
+          {items.length > 10 && (
+            <button type="button" className="wcm-hub2-card-btn" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${items.length}`}</button>
+          )}
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+const STATUS_LABELS: Record<string, string> = { 'in-progress': 'In Progress', pending: 'Pending', ongoing: 'Ongoing', completed: 'Completed' }
+
+function ReviewWindowPanel({ depts }: { depts: DepartmentSummary[] }) {
+  const w = currentWindow()
+  const rows = w.divisions.map((dv) => {
+    const inDiv = depts.filter((d) => d.division === dv)
+    const wcms = inDiv.flatMap((d) => d.wcms)
+    return {
+      division: dv,
+      departments: inDiv.length,
+      noWcm: inDiv.filter((d) => d.wcms.length === 0).length,
+      certified: wcms.filter((x) => x.certified).length,
+      wcms: wcms.length,
+      signedOff: inDiv.filter((d) => d.audit_status === 'complete').length,
+    }
+  })
+  return (
+    <>
+      <p className="wcm-hub2-intro">{w.label}, {formatWindowRange(w)}: {w.divisions.join(', ')}. What each division needs before its review meetings.</p>
+      <div className="home-dept">
+        <div className="home-table-wrap">
+          <table className="home-table">
+            <thead><tr><th>Division</th><th className="num">Departments</th><th className="num">Without a WCM</th><th className="num">WCMs certified</th><th className="num">Signed off</th></tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.division}>
+                  <td>{r.division}</td>
+                  <td className="num">{r.departments}</td>
+                  <td className="num">{r.noWcm}</td>
+                  <td className="num">{r.certified} / {r.wcms}</td>
+                  <td className="num">{r.signedOff}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function ToolsPanel({ kind, onNavigate }: { kind: 'superadmin' | TeamKind; onNavigate: (page: PageId) => void }) {
+  const { pages, role, viewAs } = useBCPSShell()
+  const [q, setQ] = useState('')
+  const isSA = role === 'superadmin' && (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID)
+  // Same rule as the left menu: the page set in force decides, and a
+  // SuperAdmin always reaches the SuperAdmin-only consoles.
+  const canOpen = (t: Tool) => pages
+    ? pages.includes(t.gate) || (isSA && SUPERADMIN_PAGES_SET.has(t.gate))
+    : isSA || !SUPERADMIN_PAGES_SET.has(t.gate)
+  const mine = TOOLS.filter(canOpen)
+  const top = TOP_TOOLS[kind].map((l) => mine.find((t) => t.label === l)).filter((t): t is Tool => !!t)
+  const hits = q.trim() ? mine.filter((t) => t.label.toLowerCase().includes(q.trim().toLowerCase())) : []
+  const open = (t: Tool) => { if (t.page) onNavigate(t.page); else if (t.href) window.location.href = t.href }
+  return (
+    <>
+      <p className="wcm-hub2-intro">Your most used tools. Need something else? Search for it.</p>
+      <div className="home-tools">
+        {top.map((t) => (
+          <button key={t.label} type="button" className="home-tool" onClick={() => open(t)}>
+            <span className="home-tool-ic" aria-hidden="true">{t.label.replace('&', '').split(/\s+/).slice(0, 2).map((w) => w[0]).join('')}</span>
+            <span><b>{t.label}</b><small>{t.desc}</small></span>
+          </button>
+        ))}
+      </div>
+      <div className="home-tsearch">
+        <label htmlFor={`tool-search-${kind}`}>Find a tool</label>
+        <input id={`tool-search-${kind}`} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a tool name, like Minutes" />
+        <div className="home-tresults" aria-live="polite">
+          {q.trim() && (hits.length
+            ? hits.map((t) => <button key={t.label} type="button" className="home-link-btn" onClick={() => open(t)}>{t.label}</button>)
+            : <span className="home-hint">No tool by that name. Try another word.</span>)}
+        </div>
+      </div>
+      <details className="home-browse">
+        <summary>Browse every tool ({mine.length})</summary>
+        {TOOL_GROUPS.map((g) => {
+          const list = mine.filter((t) => t.group === g)
+          if (!list.length) return null
+          return (
+            <div key={g} className="home-bgroup">
+              <h4>{g}</h4>
+              <p>{list.map((t, i) => (
+                <span key={t.label}>{i > 0 && ' · '}<button type="button" className="home-link-btn" onClick={() => open(t)}>{t.label}</button></span>
+              ))}</p>
+            </div>
+          )
+        })}
+      </details>
+    </>
+  )
+}
+
+function DecisionsPanel({ th, team, onNavigate, onOpenOps }: { th: TeamHomeData; team: HomeData['team']; onNavigate: (page: PageId) => void; onOpenOps: () => void }) {
+  const roster = th.decisions?.roster_pending ?? []
+  return (
+    <>
+      <p className="wcm-hub2-intro">Everything waiting on you, in one list. Each item opens where you act on it.</p>
+      <div className="home-dept">
+        {roster.map((r) => (
+          <div key={r.id} className="home-dec">
+            <div className="home-dec-what">Roster submission: {r.department_name || 'Department'}
+              <small>{[r.director_name, r.wcm_name ? `names ${r.wcm_name} as WCM` : null].filter(Boolean).join(' ')}{r.submitted_at ? `. Submitted ${new Date(r.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.` : '.'}</small>
+            </div>
+            <button type="button" className="home-btn" onClick={() => onNavigate('wcm-roster')}>Review and approve</button>
+          </div>
+        ))}
+        <div className="home-dec">
+          <div className="home-dec-what">Banner submissions<small>WCM banners waiting for review.</small></div>
+          {th.banners.pending ? <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('banner-submissions')}>{th.banners.pending} waiting</button> : <span className="home-hint">None waiting</span>}
+        </div>
+        <div className="home-dec">
+          <div className="home-dec-what">Messages<small>Report an issue, Ask the District Web Team, and director meeting requests.</small></div>
+          {team?.messages_unread ? <button type="button" className="wcm-hub2-card-btn" onClick={onOpenOps}>{team.messages_unread} unread</button> : <span className="home-hint">0 unread</span>}
+        </div>
+        <div className="home-dec">
+          <div className="home-dec-what">Access requests<small>Someone asking to help with a report.</small></div>
+          {team?.access_requests ? <button type="button" className="wcm-hub2-card-btn" onClick={onOpenOps}>{team.access_requests} waiting</button> : <span className="home-hint">None waiting</span>}
+        </div>
+      </div>
+    </>
+  )
+}
+
+function TeamPanel({ members, onPreview }: { members: TeamMemberWork[]; onPreview: (m: TeamMemberWork) => void }) {
+  const groups: [TeamKind, string][] = [['comms', 'Office of Communications: departments'], ['appsvc', 'Application Services: ADA, schools and tools']]
+  return (
+    <>
+      <p className="wcm-hub2-intro">What each person on the District Web Team is carrying, from the Web Team Assignments page. Only you see this tab.</p>
+      {groups.map(([kind, label]) => {
+        const list = members.filter((m) => m.team === kind)
+        if (!list.length) return null
+        return (
+          <div key={kind}>
+            <h3 className="home-grp">{label}</h3>
+            <div className="home-dept-grid">
+              {list.map((m) => {
+                const past = m.assignments.filter((a) => a.past_date).length
+                return (
+                  <div key={m.email} className="home-dept">
+                    <div className="home-dept-head"><h3>{m.name}</h3><span className="home-chip">{m.assignments.length} open</span></div>
+                    {past > 0 && <div className="home-dept-sub">{past} past their date</div>}
+                    <ul className="home-mini">
+                      {m.assignments.slice(0, 3).map((a) => <li key={a.slug}><span>{a.title}</span>{a.date_label && <b>{a.date_label}</b>}</li>)}
+                    </ul>
+                    <button type="button" className="wcm-hub2-card-btn" onClick={() => onPreview(m)}>Preview {m.name.split(/\s+/)[0]}&apos;s dashboard</button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
+function AdminPanel({ onNavigate }: { onNavigate: (page: PageId) => void }) {
+  const cards: [PageId, string, string][] = [
+    ['superadmin', 'Platform Management', 'Accounts, View as access and platform settings.'],
+    ['permissions', 'Permissions', 'Who can open which page and document.'],
+    ['registrations', 'Registrations', 'New sign-ups waiting on approval.'],
+    ['pulse-approvals', 'Note Approvals', 'Notes waiting to publish.'],
+    ['reports', 'Reports', 'Program reports and exports.'],
+    ['marcomm', 'Newsroom', 'The MarComm console.'],
+    ['graphics', 'Graphics & Printing', 'Graphics and print requests.'],
+  ]
+  return (
+    <>
+      <p className="wcm-hub2-intro">The consoles only a SuperAdmin can open, in one place.</p>
+      <div className="wcm-hub2-grid">
+        {cards.map(([page, title, desc]) => (
+          <div key={page} className="wcm-hub2-card">
+            <h3>{title}</h3>
+            <p>{desc}</p>
+            <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate(page)}>Open</button>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function DepartmentsPanel({ depts }: { depts: DepartmentSummary[] }) {
+  const withWcm = depts.filter((d) => d.wcms.length > 0)
+  return (
+    <>
+      <p className="wcm-hub2-intro">Every department&apos;s WCMs and audit status. {withWcm.length} of {depts.length} departments with a website have a confirmed WCM. To see a director&apos;s dashboard, use View as, Director (Sample).</p>
+      <div className="home-dept-grid">
+        {depts.map((d) => <DepartmentCard key={d.id} dept={d} />)}
+      </div>
+    </>
+  )
+}
+
+function SuperAdminHome({ data, onNavigate, viewAsUserId, preview }: { data: HomeData; onNavigate: (page: PageId) => void; viewAsUserId?: string; preview?: boolean }) {
+  const [tab, setTab] = useState('decisions')
+  const { setViewAs } = useBCPSShell()
+  const th = data.team_home!
+  const p = th.program
+  const decisions = (th.decisions?.roster_pending.length ?? 0) + th.banners.pending + (data.team?.messages_unread ?? 0) + (data.team?.access_requests ?? 0)
+  const w = currentWindow()
+  const wStats = p.windows.find((x) => x.id === w.id)
+  const name = firstName(data)
+  const preview_ = (m: TeamMemberWork) => setViewAs({
+    id: `TM:${m.email}`,
+    name: m.name,
+    initials: m.name.split(/\s+/).map((x) => x[0]).join('').slice(0, 2).toUpperCase(),
+    color: '#9CA3AF',
+    roleLabel: m.team === 'comms' ? 'Web Team: Communications' : 'Web Team: Application Services',
+    previewGroup: 'District Web Team',
+  })
+  const tabs = [
+    { id: 'decisions', label: 'Decisions' },
+    { id: 'program', label: 'Program' },
+    ...((th.team_members?.length ?? 0) > 0 ? [{ id: 'team', label: 'Team' }] : []),
+    { id: 'departments', label: 'Departments' },
+    { id: 'ada', label: 'ADA' },
+    ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets', label: 'Widgets' }] : []),
+    { id: 'tools', label: 'Tools' },
+    { id: 'admin', label: 'Admin' },
+    { id: 'ops', label: 'Team Operations' },
+  ]
   return (
     <div className="home">
-      <div className="home-strip">
-        <StatTile label="Roster submissions to review" value={t?.roster_pending ?? 0} />
-        <StatTile label="Unread messages" value={t?.messages_unread ?? 0} />
-        <StatTile label="Access requests" value={t?.access_requests ?? 0} />
-        <StatTile label="Certified this week" value={t?.certifications_7d ?? 0} note={`${certified} of ${allWcms.length} rostered WCMs certified`} />
+      {preview && <div className="home-preview"><strong>Previewing the SuperAdmin dashboard.</strong> Numbers and lists are live.</div>}
+      <div className="home-hero">
+        <div className="home-hero-label">BCPS MarComm SuperAdmin</div>
+        <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
+        <p>Everything waiting on you, how the whole program is moving, and what each person on the team is carrying. The District Web Team sees the same program numbers; decisions, admin consoles and the team view are yours alone.</p>
+        <div className="home-actions">
+          <button type="button" className="home-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
+          {(th.team_members?.length ?? 0) > 0 && <button type="button" className="wcm-hub2-card-btn" onClick={() => setTab('team')}>Preview a team member&apos;s dashboard</button>}
+        </div>
       </div>
-      <HomeTabs
-        tabs={[{ id: 'ops', label: 'Team Operations' }, { id: 'departments', label: 'Departments' }, { id: 'wcm', label: 'WCM View' }]}
-        active={tab}
-        onChange={(x) => setTab(x as 'ops' | 'departments' | 'wcm')}
-      />
+      <div className="home-strip">
+        <StatTile label="Needs your decision" value={decisions} note={decisions ? 'See the Decisions tab' : 'Nothing waiting'} tone={decisions ? 'warn' : undefined} />
+        <StatTile label="WCMs certified" value={`${p.wcms_certified} of ${p.wcms_total}`} note={`Rostered department WCMs. Due ${DEPT_CERT_DEADLINE}.`} tone={p.wcms_certified < p.wcms_total ? 'warn' : undefined} />
+        <StatTile label="Directors signed in" value={`${p.directors_signed_in} of ${p.directors_on_file}`} note="Directors on file with an account" />
+        <StatTile label={`${w.label} ${windowState(w) === 'open' ? 'open' : 'next'}`} value={`${wStats?.departments ?? 0} depts`} note={`${formatWindowRange(w)}. ${wStats?.signed_off ?? 0} signed off.`} />
+      </div>
+      <HomeTabs tabs={tabs} active={tab} onChange={setTab} />
+      {tab === 'decisions' && <DecisionsPanel th={th} team={data.team} onNavigate={onNavigate} onOpenOps={() => setTab('ops')} />}
+      {tab === 'program' && <ProgramPanel p={p} />}
+      {tab === 'team' && <TeamPanel members={th.team_members ?? []} onPreview={preview_} />}
+      {tab === 'departments' && <DepartmentsPanel depts={data.departments} />}
+      {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
+      {tab === 'widgets' && <TeamWidgetsPanel widgets={data.widgets ?? []} onNavigate={onNavigate} />}
+      {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} />}
+      {tab === 'admin' && <AdminPanel onNavigate={onNavigate} />}
       {tab === 'ops' && <DashboardPage onNavigate={onNavigate} viewAsUserId={viewAsUserId} />}
-      {tab === 'departments' && (
-        <>
-          <p className="wcm-hub2-intro">Every department&apos;s WCMs and audit status. {withWcm.length} of {depts.length} departments with a website have a confirmed WCM. To see the director dashboard itself, use View as, Director (Sample).</p>
-          <div className="home-dept-grid">
-            {depts.map((d) => <DepartmentCard key={d.id} dept={d} />)}
-          </div>
-        </>
-      )}
+    </div>
+  )
+}
+
+function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote }: {
+  data: HomeData
+  kind: TeamKind
+  onNavigate: (page: PageId) => void
+  assignments: Assignment[]
+  who?: string
+  previewNote?: string
+}) {
+  const [tab, setTab] = useState('work')
+  const th = data.team_home!
+  const p = th.program
+  const w = currentWindow()
+  const wStats = p.windows.find((x) => x.id === w.id)
+  const lead = assignments.filter((a) => a.role === 'lead').length
+  const past = assignments.filter((a) => a.past_date).length
+  const greet = who ? who.split(/\s+/)[0] : firstName(data)
+  const tabs = kind === 'comms'
+    ? [
+        { id: 'work', label: 'My Work' },
+        { id: 'window', label: 'Review Window' },
+        { id: 'program', label: 'Program' },
+        { id: 'departments', label: 'Departments' },
+        { id: 'banners', label: 'Banners' },
+        ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets', label: 'Widgets' }] : []),
+        { id: 'wcm', label: 'WCM View' },
+        { id: 'tools', label: 'Tools' },
+      ]
+    : [
+        { id: 'work', label: 'My Work' },
+        { id: 'ada', label: 'ADA' },
+        ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets', label: 'Widgets' }] : []),
+        { id: 'banners', label: 'Banners' },
+        { id: 'program', label: 'Program' },
+        { id: 'tools', label: 'Tools' },
+      ]
+  return (
+    <div className="home">
+      {previewNote && <div className="home-preview">{previewNote}</div>}
+      <div className="home-hero">
+        <div className="home-hero-label">BCPS MarComm District Web Team</div>
+        <h1 className="home-title">{greet ? `Welcome, ${greet}` : 'Welcome'}</h1>
+        <p>{kind === 'comms'
+          ? 'Your assignments, the departments in this review window, and how the program is moving.'
+          : 'Your assignments, accessibility across our sites, the widgets, and every tool you use.'}</p>
+        <div className="home-actions">
+          <button type="button" className="home-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
+          {kind === 'appsvc' && <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('ada-scanner')}>Open ADA Scanner</button>}
+        </div>
+      </div>
+      <div className="home-strip">
+        <StatTile label="My open assignments" value={assignments.length} note={`Lead on ${lead}, support on ${assignments.length - lead}.${past ? ` ${past} past their date.` : ''}`} tone={past ? 'warn' : undefined} />
+        {kind === 'comms' ? (
+          <>
+            <StatTile label={`${w.label} ${windowState(w) === 'open' ? 'open' : 'next'}`} value={`${wStats?.departments ?? 0} depts`} note={formatWindowRange(w)} />
+            <StatTile label="WCMs certified" value={`${p.wcms_certified} of ${p.wcms_total}`} note={`Due ${DEPT_CERT_DEADLINE}`} />
+          </>
+        ) : (
+          <>
+            <StatTile label="Average ADA score" value={th.ada.average_score ?? '-'} note={`${th.ada.sites_scanned} department sites scanned`} />
+            <StatTile label="Next Hot Lab" value={nextHotLab()} note="Tuesdays and Thursdays" />
+          </>
+        )}
+        <StatTile label="Banners to review" value={th.banners.pending} note="Banner Submissions" tone={th.banners.pending ? 'warn' : undefined} />
+      </div>
+      <HomeTabs tabs={tabs} active={tab} onChange={setTab} />
+      {tab === 'work' && <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />}
+      {tab === 'window' && <ReviewWindowPanel depts={data.departments} />}
+      {tab === 'program' && <ProgramPanel p={p} />}
+      {tab === 'departments' && <DepartmentsPanel depts={data.departments} />}
+      {tab === 'banners' && <BannersPanel b={th.banners} onNavigate={onNavigate} />}
+      {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
+      {tab === 'widgets' && <TeamWidgetsPanel widgets={data.widgets ?? []} onNavigate={onNavigate} />}
       {tab === 'wcm' && <WcmCommunityHub />}
+      {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} />}
     </div>
   )
 }
@@ -823,23 +1352,54 @@ export default function HomePage({ onNavigate, viewAsUserId }: { onNavigate: (pa
   const wcmSample = useMemo(() => (viewAsUserId === SAMPLE_WCM_ID ? sampleWcmData() : null), [viewAsUserId])
 
   // "View as" previews: the Director and WCM samples get their own home with
-  // sample data; the District Web Team and Superadmin samples get the team
-  // home, whose Team Operations tab keeps the sample handling it had.
+  // sample data. The web team previews (the two samples, or a real team
+  // member chosen on the SuperAdmin's Team tab) and the SuperAdmin sample
+  // use the team data the signed-in team member already receives.
   if (viewAsUserId === SAMPLE_DIRECTOR_ID) {
     if (!directorSample) return <div className="wcm-hub2-empty">Loading the preview...</div>
     return <DirectorHome key="preview-director" data={directorSample} preview />
   }
   if (wcmSample) return <WcmHome key="preview-wcm" data={wcmSample} preview />
   if (viewAsUserId) {
-    if (data?.experience === 'dwt') return <TeamHome key={`preview-${viewAsUserId}`} data={data} onNavigate={onNavigate} viewAsUserId={viewAsUserId} />
     if (!data && !failed) return <div className="wcm-hub2-empty">Loading the preview...</div>
+    const th = data?.team_home
+    if (data && th) {
+      if (viewAsUserId === SAMPLE_SUPERADMIN_ID && data.experience === 'superadmin') {
+        return <SuperAdminHome key="preview-sa" data={data} onNavigate={onNavigate} viewAsUserId={viewAsUserId} preview />
+      }
+      const members = th.team_members ?? []
+      const me = firstName(data).toLowerCase()
+      const pick = (kind: 'comms' | 'appsvc') => members.find((m) => m.team === kind && m.name.split(/\s+/)[0].toLowerCase() !== me)
+      const target = viewAsUserId.startsWith('TM:')
+        ? members.find((m) => `TM:${m.email}` === viewAsUserId)
+        : viewAsUserId === 'SDW' ? pick('comms') : viewAsUserId === 'SDA' ? pick('appsvc') : undefined
+      const kind = target?.team ?? (viewAsUserId === 'SDA' ? 'appsvc' : viewAsUserId === 'SDW' ? 'comms' : null)
+      if (kind) {
+        return (
+          <WebTeamHome
+            key={`preview-${viewAsUserId}`}
+            data={data}
+            kind={kind}
+            onNavigate={onNavigate}
+            assignments={target?.assignments ?? []}
+            who={target?.name}
+            previewNote={target
+              ? `Previewing ${target.name}\u2019s dashboard: their real assignments, with the program numbers the whole team sees.`
+              : 'Previewing the web team dashboard with live program numbers.'}
+          />
+        )
+      }
+    }
     return <DashboardPage onNavigate={onNavigate} viewAsUserId={viewAsUserId} />
   }
 
   if (failed) return <DashboardPage onNavigate={onNavigate} />
   if (!data) return <div className="wcm-hub2-empty">Loading your dashboard...</div>
 
-  if (data.experience === 'dwt') return <TeamHome data={data} onNavigate={onNavigate} />
+  if (data.experience === 'superadmin' && data.team_home) return <SuperAdminHome data={data} onNavigate={onNavigate} />
+  if (data.experience === 'dwt' && data.team_home) {
+    return <WebTeamHome data={data} kind={data.team_kind ?? 'comms'} onNavigate={onNavigate} assignments={data.team_home.my_assignments} />
+  }
   if (data.experience === 'director') return <DirectorHome data={data} />
   if (data.experience === 'wcm') return <WcmHome data={data} />
   return <MemberHome data={data} />

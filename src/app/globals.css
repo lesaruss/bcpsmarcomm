@@ -1740,9 +1740,45 @@ body {
 .home-note-title a { color: #0e4e73; text-decoration: underline; }
 .home-note-text { font-size: 12.5px; color: var(--text-secondary); }
 .home-link-btn { background: none; border: 0; padding: 0; font: inherit; color: #0e4e73; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.home-actions-tight { margin-top: 4px; }
+.home-table th.num { text-align: right; }
+.home-barrow { display: grid; grid-template-columns: minmax(0, 170px) minmax(0, 1fr) 64px; gap: 10px; align-items: center; padding: 6px 0; font-size: 13px; color: var(--text-secondary); }
+.home-bar { height: 8px; background: #e6ecf2; border-radius: 8px; overflow: hidden; }
+.home-bar > div { height: 100%; background: var(--blue); border-radius: 8px; }
+.home-bar.green > div { background: #16750C; }
+.home-barrow-n { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.home-mini { list-style: none; margin: 8px 0 12px; padding: 0; font-size: 13px; color: var(--text-secondary); }
+.home-mini li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); }
+.home-mini li span { min-width: 0; overflow-wrap: anywhere; }
+.home-mini li b { white-space: nowrap; color: var(--text-primary); }
+.home-dec { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; padding: 14px 0; border-top: 1px solid var(--border); }
+.home-dec:first-child { border-top: 0; padding-top: 0; }
+.home-dec-what { font-size: 14px; font-weight: 700; color: var(--text-primary); min-width: 0; }
+.home-dec-what small { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+.home-tag { display: inline-block; font-size: 11px; font-weight: 800; border-radius: 6px; padding: 2px 8px; margin-left: 6px; white-space: nowrap; }
+td > .home-tag:first-child { margin-left: 0; }
+.home-tag.lead { color: #0e4e73; background: rgba(22,114,167,0.08); }
+.home-tag.support { color: var(--text-muted); background: #eef2f6; }
+.home-tag.late { color: #8a3614; background: rgba(197,83,38,0.08); }
+.home-grp { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); margin: 18px 0 10px; }
+.home-tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 12px; margin-bottom: 18px; }
+.home-tool { display: flex; gap: 14px; align-items: center; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; text-align: left; font: inherit; cursor: pointer; min-width: 0; }
+.home-tool:hover, .home-tool:focus-visible { border-color: var(--blue); }
+.home-tool-ic { flex: 0 0 44px; height: 44px; border-radius: 10px; background: rgba(22,114,167,0.08); color: #0e4e73; font-weight: 900; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+.home-tool b { display: block; font-size: 15px; color: #0e4e73; }
+.home-tool small { display: block; font-size: 12.5px; color: var(--text-secondary); font-weight: 600; }
+.home-tsearch { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 12px; }
+.home-tsearch label { display: block; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 6px; }
+.home-tsearch input { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 10px 12px; border: 1.5px solid rgba(22,114,167,0.35); border-radius: 8px; }
+.home-tresults { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 14px; }
+.home-browse summary { cursor: pointer; font-size: 13px; font-weight: 700; color: #0e4e73; padding: 6px 0; }
+.home-bgroup h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin: 14px 0 4px; }
+.home-bgroup p { font-size: 13.5px; line-height: 1.9; margin: 0; }
 @media (max-width: 760px) {
   .home-hero { padding: 20px; }
   .home-hero.with-side, .home-review-top.with-video { grid-template-columns: minmax(0, 1fr); }
+  .home-barrow { grid-template-columns: minmax(0, 1fr) 64px; }
+  .home-barrow .home-bar { grid-column: 1 / -1; grid-row: 2; }
   .home-title { font-size: 22px; }
 }
 
