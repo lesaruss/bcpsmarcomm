@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import type { PageId } from '@/lib/types'
 import DashboardPage from './DashboardPage'
@@ -41,10 +41,48 @@ const ROSTER_SIGNUP_URL = '/wcm-roster-signup'
 const DIRECTOR_PLAYBOOK_URL = '/playbooks/director-department'
 // Department certification deadline (Sept 30 applies to schools only).
 const DEPT_CERT_DEADLINE = 'October 30, 2026'
-// Recorded at the end of a Hot Lab (playbook wcm-community-hub, Content
-// Pipeline). Each card stays hidden until its video URL is set here.
-const WALKTHROUGH_VIDEO_URL: string | null = null
-const REVIEW_VIDEO_URL: string | null = null
+// Director videos (Sean, 2026-10-01). For now each one is a still image with
+// Sean's narration (his Higgsfield voice) until he records a scroll-through
+// of the dashboard to replace it. Files live in the public bcps-public
+// bucket, dashboard-media/. Set a video to null to hide its card.
+interface NarratedMedia {
+  title: string
+  sub: string
+  still: string
+  audio: string
+  transcript: string[]
+}
+const MEDIA_BASE = 'https://fwbhwfxpncrsfhttimna.supabase.co/storage/v1'
+const mediaStill = (name: string) => `${MEDIA_BASE}/render/image/public/bcps-public/dashboard-media/${name}?width=960&quality=80`
+const mediaFile = (name: string) => `${MEDIA_BASE}/object/public/bcps-public/dashboard-media/${name}`
+
+const WALKTHROUGH_VIDEO: NarratedMedia | null = {
+  title: 'Start here: What BCPS MarComm is, and why we built it',
+  sub: 'Two minutes from Sean A. Russell, District Webmaster.',
+  still: mediaStill('director-walkthrough-still.png'),
+  audio: mediaFile('director-walkthrough-narration.wav'),
+  transcript: [
+    'Hi, I\u2019m Sean A. Russell, District Webmaster in the Office of Communications. Thank you for taking two minutes with me. This is BCPS MarComm, and this page was built for you.',
+    'Every department has a website, and families, staff, and vendors count on it being right. Behind each one is a Web Content Manager from your team. BCPS MarComm is where those WCMs are trained, supported, and connected with the District Web Team, so your website stays accurate, accessible, and on brand.',
+    'Here\u2019s what you\u2019ll find. At the top is your department at a glance. My Team shows your Web Content Managers, and where each one stands with certification, which is due October 30. Website Review explains how we review every department website, division by division, and when your window is. Analytics shows how many people use your pages, and which ones they visit most. Meeting Notes keeps the recaps that matter to you in one place. And Widgets shows tools we can build for your department.',
+    'The biggest difference you can make is backing your WCM. Make time for the certification, and for the updates that come out of your review. If your department doesn\u2019t have a WCM yet, you can confirm one right from this page.',
+    'Any question, any time, use the blue message button in the corner. It comes straight to us. Thank you for supporting your team.',
+  ],
+}
+
+const REVIEW_VIDEO: NarratedMedia | null = {
+  title: 'How the department review works',
+  sub: 'Sean walks through the five steps and the three review windows.',
+  still: mediaStill('director-review-still.png'),
+  audio: mediaFile('director-review-narration.wav'),
+  transcript: [
+    'This school year, the District Web Team is meeting with every department to make your web pages better. Here\u2019s how it works, and when your turn comes up.',
+    'The review runs every year, July 1 through June 30, in three windows. Window one, October 1 through December 18, covers our priority divisions: Human Resources, Student Services, Academics, and Chief of Staff. Window two, January 11 through March 31, is Finance, Strategy and Operations, Facilities, and Safety and Security. Window three, April 1 through June 30, is Information Systems, Learning Communities, and Independent Offices.',
+    'Every review follows five steps. First, your WCM completes a short page checklist. Second, your WCM brings you to a one-hour meeting with our team, covering page setup, audit findings, accessibility, and the tools available to you. Third, we send you a written playbook with a timetable, usually two weeks to a month. Fourth, we build the changes together with your WCM. And fifth, you review the finished site and sign off.',
+    'When your window opens, the Book your meeting button on the Website Review tab comes alive. Want to meet sooner? Use Request an earlier meeting, and we\u2019ll fit you in.',
+    'Most of the work happens this first year, so each new cycle gets lighter. Thanks for working with us.',
+  ],
+}
 
 interface WcmStatus {
   name: string
@@ -260,13 +298,44 @@ function StatTile({ label, value, note, tone }: { label: string; value: string |
   )
 }
 
-function VideoCard({ url, title, sub }: { url: string; title: string; sub: string }) {
+// A still with narration: the still is the play button, then the audio
+// player takes over. The transcript is always one click away.
+function VideoCard({ media }: { media: NarratedMedia }) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const [started, setStarted] = useState(false)
+  const [length, setLength] = useState<string | null>(null)
   return (
-    <a className="home-video" href={url} target="_blank" rel="noopener noreferrer">
-      <span className="home-video-frame" aria-hidden="true"><span className="home-video-play" /></span>
-      <span className="home-video-title">{title}</span>
-      <span className="home-video-sub">{sub}</span>
-    </a>
+    <div className="home-video">
+      <button
+        type="button"
+        className="home-video-frame"
+        aria-label={`Play: ${media.title}`}
+        onClick={() => { setStarted(true); audioRef.current?.play().catch(() => {}) }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={media.still} alt="" loading="lazy" />
+        {!started && <span className="home-video-play" aria-hidden="true" />}
+        {length && !started && <span className="home-video-len">{length}</span>}
+      </button>
+      <audio
+        ref={audioRef}
+        className={started ? 'home-video-audio' : 'home-video-audio idle'}
+        src={media.audio}
+        preload="metadata"
+        controls
+        onPlay={() => setStarted(true)}
+        onLoadedMetadata={(e) => {
+          const s = Math.round(e.currentTarget.duration)
+          if (Number.isFinite(s) && s > 0) setLength(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`)
+        }}
+      />
+      <span className="home-video-title">{media.title}</span>
+      <span className="home-video-sub">{media.sub}</span>
+      <details className="home-video-transcript">
+        <summary>Read the transcript</summary>
+        {media.transcript.map((para, i) => <p key={i}>{para}</p>)}
+      </details>
+    </div>
   )
 }
 
@@ -317,7 +386,7 @@ function DirectorHome({ data, preview }: { data: HomeData; preview?: boolean }) 
   return (
     <div className="home">
       {preview && <PreviewBanner who="director" />}
-      <div className={`home-hero${WALKTHROUGH_VIDEO_URL ? ' with-side' : ''}`}>
+      <div className={`home-hero${WALKTHROUGH_VIDEO ? ' with-side' : ''}`}>
         <div>
           <div className="home-hero-label">BCPS MarComm Director</div>
           <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
@@ -327,9 +396,7 @@ function DirectorHome({ data, preview }: { data: HomeData; preview?: boolean }) 
             <span className="home-hint">Every update for directors, in one place</span>
           </div>
         </div>
-        {WALKTHROUGH_VIDEO_URL && (
-          <VideoCard url={WALKTHROUGH_VIDEO_URL} title="Start here: What BCPS MarComm is, and why we built it" sub="A two-minute walkthrough from Sean A. Russell." />
-        )}
+        {WALKTHROUGH_VIDEO && <VideoCard media={WALKTHROUGH_VIDEO} />}
       </div>
 
       <div className="home-strip">
@@ -389,10 +456,8 @@ function ReviewTab({ led, myWindow }: { led: DepartmentSummary[]; myWindow: Revi
       <p className="wcm-hub2-intro">
         Every school year, July 1 to June 30, the District Web Team reviews every department website with its director and WCM, division by division, in three review windows. Most of the work happens in the first year, so each new cycle is lighter. Here is how it works and when your division is up.
       </p>
-      <div className={`home-review-top${REVIEW_VIDEO_URL ? ' with-video' : ''}`}>
-        {REVIEW_VIDEO_URL && (
-          <VideoCard url={REVIEW_VIDEO_URL} title="How the department review works" sub="Sean walks through the five steps and the schedule." />
-        )}
+      <div className={`home-review-top${REVIEW_VIDEO ? ' with-video' : ''}`}>
+        {REVIEW_VIDEO && <VideoCard media={REVIEW_VIDEO} />}
         <div className="home-dept">
           <h3 className="home-card-title">The five steps</h3>
           <ol className="home-steps">
@@ -610,13 +675,6 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
         <p>Name the Web Content Manager for your department, or let the District Web Team know about a change.</p>
         <a className="wcm-hub2-card-btn" href={ROSTER_SIGNUP_URL}>Open the form</a>
       </div>
-      {WALKTHROUGH_VIDEO_URL && (
-        <div className="wcm-hub2-card">
-          <h3>Watch the walkthrough</h3>
-          <p>Two minutes on what BCPS MarComm is and why we built it.</p>
-          <a className="wcm-hub2-card-btn" href={WALKTHROUGH_VIDEO_URL} target="_blank" rel="noopener noreferrer">Play</a>
-        </div>
-      )}
     </div>
   )
 }
