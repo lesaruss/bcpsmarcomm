@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { VIEW_AS_GROUP_TIER, previewableGroups } from '@/lib/view-as'
+import { VIEW_AS_GROUP_TIER, DIRECTOR_PREVIEW, previewableGroups } from '@/lib/view-as'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,6 +72,12 @@ export async function GET(req: NextRequest) {
   const previewGroup = req.nextUrl.searchParams.get('preview_group')
   if (previewGroup) {
     if (!viewAsGroups.includes(previewGroup)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    if (previewGroup === DIRECTOR_PREVIEW) {
+      // A director holds no group: public pages only (2026-10-01).
+      const directorRes = NextResponse.json({ ok: true, role: 'user', preview_group: previewGroup, pages: all.filter(p => p.visibility === 'public').map(p => p.slug), groups: [] })
+      directorRes.headers.set('Cache-Control', 'no-store')
+      return directorRes
+    }
     const { data: group } = await svc.from('acl_groups')
       .select('id').eq('brand', BRAND).eq('name', previewGroup).maybeSingle()
     if (!group) return NextResponse.json({ error: 'unknown group' }, { status: 404 })

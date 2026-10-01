@@ -513,7 +513,9 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   // and the Department Profile card at the bottom of the page. Waits on
   // teamMembers (already fetched above) to resolve the department slug,
   // same source the existing "My Department" quick tile uses.
-  const isSampleView = !!viewAsUserId && SAMPLE_IDS.has(viewAsUserId)
+  // Only sample identities this page has sample content for (the Director
+  // sample previews on HomePage instead).
+  const isSampleView = !!viewAsUserId && SAMPLE_IDS.has(viewAsUserId) && viewAsUserId in SAMPLE_DEPT_DETAIL
 
   const myDeptSlug = isSampleView
     ? SAMPLE_DEPT_DETAIL[viewAsUserId!].slug

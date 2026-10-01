@@ -4,7 +4,14 @@
 // acl group membership (plus the acl 'admin' role, which sits at the District
 // Web Team tier). Shared by /api/bcps/my-access (enforcement) and the sidebar
 // (which previews to list).
+//
+// 'Director' is not an acl group: directors are recognized by
+// bcps_departments.director_email and hold no group, so their preview is the
+// public page set (my-access answers it without a group lookup). It sits
+// below every group, so anyone granted View as may preview it.
+export const DIRECTOR_PREVIEW = 'Director'
 export const VIEW_AS_GROUP_TIER: Record<string, number> = {
+  [DIRECTOR_PREVIEW]: 0,
   'Web Content Management': 1,
   'District Web Team': 2,
 }

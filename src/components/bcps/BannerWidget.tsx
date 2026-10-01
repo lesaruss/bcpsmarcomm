@@ -674,7 +674,7 @@ export default function BannerWidget() {
 
       {previewingWcm && (
         <div style={{ fontSize: 12, background: '#fffaeb', color: '#5c4300', border: '1px solid #F4C436', borderRadius: 6, padding: '8px 12px', marginBottom: 12 }}>
-          <strong>Viewing as {viewAs!.roleLabel.replace(' (Sample)', '')}.</strong> You see what a WCM sees. Anything you submit
+          <strong>Viewing as {viewAs!.roleLabel.replace(' (Sample)', '')}.</strong> You see what they see. Anything you submit
           here is a real submission from your own account and goes to the Review Queue.
         </div>
       )}

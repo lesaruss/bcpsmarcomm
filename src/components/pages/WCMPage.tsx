@@ -811,7 +811,7 @@ const HUB_TABS: { id: HubTab; label: string; intro: string }[] = [
 // schools only), confirmed at the Sept 29 Hot Lab.
 const DEPT_CERT_DEADLINE = 'October 30, 2026'
 
-type CertStatus =
+export type CertStatus =
   | { state: 'loading' }
   | { state: 'certified'; issuedAt: string }
   | { state: 'in_progress'; pct: number }
@@ -873,10 +873,12 @@ function CertStatusPanel({ status }: { status: CertStatus }) {
   )
 }
 
-export function WcmCommunityHub() {
+// previewCert: a "View as" sample WCM (2026-10-01) shows this certification
+// status instead of reading the signed-in person's own progress.
+export function WcmCommunityHub({ previewCert }: { previewCert?: CertStatus } = {}) {
   const [items, setItems] = useState<HubItem[] | null>(null)
   const [loadError, setLoadError] = useState(false)
-  const [cert, setCert] = useState<CertStatus>({ state: 'loading' })
+  const [cert, setCert] = useState<CertStatus>(previewCert ?? { state: 'loading' })
   const [activeTab, setActiveTab] = useState<HubTab>('start')
 
   useEffect(() => {
@@ -888,6 +890,7 @@ export function WcmCommunityHub() {
         .order('sort_order', { ascending: true })
       if (cancelled) return
       if (error) { setLoadError(true); setItems([]) } else { setItems((data || []) as HubItem[]) }
+      if (previewCert) return
 
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || cancelled) { if (!cancelled) setCert({ state: 'not_started' }); return }
@@ -903,7 +906,7 @@ export function WcmCommunityHub() {
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [previewCert])
 
   const certified = cert.state === 'certified'
   const visible = useMemo(

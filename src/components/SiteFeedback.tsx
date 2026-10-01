@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
 // Site-wide "report an issue" launcher for bcpsmarcomm.com. Started as
@@ -29,6 +29,7 @@ export default function SiteFeedback() {
   const [identity, setIdentity] = useState<{ full_name: string | null; department: string | null; email: string | null } | null>(null)
   const [identityChecked, setIdentityChecked] = useState(false)
   const [notMe, setNotMe] = useState(false)
+  const lastPrefill = useRef('')
 
   useEffect(() => {
     let cancelled = false
@@ -62,16 +63,29 @@ export default function SiteFeedback() {
   // the same-origin brief-raw iframe post { type: 'bcps:open-feedback' } to
   // the parent (Certification Complete page, which replaced its orange Pulse
   // widget with this one, Sean 2026-09-29).
+  // A caller may pass a starting message as the event detail ({ message }),
+  // e.g. the director dashboard's "Book your meeting" and "Request an earlier
+  // meeting" buttons (2026-10-01). The person can still edit it before sending.
   useEffect(() => {
-    const openPanel = () => { setOpen(true); setSent(false); setError('') }
+    const openPanel = (prefill?: unknown) => {
+      setOpen(true); setSent(false); setError('')
+      if (typeof prefill === 'string' && prefill.trim()) {
+        lastPrefill.current = prefill
+        setMessage(prefill)
+      } else {
+        // A plain open drops an untouched prefill but keeps anything typed.
+        setMessage((m) => (m === lastPrefill.current ? '' : m))
+      }
+    }
+    const onEvent = (e: Event) => openPanel((e as CustomEvent<{ message?: string } | null>).detail?.message)
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin) return
       if (e.data && e.data.type === 'bcps:open-feedback') openPanel()
     }
-    window.addEventListener('bcps:open-feedback', openPanel)
+    window.addEventListener('bcps:open-feedback', onEvent)
     window.addEventListener('message', onMessage)
     return () => {
-      window.removeEventListener('bcps:open-feedback', openPanel)
+      window.removeEventListener('bcps:open-feedback', onEvent)
       window.removeEventListener('message', onMessage)
     }
   }, [])
@@ -123,7 +137,7 @@ export default function SiteFeedback() {
   return (
     <>
       <button
-        onClick={() => { setOpen(true); setSent(false); setError('') }}
+        onClick={() => { setOpen(true); setSent(false); setError(''); setMessage((m) => (m === lastPrefill.current ? '' : m)) }}
         aria-label="Report an issue"
         title="Report an issue"
         style={styles.launcher}

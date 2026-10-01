@@ -12,14 +12,17 @@ const BRAND = 'bcps'
 const noStoreFetch: typeof fetch = (input, init) => fetch(input, { ...(init ?? {}), cache: 'no-store' })
 const svc = createClient(URL, SERVICE, { auth: { persistSession: false }, global: { fetch: noStoreFetch } })
 
-// The BCPS Marcom dashboard sets itself up for whoever signs in (Sean,
-// 2026-10-01, playbook wcm-community-hub "BCPS Marcom Dashboard"). This route
+// The BCPS MarComm dashboard sets itself up for whoever signs in (Sean,
+// 2026-10-01, playbook wcm-community-hub "BCPS MarComm Dashboard"). This route
 // decides which experience the caller gets and returns only the data that
 // experience shows:
 //   District Web Team: acl_member_roles admin/superadmin, or the "District Web
 //     Team" group. Sees every department plus what is waiting on the team.
 //   Director: signed-in email matches bcps_departments.director_email. Sees
-//     only the departments they lead.
+//     only the departments they lead, with each one's analytics, audit
+//     findings count, the widget catalog and the meeting notes shared with
+//     them (directors have no group, so the Analytics and Widgets pages are
+//     closed to them; their dashboard carries that data itself).
 //   WCM: "Web Content Management" group, or listed on a department roster.
 // Precedence is District Web Team > Director > WCM; the flags tell the page
 // which extra cards someone who fits more than one also gets.
@@ -56,11 +59,36 @@ interface WcmStatus {
   progress_pct: number
 }
 
+interface DepartmentAnalytics {
+  period: string
+  visitors: number | null
+  new_visitors: number | null
+  visits: number | null
+  engaged_pct: number | null
+  avg_seconds: number | null
+  top_pages: { title: string; path: string; visits: number; visitors: number; avg_seconds: number }[]
+}
+
 interface DepartmentSummary {
   id: string
   name: string
+  division: string | null
+  website_url: string | null
   audit_status: string | null
+  findings_open: number
+  findings_fixed: number
   wcms: WcmStatus[]
+  analytics?: DepartmentAnalytics | null
+}
+
+interface DirectorNote {
+  id: string
+  title: string
+  description: string
+  href: string
+  link_label: string
+  department_id: string | null
+  posted_at: string
 }
 
 export async function GET(req: NextRequest) {
@@ -120,6 +148,21 @@ export async function GET(req: NextRequest) {
 
   const departments = await loadDepartments(departmentIds)
 
+  // Director-only extras. Analytics only for the departments they lead.
+  let widgets: { slug: string; title: string; description: string | null; preview_path: string | null }[] = []
+  let directorNotes: DirectorNote[] = []
+  if (isDirector) {
+    const analytics = await loadAnalytics(ledIds, departments)
+    for (const d of departments) if (ledIds.includes(d.id)) d.analytics = analytics.get(d.id) ?? null
+    directorNotes = await loadDirectorNotes(ledIds, email)
+  }
+  // The widget catalog is the same for everyone. The team gets it too, for
+  // the "View as" director preview.
+  if (isDirector || isDwt) {
+    const { data: wRows } = await svc.from('bcps_widgets').select('slug, title, description, preview_path').order('sort_order')
+    widgets = (wRows ?? []).filter((w) => w.preview_path)
+  }
+
   let team: Record<string, number> | null = null
   if (isDwt) {
     const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
@@ -147,12 +190,14 @@ export async function GET(req: NextRequest) {
     led_department_ids: ledIds,
     departments,
     team,
+    widgets,
+    director_notes: directorNotes,
   })
 }
 
 async function loadDepartments(ids: string[] | null): Promise<DepartmentSummary[]> {
   if (ids !== null && ids.length === 0) return []
-  let dq = svc.from('bcps_departments').select('id, name, audit_status').order('name')
+  let dq = svc.from('bcps_departments').select('id, name, division, website_url, audit_status').order('name')
   if (ids !== null) dq = dq.in('id', ids)
   const { data: depts } = await dq
   if (!depts?.length) return []
@@ -189,6 +234,18 @@ async function loadDepartments(ids: string[] | null): Promise<DepartmentSummary[
     }
   }
 
+  const findings = await fetchAll<{ department_id: string; wcm_fixed: boolean | null }>((a, b) => {
+    let q = svc.from('bcps_audit_findings').select('department_id, wcm_fixed').order('id').range(a, b)
+    if (ids !== null) q = q.in('department_id', ids)
+    return q
+  })
+  const openByDept = new Map<string, number>()
+  const fixedByDept = new Map<string, number>()
+  for (const f of findings) {
+    const m = f.wcm_fixed ? fixedByDept : openByDept
+    m.set(f.department_id, (m.get(f.department_id) ?? 0) + 1)
+  }
+
   const rosterToDept = new Map((rosters ?? []).map((r) => [r.id as string, r.matched_department_id as string]))
   const noWebsite = new Set((rosters ?? []).filter((r) => r.no_website).map((r) => r.matched_department_id as string))
   const byDept = new Map<string, WcmStatus[]>()
@@ -218,7 +275,108 @@ async function loadDepartments(ids: string[] | null): Promise<DepartmentSummary[
     .map((d) => ({
       id: d.id,
       name: d.name,
+      division: d.division ?? null,
+      website_url: d.website_url ?? null,
       audit_status: d.audit_status,
+      findings_open: openByDept.get(d.id) ?? 0,
+      findings_fixed: fixedByDept.get(d.id) ?? 0,
       wcms: (byDept.get(d.id) ?? []).sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+}
+
+// "/bcps-departments/procurement-logistics/warehousing-services" -> "Warehousing Services"
+function titleFromPath(path: string): string {
+  const seg = path.replace(/\/+$/, '').split('/').pop() || path
+  return seg.split('-').filter(Boolean).map((w) => (w === 'and' ? 'and' : w[0].toUpperCase() + w.slice(1))).join(' ')
+}
+
+// Latest month for each department: visitors, average visit and engaged
+// share from bcps_department_analytics; visits, first-time visitors and the
+// most visited pages from the same month's site snapshot (GA4 sync).
+async function loadAnalytics(ids: string[], depts: DepartmentSummary[]): Promise<Map<string, DepartmentAnalytics>> {
+  const out = new Map<string, DepartmentAnalytics>()
+  if (!ids.length) return out
+  const { data: rows } = await svc.from('bcps_department_analytics')
+    .select('department_id, period, monthly_visitors, avg_time_seconds, bounce_rate')
+    .in('department_id', ids).order('period', { ascending: false })
+  const latest = new Map<string, { period: string; monthly_visitors: number | null; avg_time_seconds: number | null; bounce_rate: number | null }>()
+  for (const r of rows ?? []) if (!latest.has(r.department_id)) latest.set(r.department_id, r)
+
+  const periods = Array.from(new Set(Array.from(latest.values()).map((r) => r.period)))
+  const snapByPeriod = new Map<string, { dept_id?: string; sessions?: number; new_users?: number; engagement_rate?: number; pages?: { path: string; sessions: number; active_users: number; avg_session_duration: number }[] }[]>()
+  if (periods.length) {
+    const { data: snaps } = await svc.from('bcps_analytics_snapshots').select('period, top_department_pages').in('period', periods)
+    for (const s of snaps ?? []) snapByPeriod.set(s.period, Array.isArray(s.top_department_pages) ? s.top_department_pages : [])
+  }
+
+  for (const id of ids) {
+    if (!depts.some((d) => d.id === id)) continue
+    const row = latest.get(id)
+    if (!row) continue
+    const entry = (snapByPeriod.get(row.period) ?? []).find((e) => e.dept_id === id)
+    const bounce = row.bounce_rate === null || row.bounce_rate === undefined ? null : Number(row.bounce_rate)
+    out.set(id, {
+      period: row.period,
+      visitors: row.monthly_visitors ?? null,
+      new_visitors: entry?.new_users ?? null,
+      visits: entry?.sessions ?? null,
+      engaged_pct: entry?.engagement_rate !== undefined && entry?.engagement_rate !== null
+        ? Math.round(Number(entry.engagement_rate) * 100)
+        : bounce !== null ? Math.round((1 - bounce) * 100) : null,
+      avg_seconds: row.avg_time_seconds ?? null,
+      top_pages: (entry?.pages ?? [])
+        .slice()
+        .sort((a, b) => (b.sessions ?? 0) - (a.sessions ?? 0))
+        .slice(0, 6)
+        .map((p) => ({
+          title: titleFromPath(p.path),
+          path: p.path,
+          visits: p.sessions ?? 0,
+          visitors: p.active_users ?? 0,
+          avg_seconds: Math.round(p.avg_session_duration ?? 0),
+        })),
+    })
+  }
+  return out
+}
+
+// Meeting notes the team shared with directors (bcps_wcm_hub_items, tab
+// 'director_notes'): every-director notes plus notes for a department this
+// person leads. A note linking to a brief is only returned when the director
+// can open it: the brief has no recipient list, or lists their email.
+async function loadDirectorNotes(ledIds: string[], email: string): Promise<DirectorNote[]> {
+  const { data } = await svc.from('bcps_wcm_hub_items')
+    .select('id, title, description, href, link_label, department_id, created_at, sort_order')
+    .eq('tab', 'director_notes').eq('state', 'live')
+    .order('created_at', { ascending: false })
+  const rows = (data ?? []).filter((n) => !n.department_id || ledIds.includes(n.department_id))
+  const briefSlugs = Array.from(new Set(rows
+    .map((n) => /^\/briefs\/([^/?#]+)/.exec(n.href)?.[1])
+    .filter((s): s is string => !!s)))
+  const recipientsBySlug = new Map<string, string[]>()
+  if (briefSlugs.length) {
+    const recips = await fetchAll<{ brief_slug: string; attendee_email: string | null }>((a, b) => svc.from('bcps_brief_recipients')
+      .select('brief_slug, attendee_email').in('brief_slug', briefSlugs).order('id').range(a, b))
+    for (const r of recips) {
+      const list = recipientsBySlug.get(r.brief_slug) ?? []
+      list.push((r.attendee_email || '').trim().toLowerCase())
+      recipientsBySlug.set(r.brief_slug, list)
+    }
+  }
+  return rows
+    .filter((n) => {
+      const slug = /^\/briefs\/([^/?#]+)/.exec(n.href)?.[1]
+      if (!slug) return true
+      const list = recipientsBySlug.get(slug)
+      return !list || list.includes(email)
+    })
+    .map((n) => ({
+      id: n.id,
+      title: n.title,
+      description: n.description,
+      href: n.href,
+      link_label: n.link_label,
+      department_id: n.department_id,
+      posted_at: n.created_at,
     }))
 }

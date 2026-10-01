@@ -33,6 +33,9 @@ export const TEAM_MEMBERS: TeamMember[] = [
 // substitutes fully-synthetic content for these ids instead of fetching.
 export const SAMPLE_SUPERADMIN_ID = 'SSA'
 export const SAMPLE_ROLE_MEMBERS: TeamMember[] = [
+  // Director preview (2026-10-01): the director dashboard with sample
+  // departments, and the public page set a real director gets.
+  { id: 'SDR', name: 'Marcus Bell',   initials: 'SDR', color: '#9CA3AF', roleLabel: 'Director (Sample)', previewGroup: 'Director' },
   { id: 'SWC', name: 'Wendy Ramirez', initials: 'SWC', color: '#9CA3AF', roleLabel: 'Web Content Manager (Sample)', previewGroup: 'Web Content Management' },
   { id: 'SDW', name: 'Dana Okafor',   initials: 'SDW', color: '#9CA3AF', roleLabel: 'District Web Team Member (Sample)', previewGroup: 'District Web Team' },
   { id: SAMPLE_SUPERADMIN_ID, name: 'Sam Rivera', initials: 'SSA', color: '#9CA3AF', roleLabel: 'Superadmin (Sample)' },
