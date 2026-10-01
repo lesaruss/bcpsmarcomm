@@ -92,6 +92,15 @@ function isoFromLabel(label: string | null): string | null {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// Saved edits are not all plain text: support_override is stored as a list
+// (["Vanessa", "Rudy"]). Anything else odd becomes empty rather than
+// breaking the dashboard.
+function asText(v: unknown): string {
+  if (typeof v === 'string') return v
+  if (Array.isArray(v)) return v.filter((x) => typeof x === 'string').join(', ')
+  return ''
+}
+
 function namesIn(s: string): string[] {
   return s.split(/[\/,]/).map((x) => x.trim()).filter(Boolean)
 }
@@ -122,9 +131,9 @@ export async function loadAssignments(svc: SupabaseClient, origin: string): Prom
     const deadlineIso = t?.deadline_date ? String(t.deadline_date).slice(0, 10) : isoFromLabel(r.deadline)
     return {
       slug: r.slug,
-      title: t?.title_override || r.title,
-      lead: t?.lead_override || r.lead,
-      support: t?.support_override ?? r.support,
+      title: asText(t?.title_override) || r.title,
+      lead: asText(t?.lead_override) || r.lead,
+      support: t?.support_override === null || t?.support_override === undefined ? r.support : asText(t.support_override),
       status: t?.is_ongoing ? 'ongoing' : (t?.status || r.status),
       deadline: t?.deadline_date ? null : r.deadline,
       date_iso: deadlineIso,

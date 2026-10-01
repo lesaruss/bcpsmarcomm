@@ -186,7 +186,9 @@ export async function GET(req: NextRequest) {
       loadProgram(svc, departments),
       loadAda(svc, departments),
       loadBanners(svc),
-      loadAssignments(svc, req.nextUrl.origin),
+      // Assignments are a bonus on the dashboard: if they cannot be read,
+      // the rest of the dashboard still loads (2026-10-01 incident).
+      loadAssignments(svc, req.nextUrl.origin).catch((e) => { console.error('home: assignments failed', e); return [] }),
     ])
     teamHome = {
       program,
@@ -195,8 +197,8 @@ export async function GET(req: NextRequest) {
       my_assignments: assignmentsFor(rows, displayName.split(/\s+/)[0], displayName),
     }
     if (isSuperadmin) {
-      teamHome.decisions = await loadDecisions(svc)
-      teamHome.team_members = await loadTeamMembers(rows)
+      teamHome.decisions = await loadDecisions(svc).catch((e) => { console.error('home: decisions failed', e); return { roster_pending: [] } })
+      teamHome.team_members = await loadTeamMembers(rows).catch((e) => { console.error('home: team members failed', e); return [] })
     }
   }
 
