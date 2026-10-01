@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import '../wcm-registration.css'
 import WcmPilotHeader from '../WcmPilotHeader'
+import DuplicateAccountWarning, { checkAccount, type AccountWarning } from '@/components/DuplicateAccountWarning'
 
 interface DeptOption {
   id: string
@@ -23,6 +24,9 @@ export default function WCMRegistrationRegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Possible duplicate account (BCPS-CERT-DUPLICATE-ACCOUNT), shown before
+  // the account is created; cleared when the email or name changes.
+  const [warnings, setWarnings] = useState<AccountWarning[]>([])
   // CORRECTED 2026-09-11: "Confirm email" is OFF on this project (verified
   // against auth.users - confirmation lag is 0.00s on every recent row), so
   // this branch does not fire today. Kept because it is correct if the
@@ -90,9 +94,14 @@ export default function WCMRegistrationRegisterPage() {
     setSelectedDept(null)
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    void runSubmit(false)
+  }
+
+  async function runSubmit(skipCheck: boolean) {
     setError('')
+    setWarnings([])
 
     if (!email.toLowerCase().endsWith('@browardschools.com')) {
       setError('Access is restricted to @browardschools.com email addresses.')
@@ -104,6 +113,14 @@ export default function WCMRegistrationRegisterPage() {
     }
 
     setLoading(true)
+    if (!skipCheck) {
+      const found = await checkAccount(email, fullName)
+      if (found.length) {
+        setWarnings(found)
+        setLoading(false)
+        return
+      }
+    }
     try {
       // emailRedirectTo added 2026-08-19: without it, the confirmation email
       // is built by the project-wide auth-email-hook edge function, which
@@ -223,7 +240,7 @@ export default function WCMRegistrationRegisterPage() {
                   style={styles.input}
                   type="text"
                   value={fullName}
-                  onChange={e => setFullName(e.target.value)}
+                  onChange={e => { setFullName(e.target.value); setWarnings([]) }}
                   placeholder="First Last"
                   required
                 />
@@ -284,7 +301,7 @@ export default function WCMRegistrationRegisterPage() {
                   style={styles.input}
                   type="email"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={e => { setEmail(e.target.value); setWarnings([]) }}
                   placeholder="john.doe@browardschools.com"
                   required
                 />
@@ -305,6 +322,12 @@ export default function WCMRegistrationRegisterPage() {
                   placeholder="Create a password (min 8 characters)"
                   minLength={8}
                   required
+                />
+                <DuplicateAccountWarning
+                  warnings={warnings}
+                  signInHref="/certification/login"
+                  onChangeEmail={() => { setWarnings([]); setEmail('') }}
+                  onContinue={() => { void runSubmit(true) }}
                 />
                 {error && <p style={styles.error}>{error}</p>}
                 <button style={styles.btn} type="submit" disabled={loading}>

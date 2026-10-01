@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import DuplicateAccountWarning, { checkAccount, type AccountWarning } from '@/components/DuplicateAccountWarning'
 
 function getSafeNext(): string {
   if (typeof window === 'undefined') return '/'
@@ -47,6 +48,9 @@ export default function BCPSLoginPage() {
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
   const [regDone, setRegDone] = useState(false)
+  // Possible duplicate account (BCPS-CERT-DUPLICATE-ACCOUNT), shown before
+  // the account is created; cleared when the email or name changes.
+  const [regWarnings, setRegWarnings] = useState<AccountWarning[]>([])
   // CORRECTED 2026-09-11 against live data: "Confirm email" is OFF on this
   // project, so signUp returns a session and the confirm branch below never
   // fires today. Every auth.users row created in the preceding 5 days has
@@ -116,9 +120,14 @@ export default function BCPSLoginPage() {
     setSelectedDept(null)
   }
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = (e: React.FormEvent) => {
     e.preventDefault()
+    void runRegister(false)
+  }
+
+  const runRegister = async (skipCheck: boolean) => {
     setRegError('')
+    setRegWarnings([])
 
     if (!regEmail.toLowerCase().endsWith('@browardschools.com')) {
       setRegError('Access is restricted to @browardschools.com email addresses.')
@@ -130,6 +139,14 @@ export default function BCPSLoginPage() {
     }
 
     setRegLoading(true)
+    if (!skipCheck) {
+      const warnings = await checkAccount(regEmail, regFullName)
+      if (warnings.length) {
+        setRegWarnings(warnings)
+        setRegLoading(false)
+        return
+      }
+    }
     try {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: regEmail,
@@ -402,7 +419,7 @@ export default function BCPSLoginPage() {
                 <label style={{ display: 'block', color: '#374151', fontSize: '11px', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   Full Name
                 </label>
-                <input type="text" value={regFullName} onChange={e => setRegFullName(e.target.value)}
+                <input type="text" value={regFullName} onChange={e => { setRegFullName(e.target.value); setRegWarnings([]) }}
                   required placeholder="First Last" style={{ ...inputStyle, marginBottom: '14px' }} />
 
                 <label style={{ display: 'block', color: '#374151', fontSize: '11px', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
@@ -447,7 +464,7 @@ export default function BCPSLoginPage() {
                 <label style={{ display: 'block', color: '#374151', fontSize: '11px', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   BCPS Email Address
                 </label>
-                <input type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)}
+                <input type="email" value={regEmail} onChange={e => { setRegEmail(e.target.value); setRegWarnings([]) }}
                   required placeholder="john.doe@browardschools.com" style={{ ...inputStyle, marginBottom: '4px' }} />
                 <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 14px' }}>
                   This is your name-based BCPS email, not your P-number.
@@ -459,6 +476,13 @@ export default function BCPSLoginPage() {
                 <input type="password" value={regPassword} onChange={e => setRegPassword(e.target.value)}
                   required minLength={8} placeholder="Create a password (min 8 characters)"
                   style={{ ...inputStyle, marginBottom: '20px', letterSpacing: '0.15em' }} />
+
+                <DuplicateAccountWarning
+                  warnings={regWarnings}
+                  onSignIn={() => { setRegWarnings([]); setMode('signin'); setError('') }}
+                  onChangeEmail={() => { setRegWarnings([]); setRegEmail('') }}
+                  onContinue={() => { void runRegister(true) }}
+                />
 
                 {regError && (
                   <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', color: '#b91c1c', fontSize: '13px', marginBottom: '16px' }}>
