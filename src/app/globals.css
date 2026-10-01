@@ -1742,6 +1742,15 @@ body {
 .home-link-btn { background: none; border: 0; padding: 0; font: inherit; color: #0e4e73; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .home-actions-tight { margin-top: 4px; }
 .home-tasklist + .home-tasklist { margin-top: 10px; }
+.home-dcols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 18px; align-items: start; }
+.home-dcol > .home-grp:first-child { margin-top: 4px; }
+@media (min-width: 1200px) {
+  .home-dcols { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* In a column, a message is two lines: sender and status, then the text. */
+  .home-dcols .home-msg-head { grid-template-columns: minmax(0, 1fr) auto; }
+  .home-dcols .home-msg-snip { grid-column: 1 / -1; grid-row: 2; }
+  .home-dcols .home-dec { align-items: flex-start; }
+}
 .home-msg { border-top: 1px solid var(--border); }
 .home-msg:first-of-type { border-top: 0; }
 .home-msg-head { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; width: 100%; background: none; border: 0; padding: 12px 0; font: inherit; text-align: left; cursor: pointer; }

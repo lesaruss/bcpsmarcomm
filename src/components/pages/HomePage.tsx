@@ -1092,7 +1092,9 @@ function DecisionsPanel({ th, team, onNavigate, onOpenOps }: { th: TeamHomeData;
   return (
     <>
       <p className="wcm-hub2-intro">Everything waiting on you, in one place: decisions to make, your inbox, and your own tasks.</p>
-
+      {/* Three columns on desktop, stacked below (Sean, 2026-10-01). */}
+      <div className="home-dcols">
+      <section className="home-dcol" aria-label="Decide">
       <h3 className="home-grp">Decide</h3>
       <div className="home-dept">
         {roster.map((r) => (
@@ -1113,9 +1115,12 @@ function DecisionsPanel({ th, team, onNavigate, onOpenOps }: { th: TeamHomeData;
         </div>
       </div>
 
+      </section>
+      <section className="home-dcol" aria-label="Inbox">
       <h3 className="home-grp">Inbox</h3>
       <InboxSection onOpenOps={onOpenOps} />
-
+      </section>
+      <section className="home-dcol" aria-label="Your tasks">
       <h3 className="home-grp">Your tasks</h3>
       <div className="home-dept">
         {pastTasks.length === 0 && pendingTasks.length === 0 ? (
@@ -1129,6 +1134,8 @@ function DecisionsPanel({ th, team, onNavigate, onOpenOps }: { th: TeamHomeData;
         <div className="home-actions">
           <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
         </div>
+      </div>
+      </section>
       </div>
     </>
   )
