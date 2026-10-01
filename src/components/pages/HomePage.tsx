@@ -9,7 +9,7 @@ import WidgetsPage from './WidgetsPage'
 import DashboardPage from './DashboardPage'
 import { WcmCommunityHub, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
-import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
+import { SAMPLE_SUPERADMIN_ID, SAMPLE_ROLE_MEMBERS, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
 import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
 import {
@@ -118,6 +118,8 @@ interface DepartmentSummary {
   division: string | null
   website_url: string | null
   audit_status: string | null
+  audit_date?: string | null
+  ada_score?: number | null
   findings_open: number
   findings_fixed: number
   wcms: WcmStatus[]
@@ -195,7 +197,10 @@ interface TeamAda {
 
 interface TeamBanners { pending: number; approved: number; rejected: number }
 
+interface KbArticle { id: string; topic: string; title: string; summary: string; href: string }
+
 interface TeamHomeData {
+  kb_articles?: KbArticle[]
   program: TeamProgram
   ada: TeamAda
   banners: TeamBanners
@@ -219,6 +224,7 @@ interface HomeData {
   is_dwt: boolean
   is_director: boolean
   is_superadmin?: boolean
+  my_certified?: boolean
   team_kind?: 'comms' | 'appsvc' | null
   team_home?: TeamHomeData | null
   is_wcm: boolean
@@ -428,13 +434,66 @@ function VideoCard({ media }: { media: NarratedMedia }) {
   )
 }
 
-function PreviewBanner({ who }: { who: string }) {
+// Shown on every "View as" preview, with the way back (Sean, 2026-10-01:
+// the preview needs a Return button right on the page).
+function PreviewBanner({ who, children }: { who?: string; children?: React.ReactNode }) {
+  const { setViewAs } = useBCPSShell()
   return (
-    <div className="home-preview">
-      <strong>Previewing the {who} dashboard</strong> with sample departments and people. Every link and button is the real one.
+    <div className="home-preview home-preview-bar">
+      <span>{children ?? <><strong>Previewing the {who} dashboard</strong> with sample departments and people. Every link and button is the real one.</>}</span>
+      <button type="button" className="home-btn" onClick={() => setViewAs(null)}>Return to my view</button>
     </div>
   )
 }
+
+// The "View as" choices on the SuperAdmin dashboard: sample people only, one
+// per group, never a real person's account (Sean, 2026-10-01).
+const VIEW_AS_CHOICES: { id: string; label: string; desc: string }[] = [
+  { id: 'SDR', label: 'Director', desc: 'A director with two sample departments.' },
+  { id: 'SWC', label: 'Web Content Manager', desc: 'A department WCM working on certification.' },
+  { id: 'SDW', label: 'Web Team: Communications', desc: 'The department side of the District Web Team.' },
+  { id: 'SDA', label: 'Web Team: Application Services', desc: 'ADA, schools and tools.' },
+]
+
+function ViewAsButton() {
+  const { setViewAs } = useBCPSShell()
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button type="button" className="wcm-hub2-card-btn" onClick={() => setOpen(true)}>View as</button>
+      {open && (
+        <div className="home-modal-back" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false) }}>
+          <div className="home-modal" role="dialog" aria-modal="true" aria-labelledby="viewas-title">
+            <h2 id="viewas-title">View the dashboard as</h2>
+            <p className="home-card-text">A sample person in each group. Return to your view any time.</p>
+            <div className="home-modal-list">
+              {VIEW_AS_CHOICES.map((c) => {
+                const member = SAMPLE_ROLE_MEMBERS.find((m) => m.id === c.id)
+                if (!member) return null
+                return (
+                  <button key={c.id} type="button" className="home-tool" onClick={() => { setOpen(false); setViewAs(member) }}>
+                    <span className="home-tool-ic" aria-hidden="true">{c.label.replace('Web Team: ', '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2)}</span>
+                    <span><b>{c.label}</b><small>{c.desc}</small></span>
+                  </button>
+                )
+              })}
+            </div>
+            <div className="home-actions"><button type="button" className="wcm-hub2-card-btn" onClick={() => setOpen(false)}>Cancel</button></div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// Fictitious rows for the web team samples, so a preview never shows a real
+// team member's work.
+const SAMPLE_TEAM_ASSIGNMENTS: Assignment[] = [
+  { slug: 'sample-1', title: 'Sample: Department page refresh', role: 'lead', status: 'in-progress', date_label: 'Oct 15, 2026', date_iso: '2026-10-15', past_date: false, priority: 'high' },
+  { slug: 'sample-2', title: 'Sample: Review WCM banner requests', role: 'lead', status: 'ongoing', date_label: 'Ongoing', date_iso: null, past_date: false, priority: 'medium' },
+  { slug: 'sample-3', title: 'Sample: ADA fixes for a school site', role: 'support', status: 'in-progress', date_label: 'Sep 30, 2026', date_iso: '2026-09-30', past_date: true, priority: 'high' },
+  { slug: 'sample-4', title: 'Sample: Hot Lab segment recording', role: 'lead', status: 'pending', date_label: null, date_iso: null, past_date: false, priority: null },
+]
 
 /* ─── DIRECTOR ─────────────────────────────────────────── */
 type DirectorTab = 'team' | 'review' | 'analytics' | 'notes' | 'widgets' | 'help' | 'wcm'
@@ -792,7 +851,40 @@ function WcmHome({ data, preview }: { data: HomeData; preview?: boolean }) {
           <a href={ROSTER_SIGNUP_URL}>confirmation form</a> so you are listed for your department.
         </div>
       )}
+      {mine.map((d) => <WcmAuditSteps key={d.id} dept={d} certified={!!data.my_certified} />)}
       <WcmCommunityHub previewCert={preview ? SAMPLE_WCM_CERT : undefined} />
+    </div>
+  )
+}
+
+// What a WCM should do with their department's audit, step by step, with the
+// step they are on marked (Sean, 2026-10-01).
+function WcmAuditSteps({ dept, certified }: { dept: DepartmentSummary; certified: boolean }) {
+  const s = dept.audit_status || 'not_started'
+  const w = windowForDivision(dept.division)
+  const steps: { title: string; body: string; done: boolean; href?: string; cta?: string }[] = [
+    { title: 'Finish your certification', body: `The Department WCM Certification is due ${DEPT_CERT_DEADLINE}. It covers how the audit works.`, done: certified, href: '/certification/departments/dashboard', cta: 'Open certification' },
+    { title: 'Scan your pages', body: 'Run the ADA Scanner on your department pages so you know what will come up.', done: ['wcm_notified', 'wcm_submitted', 'admin_review', 'needs_rework', 'complete'].includes(s), href: '/?page=ada-scanner', cta: 'Open ADA Scanner' },
+    { title: 'Fix what the audit found', body: dept.findings_open + dept.findings_fixed ? `${dept.findings_open} item${dept.findings_open === 1 ? '' : 's'} to fix, ${dept.findings_fixed} fixed. Mark each one as you fix it.` : 'When the District Web Team audits your site, each item to fix is listed in your audit.', done: ['wcm_submitted', 'admin_review', 'complete'].includes(s), href: '/wcm-portal', cta: 'Open my audit' },
+    { title: 'Submit for review', body: 'When every item is fixed, submit your audit. The District Web Team checks the fixes.', done: ['admin_review', 'complete'].includes(s) || s === 'wcm_submitted', href: '/wcm-portal', cta: 'Submit in my audit' },
+    { title: 'Bring your director to the review', body: w ? `${dept.division} is in ${w.label}, ${formatWindowRange(w)}. Your director books the one-hour meeting.` : 'Your director books the one-hour review meeting with the District Web Team.', done: s === 'complete' },
+  ]
+  const current = steps.findIndex((x) => !x.done)
+  return (
+    <div className="home-dept home-section">
+      <div className="home-dept-head">
+        <h3>Your audit, step by step: {dept.name}</h3>
+        <span className="home-chip">{AUDIT_LABELS[s] || s}</span>
+      </div>
+      <ol className="home-wsteps">
+        {steps.map((x, i) => (
+          <li key={x.title} className={x.done ? 'done' : i === current ? 'now' : undefined}>
+            <b>{x.title}</b>
+            <span>{x.body}</span>
+            {i === current && x.href && <a className="wcm-hub2-card-btn" href={x.href}>{x.cta}</a>}
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }
@@ -992,46 +1084,66 @@ function MyWorkPanel({ items, who, onNavigate }: { items: Assignment[]; who?: st
 
 const STATUS_LABELS: Record<string, string> = { 'in-progress': 'In Progress', pending: 'Pending', ongoing: 'Ongoing', completed: 'Completed' }
 
-function ReviewWindowPanel({ depts }: { depts: DepartmentSummary[] }) {
-  const w = currentWindow()
-  const rows = w.divisions.map((dv) => {
-    const inDiv = depts.filter((d) => d.division === dv)
-    const wcms = inDiv.flatMap((d) => d.wcms)
-    return {
-      division: dv,
-      departments: inDiv.length,
-      noWcm: inDiv.filter((d) => d.wcms.length === 0).length,
-      certified: wcms.filter((x) => x.certified).length,
-      wcms: wcms.length,
-      signedOff: inDiv.filter((d) => d.audit_status === 'complete').length,
-    }
-  })
+// Audits: every department site's audit in one place, so the team can track
+// it (Sean, 2026-10-01; replaced the Review Window tab). Status comes from
+// the audit workflow (bcps_departments.audit_status), findings from
+// bcps_audit_findings, the score from the latest scan.
+const AUDIT_GROUPS: { id: string; label: string; statuses: (string | null)[] }[] = [
+  { id: 'action', label: 'With the WCM', statuses: ['wcm_notified', 'needs_rework'] },
+  { id: 'review', label: 'Waiting on us', statuses: ['wcm_submitted', 'admin_review'] },
+  { id: 'progress', label: 'Audit in progress', statuses: ['in_progress'] },
+  { id: 'none', label: 'Not started', statuses: ['not_started', null] },
+  { id: 'done', label: 'Complete', statuses: ['complete'] },
+]
+
+function AuditsPanel({ depts, onNavigate }: { depts: DepartmentSummary[]; onNavigate: Navigate }) {
+  const [group, setGroup] = useState<string>('all')
+  const [q, setQ] = useState('')
+  const counts = AUDIT_GROUPS.map((g) => ({ ...g, n: depts.filter((d) => g.statuses.includes(d.audit_status ?? null)).length }))
+  const shown = depts
+    .filter((d) => group === 'all' || AUDIT_GROUPS.find((g) => g.id === group)!.statuses.includes(d.audit_status ?? null))
+    .filter((d) => !q.trim() || d.name.toLowerCase().includes(q.trim().toLowerCase()))
   return (
     <>
-      <p className="wcm-hub2-intro">{w.label}, {formatWindowRange(w)}: {w.divisions.join(', ')}. What each division needs before its review meetings.</p>
+      <p className="wcm-hub2-intro">Every department site&apos;s audit, from first scan to sign-off. Pick a group to see who is up next.</p>
+      <div className="home-kpis">
+        {counts.map((c) => (
+          <button key={c.id} type="button" className={`home-kpi home-kpi-btn${group === c.id ? ' active' : ''}`} aria-pressed={group === c.id} onClick={() => setGroup(group === c.id ? 'all' : c.id)}>
+            <b>{c.n}</b><span>{c.label}</span>
+          </button>
+        ))}
+      </div>
       <div className="home-dept">
+        <div className="home-actions home-actions-tight home-audit-tools">
+          <label className="sr-only" htmlFor="audit-search">Search departments</label>
+          <input id="audit-search" type="search" className="home-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search departments" />
+          {group !== 'all' && <button type="button" className="home-link-btn" onClick={() => setGroup('all')}>Show all {depts.length}</button>}
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('departments')}>Open Departments</button>
+        </div>
         <div className="home-table-wrap">
           <table className="home-table">
-            <thead><tr><th>Division</th><th className="num">Departments</th><th className="num">Without a WCM</th><th className="num">WCMs certified</th><th className="num">Signed off</th></tr></thead>
+            <thead><tr><th>Department</th><th>Status</th><th className="num">Open</th><th className="num">Fixed</th><th className="num">ADA score</th><th className="num">Last audit</th></tr></thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.division}>
-                  <td>{r.division}</td>
-                  <td className="num">{r.departments}</td>
-                  <td className="num">{r.noWcm}</td>
-                  <td className="num">{r.certified} / {r.wcms}</td>
-                  <td className="num">{r.signedOff}</td>
+              {shown.map((d) => (
+                <tr key={d.id}>
+                  <td>{d.name}<span className="home-wcm-sub">{d.division}</span></td>
+                  <td>{AUDIT_LABELS[d.audit_status || 'not_started'] || d.audit_status}</td>
+                  <td className="num">{d.findings_open}</td>
+                  <td className="num">{d.findings_fixed}</td>
+                  <td className="num">{d.ada_score ?? '-'}</td>
+                  <td className="num">{d.audit_date ? new Date(d.audit_date + (d.audit_date.length <= 10 ? 'T12:00:00' : '')).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {shown.length === 0 && <p className="home-card-text">No departments match.</p>}
       </div>
     </>
   )
 }
 
-function ToolsPanel({ kind, onNavigate }: { kind: 'superadmin' | TeamKind; onNavigate: (page: PageId) => void }) {
+function ToolsPanel({ kind, onNavigate, kb = [] }: { kind: 'superadmin' | TeamKind; onNavigate: (page: PageId) => void; kb?: KbArticle[] }) {
   const { pages, role, viewAs } = useBCPSShell()
   const [q, setQ] = useState('')
   const isSA = role === 'superadmin' && (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID)
@@ -1042,26 +1154,63 @@ function ToolsPanel({ kind, onNavigate }: { kind: 'superadmin' | TeamKind; onNav
     : isSA || !SUPERADMIN_PAGES_SET.has(t.gate)
   const mine = TOOLS.filter(canOpen)
   const top = TOP_TOOLS[kind].map((l) => mine.find((t) => t.label === l)).filter((t): t is Tool => !!t)
-  const hits = q.trim() ? mine.filter((t) => t.label.toLowerCase().includes(q.trim().toLowerCase())) : []
+  const needle = q.trim().toLowerCase()
+  const hits = needle ? mine.filter((t) => t.label.toLowerCase().includes(needle)) : []
+  const articleHits = needle ? kb.filter((a) => `${a.title} ${a.summary} ${a.topic}`.toLowerCase().includes(needle)) : []
+  const topics = Array.from(new Set(kb.map((a) => a.topic)))
   const open = (t: Tool) => { if (t.page) onNavigate(t.page); else if (t.href) window.location.href = t.href }
   return (
     <>
-      <p className="wcm-hub2-intro">Your most used tools. Need something else? Search for it.</p>
+      <p className="wcm-hub2-intro">Your most used tools, then the knowledge base. Search finds both.</p>
       <div className="home-tools">
         {top.map((t) => (
           <button key={t.label} type="button" className="home-tool" onClick={() => open(t)}>
-            <span className="home-tool-ic" aria-hidden="true">{t.label.replace('&', '').split(/\s+/).slice(0, 2).map((w) => w[0]).join('')}</span>
+            <span className="home-tool-ic" aria-hidden="true">{Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0]}</span>
             <span><b>{t.label}</b><small>{t.desc}</small></span>
           </button>
         ))}
       </div>
       <div className="home-tsearch">
-        <label htmlFor={`tool-search-${kind}`}>Find a tool</label>
-        <input id={`tool-search-${kind}`} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a tool name, like Minutes" />
+        <label htmlFor={`tool-search-${kind}`}>Find a tool or article</label>
+        <input id={`tool-search-${kind}`} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a word, like Minutes or banner" />
         <div className="home-tresults" aria-live="polite">
-          {q.trim() && (hits.length
-            ? hits.map((t) => <button key={t.label} type="button" className="home-link-btn" onClick={() => open(t)}>{t.label}</button>)
-            : <span className="home-hint">No tool by that name. Try another word.</span>)}
+          {needle && hits.map((t) => <button key={t.label} type="button" className="home-link-btn" onClick={() => open(t)}>{t.label}</button>)}
+          {needle && articleHits.map((a) => <a key={a.id} className="home-link-btn" href={a.href}>{a.title}</a>)}
+          {needle && !hits.length && !articleHits.length && <span className="home-hint">Nothing by that name. Try another word, or ask us below.</span>}
+        </div>
+      </div>
+      {kb.length > 0 && (
+        <>
+          <h3 className="home-grp">Knowledge base</h3>
+          <div className="home-dept-grid">
+            {topics.map((topic) => (
+              <div key={topic} className="home-dept">
+                <h3 className="home-card-title">{topic}</h3>
+                <ul className="home-tasks">
+                  {kb.filter((a) => a.topic === topic).map((a) => (
+                    <li key={a.id}>
+                      <a className="home-task" href={a.href}>
+                        <span className="home-task-title">{a.title}</span>
+                        <span className="home-task-meta">{a.summary}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      <div className="wcm-hub2-grid home-gap">
+        <div className="wcm-hub2-card">
+          <h3>Ask a question</h3>
+          <p>Can&apos;t find it? Ask, and the answer can become the next article.</p>
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback('Question for the knowledge base: ')}>Ask a question</button>
+        </div>
+        <div className="wcm-hub2-card">
+          <h3>Suggest a Hot Lab topic</h3>
+          <p>Something the team or WCMs should walk through together.</p>
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback('Hot Lab topic suggestion: ')}>Suggest a topic</button>
         </div>
       </div>
       <details className="home-browse">
@@ -1267,7 +1416,7 @@ function InboxSection({ onOpenOps, onOpenInbox }: { onOpenOps: () => void; onOpe
   )
 }
 
-function TeamPanel({ members, onPreview }: { members: TeamMemberWork[]; onPreview: (m: TeamMemberWork) => void }) {
+function TeamPanel({ members }: { members: TeamMemberWork[] }) {
   const groups: [TeamKind, string][] = [['comms', 'Office of Communications: departments'], ['appsvc', 'Application Services: ADA, schools and tools']]
   return (
     <>
@@ -1296,10 +1445,6 @@ function TeamPanel({ members, onPreview }: { members: TeamMemberWork[]; onPrevie
                     <ul className="home-mini">
                       {m.assignments.slice(0, 3).map((a) => <li key={a.slug}><span>{a.title}</span>{a.date_label && <b>{a.date_label}</b>}</li>)}
                     </ul>
-                    <button type="button" className="wcm-hub2-card-btn home-person-btn" onClick={() => onPreview(m)}>
-                      <span className="avatar avatar-xs" style={{ background: avatarColor(m.user_id) }} aria-hidden="true">{initialsOf(m.name)}</span>
-                      Preview {m.name.split(/\s+/)[0]}&apos;s dashboard
-                    </button>
                   </div>
                 )
               })}
@@ -1350,43 +1495,34 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
     setTab('ops')
     setTimeout(() => document.getElementById('dashboard-messages-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400)
   }
-  const { setViewAs } = useBCPSShell()
   const th = data.team_home!
   const p = th.program
   const decisions = (th.decisions?.roster_pending.length ?? 0) + th.banners.pending + (data.team?.messages_unread ?? 0) + (data.team?.access_requests ?? 0)
   const w = currentWindow()
   const wStats = p.windows.find((x) => x.id === w.id)
   const name = firstName(data)
-  const preview_ = (m: TeamMemberWork) => setViewAs({
-    id: `TM:${m.email}`,
-    name: m.name,
-    initials: m.name.split(/\s+/).map((x) => x[0]).join('').slice(0, 2).toUpperCase(),
-    color: '#9CA3AF',
-    roleLabel: m.team === 'comms' ? 'Web Team: Communications' : 'Web Team: Application Services',
-    previewGroup: 'District Web Team',
-  })
   const tabs = [
     { id: 'decisions', label: 'Decisions' },
     { id: 'program', label: 'Program' },
     ...((th.team_members?.length ?? 0) > 0 ? [{ id: 'team', label: 'Team' }] : []),
     { id: 'departments', label: 'Departments' },
+    { id: 'audits', label: 'Audits' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'ada', label: 'ADA' },
-    { id: 'widgets', label: 'Widgets' },
-    { id: 'tools', label: 'Tools' },
+    { id: 'tools', label: 'Tools & Resources' },
     { id: 'admin', label: 'Admin' },
     { id: 'ops', label: 'Team Operations' },
   ]
   return (
     <div className="home">
-      {preview && <div className="home-preview"><strong>Previewing the SuperAdmin dashboard.</strong> Numbers and lists are live.</div>}
+      {preview && <PreviewBanner><strong>Previewing the SuperAdmin dashboard.</strong> Numbers and lists are live.</PreviewBanner>}
       <div className="home-hero">
         <div className="home-hero-label">BCPS MarComm SuperAdmin</div>
         <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
         <p>Everything waiting on you, how the whole program is moving, and what each person on the team is carrying. The District Web Team sees the same program numbers; decisions, admin consoles and the team view are yours alone.</p>
         <div className="home-actions">
           <button type="button" className="home-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
-          {(th.team_members?.length ?? 0) > 0 && <button type="button" className="wcm-hub2-card-btn" onClick={() => setTab('team')}>Preview a team member&apos;s dashboard</button>}
+          {!preview && <ViewAsButton />}
         </div>
       </div>
       <div className="home-strip">
@@ -1399,11 +1535,11 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
       {tab === 'decisions' && <DecisionsPanel th={th} team={data.team} onNavigate={onNavigate} onOpenOps={() => setTab('ops')} onOpenInbox={openInbox} />}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'program' && <ProgramPanel p={p} />}
-      {tab === 'team' && <TeamPanel members={th.team_members ?? []} onPreview={preview_} />}
+      {tab === 'team' && <TeamPanel members={th.team_members ?? []} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
-      {tab === 'widgets' && <WidgetsPage />}
-      {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} />}
+      {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} />}
+      {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} />}
       {tab === 'admin' && <AdminPanel onNavigate={onNavigate} />}
       {tab === 'ops' && <DashboardPage onNavigate={onNavigate} viewAsUserId={viewAsUserId} />}
     </div>
@@ -1432,27 +1568,25 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   const tabs = kind === 'comms'
     ? [
         { id: 'work', label: 'My Work' },
-        { id: 'window', label: 'Review Window' },
+        { id: 'audits', label: 'Audits' },
         { id: 'program', label: 'Program' },
         { id: 'departments', label: 'Departments' },
         ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
         { id: 'banners', label: 'Banners' },
-        { id: 'widgets', label: 'Widgets' },
         { id: 'wcm', label: 'WCM View' },
-        { id: 'tools', label: 'Tools' },
+        { id: 'tools', label: 'Tools & Resources' },
       ]
     : [
         { id: 'work', label: 'My Work' },
         { id: 'ada', label: 'ADA' },
-        { id: 'widgets', label: 'Widgets' },
         { id: 'banners', label: 'Banners' },
         { id: 'program', label: 'Program' },
         ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
-        { id: 'tools', label: 'Tools' },
+        { id: 'tools', label: 'Tools & Resources' },
       ]
   return (
     <div className="home">
-      {previewNote && <div className="home-preview">{previewNote}</div>}
+      {previewNote && <PreviewBanner>{previewNote}</PreviewBanner>}
       <div className="home-hero">
         <div className="home-hero-label">BCPS MarComm District Web Team</div>
         <h1 className="home-title">{greet ? `Welcome, ${greet}` : 'Welcome'}</h1>
@@ -1481,15 +1615,14 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       </div>
       <HomeTabs tabs={tabs} active={tab} onChange={setTab} />
       {tab === 'work' && <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />}
-      {tab === 'window' && <ReviewWindowPanel depts={data.departments} />}
+      {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'banners' && <BannersPanel b={th.banners} onNavigate={onNavigate} />}
       {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
-      {tab === 'widgets' && <WidgetsPage />}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'wcm' && <WcmCommunityHub />}
-      {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} />}
+      {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} kb={th.kb_articles ?? []} />}
     </div>
   )
 }
@@ -1554,13 +1687,7 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { on
       if (viewAsUserId === SAMPLE_SUPERADMIN_ID && data.experience === 'superadmin') {
         return <SuperAdminHome key="preview-sa" data={data} onNavigate={onNavigate} viewAsUserId={viewAsUserId} preview onShowToast={onShowToast} />
       }
-      const members = th.team_members ?? []
-      const me = firstName(data).toLowerCase()
-      const pick = (kind: 'comms' | 'appsvc') => members.find((m) => m.team === kind && m.name.split(/\s+/)[0].toLowerCase() !== me)
-      const target = viewAsUserId.startsWith('TM:')
-        ? members.find((m) => `TM:${m.email}` === viewAsUserId)
-        : viewAsUserId === 'SDW' ? pick('comms') : viewAsUserId === 'SDA' ? pick('appsvc') : undefined
-      const kind = target?.team ?? (viewAsUserId === 'SDA' ? 'appsvc' : viewAsUserId === 'SDW' ? 'comms' : null)
+      const kind = viewAsUserId === 'SDA' ? 'appsvc' : viewAsUserId === 'SDW' ? 'comms' : null
       if (kind) {
         return (
           <WebTeamHome
@@ -1568,12 +1695,10 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { on
             data={data}
             kind={kind}
             onNavigate={onNavigate}
-            assignments={target?.assignments ?? []}
-            who={target?.name}
+            assignments={SAMPLE_TEAM_ASSIGNMENTS}
+            who={kind === 'comms' ? 'Dana Okafor' : 'Chris Morgan'}
             onShowToast={onShowToast}
-            previewNote={target
-              ? `Previewing ${target.name}\u2019s dashboard: their real assignments, with the program numbers the whole team sees.`
-              : 'Previewing the web team dashboard with live program numbers.'}
+            previewNote={`Previewing the Web Team: ${kind === 'comms' ? 'Communications' : 'Application Services'} dashboard with a sample person. My Work is sample rows; program numbers are live.`}
           />
         )
       }

@@ -69,7 +69,7 @@ interface SidebarProps {
 }
 
 // ── Flat SVG icons ──────────────────────────────────────────────────────────
-const Icons: Record<string, React.ReactNode> = {
+export const Icons: Record<string, React.ReactNode> = {
   dashboard: (
     // BCPS shield as Passport icon
     <svg width="18" height="18" viewBox="0 0 36 44" fill="none">

@@ -85,6 +85,8 @@ interface DepartmentSummary {
   division: string | null
   website_url: string | null
   audit_status: string | null
+  audit_date: string | null
+  ada_score: number | null
   findings_open: number
   findings_fixed: number
   wcms: WcmStatus[]
@@ -111,10 +113,11 @@ export async function GET(req: NextRequest) {
   if (!user || !user.email) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   const email = user.email.toLowerCase()
 
-  const [roleRes, gmRes, profileRes] = await Promise.all([
+  const [roleRes, gmRes, profileRes, certRes] = await Promise.all([
     svc.from('acl_member_roles').select('role').eq('user_id', user.id).eq('brand', BRAND).maybeSingle(),
     svc.from('acl_group_members').select('group_id').eq('user_id', user.id),
     svc.from('wcm_cert_users').select('full_name').eq('user_id', user.id).maybeSingle(),
+    svc.from('wcm_certifications').select('issued_at').eq('user_id', user.id).eq('course_id', COURSE_ID).maybeSingle(),
   ])
   const role = roleRes.data?.role || 'user'
   const gids = (gmRes.data ?? []).map((g) => g.group_id)
@@ -190,10 +193,15 @@ export async function GET(req: NextRequest) {
       // the rest of the dashboard still loads (2026-10-01 incident).
       loadAssignments(svc, req.nextUrl.origin).catch((e) => { console.error('home: assignments failed', e); return [] }),
     ])
+    const { data: kb } = await svc.from('bcps_kb_articles')
+      .select('id, topic, title, summary, href, sort_order')
+      .eq('state', 'live').contains('audience', ['team'])
+      .order('topic').order('sort_order')
     teamHome = {
       program,
       ada,
       banners,
+      kb_articles: kb ?? [],
       my_assignments: assignmentsFor(rows, displayName.split(/\s+/)[0], displayName),
     }
     if (isSuperadmin) {
@@ -225,6 +233,7 @@ export async function GET(req: NextRequest) {
     is_dwt: isDwt,
     is_director: isDirector,
     is_superadmin: isSuperadmin,
+    my_certified: !!certRes.data?.issued_at,
     team_kind: teamKind,
     is_wcm: isWcm,
     name: profileRes.data?.full_name ?? null,
@@ -240,7 +249,7 @@ export async function GET(req: NextRequest) {
 
 async function loadDepartments(ids: string[] | null): Promise<DepartmentSummary[]> {
   if (ids !== null && ids.length === 0) return []
-  let dq = svc.from('bcps_departments').select('id, name, division, website_url, audit_status').order('name')
+  let dq = svc.from('bcps_departments').select('id, name, division, website_url, audit_status, audit_date, ada_score').order('name')
   if (ids !== null) dq = dq.in('id', ids)
   const { data: depts } = await dq
   if (!depts?.length) return []
@@ -321,6 +330,8 @@ async function loadDepartments(ids: string[] | null): Promise<DepartmentSummary[
       division: d.division ?? null,
       website_url: d.website_url ?? null,
       audit_status: d.audit_status,
+      audit_date: d.audit_date ?? null,
+      ada_score: d.ada_score === null || d.ada_score === undefined ? null : Math.round(Number(d.ada_score)),
       findings_open: openByDept.get(d.id) ?? 0,
       findings_fixed: fixedByDept.get(d.id) ?? 0,
       wcms: (byDept.get(d.id) ?? []).sort((a, b) => a.name.localeCompare(b.name)),

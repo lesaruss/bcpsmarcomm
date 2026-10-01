@@ -15,6 +15,8 @@ export interface Tool {
   page?: PageId
   href?: string
   gate: PageId
+  // Key into the left menu's icon set (Sidebar Icons); defaults to page/gate.
+  icon?: string
   superadmin?: boolean
 }
 
@@ -61,9 +63,10 @@ export const TOOLS: Tool[] = [
 
 export const TOOL_GROUPS: Tool['group'][] = ['Daily work', 'Content', 'Websites', 'Accessibility', 'WCM program', 'Me', 'SuperAdmin']
 
-// The six tiles each view opens with (Sean approved, mock v3).
+// The tiles each view opens with (Sean approved, mock v3; Widgets added Oct 1).
 export const TOP_TOOLS: Record<'superadmin' | 'comms' | 'appsvc', string[]> = {
-  superadmin: ['Web Team Assignments', 'Banner Submissions', 'WCM Roster', 'Documents', 'Meeting Notes', 'Permissions'],
-  comms: ['Web Team Assignments', 'Banner Submissions', 'Departments', 'WCM Roster', 'Documents', 'Meeting Notes'],
-  appsvc: ['Web Team Assignments', 'ADA Scanner', 'ADA Manager', 'School Profiles', 'Banner Submissions', 'Documents'],
+  // Widgets lives here as a tile rather than its own tab (Sean, 2026-10-01).
+  superadmin: ['Web Team Assignments', 'Banner Submissions', 'WCM Roster', 'Documents', 'Meeting Notes', 'Widgets', 'Permissions'],
+  comms: ['Web Team Assignments', 'Banner Submissions', 'Departments', 'WCM Roster', 'Documents', 'Meeting Notes', 'Widgets'],
+  appsvc: ['Web Team Assignments', 'ADA Scanner', 'ADA Manager', 'School Profiles', 'Banner Submissions', 'Documents', 'Widgets'],
 }
