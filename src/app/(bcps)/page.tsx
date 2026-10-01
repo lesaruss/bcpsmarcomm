@@ -4,7 +4,6 @@ import { useState, useCallback, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { PageId, NavState, BreadcrumbItem } from '@/lib/types'
 import { useBCPSShell } from '@/components/BCPSShell'
-import DashboardPage from '@/components/pages/DashboardPage'
 import NotesPage from '@/components/pages/NotesPage'
 import ProfilePage from '@/components/pages/ProfilePage'
 import DepartmentsPage from '@/components/pages/DepartmentsPage'
@@ -13,7 +12,8 @@ import DocumentsPage from '@/components/pages/DocumentsPage'
 import PermissionsPanel from '@/components/pages/PermissionsPanel'
 import SuperAdminPage from '@/components/pages/SuperAdminPage'
 import CartridgePage from '@/components/pages/CartridgePage'
-import WCMPage, { WcmRosterStandalonePage } from '@/components/pages/WCMPage'
+import { WcmRosterStandalonePage } from '@/components/pages/WCMPage'
+import HomePage from '@/components/pages/HomePage'
 import MinutesPage from '@/components/pages/MinutesPage'
 import QueuePage from '@/components/pages/QueuePage'
 import BCPSGovernancePage from '@/components/pages/BCPSGovernancePage'
@@ -75,6 +75,15 @@ function HomeInner() {
     }
   }, [effectiveRole, router])
 
+  // The WCM Community Hub merged into the dashboard (Sean, 2026-10-01): the
+  // old ?page=wcm address forwards there so existing links keep working.
+  useEffect(() => {
+    if (nav.page === 'wcm') {
+      setNav({ page: 'dashboard' })
+      router.replace('/?page=dashboard', { scroll: false })
+    }
+  }, [nav.page, router])
+
   const showToast = useCallback((msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 3000)
@@ -82,7 +91,7 @@ function HomeInner() {
 
   return (
     <div className="page-content">
-      {nav.page === 'dashboard'              && <DashboardPage onNavigate={navigate} viewAsUserId={viewAs?.id} />}
+      {nav.page === 'dashboard'              && <HomePage onNavigate={navigate} viewAsUserId={viewAs?.id} />}
       {nav.page === 'notes'                  && <NotesPage />}
       {nav.page === 'profile'                && <ProfilePage subPage={nav.subPage} onNavigate={navigate} />}
       {nav.page === 'departments'            && <DepartmentsPage subPage={nav.subPage} onNavigate={navigate} />}
@@ -97,7 +106,6 @@ function HomeInner() {
       {nav.page === 'marcomm'                && effectiveRole === 'superadmin' && <CartridgePage title="MarComm Console" description="Manage marketing and communications assets, campaigns, and approvals." />}
       {nav.page === 'graphics'               && effectiveRole === 'superadmin' && <GraphicsPage />}
       {nav.page === 'minutes'                && <MinutesPage />}
-      {nav.page === 'wcm'                    && <WCMPage />}
       {nav.page === 'wcm-roster'              && <WcmRosterStandalonePage />}
       {nav.page === 'queue'                  && <QueuePage onNavigate={navigate} onShowToast={showToast} viewAsUserId={viewAs?.id} />}
       {nav.page === 'bcps-google-governance' && <BCPSGovernancePage />}

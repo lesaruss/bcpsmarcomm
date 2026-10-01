@@ -873,7 +873,7 @@ function CertStatusPanel({ status }: { status: CertStatus }) {
   )
 }
 
-function WcmCommunityHub() {
+export function WcmCommunityHub() {
   const [items, setItems] = useState<HubItem[] | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [cert, setCert] = useState<CertStatus>({ state: 'loading' })

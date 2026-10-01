@@ -1649,6 +1649,39 @@ body {
   .wcm-hub2-tab { padding: 11px 10px 12px; font-size: 13px; white-space: nowrap; flex: 0 0 auto; }
 }
 
+/* ── BCPS Marcom dashboard home (2026-10-01, one page per experience) ── */
+.home { max-width: none; }
+.home-hero { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 28px 32px; margin-bottom: 18px; }
+.home-title { font-size: 26px; font-weight: 900; color: var(--blue); line-height: 1.15; margin: 0 0 10px; }
+.home-hero p { font-size: 14px; color: var(--text-secondary); line-height: 1.7; margin: 0; max-width: 720px; }
+.home-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 12px; margin-bottom: 20px; }
+.home-stat { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; min-width: 0; }
+.home-stat-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px; overflow-wrap: anywhere; }
+.home-stat-value { font-size: 24px; font-weight: 900; color: #0e4e73; }
+.home-stat-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.home-notice { background: rgba(197,83,38,0.07); border: 1px solid rgba(197,83,38,0.3); border-radius: 10px; padding: 14px 18px; font-size: 14px; color: var(--text-secondary); margin-bottom: 18px; }
+.home-notice a { color: #0e4e73; font-weight: 700; text-decoration: underline; }
+.home-dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 16px; }
+.home-dept { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; min-width: 0; }
+.home-dept-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 12px; margin-bottom: 6px; }
+.home-dept-head h3 { font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0; min-width: 0; }
+.home-chip { font-size: 11px; font-weight: 700; color: #0e4e73; background: rgba(22,114,167,0.08); border: 1px solid rgba(22,114,167,0.25); border-radius: 99px; padding: 2px 10px; white-space: nowrap; }
+.home-dept-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+.home-dept-empty p { font-size: 13.5px; color: var(--text-secondary); margin: 6px 0 12px; }
+.home-wcm-list { list-style: none; margin: 0; padding: 0; }
+.home-wcm-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 9px 0; border-top: 1px solid var(--border); }
+.home-wcm-name { font-size: 14px; font-weight: 700; color: var(--text-primary); min-width: 0; overflow-wrap: anywhere; }
+.home-wcm-sub { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.home-status { font-size: 12px; font-weight: 700; border-radius: 99px; padding: 3px 10px; white-space: nowrap; }
+.home-status.done { color: #16750C; background: rgba(22,117,12,0.08); border: 1px solid rgba(22,117,12,0.3); }
+.home-status.progress { color: #0e4e73; background: rgba(22,114,167,0.08); border: 1px solid rgba(22,114,167,0.25); }
+.home-status.todo { color: #8a3614; background: rgba(197,83,38,0.07); border: 1px solid rgba(197,83,38,0.3); }
+.home-btn { display: inline-block; background: var(--blue); color: #fff; font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 8px; text-decoration: none; }
+@media (max-width: 760px) {
+  .home-hero { padding: 20px; }
+  .home-title { font-size: 22px; }
+}
+
 /* ── Portal Pages ── */
 .wcm-portal-page { max-width: 1100px; }
 .wcm-back-btn {

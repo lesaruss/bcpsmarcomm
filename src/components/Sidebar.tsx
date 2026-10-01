@@ -325,7 +325,6 @@ const SECTIONS: NavSection[] = [
     { id: 'community-relations', label: 'Task Tracker' },
   ] },
   { label: 'Web Content Managers', items: [
-    { id: 'wcm', label: 'WCM Hub' },
     { id: 'bcps-certification', label: 'Department Certification' },
     // The three playbooks linked in the WCM registration and director
     // emails, surfaced here for quick reference per Sean 2026-09-15 -

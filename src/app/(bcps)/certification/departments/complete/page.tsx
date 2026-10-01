@@ -79,7 +79,7 @@ export default async function CompletePage() {
               this link always opens for the person who just earned the certificate. */}
           <a href="/briefs/bcps-wcm-cert-complete-2026-27" style={S.dashBtn}>What&apos;s Next</a>
           <div style={{ marginTop: 14, display: 'flex', gap: 18, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/?page=wcm" style={{ fontSize: 13, color: '#1672A7', fontWeight: 700, textDecoration: 'underline' }}>Go to the WCM Hub</Link>
+            <Link href="/?page=dashboard" style={{ fontSize: 13, color: '#1672A7', fontWeight: 700, textDecoration: 'underline' }}>Go to Your Dashboard</Link>
             <Link href="/" style={{ fontSize: 13, color: '#888', textDecoration: 'underline' }}>Return to Dashboard</Link>
           </div>
         </div>
