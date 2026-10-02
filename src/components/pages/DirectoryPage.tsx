@@ -7,6 +7,8 @@
 //     bcps_directory_insights function). A search that found nothing can be
 //     added as a tag to the page it should have found, in one click; that is
 //     the loop that keeps the tags matching how people actually search.
+//     Messages from the widget's "Can't find it?" button (Sean and Vanessa,
+//     2026-10-02) sit at the top of that tab with the same add-a-tag action.
 //   - Pages: every department and program entry. Same inline-edit pattern as
 //     the II&DL and Charter School editors: a Save button that only enables
 //     once something changed, delete with confirm, and an add form. Rows stay
@@ -38,6 +40,7 @@ interface Insights {
   days: number
   sessions: number
   searches: number
+  voice_searches: number
   zero_result_searches: number
   clicks: number
   search_sessions: number
@@ -45,6 +48,8 @@ interface Insights {
   top_searches: { query: string; searches: number; avg_results: number; clicks: number }[]
   zero_result: { query: string; searches: number; last_seen: string }[]
   top_clicked: { id: string; name: string; kind: string; clicks: number; from_browsing: number }[]
+  feedback_new: number
+  feedback: { id: string; created_at: string; query: string | null; message: string; result_count: number | null; status: 'new' | 'handled' }[]
 }
 
 const TOPICS: Record<string, string> = {
@@ -104,6 +109,7 @@ export default function DirectoryPage() {
   const [open, setOpen] = useState<string | null>(null)
   const [edits, setEdits] = useState<Record<string, any>>({})
   const [tagTarget, setTagTarget] = useState<Record<string, string>>({})
+  const [fbTag, setFbTag] = useState<Record<string, string>>({})
   const [showNew, setShowNew] = useState(false)
   const [newEntry, setNewEntry] = useState(EMPTY_NEW)
 
@@ -195,7 +201,8 @@ export default function DirectoryPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 12, marginBottom: 16 }}>
             {[
-              { label: 'Searches', value: insights.searches.toLocaleString(), sub: `${insights.sessions.toLocaleString()} visits to the widget` },
+              { label: 'Searches', value: insights.searches.toLocaleString(),
+                sub: `${insights.sessions.toLocaleString()} visits to the widget · ${insights.voice_searches.toLocaleString()} by voice` },
               { label: 'Found nothing', value: pct(insights.zero_result_searches, insights.searches),
                 sub: `${insights.zero_result_searches.toLocaleString()} searches. Target: under 10%`,
                 warn: insights.searches > 0 && insights.zero_result_searches / insights.searches > 0.1 },
@@ -218,6 +225,55 @@ export default function DirectoryPage() {
               try one in <a href="/embeds/department-program-directory.html" target="_blank" rel="noopener noreferrer" style={{ color: BLUE, fontWeight: 700 }}>the widget</a> and press Refresh.
             </div>
           )}
+
+          <div style={{ ...C.card, borderTop: `3px solid ${insights.feedback_new ? '#d97706' : TEAL}` }}>
+            <div style={C.sublabel}>&quot;Can&apos;t find it?&quot; messages ({insights.feedback_new} new)</div>
+            <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 8px' }}>
+              What people told the widget they were looking for, in their own words. Add the word they used as a tag on the right page,
+              then mark the message handled.
+            </p>
+            {insights.feedback.length === 0 ? (
+              <div style={{ fontSize: 13, color: '#6b7280' }}>No messages yet.</div>
+            ) : insights.feedback.map(f => {
+              const tag = fbTag[f.id] ?? (f.query ?? '')
+              return (
+                <div key={f.id} style={{ borderTop: '1px solid #f3f4f6', padding: '10px 0', opacity: f.status === 'handled' ? 0.55 : 1 }}>
+                  <div style={{ fontSize: 13, marginBottom: 4 }}>
+                    <strong>&ldquo;{f.message}&rdquo;</strong>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>
+                    {new Date(f.created_at).toLocaleString()}
+                    {f.query ? ` · searched “${f.query}”` : ''}
+                    {f.result_count != null ? ` · ${f.result_count} result${f.result_count === 1 ? '' : 's'}` : ''}
+                    {f.status === 'handled' ? ' · handled' : ''}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <input style={{ ...C.input, maxWidth: 200 }} aria-label="Tag to add" placeholder="Tag to add"
+                      value={tag} onChange={e => setFbTag(p => ({ ...p, [f.id]: e.target.value }))} />
+                    <select style={{ ...C.sel, maxWidth: 280 }} aria-label="Page for this tag"
+                      value={tagTarget[f.id] ?? ''} onChange={e => setTagTarget(p => ({ ...p, [f.id]: e.target.value }))}>
+                      <option value="">Choose a page...</option>
+                      {byName.filter(e => e.active).map(e => (
+                        <option key={e.id} value={e.id}>{e.name} ({e.kind === 'department' ? 'dept' : 'program'})</option>
+                      ))}
+                    </select>
+                    <button style={C.btnPrimary} disabled={busy || !tagTarget[f.id] || !tag.trim()}
+                      onClick={async () => {
+                        const target = entries.find(e => e.id === tagTarget[f.id])
+                        if (!await act({ action: 'entry_add_tag', id: tagTarget[f.id], tag })) return
+                        await act({ action: 'feedback_handle', id: f.id })
+                        await loadInsights(days)
+                        setNote(`Added "${tag}" as a tag on ${target?.name} and marked the message handled.`)
+                      }}>Add tag &amp; resolve</button>
+                    <button style={C.btn} disabled={busy}
+                      onClick={async () => {
+                        if (await act({ action: 'feedback_handle', id: f.id, handled: f.status !== 'handled' })) await loadInsights(days)
+                      }}>{f.status === 'handled' ? 'Reopen' : 'Mark handled'}</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
 
           <div style={C.card}>
             <div style={C.sublabel}>Searches that found nothing ({insights.zero_result.length})</div>

@@ -284,3 +284,80 @@ WHERE NOT EXISTS (SELECT 1 FROM public.bcps_directory_entries);
 -- INSERT INTO public.acl_objects (brand, kind, slug, title, visibility)
 -- SELECT 'bcps', 'page', 'department-program-directory', 'Department & Program Directory', 'restricted'
 -- WHERE NOT EXISTS (SELECT 1 FROM public.acl_objects WHERE brand = 'bcps' AND kind = 'page' AND slug = 'department-program-directory');
+
+-- Follow-up, same day (Sean and Vanessa's review, 2026-10-02): the widget's
+-- "Can't find it?" form and voice search. Applied one statement per call like
+-- the rest of this file. A separate feedback table rather than a new event
+-- type, because widening the events CHECK would need a DROP CONSTRAINT.
+CREATE TABLE IF NOT EXISTS public.bcps_directory_feedback (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  query text CHECK (char_length(query) BETWEEN 0 AND 120),
+  message text NOT NULL CHECK (char_length(message) BETWEEN 1 AND 500),
+  result_count integer CHECK (result_count BETWEEN 0 AND 1000),
+  session_id text CHECK (char_length(session_id) BETWEEN 0 AND 40),
+  host text CHECK (char_length(host) BETWEEN 0 AND 200),
+  status text NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'handled')),
+  handled_at timestamptz,
+  handled_by uuid
+);
+ALTER TABLE public.bcps_directory_feedback ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.bcps_directory_feedback FROM anon, authenticated;
+CREATE INDEX IF NOT EXISTS bcps_directory_feedback_created_idx ON public.bcps_directory_feedback (created_at DESC);
+
+-- Typed or spoken, so the insights tab can show how much voice search is used.
+ALTER TABLE public.bcps_directory_events ADD COLUMN IF NOT EXISTS input text CHECK (input IN ('typed', 'voice'));
+
+-- bcps_directory_insights was then replaced with the version that also returns
+-- voice_searches, feedback_new and feedback (new messages, plus everything in
+-- the period, newest first, up to 50). CREATE OR REPLACE keeps the grants above.
+CREATE OR REPLACE FUNCTION public.bcps_directory_insights(days integer DEFAULT 30)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  WITH ev AS (
+    SELECT * FROM bcps_directory_events WHERE created_at BETWEEN now() - make_interval(days => days) AND 'infinity'::timestamptz
+  ),
+  s AS (SELECT * FROM ev WHERE event = 'search' AND coalesce(query_norm, '') != ''),
+  c AS (SELECT * FROM ev WHERE event = 'click')
+  SELECT jsonb_build_object(
+    'days', days,
+    'sessions', (SELECT count(DISTINCT session_id) FROM ev),
+    'searches', (SELECT count(*) FROM s),
+    'voice_searches', (SELECT count(*) FROM s WHERE input = 'voice'),
+    'zero_result_searches', (SELECT count(*) FROM s WHERE result_count = 0),
+    'clicks', (SELECT count(*) FROM c),
+    'search_sessions', (SELECT count(DISTINCT session_id) FROM s),
+    'search_sessions_with_click', (SELECT count(DISTINCT s.session_id) FROM s JOIN c USING (session_id) WHERE c.created_at BETWEEN s.created_at AND 'infinity'::timestamptz),
+    'top_searches', coalesce((
+      SELECT jsonb_agg(t ORDER BY t.searches DESC, t.query) FROM (
+        SELECT s.query_norm AS query, count(*) AS searches,
+          round(avg(s.result_count)::numeric, 1) AS avg_results,
+          (SELECT count(*) FROM c WHERE c.query_norm = s.query_norm) AS clicks,
+          max(s.created_at) AS last_seen
+        FROM s GROUP BY s.query_norm ORDER BY count(*) DESC, s.query_norm LIMIT 25
+      ) t), '[]'::jsonb),
+    'zero_result', coalesce((
+      SELECT jsonb_agg(t ORDER BY t.searches DESC, t.query) FROM (
+        SELECT query_norm AS query, count(*) AS searches, max(created_at) AS last_seen
+        FROM s WHERE result_count = 0 GROUP BY query_norm ORDER BY count(*) DESC, query_norm LIMIT 25
+      ) t), '[]'::jsonb),
+    'top_clicked', coalesce((
+      SELECT jsonb_agg(t ORDER BY t.clicks DESC, t.name) FROM (
+        SELECT e.id, e.name, e.kind, count(*) AS clicks,
+          count(*) FILTER (WHERE coalesce(c.query_norm, '') = '') AS from_browsing
+        FROM c JOIN bcps_directory_entries e ON e.id = c.entry_id
+        GROUP BY e.id, e.name, e.kind ORDER BY count(*) DESC, e.name LIMIT 15
+      ) t), '[]'::jsonb),
+    'feedback_new', (SELECT count(*) FROM bcps_directory_feedback WHERE status = 'new'),
+    'feedback', coalesce((
+      SELECT jsonb_agg(t ORDER BY t.created_at DESC) FROM (
+        SELECT id, created_at, query, message, result_count, status
+        FROM bcps_directory_feedback
+        WHERE status = 'new' OR created_at BETWEEN now() - make_interval(days => days) AND 'infinity'::timestamptz
+        ORDER BY created_at DESC LIMIT 50
+      ) t), '[]'::jsonb)
+  )
+$$;

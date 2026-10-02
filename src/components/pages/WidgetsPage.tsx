@@ -33,6 +33,8 @@ const EDITORS: Record<string, React.ComponentType> = {
   'department-program-directory': DirectoryPage,
 }
 
+// Embeds with a microphone (voice search) button.
+const MIC_WIDGETS = new Set(['department-program-directory'])
 const ROLE_OPTS = ['view', 'edit', 'manage']
 const BLUE = '#1672A7'
 const C = {
@@ -135,7 +137,11 @@ export default function WidgetsPage() {
     // browser default (~150-250px tall) regardless of the widget's actual
     // content. This companion script is what makes the iframe grow/shrink
     // to match - it's self-contained so it works on any destination site.
-    const snippet = `<iframe id="${frameId}" src="${src}" style="width:100%;border:0;display:block;" height="600" title="${w.title}"></iframe>
+    // Widgets with voice search need the host page to delegate the
+    // microphone to the iframe, or the browser refuses it silently. Only
+    // those widgets get the permission.
+    const allow = MIC_WIDGETS.has(w.slug) ? ' allow="microphone"' : ''
+    const snippet = `<iframe id="${frameId}" src="${src}" style="width:100%;border:0;display:block;" height="600" title="${w.title}"${allow}></iframe>
 <script>
 (function(){
   var ifr = document.getElementById('${frameId}');

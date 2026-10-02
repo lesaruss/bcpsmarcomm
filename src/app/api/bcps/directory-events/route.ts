@@ -23,6 +23,12 @@ const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 //
 // Accepts one event or { events: [...] } (up to 10), as JSON. sendBeacon
 // posts text/plain, so the body is read as text and parsed here.
+//
+// event 'feedback' is the widget's "Can't find it?" form (Sean and Vanessa,
+// 2026-10-02): what the person was looking for, in their words, stored in
+// bcps_directory_feedback for the editor's Search insights tab. The same
+// redaction applies, since people sometimes type their email or a phone
+// number into a message box.
 
 const MAX_PER_MINUTE = 120
 const hits = new Map<string, { n: number; t: number }>()
@@ -52,10 +58,31 @@ function int(v: unknown, max: number) {
   return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= max ? v : null
 }
 
+const PERSONAL = /[^\s@]+@[^\s@]+|\+?\d[\d\s().-]{4,}\d/g
+function hasPersonal(s: string) {
+  return /@/.test(s) || /\d{5,}/.test(s.replace(/[\s().-]/g, ''))
+}
+
+function cleanFeedback(e: any) {
+  let message = text(e.message, 500)
+  if (!message) return null
+  // Keep the message readable, removing only the personal detail itself.
+  if (hasPersonal(message)) message = message.replace(PERSONAL, '[removed]')
+  let query = text(e.query, 120)
+  if (query && hasPersonal(query)) query = REDACTED
+  return {
+    query,
+    message,
+    result_count: int(e.result_count, 1000),
+    session_id: typeof e.session_id === 'string' && SESSION.test(e.session_id) ? e.session_id : null,
+    host: text(e.host, 200),
+  }
+}
+
 function clean(e: any) {
   if (!e || (e.event !== 'search' && e.event !== 'click')) return null
   let query = text(e.query, 120)
-  if (query && (/@/.test(query) || /\d{5,}/.test(query.replace(/[\s()-]/g, '')))) query = REDACTED
+  if (query && hasPersonal(query)) query = REDACTED
   const norm = query ? query.toLowerCase() : null
   if (e.event === 'search' && !norm) return null
   return {
@@ -69,6 +96,7 @@ function clean(e: any) {
     topic_filter: text(e.topic_filter, 20),
     session_id: typeof e.session_id === 'string' && SESSION.test(e.session_id) ? e.session_id : null,
     host: text(e.host, 200),
+    input: e.input === 'voice' || e.input === 'typed' ? e.input : null,
   }
 }
 
@@ -79,11 +107,15 @@ export async function POST(req: NextRequest) {
   let body: any
   try { body = JSON.parse(await req.text()) } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
-  const list = Array.isArray(body?.events) ? body.events.slice(0, 10) : [body]
-  const rows = list.map(clean).filter(Boolean)
-  if (!rows.length) return NextResponse.json({ error: 'No valid events' }, { status: 400 })
+  const list: any[] = Array.isArray(body?.events) ? body.events.slice(0, 10) : [body]
+  const feedback = list.filter(e => e?.event === 'feedback').map(cleanFeedback).filter(Boolean)
+  const rows = list.filter(e => e?.event !== 'feedback').map(clean).filter(Boolean)
+  if (!rows.length && !feedback.length) return NextResponse.json({ error: 'No valid events' }, { status: 400 })
 
-  const { error } = await svc.from('bcps_directory_events').insert(rows)
-  if (error) return NextResponse.json({ error: 'Could not record event' }, { status: 500 })
+  const results = await Promise.all([
+    rows.length ? svc.from('bcps_directory_events').insert(rows) : null,
+    feedback.length ? svc.from('bcps_directory_feedback').insert(feedback) : null,
+  ])
+  if (results.some(r => r?.error)) return NextResponse.json({ error: 'Could not record event' }, { status: 500 })
   return new NextResponse(null, { status: 204 })
 }

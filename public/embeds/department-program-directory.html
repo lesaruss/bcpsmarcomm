@@ -88,6 +88,49 @@
   #q::placeholder { color: var(--text-muted); }
   #q:focus { border-color: var(--blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 22%, transparent); }
   #q::-webkit-search-cancel-button { display: none; }
+  #q.has-mic { padding-right: 84px; }
+  .search-btn {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 36px; height: 36px; border: 0; border-radius: 50%;
+    background: transparent; color: var(--text-muted); cursor: pointer;
+    display: grid; place-items: center;
+  }
+  .search-btn:hover { background: var(--bg); color: var(--text); }
+  #mic { right: 6px; }
+  #mic[aria-pressed="true"] { background: var(--blue); color: var(--on-blue); animation: listen 1.4s ease-in-out infinite; }
+  @keyframes listen { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--blue) 25%, transparent); } }
+  #q.has-mic ~ #clear { right: 44px; }
+  .voice-msg { font-size: 12.5px; color: var(--text-mid); min-height: 0; }
+  .voice-msg:empty { display: none; }
+
+  /* "Can't find it?" (Sean and Vanessa, 2026-10-02) */
+  .cant { border: 0; background: none; color: var(--blue); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 4px 0; }
+  .cant-panel {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 14px 20px 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .cant-panel label { font-family: var(--font-head); font-weight: 700; font-size: 14px; color: var(--text); }
+  .cant-panel textarea {
+    width: 100%; min-height: 70px; resize: vertical; padding: 10px 12px;
+    border: 1.5px solid var(--border); border-radius: var(--radius);
+    font: inherit; font-size: 14px; color: var(--text); background: var(--surface);
+  }
+  .cant-panel textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 22%, transparent); }
+  .cant-help { font-size: 12px; color: var(--text-muted); }
+  .cant-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn-primary {
+    border: 1px solid var(--blue); background: var(--blue); color: var(--on-blue);
+    font: inherit; font-size: 13px; font-weight: 700; padding: 8px 16px; min-height: 38px;
+    border-radius: var(--radius); cursor: pointer;
+  }
+  .btn-primary:disabled { opacity: 0.5; cursor: default; }
+  .btn-plain {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-mid);
+    font: inherit; font-size: 13px; font-weight: 600; padding: 8px 14px; min-height: 38px;
+    border-radius: var(--radius); cursor: pointer;
+  }
+  .cant-done { font-size: 13px; color: var(--teal-dark); font-weight: 600; }
+
   #clear {
     position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
     width: 34px; height: 34px; border: 0; border-radius: 50%;
@@ -216,7 +259,7 @@
     .selects select { flex: 1; }
     .controls, .status, .results, .foot { padding-left: 16px; padding-right: 16px; }
   }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -228,10 +271,14 @@
     <input type="search" id="q" autocomplete="off" spellcheck="false"
       placeholder="Search by name or topic, like bus, lunch, IEP or jobs"
       aria-describedby="statusText">
+    <button type="button" id="mic" class="search-btn" aria-label="Search by voice" aria-pressed="false" hidden>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+    </button>
     <button type="button" id="clear" aria-label="Clear search" hidden>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
     </button>
   </div>
+  <div class="voice-msg" id="voiceMsg" role="status" aria-live="polite"></div>
 
   <div class="row">
     <div class="tabs" role="group" aria-label="Show">
@@ -258,8 +305,22 @@
 
 <div class="status">
   <span id="statusText" aria-live="polite"></span>
-  <button type="button" class="reset" id="reset" hidden>Clear all filters</button>
+  <span class="row">
+    <button type="button" class="cant" id="cantBtn" aria-expanded="false" aria-controls="cantPanel" hidden>Can't find it?</button>
+    <button type="button" class="reset" id="reset" hidden>Clear all filters</button>
+  </span>
 </div>
+
+<form class="cant-panel" id="cantPanel" hidden novalidate>
+  <label for="cantMsg">What were you looking for?</label>
+  <textarea id="cantMsg" maxlength="500" placeholder="For example: where do I sign up for the PTO, or who handles bus routes"></textarea>
+  <div class="cant-help">Your note goes to the team that keeps this directory up to date. Please don't include names, emails or ID numbers. We can't reply to these notes.</div>
+  <div class="cant-actions">
+    <button type="submit" class="btn-primary" id="cantSend">Send</button>
+    <button type="button" class="btn-plain" id="cantCancel">Cancel</button>
+    <span class="cant-done" id="cantDone" role="status" aria-live="polite"></span>
+  </div>
+</form>
 
 <div id="out"></div>
 
@@ -504,6 +565,7 @@ function render() {
   $('tryRow').hidden = searching;
   $('sort').disabled = searching;
   $('reset').hidden = !(state.q || state.topic || state.type !== 'all');
+  $('cantBtn').hidden = !searching;
 
   const noun = state.type === 'dept' ? 'department' : state.type === 'prog' ? 'program or service' : 'result';
   const plural = rows.length === 1 ? noun : (noun === 'program or service' ? 'programs and services' : noun + 's');
@@ -517,6 +579,7 @@ function render() {
       <p>Try a shorter or more general word, or clear the filters. You can also browse the
         <a href="https://www.browardschools.com/bcps-departments" target="_top">full department list</a> or the
         <a href="https://www.browardschools.com/directory/programs-and-services-63" target="_top">programs &amp; services A to Z</a>.</p>
+      ${searching ? '<p><button type="button" class="btn-primary" data-cant="1">Tell us what you were looking for</button></p>' : ''}
       <p><strong>Most visited:</strong></p>
       <div class="chips">${popularLinks()}</div>
     </div>`;
@@ -566,7 +629,7 @@ const HOST = (() => {
   try { return new URLSearchParams(location.search).get('host') || (document.referrer ? new URL(document.referrer).hostname : location.hostname); }
   catch (e) { return ''; }
 })();
-let lastResultCount = 0, lastLogged = '', searchTimer;
+let lastResultCount = 0, lastLogged = '', searchTimer, lastInput = 'typed';
 
 function send(events, beacon) {
   if (!canLog) return;
@@ -580,7 +643,7 @@ function pendingSearch() {
   const q = state.q.trim();
   if (!q || norm(q) === lastLogged) return null;
   lastLogged = norm(q);
-  return { event: 'search', query: q, result_count: lastResultCount };
+  return { event: 'search', query: q, result_count: lastResultCount, input: lastInput };
 }
 function scheduleSearchLog() {
   clearTimeout(searchTimer);
@@ -605,7 +668,7 @@ document.addEventListener('click', e => {
 
 // EVENTS
 let t;
-qEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { state.q = qEl.value; render(); scheduleSearchLog(); }, 90); });
+qEl.addEventListener('input', () => { lastInput = 'typed'; clearTimeout(t); t = setTimeout(() => { state.q = qEl.value; render(); scheduleSearchLog(); }, 90); });
 qEl.addEventListener('keydown', e => { if (e.key === 'Escape' && qEl.value) { e.preventDefault(); setQuery(''); } });
 $('clear').addEventListener('click', () => { setQuery(''); qEl.focus(); });
 document.addEventListener('click', e => {
@@ -651,6 +714,99 @@ function postHeight() {
   window.parent.postMessage({ type: 'bcps-widget-resize', slug: 'department-program-directory', height }, '*');
 }
 window.addEventListener('resize', postHeight);
+
+// VOICE SEARCH (Vanessa, 2026-10-02)
+// Uses the speech recognition built into the browser (Chrome, Edge, Safari on
+// desktop, iPhone and Android), so it costs nothing to run. The button only
+// appears where the browser supports it. On a host page the iframe needs
+// allow="microphone", which the Widgets hub embed code includes.
+const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null;
+const micBtn = $('mic'), voiceMsg = $('voiceMsg');
+function setListening(on) {
+  micBtn.setAttribute('aria-pressed', String(on));
+  micBtn.setAttribute('aria-label', on ? 'Stop listening' : 'Search by voice');
+  voiceMsg.textContent = on ? 'Listening... say what you are looking for.' : voiceMsg.textContent;
+}
+function startVoice() {
+  try {
+    recognizer = new Recognition();
+    recognizer.lang = navigator.language || 'en-US';
+    recognizer.interimResults = true;
+    recognizer.maxAlternatives = 1;
+    recognizer.onresult = e => {
+      const heard = Array.from(e.results, r => r[0].transcript).join(' ').trim();
+      lastInput = 'voice';
+      qEl.value = heard; state.q = heard; render();
+    };
+    recognizer.onerror = e => {
+      voiceMsg.textContent = e.error === 'not-allowed' || e.error === 'service-not-allowed'
+        ? 'The microphone is blocked. Allow it in your browser settings, or type your search.'
+        : e.error === 'no-speech' ? "We didn't hear anything. Tap the microphone and try again."
+        : 'Voice search is not available right now. Please type your search.';
+    };
+    recognizer.onend = () => {
+      recognizer = null;
+      setListening(false);
+      if (voiceMsg.textContent.startsWith('Listening')) voiceMsg.textContent = '';
+      if (state.q.trim()) scheduleSearchLog();
+    };
+    voiceMsg.textContent = '';
+    recognizer.start();
+    setListening(true);
+  } catch (e) {
+    recognizer = null;
+    setListening(false);
+    voiceMsg.textContent = 'Voice search is not available right now. Please type your search.';
+  }
+}
+if (Recognition) {
+  micBtn.hidden = false;
+  qEl.classList.add('has-mic');
+  micBtn.addEventListener('click', () => { if (recognizer) recognizer.stop(); else startVoice(); });
+}
+
+// CAN'T FIND IT?
+// Sends the person's own words to the directory team (bcps_directory_feedback
+// via /api/bcps/directory-events), where the editor can add them as tags.
+const cantPanel = $('cantPanel'), cantMsg = $('cantMsg'), cantDone = $('cantDone'), cantSend = $('cantSend');
+function openCant() {
+  cantPanel.hidden = false;
+  $('cantBtn').setAttribute('aria-expanded', 'true');
+  cantDone.textContent = '';
+  cantSend.disabled = false;
+  if (!cantMsg.value.trim()) cantMsg.value = state.q.trim();
+  cantMsg.focus();
+  postHeight();
+}
+function closeCant() {
+  cantPanel.hidden = true;
+  $('cantBtn').setAttribute('aria-expanded', 'false');
+  postHeight();
+}
+$('cantBtn').addEventListener('click', () => (cantPanel.hidden ? openCant() : closeCant()));
+$('cantCancel').addEventListener('click', closeCant);
+cantMsg.addEventListener('input', () => { cantSend.disabled = false; });
+document.addEventListener('click', e => { if (e.target.closest('[data-cant]')) openCant(); });
+cantPanel.addEventListener('submit', async e => {
+  e.preventDefault();
+  const message = cantMsg.value.trim();
+  if (!message) { cantDone.textContent = 'Type a few words about what you need, then press Send.'; return; }
+  if (!canLog) { cantDone.textContent = 'Sending is turned off in this preview copy.'; return; }
+  cantSend.disabled = true;
+  try {
+    const res = await fetch(EVENTS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ events: [{ event: 'feedback', message, query: state.q.trim() || null, result_count: state.q.trim() ? lastResultCount : null, session_id: SESSION_ID, host: HOST }] }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    cantMsg.value = '';
+    cantDone.textContent = 'Thank you. Your note was sent to the team that keeps this directory up to date.';
+  } catch (err) {
+    cantSend.disabled = false;
+    cantDone.textContent = "Your note didn't send. Please try again in a moment.";
+  }
+});
 
 async function boot() {
   out.innerHTML = '<div class="empty"><p>Loading departments, programs and services...</p></div>';

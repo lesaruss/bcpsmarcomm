@@ -167,6 +167,20 @@ export async function POST(req: NextRequest) {
         await audit(user.id, 'directory_entry_add_tag', { id, tag })
         return NextResponse.json({ ok: true, entry: data })
       }
+      case 'feedback_handle': {
+        // A "Can't find it?" message someone on the team has dealt with
+        // (usually by adding a tag). It stays on record, out of the new list.
+        const { id, handled = true } = body
+        if (!id) return NextResponse.json({ error: 'id required.' }, { status: 400 })
+        const { error } = await svc.from('bcps_directory_feedback')
+          .update(handled
+            ? { status: 'handled', handled_at: new Date().toISOString(), handled_by: user.id }
+            : { status: 'new', handled_at: null, handled_by: null })
+          .eq('id', id)
+        if (error) throw error
+        await audit(user.id, 'directory_feedback_handle', { id, handled })
+        return NextResponse.json({ ok: true })
+      }
       case 'entry_delete': {
         const { id } = body
         if (!id) return NextResponse.json({ error: 'id required.' }, { status: 400 })
