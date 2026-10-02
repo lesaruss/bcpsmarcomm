@@ -275,15 +275,16 @@ SELECT * FROM (VALUES
 ) AS v(kind, name, url, context, description, topic, audiences, tags, includes, demand_rank, popular_label, popular_rank, review_note, sort_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.bcps_directory_entries);
 
--- Widgets hub registration: apply once the embed and editor are on production.
--- INSERT INTO public.bcps_widgets (slug, title, description, preview_path, editor_component, sort_order)
--- SELECT 'department-program-directory', 'Department & Program Directory',
---   'One search across every department page and every program and service, with plain-language tags, Most visited links, and search insights.',
---   '/embeds/department-program-directory.html', 'department-program-directory', 4
--- WHERE NOT EXISTS (SELECT 1 FROM public.bcps_widgets WHERE slug = 'department-program-directory');
--- INSERT INTO public.acl_objects (brand, kind, slug, title, visibility)
--- SELECT 'bcps', 'page', 'department-program-directory', 'Department & Program Directory', 'restricted'
--- WHERE NOT EXISTS (SELECT 1 FROM public.acl_objects WHERE brand = 'bcps' AND kind = 'page' AND slug = 'department-program-directory');
+-- Widgets hub registration, applied 2026-10-02 after production deploy
+-- dpl_nKfGC8fsc5rkxsrENxy14tjMy84b (commit 85f8466) went READY on bcpsmarcomm.com.
+INSERT INTO public.bcps_widgets (slug, title, description, preview_path, editor_component, sort_order)
+SELECT 'department-program-directory', 'Department & Program Directory',
+  'One search across every department page and every program and service on browardschools.com, A to Z, with plain-language tags, voice search, Most visited links, a Can''t find it? form, and search insights.',
+  '/embeds/department-program-directory.html', 'department-program-directory', 4
+WHERE NOT EXISTS (SELECT 1 FROM public.bcps_widgets WHERE slug = 'department-program-directory');
+INSERT INTO public.acl_objects (brand, kind, slug, title, visibility)
+SELECT 'bcps', 'page', 'department-program-directory', 'Department & Program Directory', 'restricted'
+WHERE NOT EXISTS (SELECT 1 FROM public.acl_objects WHERE brand = 'bcps' AND kind = 'page' AND slug = 'department-program-directory');
 
 -- Follow-up, same day (Sean and Vanessa's review, 2026-10-02): the widget's
 -- "Can't find it?" form and voice search. Applied one statement per call like
