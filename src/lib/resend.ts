@@ -43,6 +43,9 @@ export async function sendEmail(opts: {
   // reading the HTML (e.g. 'wcm-roster-approval-director').
   kind?: string
   context?: Record<string, unknown>
+  // Inline images (cid:) or files, fetched by Resend from `path`. Stored on
+  // the log row's context so a replay sends the same attachments.
+  attachments?: EmailAttachment[]
 }): Promise<{ ok: boolean; error?: string; logged_id?: string }> {
   const to = asArray(opts.to)!
   const cc = asArray(opts.cc)
@@ -60,13 +63,13 @@ export async function sendEmail(opts: {
         subject: opts.subject,
         html: opts.html,
         status: 'pending',
-        context: opts.context ?? null,
+        context: opts.attachments?.length ? { ...(opts.context ?? {}), attachments: opts.attachments } : (opts.context ?? null),
       }).select('id').single()
       rowId = data?.id ?? null
     }
   } catch { /* logging must never block a send */ }
 
-  const result = await deliver({ to, cc, subject: opts.subject, html: opts.html, replyTo: opts.replyTo })
+  const result = await deliver({ to, cc, subject: opts.subject, html: opts.html, replyTo: opts.replyTo, attachments: opts.attachments })
 
   try {
     const client = db()
@@ -86,12 +89,20 @@ export async function sendEmail(opts: {
 
 // The raw provider call, split out so the replay endpoint can retry a stored
 // message without re-logging it as a new one.
+export interface EmailAttachment {
+  filename: string
+  path: string
+  // Set to embed the file in the body: <img src="cid:{content_id}">.
+  content_id?: string
+}
+
 export async function deliver(opts: {
   to: string[]
   cc?: string[] | null
   subject: string
   html: string
   replyTo?: string | null
+  attachments?: EmailAttachment[] | null
 }): Promise<{ ok: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) return { ok: false, error: 'RESEND_API_KEY not configured' }
@@ -110,6 +121,7 @@ export async function deliver(opts: {
         html: opts.html,
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
         ...(opts.cc && opts.cc.length ? { cc: opts.cc } : {}),
+        ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {}),
       }),
     })
     if (!res.ok) {

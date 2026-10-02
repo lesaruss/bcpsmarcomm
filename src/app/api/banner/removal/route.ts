@@ -44,13 +44,13 @@ async function notifyRemovalReceived(row: {
   const label = row.removal_description || 'a prior banner submission'
   const result = await sendEmail({
     to: recipients,
-    subject: `New BCPS banner removal request: "${label}"`,
+    subject: `New School banner removal request: "${label}"`,
     html: `
       <p>Hi,</p>
       <p>${row.wcm_email ? `<strong>${row.wcm_email}</strong>` : 'A WCM'} just requested removal of a banner:
       <strong>"${label}"</strong>.</p>
       <p><a href="https://bcpsmarcomm.com/?page=banner-submissions">Review it in the Banner Submissions queue</a>.</p>
-      <p style="color:#888;font-size:12px">This is an automated message from the BCPS WCM Banner Submission App. You're
+      <p style="color:#888;font-size:12px">This is an automated message from the School WCM Banner Submission Form. You're
       receiving it because you're listed as an Admin or Manager for this tool - manage that list from the Manage Admins
       tab on the Banner Submissions page.</p>
     `,

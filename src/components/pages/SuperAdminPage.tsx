@@ -445,7 +445,7 @@ function ViewAsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
       <div className="admin-section-header">
         <div>
           <h3>View As Access</h3>
-          <p>People listed here get the &quot;View as&quot; switcher in the sidebar, so they can see the platform the way a lower tier sees it. They can only preview their own level and below, never above, and it never gives them extra access.</p>
+          <p>People listed here get a &quot;View as&quot; button in the top bar, so they can see the platform the way a lower tier sees it. They can only preview their own level and below, never above, and it never gives them extra access.</p>
         </div>
       </div>
 

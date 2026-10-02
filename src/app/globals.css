@@ -2446,3 +2446,23 @@ select:not([multiple]):not([size]) {
   padding-right: 40px !important;
 }
 select:not([multiple]):not([size])::-ms-expand { display: none; }
+
+/* ── Top bar without the left menu (2026-10-02) ── */
+.topbar-home-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 12px; border-radius: 8px;
+  border: 1.5px solid var(--border); background: transparent;
+  color: var(--blue); font-size: 13px; font-weight: 700; cursor: pointer;
+  white-space: nowrap; flex-shrink: 0; font-family: inherit;
+}
+.topbar-home-btn:hover { background: #f0f4f8; border-color: var(--blue); }
+.topbar-viewas {
+  display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 12px; font-weight: 700; color: #92400e;
+  background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 5px 8px;
+}
+.topbar-viewas button, .topbar-viewas-btn {
+  background: #fff; border: 1.5px solid var(--border); border-radius: 6px;
+  color: var(--blue); font-size: 12px; font-weight: 700; padding: 4px 9px; cursor: pointer; font-family: inherit;
+}
+.topbar-viewas-btn { height: 36px; padding: 0 12px; border-radius: 8px; }
