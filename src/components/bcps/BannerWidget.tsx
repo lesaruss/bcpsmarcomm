@@ -141,7 +141,7 @@ const VALIDATION_CHECKLIST = [
   // out because no school was picked, and nothing said why).
   { key: 'school', label: 'School selected' },
   { key: 'files', label: 'Up to three files' },
-  { key: 'dims', label: 'Media meets 2000 × 800 px minimum requirements' },
+  { key: 'dims', label: 'Media meets 1920 × 800 px minimum requirements' },
   { key: 'no_overlays', label: 'Image is free of graphics, borders, text overlays' },
   { key: 'nav_clearance', label: 'Homepage navigation face-clearance (flagged for manual review)' },
   { key: 'title', label: 'Banner title provided' },
@@ -193,6 +193,12 @@ const REJECT_REASON_CATEGORIES = [
 
 // Character limits (Vanessa Deslandes, 2026-10-02). Kept in sync with
 // /api/banner/submit.
+// Minimum image size matches Finalsite's homepage hero banner minimum
+// (Sean + Vanessa Deslandes, 2026-10-02), lowered from 2000 x 800 so the
+// rule is the platform's own published standard.
+const MIN_WIDTH = 1920
+const MIN_HEIGHT = 800
+
 const TITLE_MAX = 40
 const CAPTION_MAX = 115
 const MAX_FILES = 3
@@ -211,7 +217,7 @@ interface BannerItem {
   file: File | null
   previewUrl: string | null
   kind: 'image' | 'video' | null
-  // Natural pixel size, for the 2000 x 800 minimum row. Images only.
+  // Natural pixel size, for the MIN_WIDTH x MIN_HEIGHT minimum row. Images only.
   dims: { width: number; height: number } | null
   scanState: 'idle' | 'scanning' | 'done' | 'degraded' | 'error'
   scanResult: ScanResult | null
@@ -550,7 +556,7 @@ export default function BannerWidget() {
   // extra "Add another banner" the WCM never used does not block submit.
   const filled = items.filter(i => i.file)
   const allChecked = CHECKLIST.every(c => checks[c.key])
-  const dimsOk = (i: BannerItem) => i.kind === 'video' ? true : !!(i.dims && i.dims.width >= 2000 && i.dims.height >= 800)
+  const dimsOk = (i: BannerItem) => i.kind === 'video' ? true : !!(i.dims && i.dims.width >= MIN_WIDTH && i.dims.height >= MIN_HEIGHT)
   const overlaysOk = (i: BannerItem) => !!i.scanResult?.no_overlays_pass && (!i.scanResult?.text_detected || i.inSceneText)
   const needsConfirm = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult?.no_overlays_pass && !!i.scanResult?.text_detected && !i.inSceneText
   const scanFailed = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult && !i.scanResult.no_overlays_pass
@@ -1081,14 +1087,14 @@ export default function BannerWidget() {
                     onChange={(e) => chooseFile(it.key, e.target.files?.[0] || null)}
                   />
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                    Image: 2880x1600px target (2000x800px minimum). Video: MP4 only, max 30 seconds, 1080p HD recommended (not 4K).
+                    Image: 2880x1600px target (1920x800px minimum, the Finalsite homepage banner standard). Video: MP4 only, max 30 seconds, 1080p HD recommended (not 4K).
                   </div>
                   {/* The size this tool measured, so a Fail on the size row
                       always says why (Vanessa Deslandes, 2026-10-02). */}
                   {it.kind === 'image' && it.dims && (
                     <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: dimsOk(it) ? '#1e6b3a' : '#a13a2f' }}>
                       Measured size: {it.dims.width} &times; {it.dims.height} px
-                      {dimsOk(it) ? ' - meets the minimum.' : ' - below the 2000 \u00d7 800 px minimum.'}
+                      {dimsOk(it) ? ' - meets the minimum.' : ` - below the ${MIN_WIDTH} \u00d7 ${MIN_HEIGHT} px minimum.`}
                     </div>
                   )}
                   {it.kind === 'image' && it.dims && (it.orientation ?? 1) >= 5 && (

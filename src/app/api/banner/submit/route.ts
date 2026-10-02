@@ -14,7 +14,7 @@ import { analyzeBannerImage } from '@/lib/bannerVision'
 // tool in practice).
 //
 // Spec, confirmed by Sean + Vanessa Deslandes 2026-08-24/2026-09-02:
-// - image target 2880x1600, 2000x800 floor; video MP4 only, max 30s, 1080p
+// - image target 2880x1600, 1920x800 floor (Finalsite hero minimum, 2026-10-02); video MP4 only, max 30s, 1080p
 //   recommended (not 4K) - dimensions/duration are checked client-side by the
 //   widget (it has the actual pixel data), this route re-checks byte size and
 //   MIME/extension only.
