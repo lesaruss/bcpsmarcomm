@@ -75,6 +75,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'department-audit':       { title: 'Department Name Audit',  sub: 'Profiles vs. Roster Consistency' },
   'find-it-fast':           { title: 'Find It Fast',          sub: 'Back to School Widget Content' },
   'widgets':                { title: 'Widgets',               sub: 'Embeddable Modules' },
+  'directory':              { title: 'Department & Program Directory', sub: 'Widget Content & Search Insights' },
   'ada-scanner':            { title: 'ADA Scanner',           sub: 'Accessibility Compliance Check' },
   'schools-ada':            { title: 'Schools ADA',           sub: 'Full-Site Accessibility Scores by School' },
   'schools':                { title: 'School ADA Accounts',   sub: 'School-Level WCM Portal Accounts' },

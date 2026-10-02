@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import FindItFastPage from './FindItFastPage'
 import CharterSchoolsPage from './CharterSchoolsPage'
 import IidlServicesPage from './IidlServicesPage'
+import DirectoryPage from './DirectoryPage'
 import { useEffectiveRole } from '@/components/BCPSShell'
 
 interface Widget {
@@ -29,6 +30,7 @@ const EDITORS: Record<string, React.ComponentType> = {
   'find-it-fast': FindItFastPage,
   'charter-school-directory': CharterSchoolsPage,
   'iidl-services-directory': IidlServicesPage,
+  'department-program-directory': DirectoryPage,
 }
 
 const ROLE_OPTS = ['view', 'edit', 'manage']

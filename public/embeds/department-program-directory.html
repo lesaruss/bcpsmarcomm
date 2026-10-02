@@ -261,8 +261,6 @@
 </div>
 
 <script>
-const BASE = 'https://www.browardschools.com';
-
 // Ordered by demand: the topics holding the most-visited pages come first.
 const TOPICS = {
   enroll:     'Enrollment & School Choice',
@@ -283,351 +281,31 @@ const TOPICS = {
 // audience-based navigation; a host page can still preset one with ?aud=E.
 const AUDIENCES = { F: 'Parent or family', S: 'Student', E: 'Employee', C: 'Community or business' };
 
-// Most visited: the department pages with the most GA4 visitors in Sep-Oct 2026
-// (bcps_department_analytics), as one-click links. Re-rank from GA4 each term.
-const POPULAR = [
-  ['Jobs & HR', '/bcps-departments/human-resources'],
-  ['School Choice', '/bcps-departments/school-choice123'],
-  ['Bus Transportation', '/bcps-departments/student-transportation-fleet-services'],
-  ['School Meals', '/bcps-departments/food-and-nutrition-services'],
-  ['School Counseling', '/bcps-departments/school-counseling'],
-  ['Find My School', '/bcps-departments/strategy-innovation/demographics-enrollment-planning/find-my-school'],
-  ['Before & After School Care', '/bcps-departments/strategy-innovation/before-and-after-school-child-care-bascc'],
-  ['Safety & Security', '/bcps-departments/safety-security-and-emergency-preparedness'],
-];
-// Card order inside each topic, most-wanted first. Department pages are ranked by
-// GA4 visitors (Sep-Oct 2026); the program pages listed are the top family tasks
-// those departments' traffic points to. Everything not listed follows A to Z.
-const DEMAND = [
-  '/bcps-departments/human-resources',
-  '/bcps-departments/school-counseling/register-my-child',
-  '/bcps-departments/strategy-innovation/demographics-enrollment-planning/find-my-school',
-  '/bcps-departments/safety-security-and-emergency-preparedness',
-  '/bcps-departments/school-choice123',
-  '/bcps-departments/student-transportation-fleet-services',
-  '/bcps-departments/student-transportation-fleet-services/overview',
-  '/bcps-departments/food-and-nutrition-services',
-  '/bcps-departments/food-and-nutrition-services/power-up-menus',
-  '/bcps-departments/food-and-nutrition-services/meal-benefits',
-  '/calendar-e3',
-  '/bcps-departments/school-counseling',
-  '/bcps-departments/strategy-innovation/demographics-enrollment-planning',
-  '/bcps-departments/school-culture-student-support',
-  '/bcps-departments/strategy-innovation/before-and-after-school-child-care-bascc',
-  '/fs/pages/80656',
-  '/bcps-departments/procurement',
-  '/bcps-departments/exceptional-student-education',
-  '/bcps-departments/strategy-innovation',
-].map(path => BASE + path);
-const rank = it => { const i = DEMAND.indexOf(it.url); return i === -1 ? Infinity : i; };
+// Content lives in bcps_directory_entries (public read of active rows, same
+// model as the II&DL and Charter School embeds) and is edited in the portal
+// at bcpsmarcomm.com, Widgets > Department & Program Directory. demand_rank
+// orders cards inside a topic (GA4, most-wanted first); popular_label and
+// popular_rank place an entry in the Most visited row.
+const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+const COLUMNS = 'id,kind,name,url,context,description,topic,audiences,tags,includes,demand_rank,popular_label,popular_rank,sort_order';
 
-const popularLinks = () => POPULAR.map(([label, path]) =>
-  `<a class="chip try" href="${BASE + path}" target="_top">${escapeHtml(label)}</a>`).join('');
+async function loadEntries() {
+  // A static snapshot (window.DIRECTORY_DATA) is used where the page cannot
+  // reach the database, such as an offline preview.
+  if (Array.isArray(window.DIRECTORY_DATA)) return window.DIRECTORY_DATA;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/bcps_directory_entries?select=${COLUMNS}&active=eq.true&order=sort_order`, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
 
-// Departments: name, path, division, description, topic, audiences, tags, [sub-units on the same page].
-// Source: bcps_departments (website_url and blurb). Sub-units that share one page
-// are merged into a single card so a search never shows six links to the same URL.
-// Records with no website_url (Enterprise Analytics & Intelligence, Graphics,
-// Employee Assistance Program, HR Operations) are left out until they have a page.
-const DEPTS = [
-  ['Bilingual / ESOL', '/bcps-departments/bilingualesol', 'Academics',
-    'Serves English language learners through bilingual programs, ESOL instruction, and language development support services.',
-    'acad', 'FSE', ['ELL', 'English language learners', 'ESOL', 'bilingual', 'language', 'translation', 'interpreter', 'multilingual', 'Spanish', 'Haitian Creole', 'Portuguese', 'newcomer']],
-  ['Career, Technical & Adult Education', '/bcps-departments/career-technical-adult-education-ctace', 'Academics',
-    'Prepares students for careers and college through CTE programs, apprenticeships, and adult education pathways.',
-    'acad', 'FSC', ['CTE', 'CTACE', 'career', 'vocational', 'trades', 'apprenticeship', 'adult education', 'GED', 'technical college', 'industry certification', 'workforce']],
-  ['Early Childhood Education', '/bcps-departments/early-childhood-education', 'Academics',
-    'Oversees PreK and kindergarten readiness programs, early intervention services, and early literacy initiatives.',
-    'acad', 'F', ['PreK', 'pre-k', 'VPK', 'preschool', 'kindergarten readiness', 'Head Start', 'early learning', 'early intervention']],
-  ['Educational Assessment, Analysis & Research', '/bcps-departments/educational-assessment-analysis-research', 'Academics',
-    'Conducts research, manages assessments, and analyzes academic data to drive districtwide instructional decisions.',
-    'acad', 'FE', ['testing', 'tests', 'assessments', 'FAST', 'EOC', 'state tests', 'test scores', 'research request', 'school grades', 'accountability', 'data']],
-  ['Elementary Learning', '/bcps-departments/elementary-learning', 'Academics',
-    'Supports K-5 curriculum, instructional frameworks, and school improvement across all elementary schools in the district.',
-    'acad', 'FE', ['elementary', 'K-5', 'curriculum', 'reading', 'math', 'science', 'primary']],
-  ['Instructional Innovation & Digital Learning', '/bcps-departments/academics/instructional-innovation-digital-learning', 'Academics',
-    'Advances digital learning tools, instructional technology integration, and innovative teaching models across all schools.',
-    'acad', 'EF', ['IIDL', 'digital learning', 'instructional technology', 'library', 'media center', 'distance learning', 'virtual field trips', 'STEM', 'computer science', 'professional learning', 'instructional materials', 'textbooks']],
-  ['Leadership Development', '/bcps-departments/leadership-development', 'Academics',
-    'Develops and supports school and district leaders through coaching, mentorship, training, and leadership pipeline programs.',
-    'hr', 'E', ['principal', 'assistant principal', 'aspiring leaders', 'leadership', 'coaching', 'mentoring']],
-  ['Magnet & Innovative Programs', '/bcps-departments/applied-learning-academic-electives-specials-magnet-programs', 'Academics',
-    'Manages magnet schools, choice programs, and specialized academic options available to families across the district.',
-    'enroll', 'FS', ['magnet', 'choice', 'specialty programs', 'applied learning', 'electives', 'specials', 'innovative programs', 'apply']],
-  ['Secondary Learning', '/bcps-departments/secondary-learning', 'Academics',
-    'Guides middle and high school curriculum, instruction, and academic programming for all secondary schools districtwide.',
-    'acad', 'FSE', ['middle school', 'high school', 'graduation requirements', 'AP', 'AP classes', 'advanced placement', 'IB', 'AICE', 'dual enrollment', 'honors', 'credits']],
-
-  ['BECON', '/bcps-departments/broward-educational-communications-network-becon', 'Chief of Staff',
-    "Operates Broward's educational cable TV network, producing and broadcasting K-12 educational and community content.",
-    'gov', 'CF', ['TV', 'television', 'cable', 'broadcast', 'channel', 'video production', 'Broward Educational Communications Network']],
-  ['Family & Community Engagement', '/bcps-departments/family-and-community-engagement-face', 'Chief of Staff',
-    'Builds partnerships with families, community organizations, and local stakeholders to support student success districtwide.',
-    'family', 'FC', ['FACE', 'parents', 'family', 'parent workshops', 'PTA', 'SAC', 'community partners', 'family engagement']],
-  ['Office of Communications & Legislative Affairs', '/bcps-departments/office-of-communications-legislative-affairs', 'Chief of Staff',
-    'Manages district messaging, branding, and marketing, and represents district interests with local and state government.',
-    'gov', 'CE', ['communications', 'marketing', 'branding', 'logo', 'social media', 'legislative', 'legislature', 'Tallahassee', 'government relations', 'advocacy', 'public information'],
-    ['Legislative Affairs', 'Marketing & Strategic Communications']],
-  ['Media Relations', '/bcps-departments/newsroom', 'Chief of Staff',
-    'Handles press inquiries, media partnerships, news releases, and journalist relationships on behalf of the district.',
-    'gov', 'C', ['news', 'newsroom', 'press', 'media', 'reporters', 'press release', 'announcements', 'spokesperson']],
-
-  ['Capital Programs', '/bcps-departments/capital-budget', 'Facilities',
-    'Manages construction projects, capital improvement programs, and bond-funded school building and renovation initiatives.',
-    'ops', 'C', ['capital budget', 'bond', 'SMART program', 'renovations', 'construction', 'school buildings']],
-  ['Construction', '/bcps-departments/building-department', 'Facilities',
-    'Oversees active construction, renovation, and modernization projects across district school sites and facilities.',
-    'ops', 'C', ['building department', 'permits', 'inspections', 'building code', 'contractors']],
-  ['Facility Planning & Real Estate', '/bcps-departments/facility-planning-real-estate', 'Facilities',
-    'Plans long-range facility needs, manages property acquisitions, leases, and district real estate assets and portfolios.',
-    'ops', 'C', ['property', 'real estate', 'land', 'leases', 'school sites', 'facility planning']],
-  ['Physical Plant Operations', '/bcps-departments/physical-plant-operations', 'Facilities',
-    'Maintains school buildings, HVAC, electrical, plumbing, and grounds across all district facilities and campuses.',
-    'ops', 'E', ['maintenance', 'repairs', 'HVAC', 'air conditioning', 'grounds', 'plumbing', 'electrical', 'work order']],
-  ['Sustainability & Compliance', '/bcps-departments/environmental-health-safety', 'Facilities',
-    'Leads environmental compliance, sustainability initiatives, energy management, and green building standards districtwide.',
-    'ops', 'EF', ['environmental health', 'indoor air quality', 'mold', 'asbestos', 'recycling', 'energy', 'sustainability', 'green']],
-
-  ['Accounting & Financial Reporting', '/bcps-departments/accounting-financial-reporting', 'Finance',
-    'Maintains financial records, prepares audited statements, and ensures accurate accounting across the district.',
-    'money', 'CE', ['accounting', 'financial statements', 'annual financial report', 'finance']],
-  ['Benefits', '/bcps-departments/benefits-employment-services', 'Finance',
-    'Administers employee health insurance, retirement plans, and benefit programs for all active and retired district personnel.',
-    'hr', 'E', ['health insurance', 'medical', 'dental', 'vision', 'retirement', 'FRS', 'open enrollment', 'life insurance', 'employee benefits', 'retirees']],
-  ['Budget', '/bcps-departments/budget', 'Finance',
-    "Develops and manages the district's annual operating budget and multi-year financial planning and forecasting process.",
-    'money', 'C', ['budget', 'millage', 'taxes', 'spending', 'budget hearings', 'operating budget']],
-  ['Economic Development, Opportunities & Compliance', '/bcps-departments/economic-development-opportunities-compliance-edoc', 'Finance',
-    'Promotes small business contracting opportunities and ensures compliance with M/WBE programs across all district procurement.',
-    'money', 'C', ['EDOC', 'small business', 'M/WBE', 'minority business', 'supplier diversity', 'vendor certification']],
-  ['Federal Programs', '/bcps-departments/federal-programs', 'Finance',
-    'Oversees compliance and implementation of Title I, IDEA, and other federal funding programs for the district.',
-    'money', 'FE', ['Title I', 'Title 1', 'IDEA', 'federal funding', 'Title III', 'Title IV']],
-  ['Grants Administration', '/bcps-departments/grants-administration', 'Finance',
-    'Secures, monitors, and reports on federal, state, and private grant funding that supports district programs and initiatives.',
-    'money', 'CE', ['grants', 'funding', 'grant writing', 'foundations']],
-  ['Payroll', '/bcps-departments/payroll', 'Finance',
-    'Processes accurate and timely payroll for all district employees and manages compensation records and disbursements.',
-    'hr', 'E', ['paycheck', 'pay', 'salary', 'direct deposit', 'W-2', 'tax forms', 'pay schedule', 'pay stub']],
-  ['Procurement & Logistics', '/bcps-departments/procurement', 'Finance',
-    'Manages competitive bidding, vendor contracts, purchasing, and supply chain operations for all district departments.',
-    'money', 'C', ['bids', 'RFP', 'purchasing', 'vendors', 'contracts', 'solicitations', 'sell to the district', 'supplier']],
-  ['Risk Management', '/bcps-departments/risk-management', 'Finance',
-    "Manages district insurance programs, workers' compensation, liability claims, and loss prevention across all operations.",
-    'money', 'EC', ['insurance', "workers' comp", 'workers compensation', 'claims', 'liability', 'injury', 'accident report']],
-  ['Treasurer', '/bcps-departments/treasurers-office/overview', 'Finance',
-    'Manages district investment portfolios, banking relationships, cash management, and debt service obligations.',
-    'money', 'C', ['treasury', 'investments', 'banking', 'cash management', 'debt', 'bonds']],
-
-  ['EEO / ADA Compliance', '/bcps-departments/human-resources/equal-educational-opportunities/overview', 'Human Resources',
-    'Ensures district compliance with Equal Employment Opportunity laws and the Americans with Disabilities Act requirements.',
-    'hr', 'EF', ['EEO', 'equal opportunity', 'ADA', 'disability', 'accommodations', 'discrimination', 'harassment', 'Title IX', 'civil rights', 'complaint']],
-  ['Human Resources', '/bcps-departments/human-resources', 'Human Resources',
-    'Recruits, hires, and onboards district staff, and runs employee performance and growth programs.',
-    'hr', 'EC', ['jobs', 'careers', 'employment', 'hiring', 'apply', 'teaching jobs', 'recruitment', 'onboarding', 'substitute teacher', 'teacher certification', 'HR'],
-    ['Talent Acquisition', 'Talent Management']],
-  ['Labor Relations', '/bcps-departments/human-resources/labor-relations', 'Human Resources',
-    'Manages collective bargaining agreements, union relationships, and employee contract compliance across the district.',
-    'hr', 'E', ['union', 'collective bargaining', 'contracts', 'labor', 'grievance']],
-  ['Professional Practices', '/bcps-departments/human-resources/professional-practices', 'Human Resources',
-    'Investigates employee misconduct, enforces district policy, and manages disciplinary proceedings for all staff matters.',
-    'hr', 'EF', ['misconduct', 'investigations', 'employee discipline', 'employee conduct', 'complaint about an employee']],
-
-  ['General Counsel', '/bcps-departments/office-of-general-counsel', 'Independent Offices',
-    'Provides legal counsel, represents the district in litigation, and ensures compliance with all applicable education law.',
-    'gov', 'C', ['legal', 'lawyer', 'attorney', 'subpoena', 'litigation', 'law']],
-  ['Office of the Auditor', '/bcps-departments/audit', 'Independent Offices',
-    'Conducts independent audits of district finances, operations, and programs to ensure accountability and proper use of public funds.',
-    'gov', 'C', ['audit', 'internal audit', 'fraud', 'waste', 'audit reports', 'accountability']],
-
-  ['Information Technology', '/bcps-departments/information-technology', 'Information Systems',
-    'Runs district technology: devices, help desk support, networks, enterprise applications, data, and cybersecurity.',
-    'tech', 'ESF', ['IT', 'tech support', 'help desk', 'password', 'laptop', 'device', 'Wi-Fi', 'network', 'cybersecurity', 'software', 'email', 'login'],
-    ['Application Services', 'Data Intelligence', 'Information Security & Assurance', 'Infrastructure Services', 'Technology Operations', 'Technology Support Services']],
-
-  ['Learning Communities', '/bcps-departments/sasp', 'Learning Communities',
-    'Provides regional leadership, instructional coaching, and operational support to schools in the North, Central, and South regions.',
-    'acad', 'FE', ['regions', 'regional office', 'regional superintendent', 'North Region', 'Central Region', 'South Region', 'school support'],
-    ['Central Region', 'North Region', 'South Region']],
-  ['School Transformation Office', '/bcps-departments/school-improvement', 'Learning Communities',
-    'Leads turnaround and improvement initiatives for schools requiring intensive academic and operational support services.',
-    'acad', 'EF', ['school improvement', 'turnaround', 'transformation', 'school improvement plan', 'SIP', 'accreditation']],
-
-  ['Safety, Security & Emergency Preparedness', '/bcps-departments/safety-security-and-emergency-preparedness', 'Safety & Security',
-    'Coordinates school safety planning, security operations, threat assessment, safety technology, and emergency response districtwide.',
-    'safety', 'FEC', ['safety', 'security', 'emergency', 'threat assessment', 'hurricane', 'storm', 'lockdown', 'drills', 'cameras', 'visitors'],
-    ['Behavioral Threat Management', 'Emergency Management', 'Safety & Security Operations', 'Safety Technology']],
-  ['Broward County Schools Police', '/bcps-departments/bcps-police', 'Safety & Security',
-    'Provides sworn law enforcement services, campus safety officers, and security coverage at all district locations.',
-    'safety', 'FC', ['police', 'SRO', 'school resource officer', 'law enforcement', 'officers', 'report a crime']],
-
-  ['Athletics & Student Activities', '/bcps-departments/athletics', 'Strategy & Operations',
-    'Governs interscholastic athletics, student clubs, activities, and extracurricular programs at all district schools.',
-    'activities', 'SF', ['sports', 'athletics', 'football', 'basketball', 'physicals', 'eligibility', 'coaches', 'clubs', 'extracurricular']],
-  ['Charter Schools Management/Support', '/bcps-departments/school-choice123', 'Strategy & Operations',
-    'Oversees charter school authorizing, compliance monitoring, and operational support for all BCPS charter operators.',
-    'enroll', 'FC', ['charter schools', 'charter', 'school choice', 'charter application']],
-  ['Demographics & Enrollment Planning', '/bcps-departments/strategy-innovation/demographics-enrollment-planning', 'Strategy & Operations',
-    'Analyzes student population trends, manages school boundary planning, and coordinates enrollment projections for the district.',
-    'enroll', 'F', ['boundaries', 'attendance zones', 'zoned school', 'find my school', 'school locator', 'enrollment', 'reassignment']],
-  ['Food & Nutrition Services', '/bcps-departments/food-and-nutrition-services', 'Strategy & Operations',
-    'Provides federally compliant school meals, nutrition education, and cafeteria operations across all district schools.',
-    'ops', 'FS', ['lunch', 'breakfast', 'meals', 'menus', 'cafeteria', 'free lunch', 'reduced price meals', 'nutrition', 'food allergies']],
-  ['Strategic Initiatives & Performance Management', '/bcps-departments/strategy-innovation', 'Strategy & Operations',
-    'Drives districtwide strategy, tracks organizational performance metrics, and manages high-priority cross-functional initiatives.',
-    'gov', 'CE', ['strategic plan', 'strategy', 'performance', 'initiatives', 'innovation']],
-  ['Student Transportation & Fleet Services', '/bcps-departments/student-transportation-fleet-services', 'Strategy & Operations',
-    'Manages school bus routes, driver operations, fleet maintenance, and student transportation logistics districtwide.',
-    'ops', 'FS', ['bus', 'school bus', 'bus stop', 'bus route', 'bus schedule', 'transportation', 'ride', 'bus driver', 'fleet']],
-
-  ['Before & After School Care', '/bcps-departments/strategy-innovation/before-and-after-school-child-care-bascc', 'Student Services',
-    'Administers supervised before and after school care programs at elementary and middle school sites districtwide.',
-    'family', 'F', ['BASCC', 'aftercare', 'before care', 'child care', 'after school', 'daycare']],
-  ['Exceptional Student Education', '/bcps-departments/exceptional-student-education', 'Student Services',
-    'Provides services, advocacy, and programs for students with disabilities across all schools in the district.',
-    'support', 'FS', ['ESE', 'IEP', 'special education', 'disabilities', 'autism', 'speech therapy', '504', 'exceptional']],
-  ['School Counseling', '/bcps-departments/school-counseling', 'Student Services',
-    'Supports school counselors in delivering academic, social-emotional, and career development services to all students.',
-    'support', 'FS', ['counselor', 'guidance', 'college', 'scholarships', 'course selection', 'career planning']],
-  ['School Culture & Student Support', '/bcps-departments/school-culture-student-support', 'Student Services',
-    'Promotes positive school environments, student engagement, restorative practices, and behavioral wellness districtwide.',
-    'support', 'FS', ['behavior', 'discipline', 'restorative practices', 'bullying', 'school climate', 'code of conduct']],
-  ['Student Services & Mental Health', '/bcps-departments/student-services', 'Student Services',
-    'Delivers counseling, mental health services, and wraparound support to students and families across the district.',
-    'support', 'FS', ['mental health', 'counseling', 'social work', 'attendance', 'homeless', 'wellness', 'therapy', 'crisis', 'suicide prevention']],
-];
-
-// Programs & Services: name, path, description, topic, audiences, tags.
-// Source: bcps_programs (the A-Z list at /directory/programs-and-services-63).
-// Descriptions and tags are drafts for each owning department to confirm.
-const PROGS = [
-  ['Academics', '/fs/pages/77942', 'District academic programs and resources from early learning through high school.', 'acad', 'FS', ['curriculum', 'subjects', 'learning', 'instruction']],
-  ['Advertising', '/community/get-involved-with-bcps-landing/overview', 'Opportunities for businesses to advertise with and sponsor the district.', 'family', 'C', ['ads', 'sponsorship', 'advertise', 'business partners']],
-  ['All Are Welcome', '/bcps-departments/office-of-communications-legislative-affairs/general-information/all-are-welcome', "The district's All Are Welcome message and resources.", 'family', 'FC', ['inclusion', 'belonging', 'welcoming schools']],
-  ['Anonymous Tips', '/fs/pages/83746', 'Ways to report a safety concern without giving your name.', 'safety', 'SFC', ['report a tip', 'tip line', 'report a threat', 'anonymous reporting', 'see something say something']],
-  ['Anti-Bullying', '/fs/pages/119593', 'Bullying prevention and how to report bullying.', 'support', 'SF', ['bullying', 'cyberbullying', 'harassment', 'report bullying']],
-  ['Athletics', '/bcps-departments/athletics/overview', 'Interscholastic sports, eligibility, and athletic resources.', 'activities', 'SF', ['sports', 'physicals', 'eligibility', 'teams', 'game schedules']],
-  ['Attendance', '/bcps-departments/student-services/attendance', 'Attendance expectations and help with absences.', 'support', 'FS', ['absences', 'absent', 'truancy', 'tardy', 'excused absence']],
-  ['BCPS Police', '/bcps-departments/safety-security-and-emergency-preparedness/broward-county-public-schools-police-bcps-police', "The district's police department.", 'safety', 'FC', ['police', 'SRO', 'officers', 'law enforcement']],
-  ['BECON Programming', '/bcps-departments/broward-educational-communications-network-becon/overview', 'BECON TV programming and schedules.', 'gov', 'CF', ['TV', 'television', 'channel', 'broadcast', 'TV schedule']],
-  ['Before & After School Care', '/fs/pages/119169', 'Before and after school child care at district sites.', 'family', 'F', ['aftercare', 'child care', 'daycare', 'BASCC', 'after school']],
-  ['BRACE', '/bcps-departments/school-counseling/overview-programs', 'College and career advising for high school students.', 'support', 'SF', ['BRACE advisors', 'college', 'career', 'scholarships', 'financial aid', 'FAFSA']],
-  ['Breakfast and Lunch Menus', '/bcps-departments/food-and-nutrition-services/power-up-menus', 'School breakfast and lunch menus.', 'ops', 'FS', ['menu', 'lunch menu', 'breakfast', 'meals', 'cafeteria', 'food']],
-  ['Broward CODES', '/fs/pages/80847', "The district's computer science and coding initiative.", 'acad', 'SF', ['coding', 'computer science', 'programming']],
-  ['Broward Virtual University (BVU)', '/fs/pages/85031', 'Online courses and professional learning through Broward Virtual University.', 'hr', 'E', ['BVU', 'online courses', 'professional development', 'training']],
-  ['Calendar', '/calendar-e3', 'District calendar, holidays, and key dates.', 'gov', 'FSE', ['school calendar', 'holidays', 'days off', 'first day of school', 'last day of school', 'spring break', 'winter break', 'early release']],
-  ['Caliber Awards', '/fs/pages/79305', "The district's employee recognition awards.", 'hr', 'E', ['employee recognition', 'teacher of the year', 'awards']],
-  ['Career and Technical Education', '/academics/career-technical-adult-community-education/overview', 'Career and technical programs and adult education.', 'acad', 'SFC', ['CTE', 'vocational', 'trades', 'industry certification', 'technical college', 'adult education']],
-  ['Chess', '/fs/pages/80613', 'Scholastic chess programs.', 'activities', 'S', ['chess club', 'tournaments']],
-  ['Child Abuse Services', '/bcps-departments/student-services/child-abuse-neglect-prevention-services', 'Child abuse and neglect prevention and reporting.', 'support', 'FE', ['abuse', 'neglect', 'report abuse', 'child protection', 'mandated reporter']],
-  ['Chronic Health', '/bcps-departments/coordinated-student-health-services/health-conditions/chronic-health', 'Support for students with chronic health conditions.', 'support', 'FS', ['asthma', 'diabetes', 'allergies', 'seizures', 'medication', 'school nurse']],
-  ['Civic Engagement', '/fs/pages/80610', 'Civic education and student civic engagement.', 'activities', 'S', ['civics', 'voting', 'student government', 'citizenship']],
-  ['Code of Student Conduct', '/fs/pages/110418', 'The rules and expectations for student behavior.', 'support', 'FS', ['discipline', 'rules', 'behavior', 'dress code', 'suspension', 'conduct']],
-  ['Community Connections', '/bcps-departments/office-of-student-services/overview', 'Connections to community services and partners.', 'family', 'FC', ['community resources', 'partners', 'social services']],
-  ['Community Involvement Awards', '/fs/pages/79493', 'Awards recognizing community partners and volunteers.', 'family', 'C', ['volunteer awards', 'business partners', 'recognition']],
-  ['Community Service - Student', '/programs-and-services/service-learning-student-volunteer', 'Service learning and student volunteer hours.', 'activities', 'S', ['volunteer hours', 'service hours', 'community service hours', 'service learning']],
-  ['Computer Science', '/fs/pages/119632', 'Computer science courses and programs.', 'acad', 'S', ['coding', 'programming', 'STEM']],
-  ['Debate', '/fs/pages/80619', 'Speech and debate programs.', 'activities', 'S', ['speech', 'debate team', 'forensics', 'public speaking']],
-  ['District Accreditation', '/bcps-departments/school-improvement/accreditation', 'District accreditation information.', 'gov', 'CF', ['accreditation', 'quality standards']],
-  ["Driver's Education", '/fs/pages/80629', 'Driver education courses for students.', 'acad', 'S', ['drivers ed', 'driving', "driver's license", 'learner permit']],
-  ['Early Childhood', '/academics/early-learning/overview', 'Early childhood and early learning programs.', 'acad', 'F', ['PreK', 'pre-k', 'preschool', 'VPK', 'kindergarten readiness']],
-  ['Early Learning', '/fs/pages/77976', 'Early learning programs for young children.', 'acad', 'F', ['PreK', 'preschool', 'VPK', 'Head Start', 'early childhood']],
-  ['Emergency Information / Codes', '/bcps-departments/safety-security-and-emergency-preparedness/emergency-management/emergency-response-protocols', 'Emergency response protocols and codes.', 'safety', 'FE', ['emergency codes', 'lockdown', 'code red', 'code yellow', 'evacuation', 'emergency procedures']],
-  ['Employee and External Self-Service (ESS)', '/fs/pages/85914', 'Employee self-service for pay and personal information.', 'hr', 'E', ['ESS', 'pay stub', 'W-2', 'employee portal', 'self service']],
-  ['Environmental Education', '/fs/pages/119632', 'Environmental education programs.', 'acad', 'S', ['environment', 'ecology', 'nature', 'conservation', 'sustainability']],
-  ['ESE Support', '/bcps-departments/exceptional-student-education/overview', 'Services for students with disabilities.', 'support', 'FS', ['special education', 'IEP', 'ESE', 'disabilities', 'autism', 'speech therapy']],
-  ['Family and Community Engagement (FACE)', '/fs/pages/82917', 'Programs and workshops for families and community partners.', 'family', 'FC', ['parents', 'parent workshops', 'PTA', 'family engagement']],
-  ['Family Counseling', '/bcps-departments/mental-health-services/family-counseling-program', 'Counseling services for students and families.', 'support', 'F', ['family therapy', 'counseling', 'mental health', 'parenting support']],
-  ['Foreign Exchange Program', '/bcps-departments/school-counseling/foreign-exchange-program', 'Information for foreign exchange students and host families.', 'enroll', 'SF', ['exchange students', 'international students', 'host family', 'study abroad']],
-  ['Foster Care Program', '/fs/pages/84173', 'Support for students in foster care.', 'support', 'FS', ['foster care', 'foster youth', 'foster families', 'caregivers']],
-  ['Free and Reduced Lunch Program', '/bcps-departments/food-and-nutrition-services/meal-benefits', 'Apply for free or reduced-price school meals.', 'ops', 'F', ['free lunch', 'reduced lunch', 'meal application', 'meal benefits', 'free meals', 'FRL']],
-  ['Get Involved', '/community/get-involved-with-bcps-landing/overview', 'Ways for families, businesses, and the community to get involved.', 'family', 'FC', ['volunteer', 'partner', 'mentor', 'donate', 'business partners']],
-  ['Gifted & Talented', '/fs/pages/82966', 'Gifted programs and screening.', 'acad', 'FS', ['gifted', 'gifted testing', 'gifted screening', 'advanced', 'enrichment']],
-  ['Guidance', '/bcps-departments/school-counseling/overview-programs', 'School counseling and guidance services.', 'support', 'SF', ['counselor', 'school counselor', 'guidance counselor', 'course selection']],
-  ['Head Start', '/fs/pages/83036', 'Head Start early education for eligible families.', 'acad', 'F', ['Head Start', 'Early Head Start', 'preschool', 'free preschool']],
-  ['Health Services', '/bcps-departments/coordinated-student-health-services/overview', 'School health services and nurses.', 'support', 'FS', ['school nurse', 'health', 'clinic', 'medication', 'vision screening', 'hearing screening']],
-  ['Home Education Program', '/fs/pages/83106', 'Information for families who homeschool.', 'enroll', 'F', ['homeschool', 'home school', 'homeschooling', 'home education']],
-  ['Homeless Education', '/bcps-departments/student-services/homeless-education-heart', 'Support for students experiencing homelessness.', 'support', 'FS', ['homeless', 'HEART', 'housing', 'McKinney-Vento', 'shelter', 'displaced']],
-  ['Immunization Information', '/bcps-departments/coordinated-student-health-services/overview', 'School immunization requirements.', 'support', 'F', ['vaccines', 'shots', 'immunizations', 'vaccination requirements', 'health forms']],
-  ['JROTC', '/fs/pages/85530', 'Junior ROTC leadership programs in high schools.', 'activities', 'S', ['ROTC', 'military', 'cadets', 'leadership']],
-  ['Leaves', '/fs/pages/80022', 'Employee leave information.', 'hr', 'E', ['leave of absence', 'FMLA', 'maternity leave', 'medical leave', 'time off']],
-  ['Legislative Information', '/bcps-departments/office-of-communications-legislative-affairs/legislative-information/overview', 'Legislative priorities and updates.', 'gov', 'C', ['legislature', 'bills', 'legislative priorities', 'Tallahassee']],
-  ['Literacy', '/academics/literacy/welcome-to-literacy-department', 'Reading and literacy programs.', 'acad', 'FSE', ['reading', 'writing', 'books', 'ELA', 'English language arts']],
-  ['Lobbyists', '/bcps-departments/office-of-communications-legislative-affairs/legislative-information/lobbyists', 'Lobbyist registration and information.', 'gov', 'C', ['lobbyist registration', 'lobbying']],
-  ['Magnet Programs', '/fs/pages/80656', 'Magnet schools and programs and how to apply.', 'enroll', 'FS', ['magnet', 'school choice', 'apply', 'specialty programs']],
-  ['Mandatory Legal Notices', '/programs-and-services/mandatory-legal-notices/overview', 'Required public legal notices.', 'gov', 'CF', ['legal notices', 'public notices']],
-  ['Medicaid/504', '/bcps-departments/exceptional-student-education/section-504', 'Section 504 plans and Medicaid services.', 'support', 'FS', ['504', 'Section 504', '504 plan', 'accommodations', 'Medicaid', 'disability']],
-  ['Mentor', '/fs/pages/119598', 'Become a mentor for a student.', 'family', 'C', ['mentoring', 'become a mentor', 'volunteer']],
-  ["Mentoring Tomorrow's Leaders", '/fs/pages/119600', 'A mentoring program for students.', 'activities', 'S', ['MTL', 'mentoring', 'leadership']],
-  ['Microsoft Student Advantage', '/bcps-departments/information-technology/microsoft-office-student-advantage', 'Free Microsoft Office for students.', 'tech', 'S', ['Office 365', 'Microsoft Office', 'Word', 'Excel', 'PowerPoint', 'free software']],
-  ['Military Families', '/bcps-departments/office-of-communications-legislative-affairs/general-information/military-families', 'Resources for military-connected families.', 'family', 'F', ['military', 'military connected', 'deployment', 'veterans']],
-  ['Mobile App', '/bcps-departments/information-technology/mobile-app', 'The district mobile app.', 'tech', 'FS', ['app', 'phone app', 'iPhone', 'Android']],
-  ['Music & Performing Arts', '/fs/pages/80913', 'Music, theater, and performing arts programs.', 'activities', 'S', ['music', 'band', 'orchestra', 'chorus', 'theater', 'drama', 'dance']],
-  ['Newsroom', '/about-us/news-room', 'District news and announcements.', 'gov', 'CF', ['news', 'press releases', 'announcements', 'media']],
-  ['Non-Discrimination Statement', '/programs-and-services/non-discrimination-statement/overview', "The district's non-discrimination statement.", 'gov', 'CF', ['nondiscrimination', 'equal opportunity', 'Title IX', 'civil rights']],
-  ['Old Dillard Museum', '/fs/pages/84447', "The district's museum of African American history and culture.", 'activities', 'CS', ['museum', 'Black history', 'African American history', 'field trip']],
-  ['On The Right Track', '/bcps-departments/office-of-communications-legislative-affairs/publications', 'A district publication.', 'gov', 'FC', ['newsletter', 'publications']],
-  ['Parent Engagement - Title I', '/bcps-departments/federal-programs/parent-engagement', 'Title I parent and family engagement.', 'family', 'F', ['Title I', 'Title 1', 'parent involvement', 'family engagement']],
-  ['Parent Resources', '/parentsstudentsstaff/parents-families/overview', 'Resources for parents and families.', 'family', 'F', ['parents', 'families', 'parent guides']],
-  ['Personnel Records (Employment Services)', '/careers/human-resources-support-services/overview', 'Employee records and employment verification.', 'hr', 'E', ['employment verification', 'personnel file', 'former employees', 'verification of employment']],
-  ['Physical Education & Health Education', '/fs/pages/80916', 'Physical education and health education.', 'acad', 'S', ['PE', 'gym', 'physical education', 'health class', 'fitness']],
-  ['Policies', '/school-board/school-board-policies', 'School Board policies.', 'gov', 'FCE', ['school board policies', 'board policy', 'rules']],
-  ['PreK', '/academics/early-learning/overview', 'PreK programs.', 'acad', 'F', ['pre-k', 'preschool', 'VPK', '4 year olds']],
-  ['Privacy Information', '/programs-and-services/privacy-information/privacy-information', 'Student and family privacy information.', 'gov', 'F', ['privacy', 'FERPA', 'student records', 'data privacy', 'opt out']],
-  ['Psychological Services', '/bcps-departments/exceptional-student-education/psychological-services', 'School psychologists and evaluations.', 'support', 'FS', ['school psychologist', 'psychological evaluation', 'mental health']],
-  ['Register for School', '/bcps-departments/school-counseling/register-my-child', 'How to register a new student.', 'enroll', 'F', ['registration', 'enroll', 'enrollment', 'new student', 'register my child', 'kindergarten registration']],
-  ['Robotics', '/fs/pages/119632', 'Robotics programs and competitions.', 'activities', 'S', ['robotics team', 'engineering', 'STEM']],
-  ['School Choice', '/bcps-departments/school-choice123', 'School choice options and applications.', 'enroll', 'F', ['choice', 'magnet', 'charter', 'apply', 'transfer', 'choice application']],
-  ['School Counseling', '/bcps-departments/school-counseling/overview-programs', 'School counseling programs.', 'support', 'SF', ['counselor', 'college', 'scholarships', 'course selection']],
-  ['School Improvement', '/bcps-departments/school-improvement', 'School improvement planning and support.', 'acad', 'EF', ['school improvement plan', 'SIP', 'school grades']],
-  ['School Locator', '/bcps-departments/strategy-innovation/demographics-enrollment-planning/find-my-school', 'Find your zoned school by address.', 'enroll', 'F', ['find my school', 'boundaries', 'zoned school', 'attendance zone', 'which school', 'address lookup']],
-  ['School Social Work Services', '/bcps-departments/student-services/school-social-work', 'School social workers and family support.', 'support', 'FS', ['social worker', 'social work', 'family support']],
-  ['SEDNET', '/bcps-departments/exceptional-student-education/sednet', 'Multiagency network for students with emotional and behavioral challenges.', 'support', 'FE', ['emotional', 'behavioral', 'mental health']],
-  ['Single Sign On (SSO)', '/bcps-departments/information-technology/single-sign-on', 'One login for district apps and tools.', 'tech', 'SEF', ['SSO', 'login', 'sign in', 'password', 'portal']],
-  ['SMART Futures', '/bcps-departments/facilities/smart-futures', "The district's SMART Futures facilities program.", 'ops', 'C', ['SMART program', 'bond', 'construction', 'renovations']],
-  ['STEM +CS', '/fs/pages/80885', 'STEM and computer science programs.', 'acad', 'S', ['STEM', 'science', 'technology', 'engineering', 'math', 'computer science']],
-  ['Storm Resource Center', '/bcps-departments/safety-security-and-emergency-preparedness/emergency-management/storm-resource-center', 'Hurricane and storm information, including school closures.', 'safety', 'FEC', ['hurricane', 'storm', 'school closures', 'shelters', 'weather']],
-  ['Student Activities', '/bcps-departments/student-activities/overview', 'Student clubs and activities.', 'activities', 'S', ['clubs', 'student government', 'extracurricular']],
-  ['Student Enrichment Through the Arts (SEAS)', '/fs/pages/85791', 'Arts enrichment experiences for students.', 'activities', 'S', ['SEAS', 'arts', 'performances', 'field trips', 'cultural arts']],
-  ["Superintendent's Spotlight", '/fs/pages/119081', "Stories from the Superintendent's Spotlight.", 'gov', 'CF', ['superintendent', 'spotlight', 'stories']],
-  ['Testing Calendar', '/bcps-departments/educational-assessment-analysis-research/testing-calendar-what-assessments-will-my-child-take-this-year', 'Which assessments students take this year, and when.', 'acad', 'FS', ['testing', 'test dates', 'assessments', 'FAST', 'EOC', 'state tests', 'exams']],
-  ['Transcripts', '/bcps-departments/records-retention/transcripts', 'Request student transcripts and records.', 'support', 'SF', ['transcript', 'records', 'diploma', 'former students', 'alumni', 'student records']],
-  ['Transportation', '/bcps-departments/student-transportation-fleet-services/overview', 'Student bus transportation.', 'ops', 'FS', ['bus', 'bus stop', 'bus route', 'school bus', 'ride']],
-  ['Venture Design', '/fs/pages/85882', 'The Venture Design program.', 'acad', 'S', ['design', 'program']],
-  ['Visual Arts', '/fs/pages/80921', 'Visual arts programs.', 'activities', 'S', ['art', 'drawing', 'painting', 'art class']],
-  ['Voluntary PreK', '/fs/pages/83018', "Florida's free Voluntary Prekindergarten (VPK) program.", 'acad', 'F', ['VPK', 'free PreK', '4 year olds', 'preschool']],
-  ['Volunteer', '/community/volunteer', 'Volunteer at a school.', 'family', 'FC', ['volunteer', 'volunteering', 'chaperone', 'volunteer application', 'background check']],
-  ['Warehousing Services', '/fs/pages/83566', 'District warehousing and supply services.', 'money', 'EC', ['warehouse', 'supplies', 'delivery', 'surplus']],
-  ['Watch Live Board Meetings', '/school-board/meeting-agendas', 'School Board meetings, agendas, and livestreams.', 'gov', 'FC', ['school board', 'board meeting', 'agenda', 'livestream', 'public comment', 'minutes']],
-  ['Xello', '/fs/pages/83863', 'Career and college planning with Xello.', 'support', 'S', ['career exploration', 'college planning', 'career interests']],
-  ['Youth Mentoring Programs', '/fs/pages/119598', 'Mentoring programs for students.', 'activities', 'SF', ['mentoring', 'mentor', 'youth programs']],
-];
-
-// Where a program page sits on the site, shown on its card ("Part of ...").
-// Keyed by the folder under /bcps-departments/ in the program's path.
-const PARENTS = {
-  'athletics': 'Athletics & Student Activities',
-  'broward-educational-communications-network-becon': 'BECON',
-  'coordinated-student-health-services': 'Coordinated Student Health Services',
-  'educational-assessment-analysis-research': 'Educational Assessment, Analysis & Research',
-  'exceptional-student-education': 'Exceptional Student Education',
-  'facilities': 'Facilities',
-  'federal-programs': 'Federal Programs',
-  'food-and-nutrition-services': 'Food & Nutrition Services',
-  'information-technology': 'Information Technology',
-  'mental-health-services': 'Mental Health Services',
-  'office-of-communications-legislative-affairs': 'Office of Communications & Legislative Affairs',
-  'office-of-student-services': 'Student Services',
-  'records-retention': 'Records Retention',
-  'safety-security-and-emergency-preparedness': 'Safety, Security & Emergency Preparedness',
-  'school-choice123': 'School Choice',
-  'school-counseling': 'School Counseling',
-  'school-improvement': 'School Transformation Office',
-  'strategy-innovation': 'Strategy & Innovation',
-  'student-activities': 'Student Activities',
-  'student-services': 'Student Services',
-  'student-transportation-fleet-services': 'Student Transportation & Fleet Services',
-};
+let ITEMS = [];
+let POPULAR = [];
+const rank = it => it.rank;
+const popularLinks = () => POPULAR.map(it =>
+  `<a class="chip try" href="${escapeHtml(it.url)}" target="_top" data-id="${it.id}" data-popular="1">${escapeHtml(it.popularLabel)}</a>`).join('');
 
 const STOP = new Set(['a', 'an', 'and', 'the', 'my', 'for', 'of', 'to', 'in', 'on', 'how', 'do', 'i', 'is', 'where', 'what', 'can', 'get', 'find', 'about', 'with', 'me', 'bcps']);
 
@@ -639,28 +317,38 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-const ITEMS = [
-  ...DEPTS.map(([name, path, division, desc, topic, aud, tags, includes]) =>
-    ({ type: 'dept', name, url: BASE + path, where: division, desc, topic, aud, tags, includes: includes || [] })),
-  ...PROGS.map(([name, path, desc, topic, aud, tags]) => {
-    const m = path.match(/^\/bcps-departments\/([^/]+)/);
-    return { type: 'prog', name, url: BASE + path, where: m && PARENTS[m[1]] ? 'Part of ' + PARENTS[m[1]] : '', desc, topic, aud, tags, includes: [] };
-  }),
-];
+function buildItems(rows) {
+  ITEMS = rows.map(r => ({
+    id: r.id,
+    type: r.kind === 'department' ? 'dept' : 'prog',
+    name: r.name,
+    url: r.url,
+    where: r.kind === 'department' ? (r.context || '') : (r.context ? 'Part of ' + r.context : ''),
+    desc: r.description || '',
+    topic: TOPICS[r.topic] ? r.topic : 'gov',
+    aud: r.audiences || '',
+    tags: r.tags || [],
+    includes: r.includes || [],
+    rank: r.demand_rank == null ? Infinity : r.demand_rank,
+    popularLabel: r.popular_label,
+    popularRank: r.popular_rank,
+  }));
+  POPULAR = ITEMS.filter(it => it.popularLabel).sort((a, b) => (a.popularRank ?? 99) - (b.popularRank ?? 99));
 
-// Each searchable field carries a weight: a hit in the name outranks a tag,
-// which outranks the description. Tags are kept one per field so a card can
-// say exactly which tag matched.
-for (const it of ITEMS) {
-  it.fields = [
-    { w: 10, kind: 'name', text: norm(it.name) },
-    ...it.includes.map(s => ({ w: 7, kind: 'includes', raw: s, text: norm(s) })),
-    ...it.tags.map(s => ({ w: 6, kind: 'tag', raw: s, text: norm(s) })),
-    { w: 3, kind: 'where', text: norm(it.where) },
-    { w: 2, kind: 'desc', text: norm(it.desc) },
-  ];
-  for (const f of it.fields) f.words = f.text.split(' ');
-  it.nname = norm(it.name);
+  // Each searchable field carries a weight: a hit in the name outranks a tag,
+  // which outranks the description. Tags are kept one per field so a card can
+  // say exactly which tag matched.
+  for (const it of ITEMS) {
+    it.fields = [
+      { w: 10, kind: 'name', text: norm(it.name) },
+      ...it.includes.map(s => ({ w: 7, kind: 'includes', raw: s, text: norm(s) })),
+      ...it.tags.map(s => ({ w: 6, kind: 'tag', raw: s, text: norm(s) })),
+      { w: 3, kind: 'where', text: norm(it.where) },
+      { w: 2, kind: 'desc', text: norm(it.desc) },
+    ];
+    for (const f of it.fields) f.words = f.text.split(' ');
+    it.nname = norm(it.name);
+  }
 }
 
 // Strict: whole words (and simple plurals), plus prefixes once a word is 4+
@@ -744,7 +432,6 @@ const qEl = $('q'), out = $('out');
 // Controls
 const topicSel = $('topic');
 for (const [k, v] of Object.entries(TOPICS)) topicSel.insertAdjacentHTML('beforeend', `<option value="${k}">${escapeHtml(v)}</option>`);
-$('try').innerHTML = popularLinks();
 
 function compute() {
   const phrase = norm(state.q);
@@ -780,7 +467,7 @@ function card({ it, s }, tokens) {
   const incl = it.includes.length
     ? `<span class="incl"><b>Includes:</b> ${it.includes.map(n => highlight(n, tokens)).join(', ')}</span>` : '';
   const label = it.type === 'dept' ? 'Department' : 'Program';
-  return `<a class="card" href="${escapeHtml(it.url)}" target="_top">
+  return `<a class="card" href="${escapeHtml(it.url)}" target="_top" data-id="${it.id}">
     <span class="card-body">
       <span class="top"><span class="badge ${it.type}">${label}</span>${it.where ? `<span class="where">${escapeHtml(it.where)}</span>` : ''}</span>
       <span class="name">${highlight(it.name, tokens)}</span>
@@ -795,6 +482,7 @@ const byName = (a, b) => a.it.name.localeCompare(b.it.name);
 
 function render() {
   const { rows, counts, tokens, searching, partial } = compute();
+  lastResultCount = rows.length;
 
   $('nAll').textContent = counts.all;
   $('nDept').textContent = counts.dept;
@@ -849,9 +537,59 @@ function render() {
   postHeight();
 }
 
+// SEARCH LOG
+// Searches and clicks go to /api/bcps/directory-events so the Directory editor
+// can show top searches and searches that found nothing. A search is logged
+// once the query has settled for 1.5 seconds (not on every keystroke), or
+// right away when a result is opened. No names, accounts or IPs are stored;
+// the session id is random per page load.
+const EVENTS_URL = '/api/bcps/directory-events';
+const canLog = /^https?:$/.test(location.protocol);
+const SESSION_ID = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(36).padStart(2, '0')).join('').slice(0, 24);
+const HOST = (() => {
+  try { return new URLSearchParams(location.search).get('host') || (document.referrer ? new URL(document.referrer).hostname : location.hostname); }
+  catch (e) { return ''; }
+})();
+let lastResultCount = 0, lastLogged = '', searchTimer;
+
+function send(events, beacon) {
+  if (!canLog) return;
+  const body = JSON.stringify({ events: events.map(e => ({ ...e, session_id: SESSION_ID, host: HOST, type_filter: state.type, topic_filter: state.topic || null })) });
+  try {
+    if (beacon && navigator.sendBeacon && navigator.sendBeacon(EVENTS_URL, body)) return;
+    fetch(EVENTS_URL, { method: 'POST', body, keepalive: true }).catch(() => {});
+  } catch (e) {}
+}
+function pendingSearch() {
+  const q = state.q.trim();
+  if (!q || norm(q) === lastLogged) return null;
+  lastLogged = norm(q);
+  return { event: 'search', query: q, result_count: lastResultCount };
+}
+function scheduleSearchLog() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { const e = pendingSearch(); if (e) send([e]); }, 1500);
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[data-id]');
+  if (!a) return;
+  clearTimeout(searchTimer);
+  const events = [];
+  const s = pendingSearch();
+  if (s) events.push(s);
+  const cards = [...document.querySelectorAll('a.card[data-id]')];
+  events.push({
+    event: 'click', entry_id: a.dataset.id,
+    query: a.dataset.popular ? null : (state.q.trim() || null),
+    result_rank: a.dataset.popular ? null : cards.indexOf(a) + 1,
+    result_count: state.q.trim() ? lastResultCount : null,
+  });
+  send(events, true);
+}, true);
+
 // EVENTS
 let t;
-qEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { state.q = qEl.value; render(); }, 90); });
+qEl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { state.q = qEl.value; render(); scheduleSearchLog(); }, 90); });
 qEl.addEventListener('keydown', e => { if (e.key === 'Escape' && qEl.value) { e.preventDefault(); setQuery(''); } });
 $('clear').addEventListener('click', () => { setQuery(''); qEl.focus(); });
 document.addEventListener('click', e => {
@@ -869,7 +607,7 @@ $('reset').addEventListener('click', () => {
 document.addEventListener('keydown', e => {
   if (e.key === '/' && document.activeElement !== qEl && !/input|select|textarea/i.test(document.activeElement.tagName)) { e.preventDefault(); qEl.focus(); }
 });
-function setQuery(v) { qEl.value = v; state.q = v; render(); }
+function setQuery(v) { qEl.value = v; state.q = v; render(); scheduleSearchLog(); }
 
 // The same embed can open pre-filtered on each host page, e.g.
 // ?type=prog on Programs & Services, ?type=dept on Departments, or ?q=bus.
@@ -890,7 +628,24 @@ function postHeight() {
 }
 window.addEventListener('resize', postHeight);
 
-render();
+async function boot() {
+  out.innerHTML = '<div class="empty"><p>Loading departments, programs and services...</p></div>';
+  try {
+    buildItems(await loadEntries());
+  } catch (e) {
+    $('statusText').textContent = '';
+    out.innerHTML = `<div class="empty"><h3>The directory could not load</h3>
+      <p>Please try again in a moment, or browse the
+      <a href="https://www.browardschools.com/bcps-departments" target="_top">full department list</a> or the
+      <a href="https://www.browardschools.com/directory/programs-and-services-63" target="_top">programs &amp; services A to Z</a>.</p></div>`;
+    postHeight();
+    return;
+  }
+  $('try').innerHTML = popularLinks();
+  render();
+  if (state.q) scheduleSearchLog();
+}
+boot();
 </script>
 </body>
 </html>
