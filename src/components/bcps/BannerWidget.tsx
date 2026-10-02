@@ -221,6 +221,9 @@ interface BannerItem {
   alt: string
   // WCM confirms detected text is part of the scene, per banner.
   inSceneText: boolean
+  // JPEG EXIF orientation (1-8), null if none. 5-8 means the camera saved
+  // the pixels sideways with a "rotate on display" flag.
+  orientation: number | null
 }
 
 function newBannerItem(): BannerItem {
@@ -228,8 +231,42 @@ function newBannerItem(): BannerItem {
     key: Math.random().toString(36).slice(2),
     file: null, previewUrl: null, kind: null, dims: null,
     scanState: 'idle', scanResult: null, scanError: null,
-    title: '', caption: '', alt: '', inSceneText: false,
+    title: '', caption: '', alt: '', inSceneText: false, orientation: null,
   }
+}
+
+// Reads the EXIF orientation tag from a JPEG, or null. Browsers apply this
+// flag before measuring (naturalWidth/Height), while Windows' file
+// Properties shows the stored size - so a sideways-flagged 2358 x 958 photo
+// measures 958 x 2358 here and fails the minimum (Vanessa Deslandes,
+// 2026-10-02: "sometimes it passes, sometimes it doesn't" - a copy that went
+// through email loses the flag and passes).
+async function readJpegOrientation(f: File): Promise<number | null> {
+  if (f.type !== 'image/jpeg') return null
+  const v = new DataView(await f.slice(0, 256 * 1024).arrayBuffer())
+  if (v.byteLength < 4 || v.getUint16(0) !== 0xffd8) return null
+  let off = 2
+  while (off + 4 <= v.byteLength) {
+    const marker = v.getUint16(off)
+    const len = v.getUint16(off + 2)
+    if (marker === 0xffe1 && off + 10 <= v.byteLength && v.getUint32(off + 4) === 0x45786966) {
+      const tiff = off + 10
+      if (tiff + 8 > v.byteLength) return null
+      const little = v.getUint16(tiff) === 0x4949
+      const ifd = tiff + v.getUint32(tiff + 4, little)
+      if (ifd + 2 > v.byteLength) return null
+      const count = v.getUint16(ifd, little)
+      for (let i = 0; i < count; i++) {
+        const e = ifd + 2 + i * 12
+        if (e + 10 > v.byteLength) return null
+        if (v.getUint16(e, little) === 0x0112) return v.getUint16(e + 8, little)
+      }
+      return null
+    }
+    if ((marker & 0xff00) !== 0xff00 || marker === 0xffda) return null
+    off += 2 + len
+  }
+  return null
 }
 
 function CharCount({ value, max }: { value: string; max: number }) {
@@ -439,17 +476,18 @@ export default function BannerWidget() {
     if (prevUrl) URL.revokeObjectURL(prevUrl)
     setActiveKey(key)
     if (!f) {
-      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false })
+      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false, orientation: null })
       return
     }
     const url = URL.createObjectURL(f)
     const kind: 'image' | 'video' = f.type.startsWith('video') ? 'video' : 'image'
-    patchItem(key, { file: f, previewUrl: url, kind, dims: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false })
+    patchItem(key, { file: f, previewUrl: url, kind, dims: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false, orientation: null })
 
     if (kind === 'image') {
       const img = new Image()
       img.onload = () => patchIfSameFile(key, f, { dims: { width: img.naturalWidth, height: img.naturalHeight } })
       img.src = url
+      readJpegOrientation(f).then(o => patchIfSameFile(key, f, { orientation: o })).catch(() => {})
     }
 
     ;(async () => {
@@ -1045,6 +1083,22 @@ export default function BannerWidget() {
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                     Image: 2880x1600px target (2000x800px minimum). Video: MP4 only, max 30 seconds, 1080p HD recommended (not 4K).
                   </div>
+                  {/* The size this tool measured, so a Fail on the size row
+                      always says why (Vanessa Deslandes, 2026-10-02). */}
+                  {it.kind === 'image' && it.dims && (
+                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: dimsOk(it) ? '#1e6b3a' : '#a13a2f' }}>
+                      Measured size: {it.dims.width} &times; {it.dims.height} px
+                      {dimsOk(it) ? ' - meets the minimum.' : ' - below the 2000 \u00d7 800 px minimum.'}
+                    </div>
+                  )}
+                  {it.kind === 'image' && it.dims && (it.orientation ?? 1) >= 5 && (
+                    <div style={{ fontSize: 12, marginTop: 4, background: '#fdf3e0', color: '#8a5a00', padding: '6px 10px', borderRadius: 5 }}>
+                      This photo has a rotation setting from the camera. Browsers and school websites apply it, so it
+                      measures {it.dims.width} &times; {it.dims.height} px here even if your computer lists
+                      {' '}{it.dims.height} &times; {it.dims.width}. If it looks sideways or tall in the preview, open it in
+                      Photos, rotate it so it is wide and upright, save a copy, and upload that copy.
+                    </div>
+                  )}
                 </div>
 
                 {/* Automated Photo Content Requirements scan - shown right
