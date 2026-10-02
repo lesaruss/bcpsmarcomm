@@ -70,7 +70,7 @@ interface BannerAdminRow {
 }
 
 const RIGHT_NAV_ITEMS = [
-  'Our School', 'Academics', 'Students & Parents', 'Activities',
+  'Our School', 'Academics', 'Students & Parents', 'Activities & Athletics',
   'School Counseling', 'Contact', 'Schedule a Tour',
 ]
 
@@ -136,6 +136,10 @@ const CHECKLIST = [
 // checks something. Submit stays disabled until every row here is true -
 // see allValidationPassed below.
 const VALIDATION_CHECKLIST = [
+  // School is required to submit, so it is a row here too (Vanessa
+  // Deslandes, 2026-10-02: every row read Pass while Submit stayed grayed
+  // out because no school was picked, and nothing said why).
+  { key: 'school', label: 'School selected' },
   { key: 'files', label: 'Up to three files' },
   { key: 'dims', label: 'Media meets 2000 × 800 px minimum requirements' },
   { key: 'no_overlays', label: 'Image is free of graphics, borders, text overlays' },
@@ -187,6 +191,56 @@ const REJECT_REASON_CATEGORIES = [
   'Other',
 ] as const
 
+// Character limits (Vanessa Deslandes, 2026-10-02). Kept in sync with
+// /api/banner/submit.
+const TITLE_MAX = 40
+const CAPTION_MAX = 115
+const MAX_FILES = 3
+
+interface ScanResult {
+  no_overlays_pass: boolean
+  nav_clearance_pass: boolean
+  nav_clearance_note?: string
+  text_detected?: boolean
+  reasons: string[]
+}
+
+// One banner in a New Upload request.
+interface BannerItem {
+  key: string
+  file: File | null
+  previewUrl: string | null
+  kind: 'image' | 'video' | null
+  // Natural pixel size, for the 2000 x 800 minimum row. Images only.
+  dims: { width: number; height: number } | null
+  scanState: 'idle' | 'scanning' | 'done' | 'degraded' | 'error'
+  scanResult: ScanResult | null
+  scanError: string | null
+  title: string
+  caption: string
+  alt: string
+  // WCM confirms detected text is part of the scene, per banner.
+  inSceneText: boolean
+}
+
+function newBannerItem(): BannerItem {
+  return {
+    key: Math.random().toString(36).slice(2),
+    file: null, previewUrl: null, kind: null, dims: null,
+    scanState: 'idle', scanResult: null, scanError: null,
+    title: '', caption: '', alt: '', inSceneText: false,
+  }
+}
+
+function CharCount({ value, max }: { value: string; max: number }) {
+  const n = value.length
+  return (
+    <div style={{ fontSize: 11, marginTop: 3, textAlign: 'right', color: n >= max ? '#a13a2f' : 'var(--text-muted)' }}>
+      {n}/{max} characters
+    </div>
+  )
+}
+
 function statusBadge(status: SubmissionStatus) {
   const map: Record<SubmissionStatus, { bg: string; fg: string; label: string }> = {
     pending: { bg: '#fdf3e0', fg: '#8a5a00', label: 'Pending' },
@@ -218,28 +272,20 @@ export default function BannerWidget() {
   const [myRole, setMyRole] = useState<'admin' | 'manager' | null>(null)
 
   // ---- New Upload state ----
-  const [file, setFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [fileKind, setFileKind] = useState<'image' | 'video' | null>(null)
-  // Natural pixel dimensions of the current file, for the "Media meets 2000
-  // x 800 px minimum requirements" validation row. Images are measured via
-  // a throwaway <img> load; video dimension checks aren't wired yet (no
-  // metadata probe on the file itself today), so a video is treated as
-  // meeting the requirement rather than blocking the WCM on an unverifiable
-  // check - flagged for review same as before.
-  const [fileDims, setFileDims] = useState<{ width: number; height: number } | null>(null)
-  // Automated Photo Content Requirements scan (lib/bannerVision.ts via
-  // /api/banner/scan) - runs the instant a file is chosen, see the useEffect
-  // below. 'idle' before any file, 'scanning' while the request is in
-  // flight, 'done' once a result (pass or fail) is in. Drives the
-  // no_overlays/nav_clearance rows in validationStatus below - there is no
-  // manual checkbox for these anymore, per Sean, 2026-09-03.
-  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'done' | 'degraded' | 'error'>('idle')
-  const [scanResult, setScanResult] = useState<{ no_overlays_pass: boolean; nav_clearance_pass: boolean; nav_clearance_note?: string; text_detected?: boolean; text_reason?: string; reasons: string[] } | null>(null)
-  const [scanError, setScanError] = useState<string | null>(null)
-  const [bannerTitle, setBannerTitle] = useState('')
-  const [bannerCaption, setBannerCaption] = useState('')
-  const [altText, setAltText] = useState('')
+  // Up to three banners per request, each its own file, title, caption and
+  // alt text (Vanessa Deslandes, 2026-10-02: each file is a separate banner).
+  // School and the two acknowledgements are shared across the request.
+  // Each item carries its own pixel measurement and automated content scan
+  // (lib/bannerVision.ts via /api/banner/scan), which run the instant its
+  // file is chosen - "upfront" per Sean, 2026-09-03. /api/banner/submit
+  // re-runs the scan server-side as the real gate. A video skips the pixel
+  // check and the scan (no frame pipeline yet) and is flagged for review.
+  const [items, setItems] = useState<BannerItem[]>(() => [newBannerItem()])
+  const [activeKey, setActiveKey] = useState<string | null>(null)
+  const active = items.find(i => i.key === activeKey) ?? items[0]
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+  useEffect(() => () => { itemsRef.current.forEach(i => { if (i.previewUrl) URL.revokeObjectURL(i.previewUrl) }) }, [])
   const [checks, setChecks] = useState<Record<string, boolean>>({})
   const [submitting, setSubmitting] = useState(false)
   const [uploadNotice, setUploadNotice] = useState<string | null>(null)
@@ -342,115 +388,6 @@ export default function BannerWidget() {
     if (tab === 'admins') loadMyRoleAndAdmins()
   }, [tab])
 
-  useEffect(() => {
-    if (!file) {
-      setPreviewUrl(null); setFileKind(null); setFileDims(null)
-      setScanState('idle'); setScanResult(null); setScanError(null)
-      return
-    }
-    const url = URL.createObjectURL(file)
-    setPreviewUrl(url)
-    const kind = file.type.startsWith('video') ? 'video' : 'image'
-    setFileKind(kind)
-    setFileDims(null)
-    if (kind === 'image') {
-      const img = new Image()
-      img.onload = () => setFileDims({ width: img.naturalWidth, height: img.naturalHeight })
-      img.src = url
-    }
-
-    // Automated Photo Content Requirements scan - fires the instant a file
-    // is chosen, "upfront" per Sean, before the WCM has typed anything else.
-    // /api/banner/submit re-runs this same check server-side as the real
-    // gate; this call is for fast in-form feedback.
-    let cancelled = false
-    setScanState('scanning'); setScanResult(null); setScanError(null)
-    setChecks(prev => ({ ...prev, in_scene_text: false }))
-    ;(async () => {
-      try {
-        if (kind === 'video') {
-          if (!cancelled) { setScanResult({ no_overlays_pass: true, nav_clearance_pass: true, reasons: [] }); setScanState('degraded') }
-          return
-        }
-        const b64 = await fileToBase64(file)
-        const res = await authedFetch('/api/banner/scan', {
-          method: 'POST',
-          body: JSON.stringify({ file_base64: b64, mime_type: file.type }),
-        })
-        const data = await res.json()
-        if (cancelled) return
-        if (!res.ok) {
-          // Hard failure (auth, network, etc.) - genuinely blocks, unlike
-          // the fail-open case below.
-          setScanError(data.error || 'Automated scan failed.'); setScanState('error')
-        } else if (data.skipped && data.error) {
-          // Fail-open: the scanner itself is unavailable (e.g. API outage),
-          // not a content violation - submission is allowed to proceed
-          // flagged for manual review, matching /api/banner/submit's policy.
-          setScanResult({ no_overlays_pass: true, nav_clearance_pass: true, reasons: [] })
-          setScanError(data.error)
-          setScanState('degraded')
-        } else {
-          setScanResult({
-            no_overlays_pass: !!data.no_overlays_pass,
-            nav_clearance_pass: !!data.nav_clearance_pass,
-            nav_clearance_note: data.nav_clearance_note,
-            text_detected: !!data.text_detected,
-            text_reason: data.text_reason,
-            reasons: data.reasons || [],
-          })
-          setScanState('done')
-        }
-      } catch {
-        if (!cancelled) { setScanError('Automated scan failed - please try re-selecting the file.'); setScanState('error') }
-      }
-    })()
-
-    return () => { cancelled = true; URL.revokeObjectURL(url) }
-  }, [file])
-
-  const allChecked = CHECKLIST.every(c => checks[c.key])
-  // Live Validation checklist status (right-hand panel) - each row derived
-  // from current form state, matching Vanessa's mockup's per-item Pass
-  // display. See VALIDATION_CHECKLIST comment.
-  const validationStatus: Record<string, boolean> = {
-    files: !!file,
-    dims: fileKind === 'video' ? true : !!(fileDims && fileDims.width >= 2000 && fileDims.height >= 800),
-    no_overlays: !!scanResult?.no_overlays_pass && (!scanResult?.text_detected || !!checks.in_scene_text),
-    nav_clearance: !!scanResult?.nav_clearance_pass,
-    title: bannerTitle.trim() !== '',
-    alt: altText.trim() !== '',
-    approvals: !!checks.media_release,
-    final_ack: !!checks.final_ack,
-  }
-  const allValidationPassed = VALIDATION_CHECKLIST.every(v => validationStatus[v.key])
-
-  // Display-only companion to validationStatus above: which rows have
-  // actually FAILED versus which are merely not done yet. The gate itself is
-  // allValidationPassed (unchanged, and deliberately untouched - it is
-  // correct); this map only decides which chip a row draws.
-  //
-  // Only the rows the tool itself adjudicates can reach 'fail'. The four
-  // WCM-entered rows (title/alt/approvals/final_ack) and 'files' are either
-  // done or not yet done, so they stay pass/pending - an empty field the WCM
-  // has not typed in yet has not "failed". An inconclusive scan (scanState
-  // 'error', or 'scanning' still in flight) also stays 'pending': it has no
-  // verdict to report, and the scan banner already explains that case.
-  const scanVerdictIn = scanState === 'done' && !!scanResult
-  const validationState: Record<string, ValidationState> = {
-    files: validationStatus.files ? 'pass' : 'pending',
-    // A video is exempt from the pixel minimum (see validationStatus), so
-    // only a measured still image can fail this row.
-    dims: validationStatus.dims ? 'pass' : (fileKind === 'image' && fileDims ? 'fail' : 'pending'),
-    no_overlays: validationStatus.no_overlays ? 'pass'
-      : (scanVerdictIn && scanResult?.no_overlays_pass && scanResult?.text_detected) ? 'confirm'
-      : (scanVerdictIn ? 'fail' : 'pending'),
-    nav_clearance: validationStatus.nav_clearance ? 'pass' : (scanVerdictIn ? 'fail' : 'pending'),
-    title: validationStatus.title ? 'pass' : 'pending',
-    alt: validationStatus.alt ? 'pass' : 'pending',
-    approvals: validationStatus.approvals ? 'pass' : 'pending',
-    final_ack: validationStatus.final_ack ? 'pass' : 'pending',
-  }
   // "View as" a WCM or District Web Team sample: show only the WCM tabs, the
   // way a WCM sees this page (Sean + Vanessa Deslandes, 2026-09-29). Data is
   // still the real signed-in account's - submissions made while previewing
@@ -489,44 +426,195 @@ export default function BannerWidget() {
     })
   }
 
+  function patchItem(key: string, patch: Partial<BannerItem>) {
+    setItems(prev => prev.map(i => i.key === key ? { ...i, ...patch } : i))
+  }
+  // Async results only land if that slot still holds the same file.
+  function patchIfSameFile(key: string, f: File, patch: Partial<BannerItem>) {
+    setItems(prev => prev.map(i => i.key === key && i.file === f ? { ...i, ...patch } : i))
+  }
+
+  function chooseFile(key: string, f: File | null) {
+    const prevUrl = itemsRef.current.find(i => i.key === key)?.previewUrl
+    if (prevUrl) URL.revokeObjectURL(prevUrl)
+    setActiveKey(key)
+    if (!f) {
+      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false })
+      return
+    }
+    const url = URL.createObjectURL(f)
+    const kind: 'image' | 'video' = f.type.startsWith('video') ? 'video' : 'image'
+    patchItem(key, { file: f, previewUrl: url, kind, dims: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false })
+
+    if (kind === 'image') {
+      const img = new Image()
+      img.onload = () => patchIfSameFile(key, f, { dims: { width: img.naturalWidth, height: img.naturalHeight } })
+      img.src = url
+    }
+
+    ;(async () => {
+      try {
+        if (kind === 'video') {
+          patchIfSameFile(key, f, { scanResult: { no_overlays_pass: true, nav_clearance_pass: true, reasons: [] }, scanState: 'degraded' })
+          return
+        }
+        const b64 = await fileToBase64(f)
+        const res = await authedFetch('/api/banner/scan', {
+          method: 'POST',
+          body: JSON.stringify({ file_base64: b64, mime_type: f.type }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          // Hard failure (auth, network, etc.) - genuinely blocks, unlike
+          // the fail-open case below.
+          patchIfSameFile(key, f, { scanError: data.error || 'Automated scan failed.', scanState: 'error' })
+        } else if (data.skipped && data.error) {
+          // Fail-open: the scanner itself is unavailable (e.g. API outage),
+          // not a content violation - submission is allowed to proceed
+          // flagged for manual review, matching /api/banner/submit's policy.
+          patchIfSameFile(key, f, { scanResult: { no_overlays_pass: true, nav_clearance_pass: true, reasons: [] }, scanError: data.error, scanState: 'degraded' })
+        } else {
+          patchIfSameFile(key, f, {
+            scanResult: {
+              no_overlays_pass: !!data.no_overlays_pass,
+              nav_clearance_pass: !!data.nav_clearance_pass,
+              nav_clearance_note: data.nav_clearance_note,
+              text_detected: !!data.text_detected,
+              reasons: data.reasons || [],
+            },
+            scanState: 'done',
+          })
+        }
+      } catch {
+        patchIfSameFile(key, f, { scanError: 'Automated scan failed - please try re-selecting the file.', scanState: 'error' })
+      }
+    })()
+  }
+
+  function addItem() {
+    if (items.length >= MAX_FILES) return
+    const item = newBannerItem()
+    setItems(prev => [...prev, item])
+    setActiveKey(item.key)
+  }
+
+  function removeItem(key: string) {
+    const gone = items.find(i => i.key === key)
+    if (gone?.previewUrl) URL.revokeObjectURL(gone.previewUrl)
+    setItems(prev => {
+      const next = prev.filter(i => i.key !== key)
+      return next.length ? next : [newBannerItem()]
+    })
+    if (activeKey === key) setActiveKey(null)
+  }
+
+  // Slots without a file are ignored (not submitted, not validated), so an
+  // extra "Add another banner" the WCM never used does not block submit.
+  const filled = items.filter(i => i.file)
+  const allChecked = CHECKLIST.every(c => checks[c.key])
+  const dimsOk = (i: BannerItem) => i.kind === 'video' ? true : !!(i.dims && i.dims.width >= 2000 && i.dims.height >= 800)
+  const overlaysOk = (i: BannerItem) => !!i.scanResult?.no_overlays_pass && (!i.scanResult?.text_detected || i.inSceneText)
+  const needsConfirm = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult?.no_overlays_pass && !!i.scanResult?.text_detected && !i.inSceneText
+  const scanFailed = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult && !i.scanResult.no_overlays_pass
+  const all = (pred: (i: BannerItem) => boolean) => filled.length > 0 && filled.every(pred)
+
+  // Live Validation checklist status (right-hand panel) - each row derived
+  // from current form state across every banner in the request, matching
+  // Vanessa's mockup's per-item Pass display. See VALIDATION_CHECKLIST.
+  const validationStatus: Record<string, boolean> = {
+    school: !!selectedSchool,
+    files: filled.length > 0,
+    dims: all(dimsOk),
+    no_overlays: all(overlaysOk),
+    nav_clearance: all(i => !!i.scanResult?.nav_clearance_pass),
+    title: all(i => i.title.trim() !== ''),
+    alt: all(i => i.alt.trim() !== ''),
+    approvals: !!checks.media_release,
+    final_ack: !!checks.final_ack,
+  }
+  const allValidationPassed = VALIDATION_CHECKLIST.every(v => validationStatus[v.key])
+
+  // Display-only companion to validationStatus above: which rows have
+  // actually FAILED versus which are merely not done yet. Only the rows the
+  // tool itself adjudicates can reach 'fail'; an inconclusive or in-flight
+  // scan stays 'pending'. See VALIDATION_CHIP.
+  const validationState: Record<string, ValidationState> = {
+    school: validationStatus.school ? 'pass' : 'pending',
+    files: validationStatus.files ? 'pass' : 'pending',
+    // A video is exempt from the pixel minimum, so only a measured still
+    // image can fail this row.
+    dims: validationStatus.dims ? 'pass' : (filled.some(i => i.kind === 'image' && i.dims && !dimsOk(i)) ? 'fail' : 'pending'),
+    no_overlays: validationStatus.no_overlays ? 'pass'
+      : filled.some(scanFailed) ? 'fail'
+      : filled.some(needsConfirm) ? 'confirm'
+      : 'pending',
+    nav_clearance: validationStatus.nav_clearance ? 'pass'
+      : (filled.some(i => i.scanState === 'done' && !!i.scanResult && !i.scanResult.nav_clearance_pass) ? 'fail' : 'pending'),
+    title: validationStatus.title ? 'pass' : 'pending',
+    alt: validationStatus.alt ? 'pass' : 'pending',
+    approvals: validationStatus.approvals ? 'pass' : 'pending',
+    final_ack: validationStatus.final_ack ? 'pass' : 'pending',
+  }
+
   async function handleSubmitUpload() {
     setUploadNotice(null)
     if (!selectedSchool) { setUploadNotice('Select your school first.'); return }
-    if (!file) { setUploadNotice('Choose a photo or video first.'); return }
-    if (!bannerTitle.trim()) { setUploadNotice('Banner title is required.'); return }
-    if (!altText.trim()) { setUploadNotice('Alternative text is required.'); return }
-    if (!allChecked) { setUploadNotice('Both requirement checkboxes must be checked before submitting.'); return }
-    if (scanState === 'scanning') { setUploadNotice('Still running the automated content scan - one moment.'); return }
-    if (scanState === 'error') { setUploadNotice(scanError || 'The automated content scan failed - please try re-selecting the file.'); return }
-    if (!scanResult?.no_overlays_pass || !scanResult?.nav_clearance_pass) { setUploadNotice('This image needs to pass the automated content scan before it can be submitted.'); return }
-    if (scanResult?.text_detected && !checks.in_scene_text) { setUploadNotice('Text was detected - confirm it is part of the actual scene before submitting.'); return }
-
-    setSubmitting(true)
-    try {
-      const base64 = await fileToBase64(file)
-      const res = await authedFetch('/api/banner/submit', {
-        method: 'POST',
-        body: JSON.stringify({
-          file_base64: base64,
-          file_name: file.name,
-          mime_type: file.type,
-          banner_title: bannerTitle,
-          banner_caption: bannerCaption,
-          alt_text: altText,
-          checklist_ack: checks,
-          school_location_nbr: selectedSchool,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setUploadNotice(data.error || 'Submission failed.'); return }
-      setUploadNotice('Submitted to the District Web Team for review.')
-      setFile(null); setBannerTitle(''); setBannerCaption(''); setAltText(''); setChecks({})
-      loadMine()
-    } catch {
-      setUploadNotice('Submission failed - please try again.')
-    } finally {
-      setSubmitting(false)
+    if (filled.length === 0) { setUploadNotice('Choose a photo or video first.'); return }
+    for (let n = 0; n < filled.length; n++) {
+      const i = filled[n]
+      const name = filled.length > 1 ? `Banner ${n + 1}: ` : ''
+      if (!i.title.trim()) { setUploadNotice(`${name}Banner title is required.`); return }
+      if (!i.alt.trim()) { setUploadNotice(`${name}Alternative text is required.`); return }
+      if (i.scanState === 'scanning') { setUploadNotice(`${name}Still running the automated content scan - one moment.`); return }
+      if (i.scanState === 'error') { setUploadNotice(`${name}${i.scanError || 'The automated content scan failed - please try re-selecting the file.'}`); return }
+      if (!i.scanResult?.no_overlays_pass || !i.scanResult?.nav_clearance_pass) { setUploadNotice(`${name}This image needs to pass the automated content scan before it can be submitted.`); return }
+      if (i.scanResult?.text_detected && !i.inSceneText) { setUploadNotice(`${name}Text was detected - confirm it is part of the actual scene before submitting.`); return }
     }
+    if (!allChecked) { setUploadNotice('Both requirement checkboxes must be checked before submitting.'); return }
+
+    // One /api/banner/submit call per banner, in order. A banner that saves
+    // leaves the form; one that fails stays with its error so the WCM can fix
+    // it and resubmit without re-entering the others.
+    setSubmitting(true)
+    const failures: string[] = []
+    let sent = 0
+    for (let n = 0; n < filled.length; n++) {
+      const i = filled[n]
+      const name = filled.length > 1 ? `Banner ${n + 1}` : 'Submission'
+      try {
+        const base64 = await fileToBase64(i.file!)
+        const res = await authedFetch('/api/banner/submit', {
+          method: 'POST',
+          body: JSON.stringify({
+            file_base64: base64,
+            file_name: i.file!.name,
+            mime_type: i.file!.type,
+            banner_title: i.title,
+            banner_caption: i.caption,
+            alt_text: i.alt,
+            checklist_ack: { ...checks, in_scene_text: i.inSceneText },
+            school_location_nbr: selectedSchool,
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) { failures.push(`${name}: ${data.error || 'Submission failed.'}`); continue }
+        sent++
+        if (i.previewUrl) URL.revokeObjectURL(i.previewUrl)
+        setItems(prev => prev.filter(p => p.key !== i.key))
+      } catch {
+        failures.push(`${name}: Submission failed - please try again.`)
+      }
+    }
+    setSubmitting(false)
+    setItems(prev => prev.length ? prev : [newBannerItem()])
+    setActiveKey(null)
+    if (failures.length === 0) {
+      setChecks({})
+      setUploadNotice(sent === 1 ? 'Submitted to the District Web Team for review.' : `Submitted ${sent} banners to the District Web Team for review.`)
+    } else {
+      setUploadNotice(`${failures.join(' ')}${sent > 0 ? ` (${sent} other ${sent === 1 ? 'banner was' : 'banners were'} submitted.)` : ''}`)
+    }
+    if (sent > 0) loadMine()
   }
 
   async function handleSubmitRemoval() {
@@ -583,7 +671,7 @@ export default function BannerWidget() {
       if (action === 'reject') {
         setReviewNotice(data.emailed ? 'Rejected - notification email sent to the WCM.' : `Rejected - ${data.warning || 'email not sent.'}`)
       } else {
-        setReviewNotice('Approved.')
+        setReviewNotice(data.emailed ? 'Approved - email sent to the WCM.' : data.warning ? `Approved - ${data.warning}` : 'Approved.')
       }
       setRejectingId(null)
       setRejectCategory('')
@@ -723,7 +811,7 @@ export default function BannerWidget() {
             }
           `}</style>
           <div className="bwp-layout">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, minWidth: 0 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>School *</label>
               <select
@@ -743,39 +831,41 @@ export default function BannerWidget() {
               </div>
             </div>
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Photo or video</label>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,video/mp4"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-              />
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                Image: 2880x1600px target (2000x800px minimum). Video: MP4 only, max 30 seconds, 1080p HD recommended (not 4K).
+            {/* Identity Banner Guidelines sheet (Vanessa Deslandes,
+                2026-10-02) - the same image the rejection email embeds, so
+                WCMs see the rules before they submit. */}
+            <details style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px' }}>
+              <summary style={{ fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+                Identity Banner Guidelines: see approved and not approved examples
+              </summary>
+              <div style={{ fontSize: 12, margin: '8px 0' }}>
+                Horizontal images only, leave open space on the right so faces are not blocked by the navigation, and keep
+                images clean and free of text, logos, and graphics.
               </div>
-            </div>
+              <img src="/banner-guidelines.jpg" alt="Identity Banner Guidelines: approved and not approved examples for horizontal images, space on the right, and text-free images." style={{ width: '100%', maxWidth: 560, height: 'auto', display: 'block', borderRadius: 4 }} />
+            </details>
 
             {/* Live preview: mocks the actual school-site header + homepage
                 banner + right-nav (a generic logo/title stand in for the real
                 school chrome, since this tool serves every school), with the
-                file composited into the hero, so a WCM can self-check
-                quality, pixelation, absence of text/logos, and whether the
-                nav blocks faces - per Vanessa Deslandes, 2026-08-24. Reflows
-                at container width the same way the real school sites do
-                (header chrome and hero overlay drop away below ~480px, nav
-                items become full-width stacked rows) - per Sean, 2026-09-02:
-                "the same page resizing functionality ... so they can see
-                what happens when they resize their screen." Drag the
-                bottom-right corner of the frame, or use the width presets,
-                to test narrower widths. */}
+                active banner's file composited into the hero, so a WCM can
+                self-check quality, pixelation, absence of text/logos, and
+                whether the nav blocks faces - per Vanessa Deslandes,
+                2026-08-24. Reflows at container width the same way the real
+                school sites do (header chrome and hero overlay drop away
+                below ~480px, nav items become full-width stacked rows) - per
+                Sean, 2026-09-02. Drag the bottom-right corner of the frame,
+                or use the width presets, to test narrower widths. */}
             {(() => {
-              const displayUrl = previewUrl || PLACEHOLDER_IMAGE
-              const displayKind = previewUrl ? fileKind : 'image'
+              const displayUrl = active.previewUrl || PLACEHOLDER_IMAGE
+              const displayKind = active.previewUrl ? active.kind : 'image'
+              const title = active.title.trim()
+              const caption = active.caption.trim()
               return (
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Live preview</label>
 
-                <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                   {[{ label: 'Desktop', px: null as number | null }, { label: 'Tablet', px: 768 }, { label: 'Mobile', px: 375 }].map(p => (
                     <button
                       key={p.label}
@@ -787,6 +877,24 @@ export default function BannerWidget() {
                       {p.label}
                     </button>
                   ))}
+                  {items.length > 1 && (
+                    <>
+                      <span aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', background: 'var(--border)', margin: '0 4px' }} />
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Showing</span>
+                      {items.map((it, n) => (
+                        <button
+                          key={it.key}
+                          type="button"
+                          aria-pressed={it.key === active.key}
+                          onClick={() => setActiveKey(it.key)}
+                          className={it.key === active.key ? 'btn-primary' : 'btn-outline'}
+                          style={{ fontSize: 11, padding: '4px 10px' }}
+                        >
+                          Banner {n + 1}
+                        </button>
+                      ))}
+                    </>
+                  )}
                 </div>
 
                 <style>{`
@@ -833,15 +941,15 @@ export default function BannerWidget() {
                     <div style={{ fontSize: 11, fontStyle: 'italic', opacity: 0.85 }}>Broward County Public Schools</div>
                   </div>
 
-                  {/* Hero: the actual uploaded file, wide-container variant overlays
-                      the nav + welcome text on the image like the real sites do;
-                      narrow-container variant matches the real sites' mobile
-                      layout, where the overlay drops and both move below the image. */}
+                  {/* Hero: the active banner's file. Wide-container variant
+                      overlays the nav + title/caption on the image like the
+                      real sites do; narrow-container variant matches the real
+                      sites' mobile layout, where both move below the image. */}
                   <div style={{ position: 'relative', width: '100%', aspectRatio: '2880 / 1600', background: '#000', overflow: 'hidden' }}>
                     {displayKind === 'video' ? (
                       <video src={displayUrl} muted autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      <img src={displayUrl} alt={previewUrl ? 'Banner preview' : 'Sample banner placeholder'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={displayUrl} alt={active.previewUrl ? 'Banner preview' : 'Sample banner placeholder'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     )}
                     {/* Matches the real school sites' actual nav treatment (checked
                         against a live BCPS school site, 2026-09-03) - a stack of
@@ -862,25 +970,28 @@ export default function BannerWidget() {
                         </div>
                       ))}
                     </div>
-                    {/* The WCM's own banner title, live as they type - nothing
-                        until they enter one (Vanessa Deslandes, 2026-09-29: no
-                        stand-in "Welcome" text on first load). */}
-                    {bannerTitle.trim() && (
+                    {/* The WCM's own banner title, and caption beneath it in
+                        smaller text, live as they type - nothing until they
+                        enter one (Vanessa Deslandes, 2026-09-29 / 2026-10-02). */}
+                    {(title || caption) && (
                       <div className="bwp-wide-only" style={{
                         position: 'absolute', left: '3cqw', bottom: '4cqw', right: '25%', color: '#fff',
-                        fontSize: '4.2cqw', fontWeight: 800, textShadow: '0 1px 6px rgba(0,0,0,0.5)',
+                        flexDirection: 'column', gap: '0.8cqw', textShadow: '0 1px 6px rgba(0,0,0,0.5)',
                       }}>
-                        {bannerTitle}
+                        {title && <div style={{ fontSize: '4.2cqw', fontWeight: 800, lineHeight: 1.15 }}>{title}</div>}
+                        {caption && <div style={{ fontSize: '2.3cqw', fontWeight: 600, lineHeight: 1.3 }}>{caption}</div>}
                       </div>
                     )}
                   </div>
 
-                  {/* Narrow-container variant: welcome text + full-width stacked nav
-                      rows below the image, matching the real sites' mobile layout. */}
+                  {/* Narrow-container variant: title, caption + full-width
+                      stacked nav rows below the image, matching the real
+                      sites' mobile layout. */}
                   <div className="bwp-narrow-only">
-                    {bannerTitle.trim() && (
-                      <div style={{ background: '#0a3764', color: '#fff', textAlign: 'center', fontWeight: 800, fontSize: 18, padding: '16px 10px' }}>
-                        {bannerTitle}
+                    {(title || caption) && (
+                      <div style={{ background: '#0a3764', color: '#fff', textAlign: 'center', padding: '16px 10px' }}>
+                        {title && <div style={{ fontWeight: 800, fontSize: 18 }}>{title}</div>}
+                        {caption && <div style={{ fontWeight: 500, fontSize: 13, marginTop: title ? 6 : 0 }}>{caption}</div>}
                       </div>
                     )}
                     {RIGHT_NAV_ITEMS.map(item => (
@@ -895,89 +1006,130 @@ export default function BannerWidget() {
                 </div>
 
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                  {previewUrl
+                  {active.previewUrl
                     ? 'This preview mirrors the real school-site header, homepage banner, and navigation, including how they reflow on a smaller screen. Drag the frame’s bottom-right corner (or use the width buttons above) to check narrower widths. Make sure faces and important subjects stay clear of the right-hand nav.'
-                    : 'This is a sample image showing how your upload will look on the homepage. Choose a photo or video above and it will replace this placeholder automatically.'}
+                    : 'This is a sample image showing how your upload will look on the homepage. Choose a photo or video below and it will replace this placeholder automatically.'}
+                </div>
+              </div>
+              )
+            })()}
+
+            {/* One card per banner (up to MAX_FILES). Each has its own file,
+                automated scan, title, caption and alt text. Focusing a card
+                shows it in the live preview. */}
+            {items.map((it, n) => (
+              <div
+                key={it.key}
+                onFocusCapture={() => setActiveKey(it.key)}
+                style={{
+                  border: `1px solid ${it.key === active.key && items.length > 1 ? '#0a3764' : 'var(--border)'}`,
+                  borderRadius: 8, padding: 12, display: 'grid', gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800 }}>Banner {n + 1}</div>
+                  {items.length > 1 && (
+                    <button type="button" className="btn-outline" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => removeItem(it.key)}>
+                      Remove
+                    </button>
+                  )}
                 </div>
 
-                {/* Automated Photo Content Requirements scan - shown "upfront"
-                    right where it runs, per Sean 2026-09-03, not buried only
-                    in the right-hand Validation checklist. Only appears once
-                    a real file is selected (not for the placeholder). */}
-                {file && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Photo or video *</label>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,video/mp4"
+                    onChange={(e) => chooseFile(it.key, e.target.files?.[0] || null)}
+                  />
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                    Image: 2880x1600px target (2000x800px minimum). Video: MP4 only, max 30 seconds, 1080p HD recommended (not 4K).
+                  </div>
+                </div>
+
+                {/* Automated Photo Content Requirements scan - shown right
+                    where it runs, per Sean 2026-09-03. Only once a real file
+                    is selected. */}
+                {it.file && (
                   <div style={{
-                    marginTop: 10, borderRadius: 6, padding: '10px 12px', fontSize: 12.5,
-                    background: scanState === 'scanning' ? '#f3f4f6'
-                      : scanState === 'error' ? '#fbe9e7'
-                      : scanState === 'degraded' ? '#fdf3e0'
-                      : !(scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass) ? '#fbe9e7'
-                      : scanResult?.text_detected ? '#fdf3e0' : '#e6f4ea',
-                    color: scanState === 'scanning' ? '#4b5563'
-                      : scanState === 'error' ? '#a13a2f'
-                      : scanState === 'degraded' ? '#8a5a00'
-                      : !(scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass) ? '#a13a2f'
-                      : scanResult?.text_detected ? '#8a5a00' : '#1e6b3a',
+                    borderRadius: 6, padding: '10px 12px', fontSize: 12.5,
+                    background: it.scanState === 'scanning' ? '#f3f4f6'
+                      : it.scanState === 'error' ? '#fbe9e7'
+                      : it.scanState === 'degraded' ? '#fdf3e0'
+                      : !(it.scanResult?.no_overlays_pass && it.scanResult?.nav_clearance_pass) ? '#fbe9e7'
+                      : it.scanResult?.text_detected ? '#fdf3e0' : '#e6f4ea',
+                    color: it.scanState === 'scanning' ? '#4b5563'
+                      : it.scanState === 'error' ? '#a13a2f'
+                      : it.scanState === 'degraded' ? '#8a5a00'
+                      : !(it.scanResult?.no_overlays_pass && it.scanResult?.nav_clearance_pass) ? '#a13a2f'
+                      : it.scanResult?.text_detected ? '#8a5a00' : '#1e6b3a',
                   }}>
-                    <div style={{ fontWeight: 700, marginBottom: scanResult?.reasons?.length ? 4 : 0 }}>
-                      {scanState === 'scanning' && 'Scanning image for graphics, text overlays, and nav clearance...'}
-                      {scanState === 'error' && `Automated scan failed: ${scanError}`}
-                      {scanState === 'degraded' && 'Automated scan unavailable right now - this submission will be flagged for the District Web Team to review manually.'}
-                      {scanState === 'done' && (!(scanResult?.no_overlays_pass && scanResult?.nav_clearance_pass)
+                    <div style={{ fontWeight: 700, marginBottom: it.scanResult?.reasons?.length ? 4 : 0 }}>
+                      {it.scanState === 'scanning' && 'Scanning image for graphics, text overlays, and nav clearance...'}
+                      {it.scanState === 'error' && `Automated scan failed: ${it.scanError}`}
+                      {it.scanState === 'degraded' && 'Automated scan unavailable for this file - it will be flagged for the District Web Team to review manually.'}
+                      {it.scanState === 'done' && (!(it.scanResult?.no_overlays_pass && it.scanResult?.nav_clearance_pass)
                         ? 'Automated content scan flagged this image - it cannot be submitted as-is.'
-                        : scanResult?.text_detected
+                        : it.scanResult?.text_detected
                           ? 'Text detected in this image - please confirm below.'
                           : 'Automated content scan passed.')}
                     </div>
-                    {scanResult?.reasons && scanResult.reasons.length > 0 && (
+                    {it.scanResult?.reasons && it.scanResult.reasons.length > 0 && (
                       <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-                        {scanResult.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                        {it.scanResult.reasons.map((r, i) => <li key={i}>{r}</li>)}
                       </ul>
                     )}
                     {/* In-scene text attestation (Vanessa Deslandes, 2026-09-29):
                         a sign someone is holding is fine; text added on top of
                         the photo is not. OCR can't tell which, so the WCM says,
-                        and the District Web Team makes the final call. */}
-                    {scanState === 'done' && scanResult?.no_overlays_pass && scanResult?.text_detected && (
-                      <div style={{ marginTop: 6 }}>
-                        {scanResult.text_reason && <div style={{ fontWeight: 400, marginBottom: 6 }}>{scanResult.text_reason}</div>}
-                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', color: '#4b3200' }}>
-                          <input
-                            type="checkbox"
-                            checked={!!checks.in_scene_text}
-                            onChange={e => setChecks(prev => ({ ...prev, in_scene_text: e.target.checked }))}
-                            style={{ marginTop: 2 }}
-                          />
-                          <span>The text is part of the actual scene (a sign or banner in the photo), not added as a graphic. The District Web Team will make the final call.</span>
-                        </label>
-                      </div>
+                        and the District Web Team makes the final call. The text
+                        the scanner read is not shown here (Vanessa Deslandes,
+                        2026-10-02: often unreadable); only the review queue
+                        shows it. */}
+                    {it.scanState === 'done' && it.scanResult?.no_overlays_pass && it.scanResult?.text_detected && (
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', color: '#4b3200', marginTop: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={it.inSceneText}
+                          onChange={e => patchItem(it.key, { inSceneText: e.target.checked })}
+                          style={{ marginTop: 2 }}
+                        />
+                        <span>The text is part of the actual scene (a sign or banner in the photo), not added as a graphic. The District Web Team will make the final call.</span>
+                      </label>
                     )}
-                    {scanState === 'done' && scanResult?.nav_clearance_note && (
-                      <div style={{ marginTop: 6, fontWeight: 400, color: '#8a5a00' }}>{scanResult.nav_clearance_note}</div>
+                    {it.scanState === 'done' && it.scanResult?.nav_clearance_note && (
+                      <div style={{ marginTop: 6, fontWeight: 400, color: '#8a5a00' }}>{it.scanResult.nav_clearance_note}</div>
                     )}
                   </div>
                 )}
-              </div>
-              )
-            })()}
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner title *</label>
-              <input type="text" value={bannerTitle} onChange={e => setBannerTitle(e.target.value)} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner caption (optional)</label>
-              <input type="text" value={bannerCaption} onChange={e => setBannerCaption(e.target.value)} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Alternative text *</label>
-              <input type="text" value={altText} onChange={e => setAltText(e.target.value)} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-            </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner title *</label>
+                  <input type="text" maxLength={TITLE_MAX} value={it.title} onChange={e => patchItem(it.key, { title: e.target.value })} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                  <CharCount value={it.title} max={TITLE_MAX} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner caption (optional)</label>
+                  <input type="text" maxLength={CAPTION_MAX} value={it.caption} onChange={e => patchItem(it.key, { caption: e.target.value })} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                  <CharCount value={it.caption} max={CAPTION_MAX} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Alternative text *</label>
+                  <input type="text" value={it.alt} onChange={e => patchItem(it.key, { alt: e.target.value })} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+            ))}
+
+            {items.length < MAX_FILES && (
+              <button type="button" className="btn-outline" onClick={addItem} style={{ justifySelf: 'start', fontSize: 12.5, padding: '6px 12px' }}>
+                + Add another banner ({items.length} of {MAX_FILES})
+              </button>
+            )}
 
             {/* Submission requirement acknowledgements - the two items the
                 tool cannot check for itself (media release on file, final
-                sign-off). Photo Content Requirements used to be a third box
-                here; it's now the automated scan shown above instead of a
-                self-cert checkbox. See CHECKLIST comment above. */}
+                sign-off). They cover every banner in this request. See
+                CHECKLIST comment above. */}
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Submission requirement acknowledgements</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
@@ -1003,12 +1155,14 @@ export default function BannerWidget() {
           </div>
 
           {/* Validation checklist - live per-item status, matching Vanessa's
-              mockup exactly (label, order, one row per criterion, updates the
-              instant its condition is met). See VALIDATION_CHECKLIST comment. */}
+              mockup (label, order, one row per criterion, updates the
+              instant its condition is met). See VALIDATION_CHECKLIST. */}
           <div>
             <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, padding: 16, position: 'sticky', top: 12 }}>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Validation checklist</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>All items must pass before review.</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
+                All items must pass before review{filled.length > 1 ? `, for all ${filled.length} banners` : ''}.
+              </div>
               {VALIDATION_CHECKLIST.map(v => {
                 const chip = VALIDATION_CHIP[validationState[v.key]]
                 return (
@@ -1024,11 +1178,11 @@ export default function BannerWidget() {
               })}
               <button
                 className="btn-primary"
-                disabled={submitting || !allValidationPassed || !selectedSchool}
+                disabled={submitting || !allValidationPassed}
                 onClick={handleSubmitUpload}
                 style={{ width: '100%', marginTop: 4 }}
               >
-                {submitting ? 'Submitting...' : 'Submit for review'}
+                {submitting ? 'Submitting...' : filled.length > 1 ? `Submit ${filled.length} banners for review` : 'Submit for review'}
               </button>
               {uploadNotice && (
                 <div style={{ fontSize: 12, marginTop: 8, color: uploadNotice.startsWith('Submitted') ? '#1e6b3a' : '#a13a2f' }}>
@@ -1036,7 +1190,7 @@ export default function BannerWidget() {
                 </div>
               )}
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
-                Up to 3 submissions per request - submit this form again for additional banners.
+                Up to {MAX_FILES} banners per request. Each banner is reviewed on its own.
               </div>
             </div>
           </div>
@@ -1159,7 +1313,13 @@ export default function BannerWidget() {
                 {r.type === 'upload' && r.content_scan?.text_detected && (
                   <div style={{ marginTop: 8, fontSize: 12, background: '#fdf3e0', color: '#8a5a00', padding: '6px 10px', borderRadius: 5 }}>
                     <strong>Text detected</strong> - {r.checklist_ack?.in_scene_text ? 'WCM says it is part of the scene (sign or banner in the photo).' : 'not confirmed by the WCM.'}
-                    {r.content_scan.text_reason && <div style={{ marginTop: 2 }}>{r.content_scan.text_reason}</div>}
+                    {/* Hidden from the WCM, kept here for the team (Vanessa
+                        Deslandes, 2026-10-02). OCR output, often garbled. */}
+                    {r.content_scan.text_reason && (
+                      <div style={{ marginTop: 2 }}>
+                        Text detected by the scanner (may be inaccurate): {r.content_scan.text_reason.replace(/^Text overlay detected:\s*/, '')}
+                      </div>
+                    )}
                   </div>
                 )}
                 {r.type === 'upload' && r.signed_url && (
