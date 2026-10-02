@@ -33,6 +33,8 @@ const FIXED_REJECT_REASONS = [
 
 // Wording per Vanessa Deslandes, 2026-10-02: these emails come from the
 // school-facing tool, not the District, so they say "School", never "BCPS".
+// Greeting "Hi Web Content Manager," and the District Web Team sign-off on
+// both WCM emails (Vanessa Deslandes, 2026-10-02).
 const FOOTER = 'This is an automated message from the School WCM Banner Submission Form.'
 
 const GUIDELINES_MESSAGE =
@@ -170,13 +172,14 @@ export async function POST(req: NextRequest) {
         context: { submission_id: id },
         attachments: isUpload ? [GUIDELINES_ATTACHMENT] : undefined,
         html: `
-          <p>Hi,</p>
+          <p>Hi Web Content Manager,</p>
           <p>Your ${isUpload ? 'banner submission' : 'removal request'} <strong>"${escapeHtml(label)}"</strong>
           was reviewed by the District Web Team and was <strong>not approved</strong>.</p>
           <p style="background:#f7f7f7;border-left:3px solid #c0392b;padding:12px 16px;color:#333">${safeReason}</p>
           ${isUpload ? `<p>${GUIDELINES_MESSAGE}</p>` : ''}
           <p>You're welcome to correct the issue and submit again through the Banner tool on your bcpsmarcomm.com dashboard.</p>
           ${isUpload ? `<p><img src="cid:${GUIDELINES_ATTACHMENT.content_id}" alt="Identity Banner Guidelines: horizontal images only, leave space on the right for the navigation, and keep images clean and text-free." width="600" style="max-width:100%;height:auto;border:1px solid #ddd" /></p>` : ''}
+          <p>Best regards,<br />District Web Team</p>
           <p style="color:#888;font-size:12px">${FOOTER}</p>
         `,
       })
@@ -201,9 +204,10 @@ export async function POST(req: NextRequest) {
         kind: 'banner-approved',
         context: { submission_id: id },
         html: `
-          <p>Hi,</p>
+          <p>Hi Web Content Manager,</p>
           <p>Great work! Your ${media} <strong>"${escapeHtml(label)}"</strong> has been approved by the District Web Team
           and will be posted to your website within 24 to 48 hours.</p>
+          <p>Best regards,<br />District Web Team</p>
           <p style="color:#888;font-size:12px">${FOOTER}</p>
         `,
       })
