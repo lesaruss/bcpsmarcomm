@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireBcpsAdmin } from '@/lib/bcps-auth'
-import { deliver } from '@/lib/resend'
+import { deliver, type EmailAttachment } from '@/lib/resend'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({})) as { id?: string }
 
   const query = supabase.from('bcps_outbound_emails')
-    .select('id, to_addresses, cc_addresses, reply_to, subject, html, attempts')
+    .select('id, to_addresses, cc_addresses, reply_to, subject, html, attempts, context')
     .eq('status', 'failed')
     .order('created_at', { ascending: true })
     .limit(50)
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
       subject: row.subject,
       html: row.html,
       replyTo: row.reply_to,
+      attachments: (row.context as { attachments?: EmailAttachment[] } | null)?.attachments ?? null,
     })
     await supabase.from('bcps_outbound_emails').update({
       status: result.ok ? 'sent' : 'failed',

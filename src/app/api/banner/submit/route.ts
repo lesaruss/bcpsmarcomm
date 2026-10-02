@@ -49,6 +49,11 @@ const ALLOWED_MIME: Record<string, { ext: string; kind: 'image' | 'video' }> = {
   'video/mp4': { ext: 'mp4', kind: 'video' },
 }
 
+// Character limits (Vanessa Deslandes, 2026-10-02). Kept in sync with
+// BannerWidget.tsx's TITLE_MAX / CAPTION_MAX.
+const TITLE_MAX = 40
+const CAPTION_MAX = 115
+
 const REQUIRED_ACK_KEYS = ['media_release', 'final_ack'] as const
 
 async function verifyCaller(token: string) {
@@ -76,13 +81,13 @@ async function notifySubmissionReceived(row: {
   const schoolLine = row.school_name ? ` for <strong>${row.school_name}</strong>` : ''
   const result = await sendEmail({
     to: recipients,
-    subject: `New BCPS banner submission: "${label}"${row.school_name ? ` (${row.school_name})` : ''}`,
+    subject: `New School banner submission: "${label}"${row.school_name ? ` (${row.school_name})` : ''}`,
     html: `
       <p>Hi,</p>
       <p>${row.wcm_email ? `<strong>${row.wcm_email}</strong>` : 'A WCM'} just submitted a new banner${schoolLine} for review:
       <strong>"${label}"</strong>.</p>
       <p><a href="https://bcpsmarcomm.com/?page=banner-submissions">Review it in the Banner Submissions queue</a>.</p>
-      <p style="color:#888;font-size:12px">This is an automated message from the BCPS WCM Banner Submission App. You're
+      <p style="color:#888;font-size:12px">This is an automated message from the School WCM Banner Submission Form. You're
       receiving it because you're listed as an Admin or Manager for this tool - manage that list from the Manage Admins
       tab on the Banner Submissions page.</p>
     `,
@@ -117,6 +122,8 @@ export async function POST(req: NextRequest) {
   }
   if (!school_location_nbr?.trim()) return NextResponse.json({ error: 'School is required' }, { status: 400 })
   if (!banner_title?.trim()) return NextResponse.json({ error: 'Banner title is required' }, { status: 400 })
+  if (banner_title.trim().length > TITLE_MAX) return NextResponse.json({ error: `Banner title must be ${TITLE_MAX} characters or fewer` }, { status: 400 })
+  if ((banner_caption?.trim().length ?? 0) > CAPTION_MAX) return NextResponse.json({ error: `Banner caption must be ${CAPTION_MAX} characters or fewer` }, { status: 400 })
   if (!alt_text?.trim()) return NextResponse.json({ error: 'Alternative text is required' }, { status: 400 })
 
   const { data: schoolRow, error: schoolErr } = await svc

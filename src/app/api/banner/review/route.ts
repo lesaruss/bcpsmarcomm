@@ -31,6 +31,26 @@ const FIXED_REJECT_REASONS = [
   'Embedded text or logos',
 ]
 
+// Wording per Vanessa Deslandes, 2026-10-02: these emails come from the
+// school-facing tool, not the District, so they say "School", never "BCPS".
+const FOOTER = 'This is an automated message from the School WCM Banner Submission Form.'
+
+const GUIDELINES_MESSAGE =
+  'As outlined in the Identity Banner Guidelines, photos/videos must be high-quality, photos must not have faces ' +
+  'blocked by the right navigation, be free of any embedded text or lettering, and be horizontal/landscape to ' +
+  'display correctly. Please review the guidelines before submitting new images.'
+
+// Served from public/banner-guidelines.jpg; Resend fetches it at send time.
+const GUIDELINES_ATTACHMENT = {
+  filename: 'identity-banner-guidelines.jpg',
+  path: 'https://bcpsmarcomm.com/banner-guidelines.jpg',
+  content_id: 'banner-guidelines',
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 function isValidRejectionReason(reason: string): boolean {
   if (FIXED_REJECT_REASONS.includes(reason)) return true
   const otherMatch = reason.match(/^Other:\s*([\s\S]+)$/)
@@ -137,18 +157,27 @@ export async function POST(req: NextRequest) {
       const label = submission.type === 'upload'
         ? (submission.banner_title || submission.file_name || 'your banner submission')
         : (submission.removal_description || 'your removal request')
-      const safeReason = trimmedReason.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      const safeReason = escapeHtml(trimmedReason)
+      // Uploads get Vanessa Deslandes's standard guidelines paragraph and the
+      // guidelines sheet embedded in the body (2026-10-02) - a cid: inline
+      // image, not a link, so the WCM sees the examples without clicking out.
+      const isUpload = submission.type === 'upload'
       const result = await sendEmail({
         to: submission.wcm_email,
-        subject: `BCPS Banner Submission: "${label}" was not approved`,
+        subject: `School Banner Submission: "${label}" was not approved`,
         replyTo: 'sean.russell@browardschools.com',
+        kind: 'banner-rejected',
+        context: { submission_id: id },
+        attachments: isUpload ? [GUIDELINES_ATTACHMENT] : undefined,
         html: `
           <p>Hi,</p>
-          <p>Your ${submission.type === 'upload' ? 'banner submission' : 'removal request'} <strong>"${label}"</strong>
+          <p>Your ${isUpload ? 'banner submission' : 'removal request'} <strong>"${escapeHtml(label)}"</strong>
           was reviewed by the District Web Team and was <strong>not approved</strong>.</p>
           <p style="background:#f7f7f7;border-left:3px solid #c0392b;padding:12px 16px;color:#333">${safeReason}</p>
+          ${isUpload ? `<p>${GUIDELINES_MESSAGE}</p>` : ''}
           <p>You're welcome to correct the issue and submit again through the Banner tool on your bcpsmarcomm.com dashboard.</p>
-          <p style="color:#888;font-size:12px">This is an automated message from the BCPS WCM Banner Submission App.</p>
+          ${isUpload ? `<p><img src="cid:${GUIDELINES_ATTACHMENT.content_id}" alt="Identity Banner Guidelines: horizontal images only, leave space on the right for the navigation, and keep images clean and text-free." width="600" style="max-width:100%;height:auto;border:1px solid #ddd" /></p>` : ''}
+          <p style="color:#888;font-size:12px">${FOOTER}</p>
         `,
       })
       emailed = result.ok
@@ -158,6 +187,33 @@ export async function POST(req: NextRequest) {
     } else {
       emailWarning = 'No email on file for this WCM - rejection saved but not emailed.'
       update.rejection_email_error = emailWarning
+    }
+  } else if (submission.type === 'upload') {
+    // Approval email to the WCM (Vanessa Deslandes, 2026-10-02). Uploads
+    // only; an approved removal request has nothing to post.
+    if (submission.wcm_email) {
+      const label = submission.banner_title || submission.file_name || 'your banner submission'
+      const media = submission.file_type === 'video' ? 'video' : 'photo'
+      const result = await sendEmail({
+        to: submission.wcm_email,
+        subject: `School Banner Submission: "${label}" was approved`,
+        replyTo: 'sean.russell@browardschools.com',
+        kind: 'banner-approved',
+        context: { submission_id: id },
+        html: `
+          <p>Hi,</p>
+          <p>Great work! Your ${media} <strong>"${escapeHtml(label)}"</strong> has been approved by the District Web Team
+          and will be posted to your website within 24 to 48 hours.</p>
+          <p style="color:#888;font-size:12px">${FOOTER}</p>
+        `,
+      })
+      emailed = result.ok
+      if (!result.ok) emailWarning = result.error
+      update.approval_email_sent_at = result.ok ? now : null
+      update.approval_email_error = result.ok ? null : (result.error || 'Unknown send error')
+    } else {
+      emailWarning = 'No email on file for this WCM - approval saved but not emailed.'
+      update.approval_email_error = emailWarning
     }
   }
 
