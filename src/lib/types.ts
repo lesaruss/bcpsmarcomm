@@ -25,6 +25,7 @@ export type PageId =
   | 'minibase'
   | 'pulse-approvals'
   | 'find-it-fast'
+  | 'directory'
   | 'widgets'
   | 'ada-scanner'
   | 'ada-manager'

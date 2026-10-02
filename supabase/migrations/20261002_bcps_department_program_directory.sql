@@ -1,0 +1,364 @@
+-- Department & Program Directory widget (Sean, 2026-10-02). Same model as the
+-- II&DL Services Directory: public read-only embed at
+-- /embeds/department-program-directory.html, edits through /api/bcps/directory
+-- (service role, ACL-gated). Seeded from bcps_departments (website_url, blurb)
+-- and bcps_programs (the browardschools.com Programs & Services A-Z), with
+-- MarComm-drafted tags for each department to confirm. review_note is internal
+-- and NOT readable by anon (column-level grants below).
+--
+-- bcps_directory_events records what people search for and click, so tags can
+-- be tuned from real zero-result searches (BOSS 2026-10-02). It stores no IP,
+-- account, or persistent visitor id: session_id is random per page load.
+-- Writes arrive through /api/bcps/directory-events (service role, validated and
+-- throttled); anon and authenticated have no access to it at all.
+-- Applied to project fwbhwfxpncrsfhttimna on 2026-10-02 one statement per
+-- execute_sql call (apply_migration and multi-statement batches timed out; see
+-- error_registry SUPABASE-MCP-EXECUTE-SQL-TIMEOUT-ON-HTML-LITERALS), so this
+-- file, not schema_migrations, is the record. Written without angle brackets
+-- for the same reason.
+-- The Widgets hub registration block at the bottom is applied once the embed
+-- and editor are live on production, so the hub never lists a widget whose
+-- preview 404s.
+
+CREATE TABLE IF NOT EXISTS public.bcps_directory_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind text NOT NULL CHECK (kind IN ('department', 'program')),
+  name text NOT NULL,
+  url text NOT NULL,
+  -- Department: its division. Program: the department whose site holds it
+  -- (the embed shows "Part of ..."). NULL hides it.
+  context text,
+  description text,
+  topic text NOT NULL CHECK (topic IN ('enroll', 'hr', 'ops', 'support', 'acad', 'family', 'safety', 'activities', 'money', 'tech', 'gov')),
+  -- Audience codes: F family, S student, E employee, C community or business.
+  audiences text NOT NULL DEFAULT '',
+  tags text[] NOT NULL DEFAULT '{}',
+  -- Sub-units that share this page (e.g. the six IT units), searchable and listed on the card.
+  includes text[] NOT NULL DEFAULT '{}',
+  -- Order inside a topic, most-wanted first (GA4). NULL sorts after, A to Z.
+  demand_rank integer,
+  -- Set both to place the entry in the "Most visited" row.
+  popular_label text,
+  popular_rank integer,
+  active boolean NOT NULL DEFAULT true,
+  review_note text,
+  sort_order integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.bcps_directory_events (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  event text NOT NULL CHECK (event IN ('search', 'click')),
+  query text CHECK (char_length(query) BETWEEN 0 AND 120),
+  query_norm text CHECK (char_length(query_norm) BETWEEN 0 AND 120),
+  result_count integer CHECK (result_count BETWEEN 0 AND 1000),
+  entry_id uuid REFERENCES public.bcps_directory_entries(id) ON DELETE SET NULL,
+  result_rank integer CHECK (result_rank BETWEEN 0 AND 1000),
+  type_filter text CHECK (type_filter IN ('all', 'dept', 'prog')),
+  topic_filter text CHECK (char_length(topic_filter) BETWEEN 0 AND 20),
+  session_id text CHECK (char_length(session_id) BETWEEN 0 AND 40),
+  host text CHECK (char_length(host) BETWEEN 0 AND 200)
+);
+CREATE INDEX IF NOT EXISTS bcps_directory_events_created_idx ON public.bcps_directory_events (created_at DESC);
+
+ALTER TABLE public.bcps_directory_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bcps_directory_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public read active directory entries" ON public.bcps_directory_entries;
+CREATE POLICY "public read active directory entries" ON public.bcps_directory_entries
+  FOR SELECT TO anon, authenticated USING (active);
+
+REVOKE ALL ON public.bcps_directory_entries, public.bcps_directory_events FROM anon, authenticated;
+GRANT SELECT (id, kind, name, url, context, description, topic, audiences, tags, includes, demand_rank, popular_label, popular_rank, active, sort_order)
+  ON public.bcps_directory_entries TO anon, authenticated;
+
+-- Search insights for the editor, computed in the database so the API route
+-- never pulls raw event rows. Service role only.
+CREATE OR REPLACE FUNCTION public.bcps_directory_insights(days integer DEFAULT 30)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  WITH ev AS (
+    SELECT * FROM bcps_directory_events WHERE created_at BETWEEN now() - make_interval(days => days) AND 'infinity'::timestamptz
+  ),
+  s AS (SELECT * FROM ev WHERE event = 'search' AND coalesce(query_norm, '') != ''),
+  c AS (SELECT * FROM ev WHERE event = 'click')
+  SELECT jsonb_build_object(
+    'days', days,
+    'sessions', (SELECT count(DISTINCT session_id) FROM ev),
+    'searches', (SELECT count(*) FROM s),
+    'zero_result_searches', (SELECT count(*) FROM s WHERE result_count = 0),
+    'clicks', (SELECT count(*) FROM c),
+    'search_sessions', (SELECT count(DISTINCT session_id) FROM s),
+    'search_sessions_with_click', (SELECT count(DISTINCT s.session_id) FROM s JOIN c USING (session_id) WHERE c.created_at BETWEEN s.created_at AND 'infinity'::timestamptz),
+    'top_searches', coalesce((
+      SELECT jsonb_agg(t ORDER BY t.searches DESC, t.query) FROM (
+        SELECT s.query_norm AS query, count(*) AS searches,
+          round(avg(s.result_count)::numeric, 1) AS avg_results,
+          (SELECT count(*) FROM c WHERE c.query_norm = s.query_norm) AS clicks,
+          max(s.created_at) AS last_seen
+        FROM s GROUP BY s.query_norm ORDER BY count(*) DESC, s.query_norm LIMIT 25
+      ) t), '[]'::jsonb),
+    'zero_result', coalesce((
+      SELECT jsonb_agg(t ORDER BY t.searches DESC, t.query) FROM (
+        SELECT query_norm AS query, count(*) AS searches, max(created_at) AS last_seen
+        FROM s WHERE result_count = 0 GROUP BY query_norm ORDER BY count(*) DESC, query_norm LIMIT 25
+      ) t), '[]'::jsonb),
+    'top_clicked', coalesce((
+      SELECT jsonb_agg(t ORDER BY t.clicks DESC, t.name) FROM (
+        SELECT e.id, e.name, e.kind, count(*) AS clicks,
+          count(*) FILTER (WHERE coalesce(c.query_norm, '') = '') AS from_browsing
+        FROM c JOIN bcps_directory_entries e ON e.id = c.entry_id
+        GROUP BY e.id, e.name, e.kind ORDER BY count(*) DESC, e.name LIMIT 15
+      ) t), '[]'::jsonb)
+  )
+$$;
+REVOKE ALL ON FUNCTION public.bcps_directory_insights(integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.bcps_directory_insights(integer) TO service_role;
+
+INSERT INTO public.bcps_directory_entries
+  (kind, name, url, context, description, topic, audiences, tags, includes, demand_rank, popular_label, popular_rank, review_note, sort_order)
+SELECT * FROM (VALUES
+('department', 'Bilingual / ESOL', 'https://www.browardschools.com/bcps-departments/bilingualesol', 'Academics', 'Serves English language learners through bilingual programs, ESOL instruction, and language development support services.', 'acad', 'FSE', ARRAY['ELL', 'English language learners', 'ESOL', 'bilingual', 'language', 'translation', 'interpreter', 'multilingual', 'Spanish', 'Haitian Creole', 'Portuguese', 'newcomer']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 1),
+('department', 'Career, Technical & Adult Education', 'https://www.browardschools.com/bcps-departments/career-technical-adult-education-ctace', 'Academics', 'Prepares students for careers and college through CTE programs, apprenticeships, and adult education pathways.', 'acad', 'FSC', ARRAY['CTE', 'CTACE', 'career', 'vocational', 'trades', 'apprenticeship', 'adult education', 'GED', 'technical college', 'industry certification', 'workforce']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 2),
+('department', 'Early Childhood Education', 'https://www.browardschools.com/bcps-departments/early-childhood-education', 'Academics', 'Oversees PreK and kindergarten readiness programs, early intervention services, and early literacy initiatives.', 'acad', 'F', ARRAY['PreK', 'pre-k', 'VPK', 'preschool', 'kindergarten readiness', 'Head Start', 'early learning', 'early intervention']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 3),
+('department', 'Educational Assessment, Analysis & Research', 'https://www.browardschools.com/bcps-departments/educational-assessment-analysis-research', 'Academics', 'Conducts research, manages assessments, and analyzes academic data to drive districtwide instructional decisions.', 'acad', 'FE', ARRAY['testing', 'tests', 'assessments', 'FAST', 'EOC', 'state tests', 'test scores', 'research request', 'school grades', 'accountability', 'data']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 4),
+('department', 'Elementary Learning', 'https://www.browardschools.com/bcps-departments/elementary-learning', 'Academics', 'Supports K-5 curriculum, instructional frameworks, and school improvement across all elementary schools in the district.', 'acad', 'FE', ARRAY['elementary', 'K-5', 'curriculum', 'reading', 'math', 'science', 'primary']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 5),
+('department', 'Instructional Innovation & Digital Learning', 'https://www.browardschools.com/bcps-departments/academics/instructional-innovation-digital-learning', 'Academics', 'Advances digital learning tools, instructional technology integration, and innovative teaching models across all schools.', 'acad', 'EF', ARRAY['IIDL', 'digital learning', 'instructional technology', 'library', 'media center', 'distance learning', 'virtual field trips', 'STEM', 'computer science', 'professional learning', 'instructional materials', 'textbooks']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 6),
+('department', 'Leadership Development', 'https://www.browardschools.com/bcps-departments/leadership-development', 'Academics', 'Develops and supports school and district leaders through coaching, mentorship, training, and leadership pipeline programs.', 'hr', 'E', ARRAY['principal', 'assistant principal', 'aspiring leaders', 'leadership', 'coaching', 'mentoring']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 7),
+('department', 'Magnet & Innovative Programs', 'https://www.browardschools.com/bcps-departments/applied-learning-academic-electives-specials-magnet-programs', 'Academics', 'Manages magnet schools, choice programs, and specialized academic options available to families across the district.', 'enroll', 'FS', ARRAY['magnet', 'choice', 'specialty programs', 'applied learning', 'electives', 'specials', 'innovative programs', 'apply']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 8),
+('department', 'Secondary Learning', 'https://www.browardschools.com/bcps-departments/secondary-learning', 'Academics', 'Guides middle and high school curriculum, instruction, and academic programming for all secondary schools districtwide.', 'acad', 'FSE', ARRAY['middle school', 'high school', 'graduation requirements', 'AP', 'AP classes', 'advanced placement', 'IB', 'AICE', 'dual enrollment', 'honors', 'credits']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 9),
+('department', 'BECON', 'https://www.browardschools.com/bcps-departments/broward-educational-communications-network-becon', 'Chief of Staff', 'Operates Broward''s educational cable TV network, producing and broadcasting K-12 educational and community content.', 'gov', 'CF', ARRAY['TV', 'television', 'cable', 'broadcast', 'channel', 'video production', 'Broward Educational Communications Network']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 10),
+('department', 'Family & Community Engagement', 'https://www.browardschools.com/bcps-departments/family-and-community-engagement-face', 'Chief of Staff', 'Builds partnerships with families, community organizations, and local stakeholders to support student success districtwide.', 'family', 'FC', ARRAY['FACE', 'parents', 'family', 'parent workshops', 'PTA', 'SAC', 'community partners', 'family engagement']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 11),
+('department', 'Office of Communications & Legislative Affairs', 'https://www.browardschools.com/bcps-departments/office-of-communications-legislative-affairs', 'Chief of Staff', 'Manages district messaging, branding, and marketing, and represents district interests with local and state government.', 'gov', 'CE', ARRAY['communications', 'marketing', 'branding', 'logo', 'social media', 'legislative', 'legislature', 'Tallahassee', 'government relations', 'advocacy', 'public information']::text[], ARRAY['Legislative Affairs', 'Marketing & Strategic Communications']::text[], NULL, NULL, NULL, NULL, 12),
+('department', 'Media Relations', 'https://www.browardschools.com/bcps-departments/newsroom', 'Chief of Staff', 'Handles press inquiries, media partnerships, news releases, and journalist relationships on behalf of the district.', 'gov', 'C', ARRAY['news', 'newsroom', 'press', 'media', 'reporters', 'press release', 'announcements', 'spokesperson']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 13),
+('department', 'Capital Programs', 'https://www.browardschools.com/bcps-departments/capital-budget', 'Facilities', 'Manages construction projects, capital improvement programs, and bond-funded school building and renovation initiatives.', 'ops', 'C', ARRAY['capital budget', 'bond', 'SMART program', 'renovations', 'construction', 'school buildings']::text[], '{}'::text[], NULL, NULL, NULL, 'Name in bcps_departments does not match the page it links to (capital-budget). Confirm name and URL.', 14),
+('department', 'Construction', 'https://www.browardschools.com/bcps-departments/building-department', 'Facilities', 'Oversees active construction, renovation, and modernization projects across district school sites and facilities.', 'ops', 'C', ARRAY['building department', 'permits', 'inspections', 'building code', 'contractors']::text[], '{}'::text[], NULL, NULL, NULL, 'Name in bcps_departments does not match the page it links to (building-department). Confirm name and URL.', 15),
+('department', 'Facility Planning & Real Estate', 'https://www.browardschools.com/bcps-departments/facility-planning-real-estate', 'Facilities', 'Plans long-range facility needs, manages property acquisitions, leases, and district real estate assets and portfolios.', 'ops', 'C', ARRAY['property', 'real estate', 'land', 'leases', 'school sites', 'facility planning']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 16),
+('department', 'Physical Plant Operations', 'https://www.browardschools.com/bcps-departments/physical-plant-operations', 'Facilities', 'Maintains school buildings, HVAC, electrical, plumbing, and grounds across all district facilities and campuses.', 'ops', 'E', ARRAY['maintenance', 'repairs', 'HVAC', 'air conditioning', 'grounds', 'plumbing', 'electrical', 'work order']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 17),
+('department', 'Sustainability & Compliance', 'https://www.browardschools.com/bcps-departments/environmental-health-safety', 'Facilities', 'Leads environmental compliance, sustainability initiatives, energy management, and green building standards districtwide.', 'ops', 'EF', ARRAY['environmental health', 'indoor air quality', 'mold', 'asbestos', 'recycling', 'energy', 'sustainability', 'green']::text[], '{}'::text[], NULL, NULL, NULL, 'Name in bcps_departments does not match the page it links to (environmental-health-safety). Confirm name and URL.', 18),
+('department', 'Accounting & Financial Reporting', 'https://www.browardschools.com/bcps-departments/accounting-financial-reporting', 'Finance', 'Maintains financial records, prepares audited statements, and ensures accurate accounting across the district.', 'money', 'CE', ARRAY['accounting', 'financial statements', 'annual financial report', 'finance']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 19),
+('department', 'Benefits', 'https://www.browardschools.com/bcps-departments/benefits-employment-services', 'Finance', 'Administers employee health insurance, retirement plans, and benefit programs for all active and retired district personnel.', 'hr', 'E', ARRAY['health insurance', 'medical', 'dental', 'vision', 'retirement', 'FRS', 'open enrollment', 'life insurance', 'employee benefits', 'retirees']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 20),
+('department', 'Budget', 'https://www.browardschools.com/bcps-departments/budget', 'Finance', 'Develops and manages the district''s annual operating budget and multi-year financial planning and forecasting process.', 'money', 'C', ARRAY['budget', 'millage', 'taxes', 'spending', 'budget hearings', 'operating budget']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 21),
+('department', 'Economic Development, Opportunities & Compliance', 'https://www.browardschools.com/bcps-departments/economic-development-opportunities-compliance-edoc', 'Finance', 'Promotes small business contracting opportunities and ensures compliance with M/WBE programs across all district procurement.', 'money', 'C', ARRAY['EDOC', 'small business', 'M/WBE', 'minority business', 'supplier diversity', 'vendor certification']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 22),
+('department', 'Federal Programs', 'https://www.browardschools.com/bcps-departments/federal-programs', 'Finance', 'Oversees compliance and implementation of Title I, IDEA, and other federal funding programs for the district.', 'money', 'FE', ARRAY['Title I', 'Title 1', 'IDEA', 'federal funding', 'Title III', 'Title IV']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 23),
+('department', 'Grants Administration', 'https://www.browardschools.com/bcps-departments/grants-administration', 'Finance', 'Secures, monitors, and reports on federal, state, and private grant funding that supports district programs and initiatives.', 'money', 'CE', ARRAY['grants', 'funding', 'grant writing', 'foundations']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 24),
+('department', 'Payroll', 'https://www.browardschools.com/bcps-departments/payroll', 'Finance', 'Processes accurate and timely payroll for all district employees and manages compensation records and disbursements.', 'hr', 'E', ARRAY['paycheck', 'pay', 'salary', 'direct deposit', 'W-2', 'tax forms', 'pay schedule', 'pay stub']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 25),
+('department', 'Procurement & Logistics', 'https://www.browardschools.com/bcps-departments/procurement', 'Finance', 'Manages competitive bidding, vendor contracts, purchasing, and supply chain operations for all district departments.', 'money', 'C', ARRAY['bids', 'RFP', 'purchasing', 'vendors', 'contracts', 'solicitations', 'sell to the district', 'supplier']::text[], '{}'::text[], 17, NULL, NULL, NULL, 26),
+('department', 'Risk Management', 'https://www.browardschools.com/bcps-departments/risk-management', 'Finance', 'Manages district insurance programs, workers'' compensation, liability claims, and loss prevention across all operations.', 'money', 'EC', ARRAY['insurance', 'workers'' comp', 'workers compensation', 'claims', 'liability', 'injury', 'accident report']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 27),
+('department', 'Treasurer', 'https://www.browardschools.com/bcps-departments/treasurers-office/overview', 'Finance', 'Manages district investment portfolios, banking relationships, cash management, and debt service obligations.', 'money', 'C', ARRAY['treasury', 'investments', 'banking', 'cash management', 'debt', 'bonds']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 28),
+('department', 'EEO / ADA Compliance', 'https://www.browardschools.com/bcps-departments/human-resources/equal-educational-opportunities/overview', 'Human Resources', 'Ensures district compliance with Equal Employment Opportunity laws and the Americans with Disabilities Act requirements.', 'hr', 'EF', ARRAY['EEO', 'equal opportunity', 'ADA', 'disability', 'accommodations', 'discrimination', 'harassment', 'Title IX', 'civil rights', 'complaint']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 29),
+('department', 'Human Resources', 'https://www.browardschools.com/bcps-departments/human-resources', 'Human Resources', 'Recruits, hires, and onboards district staff, and runs employee performance and growth programs.', 'hr', 'EC', ARRAY['jobs', 'careers', 'employment', 'hiring', 'apply', 'teaching jobs', 'recruitment', 'onboarding', 'substitute teacher', 'teacher certification', 'HR']::text[], ARRAY['Talent Acquisition', 'Talent Management']::text[], 1, 'Jobs & HR', 1, NULL, 30),
+('department', 'Labor Relations', 'https://www.browardschools.com/bcps-departments/human-resources/labor-relations', 'Human Resources', 'Manages collective bargaining agreements, union relationships, and employee contract compliance across the district.', 'hr', 'E', ARRAY['union', 'collective bargaining', 'contracts', 'labor', 'grievance']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 31),
+('department', 'Professional Practices', 'https://www.browardschools.com/bcps-departments/human-resources/professional-practices', 'Human Resources', 'Investigates employee misconduct, enforces district policy, and manages disciplinary proceedings for all staff matters.', 'hr', 'EF', ARRAY['misconduct', 'investigations', 'employee discipline', 'employee conduct', 'complaint about an employee']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 32),
+('department', 'General Counsel', 'https://www.browardschools.com/bcps-departments/office-of-general-counsel', 'Independent Offices', 'Provides legal counsel, represents the district in litigation, and ensures compliance with all applicable education law.', 'gov', 'C', ARRAY['legal', 'lawyer', 'attorney', 'subpoena', 'litigation', 'law']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 33),
+('department', 'Office of the Auditor', 'https://www.browardschools.com/bcps-departments/audit', 'Independent Offices', 'Conducts independent audits of district finances, operations, and programs to ensure accountability and proper use of public funds.', 'gov', 'C', ARRAY['audit', 'internal audit', 'fraud', 'waste', 'audit reports', 'accountability']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 34),
+('department', 'Information Technology', 'https://www.browardschools.com/bcps-departments/information-technology', 'Information Systems', 'Runs district technology: devices, help desk support, networks, enterprise applications, data, and cybersecurity.', 'tech', 'ESF', ARRAY['IT', 'tech support', 'help desk', 'password', 'laptop', 'device', 'Wi-Fi', 'network', 'cybersecurity', 'software', 'email', 'login']::text[], ARRAY['Application Services', 'Data Intelligence', 'Information Security & Assurance', 'Infrastructure Services', 'Technology Operations', 'Technology Support Services']::text[], NULL, NULL, NULL, NULL, 35),
+('department', 'Learning Communities', 'https://www.browardschools.com/bcps-departments/sasp', 'Learning Communities', 'Provides regional leadership, instructional coaching, and operational support to schools in the North, Central, and South regions.', 'acad', 'FE', ARRAY['regions', 'regional office', 'regional superintendent', 'North Region', 'Central Region', 'South Region', 'school support']::text[], ARRAY['Central Region', 'North Region', 'South Region']::text[], NULL, NULL, NULL, NULL, 36),
+('department', 'School Transformation Office', 'https://www.browardschools.com/bcps-departments/school-improvement', 'Learning Communities', 'Leads turnaround and improvement initiatives for schools requiring intensive academic and operational support services.', 'acad', 'EF', ARRAY['school improvement', 'turnaround', 'transformation', 'school improvement plan', 'SIP', 'accreditation']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 37),
+('department', 'Safety, Security & Emergency Preparedness', 'https://www.browardschools.com/bcps-departments/safety-security-and-emergency-preparedness', 'Safety & Security', 'Coordinates school safety planning, security operations, threat assessment, safety technology, and emergency response districtwide.', 'safety', 'FEC', ARRAY['safety', 'security', 'emergency', 'threat assessment', 'hurricane', 'storm', 'lockdown', 'drills', 'cameras', 'visitors']::text[], ARRAY['Behavioral Threat Management', 'Emergency Management', 'Safety & Security Operations', 'Safety Technology']::text[], 4, 'Safety & Security', 8, NULL, 38),
+('department', 'Broward County Schools Police', 'https://www.browardschools.com/bcps-departments/bcps-police', 'Safety & Security', 'Provides sworn law enforcement services, campus safety officers, and security coverage at all district locations.', 'safety', 'FC', ARRAY['police', 'SRO', 'school resource officer', 'law enforcement', 'officers', 'report a crime']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 39),
+('department', 'Athletics & Student Activities', 'https://www.browardschools.com/bcps-departments/athletics', 'Strategy & Operations', 'Governs interscholastic athletics, student clubs, activities, and extracurricular programs at all district schools.', 'activities', 'SF', ARRAY['sports', 'athletics', 'football', 'basketball', 'physicals', 'eligibility', 'coaches', 'clubs', 'extracurricular']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 40),
+('department', 'Charter Schools Management/Support', 'https://www.browardschools.com/bcps-departments/school-choice123', 'Strategy & Operations', 'Oversees charter school authorizing, compliance monitoring, and operational support for all BCPS charter operators.', 'enroll', 'FC', ARRAY['charter schools', 'charter', 'school choice', 'charter application']::text[], '{}'::text[], 5, NULL, NULL, NULL, 41),
+('department', 'Demographics & Enrollment Planning', 'https://www.browardschools.com/bcps-departments/strategy-innovation/demographics-enrollment-planning', 'Strategy & Operations', 'Analyzes student population trends, manages school boundary planning, and coordinates enrollment projections for the district.', 'enroll', 'F', ARRAY['boundaries', 'attendance zones', 'zoned school', 'find my school', 'school locator', 'enrollment', 'reassignment']::text[], '{}'::text[], 13, NULL, NULL, NULL, 42),
+('department', 'Food & Nutrition Services', 'https://www.browardschools.com/bcps-departments/food-and-nutrition-services', 'Strategy & Operations', 'Provides federally compliant school meals, nutrition education, and cafeteria operations across all district schools.', 'ops', 'FS', ARRAY['lunch', 'breakfast', 'meals', 'menus', 'cafeteria', 'free lunch', 'reduced price meals', 'nutrition', 'food allergies']::text[], '{}'::text[], 8, 'School Meals', 4, NULL, 43),
+('department', 'Strategic Initiatives & Performance Management', 'https://www.browardschools.com/bcps-departments/strategy-innovation', 'Strategy & Operations', 'Drives districtwide strategy, tracks organizational performance metrics, and manages high-priority cross-functional initiatives.', 'gov', 'CE', ARRAY['strategic plan', 'strategy', 'performance', 'initiatives', 'innovation']::text[], '{}'::text[], 19, NULL, NULL, NULL, 44),
+('department', 'Student Transportation & Fleet Services', 'https://www.browardschools.com/bcps-departments/student-transportation-fleet-services', 'Strategy & Operations', 'Manages school bus routes, driver operations, fleet maintenance, and student transportation logistics districtwide.', 'ops', 'FS', ARRAY['bus', 'school bus', 'bus stop', 'bus route', 'bus schedule', 'transportation', 'ride', 'bus driver', 'fleet']::text[], '{}'::text[], 6, 'Bus Transportation', 3, NULL, 45),
+('department', 'Before & After School Care', 'https://www.browardschools.com/bcps-departments/strategy-innovation/before-and-after-school-child-care-bascc', 'Student Services', 'Administers supervised before and after school care programs at elementary and middle school sites districtwide.', 'family', 'F', ARRAY['BASCC', 'aftercare', 'before care', 'child care', 'after school', 'daycare']::text[], '{}'::text[], 15, 'Before & After School Care', 7, NULL, 46),
+('department', 'Exceptional Student Education', 'https://www.browardschools.com/bcps-departments/exceptional-student-education', 'Student Services', 'Provides services, advocacy, and programs for students with disabilities across all schools in the district.', 'support', 'FS', ARRAY['ESE', 'IEP', 'special education', 'disabilities', 'autism', 'speech therapy', '504', 'exceptional']::text[], '{}'::text[], 18, NULL, NULL, NULL, 47),
+('department', 'School Counseling', 'https://www.browardschools.com/bcps-departments/school-counseling', 'Student Services', 'Supports school counselors in delivering academic, social-emotional, and career development services to all students.', 'support', 'FS', ARRAY['counselor', 'guidance', 'college', 'scholarships', 'course selection', 'career planning']::text[], '{}'::text[], 12, 'School Counseling', 5, NULL, 48),
+('department', 'School Culture & Student Support', 'https://www.browardschools.com/bcps-departments/school-culture-student-support', 'Student Services', 'Promotes positive school environments, student engagement, restorative practices, and behavioral wellness districtwide.', 'support', 'FS', ARRAY['behavior', 'discipline', 'restorative practices', 'bullying', 'school climate', 'code of conduct']::text[], '{}'::text[], 14, NULL, NULL, NULL, 49),
+('department', 'Student Services & Mental Health', 'https://www.browardschools.com/bcps-departments/student-services', 'Student Services', 'Delivers counseling, mental health services, and wraparound support to students and families across the district.', 'support', 'FS', ARRAY['mental health', 'counseling', 'social work', 'attendance', 'homeless', 'wellness', 'therapy', 'crisis', 'suicide prevention']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 50),
+('program', 'Academics', 'https://www.browardschools.com/fs/pages/77942', NULL, 'District academic programs and resources from early learning through high school.', 'acad', 'FS', ARRAY['curriculum', 'subjects', 'learning', 'instruction']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 51),
+('program', 'Advertising', 'https://www.browardschools.com/community/get-involved-with-bcps-landing/overview', NULL, 'Opportunities for businesses to advertise with and sponsor the district.', 'family', 'C', ARRAY['ads', 'sponsorship', 'advertise', 'business partners']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 52),
+('program', 'All Are Welcome', 'https://www.browardschools.com/bcps-departments/office-of-communications-legislative-affairs/general-information/all-are-welcome', 'Office of Communications & Legislative Affairs', 'The district''s All Are Welcome message and resources.', 'family', 'FC', ARRAY['inclusion', 'belonging', 'welcoming schools']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 53),
+('program', 'Anonymous Tips', 'https://www.browardschools.com/fs/pages/83746', NULL, 'Ways to report a safety concern without giving your name.', 'safety', 'SFC', ARRAY['report a tip', 'tip line', 'report a threat', 'anonymous reporting', 'see something say something']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 54),
+('program', 'Anti-Bullying', 'https://www.browardschools.com/fs/pages/119593', NULL, 'Bullying prevention and how to report bullying.', 'support', 'SF', ARRAY['bullying', 'cyberbullying', 'harassment', 'report bullying']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 55),
+('program', 'Athletics', 'https://www.browardschools.com/bcps-departments/athletics/overview', 'Athletics & Student Activities', 'Interscholastic sports, eligibility, and athletic resources.', 'activities', 'SF', ARRAY['sports', 'physicals', 'eligibility', 'teams', 'game schedules']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 56),
+('program', 'Attendance', 'https://www.browardschools.com/bcps-departments/student-services/attendance', 'Student Services', 'Attendance expectations and help with absences.', 'support', 'FS', ARRAY['absences', 'absent', 'truancy', 'tardy', 'excused absence']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 57),
+('program', 'BCPS Police', 'https://www.browardschools.com/bcps-departments/safety-security-and-emergency-preparedness/broward-county-public-schools-police-bcps-police', 'Safety, Security & Emergency Preparedness', 'The district''s police department.', 'safety', 'FC', ARRAY['police', 'SRO', 'officers', 'law enforcement']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 58),
+('program', 'BECON Programming', 'https://www.browardschools.com/bcps-departments/broward-educational-communications-network-becon/overview', 'BECON', 'BECON TV programming and schedules.', 'gov', 'CF', ARRAY['TV', 'television', 'channel', 'broadcast', 'TV schedule']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 59),
+('program', 'Before & After School Care', 'https://www.browardschools.com/fs/pages/119169', NULL, 'Before and after school child care at district sites.', 'family', 'F', ARRAY['aftercare', 'child care', 'daycare', 'BASCC', 'after school']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 60),
+('program', 'BRACE', 'https://www.browardschools.com/bcps-departments/school-counseling/overview-programs', 'School Counseling', 'College and career advising for high school students.', 'support', 'SF', ARRAY['BRACE advisors', 'college', 'career', 'scholarships', 'financial aid', 'FAFSA']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 61),
+('program', 'Breakfast and Lunch Menus', 'https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus', 'Food & Nutrition Services', 'School breakfast and lunch menus.', 'ops', 'FS', ARRAY['menu', 'lunch menu', 'breakfast', 'meals', 'cafeteria', 'food']::text[], '{}'::text[], 9, NULL, NULL, NULL, 62),
+('program', 'Broward CODES', 'https://www.browardschools.com/fs/pages/80847', NULL, 'The district''s computer science and coding initiative.', 'acad', 'SF', ARRAY['coding', 'computer science', 'programming']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 63),
+('program', 'Broward Virtual University (BVU)', 'https://www.browardschools.com/fs/pages/85031', NULL, 'Online courses and professional learning through Broward Virtual University.', 'hr', 'E', ARRAY['BVU', 'online courses', 'professional development', 'training']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 64),
+('program', 'Calendar', 'https://www.browardschools.com/calendar-e3', NULL, 'District calendar, holidays, and key dates.', 'gov', 'FSE', ARRAY['school calendar', 'holidays', 'days off', 'first day of school', 'last day of school', 'spring break', 'winter break', 'early release']::text[], '{}'::text[], 11, NULL, NULL, NULL, 65),
+('program', 'Caliber Awards', 'https://www.browardschools.com/fs/pages/79305', NULL, 'The district''s employee recognition awards.', 'hr', 'E', ARRAY['employee recognition', 'teacher of the year', 'awards']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 66),
+('program', 'Career and Technical Education', 'https://www.browardschools.com/academics/career-technical-adult-community-education/overview', NULL, 'Career and technical programs and adult education.', 'acad', 'SFC', ARRAY['CTE', 'vocational', 'trades', 'industry certification', 'technical college', 'adult education']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 67),
+('program', 'Chess', 'https://www.browardschools.com/fs/pages/80613', NULL, 'Scholastic chess programs.', 'activities', 'S', ARRAY['chess club', 'tournaments']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 68),
+('program', 'Child Abuse Services', 'https://www.browardschools.com/bcps-departments/student-services/child-abuse-neglect-prevention-services', 'Student Services', 'Child abuse and neglect prevention and reporting.', 'support', 'FE', ARRAY['abuse', 'neglect', 'report abuse', 'child protection', 'mandated reporter']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 69),
+('program', 'Chronic Health', 'https://www.browardschools.com/bcps-departments/coordinated-student-health-services/health-conditions/chronic-health', 'Coordinated Student Health Services', 'Support for students with chronic health conditions.', 'support', 'FS', ARRAY['asthma', 'diabetes', 'allergies', 'seizures', 'medication', 'school nurse']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 70),
+('program', 'Civic Engagement', 'https://www.browardschools.com/fs/pages/80610', NULL, 'Civic education and student civic engagement.', 'activities', 'S', ARRAY['civics', 'voting', 'student government', 'citizenship']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 71),
+('program', 'Code of Student Conduct', 'https://www.browardschools.com/fs/pages/110418', NULL, 'The rules and expectations for student behavior.', 'support', 'FS', ARRAY['discipline', 'rules', 'behavior', 'dress code', 'suspension', 'conduct']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 72),
+('program', 'Community Connections', 'https://www.browardschools.com/bcps-departments/office-of-student-services/overview', 'Student Services', 'Connections to community services and partners.', 'family', 'FC', ARRAY['community resources', 'partners', 'social services']::text[], '{}'::text[], NULL, NULL, NULL, 'Program path points to office-of-student-services; confirm what this page covers.', 73),
+('program', 'Community Involvement Awards', 'https://www.browardschools.com/fs/pages/79493', NULL, 'Awards recognizing community partners and volunteers.', 'family', 'C', ARRAY['volunteer awards', 'business partners', 'recognition']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 74),
+('program', 'Community Service - Student', 'https://www.browardschools.com/programs-and-services/service-learning-student-volunteer', NULL, 'Service learning and student volunteer hours.', 'activities', 'S', ARRAY['volunteer hours', 'service hours', 'community service hours', 'service learning']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 75),
+('program', 'Computer Science', 'https://www.browardschools.com/fs/pages/119632', NULL, 'Computer science courses and programs.', 'acad', 'S', ARRAY['coding', 'programming', 'STEM']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 76),
+('program', 'Debate', 'https://www.browardschools.com/fs/pages/80619', NULL, 'Speech and debate programs.', 'activities', 'S', ARRAY['speech', 'debate team', 'forensics', 'public speaking']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 77),
+('program', 'District Accreditation', 'https://www.browardschools.com/bcps-departments/school-improvement/accreditation', 'School Transformation Office', 'District accreditation information.', 'gov', 'CF', ARRAY['accreditation', 'quality standards']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 78),
+('program', 'Driver''s Education', 'https://www.browardschools.com/fs/pages/80629', NULL, 'Driver education courses for students.', 'acad', 'S', ARRAY['drivers ed', 'driving', 'driver''s license', 'learner permit']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 79),
+('program', 'Early Childhood', 'https://www.browardschools.com/academics/early-learning/overview', NULL, 'Early childhood and early learning programs.', 'acad', 'F', ARRAY['PreK', 'pre-k', 'preschool', 'VPK', 'kindergarten readiness']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 80),
+('program', 'Early Learning', 'https://www.browardschools.com/fs/pages/77976', NULL, 'Early learning programs for young children.', 'acad', 'F', ARRAY['PreK', 'preschool', 'VPK', 'Head Start', 'early childhood']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 81),
+('program', 'Emergency Information / Codes', 'https://www.browardschools.com/bcps-departments/safety-security-and-emergency-preparedness/emergency-management/emergency-response-protocols', 'Safety, Security & Emergency Preparedness', 'Emergency response protocols and codes.', 'safety', 'FE', ARRAY['emergency codes', 'lockdown', 'code red', 'code yellow', 'evacuation', 'emergency procedures']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 82),
+('program', 'Employee and External Self-Service (ESS)', 'https://www.browardschools.com/fs/pages/85914', NULL, 'Employee self-service for pay and personal information.', 'hr', 'E', ARRAY['ESS', 'pay stub', 'W-2', 'employee portal', 'self service']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 83),
+('program', 'Environmental Education', 'https://www.browardschools.com/fs/pages/119632', NULL, 'Environmental education programs.', 'acad', 'S', ARRAY['environment', 'ecology', 'nature', 'conservation', 'sustainability']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 84),
+('program', 'ESE Support', 'https://www.browardschools.com/bcps-departments/exceptional-student-education/overview', 'Exceptional Student Education', 'Services for students with disabilities.', 'support', 'FS', ARRAY['special education', 'IEP', 'ESE', 'disabilities', 'autism', 'speech therapy']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 85),
+('program', 'Family and Community Engagement (FACE)', 'https://www.browardschools.com/fs/pages/82917', NULL, 'Programs and workshops for families and community partners.', 'family', 'FC', ARRAY['parents', 'parent workshops', 'PTA', 'family engagement']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 86),
+('program', 'Family Counseling', 'https://www.browardschools.com/bcps-departments/mental-health-services/family-counseling-program', 'Mental Health Services', 'Counseling services for students and families.', 'support', 'F', ARRAY['family therapy', 'counseling', 'mental health', 'parenting support']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 87),
+('program', 'Foreign Exchange Program', 'https://www.browardschools.com/bcps-departments/school-counseling/foreign-exchange-program', 'School Counseling', 'Information for foreign exchange students and host families.', 'enroll', 'SF', ARRAY['exchange students', 'international students', 'host family', 'study abroad']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 88),
+('program', 'Foster Care Program', 'https://www.browardschools.com/fs/pages/84173', NULL, 'Support for students in foster care.', 'support', 'FS', ARRAY['foster care', 'foster youth', 'foster families', 'caregivers']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 89),
+('program', 'Free and Reduced Lunch Program', 'https://www.browardschools.com/bcps-departments/food-and-nutrition-services/meal-benefits', 'Food & Nutrition Services', 'Apply for free or reduced-price school meals.', 'ops', 'F', ARRAY['free lunch', 'reduced lunch', 'meal application', 'meal benefits', 'free meals', 'FRL']::text[], '{}'::text[], 10, NULL, NULL, NULL, 90),
+('program', 'Get Involved', 'https://www.browardschools.com/community/get-involved-with-bcps-landing/overview', NULL, 'Ways for families, businesses, and the community to get involved.', 'family', 'FC', ARRAY['volunteer', 'partner', 'mentor', 'donate', 'business partners']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 91),
+('program', 'Gifted & Talented', 'https://www.browardschools.com/fs/pages/82966', NULL, 'Gifted programs and screening.', 'acad', 'FS', ARRAY['gifted', 'gifted testing', 'gifted screening', 'advanced', 'enrichment']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 92),
+('program', 'Guidance', 'https://www.browardschools.com/bcps-departments/school-counseling/overview-programs', 'School Counseling', 'School counseling and guidance services.', 'support', 'SF', ARRAY['counselor', 'school counselor', 'guidance counselor', 'course selection']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 93),
+('program', 'Head Start', 'https://www.browardschools.com/fs/pages/83036', NULL, 'Head Start early education for eligible families.', 'acad', 'F', ARRAY['Head Start', 'Early Head Start', 'preschool', 'free preschool']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 94),
+('program', 'Health Services', 'https://www.browardschools.com/bcps-departments/coordinated-student-health-services/overview', 'Coordinated Student Health Services', 'School health services and nurses.', 'support', 'FS', ARRAY['school nurse', 'health', 'clinic', 'medication', 'vision screening', 'hearing screening']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 95),
+('program', 'Home Education Program', 'https://www.browardschools.com/fs/pages/83106', NULL, 'Information for families who homeschool.', 'enroll', 'F', ARRAY['homeschool', 'home school', 'homeschooling', 'home education']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 96),
+('program', 'Homeless Education', 'https://www.browardschools.com/bcps-departments/student-services/homeless-education-heart', 'Student Services', 'Support for students experiencing homelessness.', 'support', 'FS', ARRAY['homeless', 'HEART', 'housing', 'McKinney-Vento', 'shelter', 'displaced']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 97),
+('program', 'Immunization Information', 'https://www.browardschools.com/bcps-departments/coordinated-student-health-services/overview', 'Coordinated Student Health Services', 'School immunization requirements.', 'support', 'F', ARRAY['vaccines', 'shots', 'immunizations', 'vaccination requirements', 'health forms']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 98),
+('program', 'JROTC', 'https://www.browardschools.com/fs/pages/85530', NULL, 'Junior ROTC leadership programs in high schools.', 'activities', 'S', ARRAY['ROTC', 'military', 'cadets', 'leadership']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 99),
+('program', 'Leaves', 'https://www.browardschools.com/fs/pages/80022', NULL, 'Employee leave information.', 'hr', 'E', ARRAY['leave of absence', 'FMLA', 'maternity leave', 'medical leave', 'time off']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 100),
+('program', 'Legislative Information', 'https://www.browardschools.com/bcps-departments/office-of-communications-legislative-affairs/legislative-information/overview', 'Office of Communications & Legislative Affairs', 'Legislative priorities and updates.', 'gov', 'C', ARRAY['legislature', 'bills', 'legislative priorities', 'Tallahassee']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 101),
+('program', 'Literacy', 'https://www.browardschools.com/academics/literacy/welcome-to-literacy-department', NULL, 'Reading and literacy programs.', 'acad', 'FSE', ARRAY['reading', 'writing', 'books', 'ELA', 'English language arts']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 102),
+('program', 'Lobbyists', 'https://www.browardschools.com/bcps-departments/office-of-communications-legislative-affairs/legislative-information/lobbyists', 'Office of Communications & Legislative Affairs', 'Lobbyist registration and information.', 'gov', 'C', ARRAY['lobbyist registration', 'lobbying']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 103),
+('program', 'Magnet Programs', 'https://www.browardschools.com/fs/pages/80656', NULL, 'Magnet schools and programs and how to apply.', 'enroll', 'FS', ARRAY['magnet', 'school choice', 'apply', 'specialty programs']::text[], '{}'::text[], 16, NULL, NULL, NULL, 104),
+('program', 'Mandatory Legal Notices', 'https://www.browardschools.com/programs-and-services/mandatory-legal-notices/overview', NULL, 'Required public legal notices.', 'gov', 'CF', ARRAY['legal notices', 'public notices']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 105),
+('program', 'Medicaid/504', 'https://www.browardschools.com/bcps-departments/exceptional-student-education/section-504', 'Exceptional Student Education', 'Section 504 plans and Medicaid services.', 'support', 'FS', ARRAY['504', 'Section 504', '504 plan', 'accommodations', 'Medicaid', 'disability']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 106),
+('program', 'Mentor', 'https://www.browardschools.com/fs/pages/119598', NULL, 'Become a mentor for a student.', 'family', 'C', ARRAY['mentoring', 'become a mentor', 'volunteer']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 107),
+('program', 'Mentoring Tomorrow''s Leaders', 'https://www.browardschools.com/fs/pages/119600', NULL, 'A mentoring program for students.', 'activities', 'S', ARRAY['MTL', 'mentoring', 'leadership']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 108),
+('program', 'Microsoft Student Advantage', 'https://www.browardschools.com/bcps-departments/information-technology/microsoft-office-student-advantage', 'Information Technology', 'Free Microsoft Office for students.', 'tech', 'S', ARRAY['Office 365', 'Microsoft Office', 'Word', 'Excel', 'PowerPoint', 'free software']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 109),
+('program', 'Military Families', 'https://www.browardschools.com/bcps-departments/office-of-communications-legislative-affairs/general-information/military-families', 'Office of Communications & Legislative Affairs', 'Resources for military-connected families.', 'family', 'F', ARRAY['military', 'military connected', 'deployment', 'veterans']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 110),
+('program', 'Mobile App', 'https://www.browardschools.com/bcps-departments/information-technology/mobile-app', 'Information Technology', 'The district mobile app.', 'tech', 'FS', ARRAY['app', 'phone app', 'iPhone', 'Android']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 111),
+('program', 'Music & Performing Arts', 'https://www.browardschools.com/fs/pages/80913', NULL, 'Music, theater, and performing arts programs.', 'activities', 'S', ARRAY['music', 'band', 'orchestra', 'chorus', 'theater', 'drama', 'dance']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 112),
+('program', 'Newsroom', 'https://www.browardschools.com/about-us/news-room', NULL, 'District news and announcements.', 'gov', 'CF', ARRAY['news', 'press releases', 'announcements', 'media']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 113),
+('program', 'Non-Discrimination Statement', 'https://www.browardschools.com/programs-and-services/non-discrimination-statement/overview', NULL, 'The district''s non-discrimination statement.', 'gov', 'CF', ARRAY['nondiscrimination', 'equal opportunity', 'Title IX', 'civil rights']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 114),
+('program', 'Old Dillard Museum', 'https://www.browardschools.com/fs/pages/84447', NULL, 'The district''s museum of African American history and culture.', 'activities', 'CS', ARRAY['museum', 'Black history', 'African American history', 'field trip']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 115),
+('program', 'On The Right Track', 'https://www.browardschools.com/bcps-departments/office-of-communications-legislative-affairs/publications', 'Office of Communications & Legislative Affairs', 'A district publication.', 'gov', 'FC', ARRAY['newsletter', 'publications']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 116),
+('program', 'Parent Engagement - Title I', 'https://www.browardschools.com/bcps-departments/federal-programs/parent-engagement', 'Federal Programs', 'Title I parent and family engagement.', 'family', 'F', ARRAY['Title I', 'Title 1', 'parent involvement', 'family engagement']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 117),
+('program', 'Parent Resources', 'https://www.browardschools.com/parentsstudentsstaff/parents-families/overview', NULL, 'Resources for parents and families.', 'family', 'F', ARRAY['parents', 'families', 'parent guides']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 118),
+('program', 'Personnel Records (Employment Services)', 'https://www.browardschools.com/careers/human-resources-support-services/overview', NULL, 'Employee records and employment verification.', 'hr', 'E', ARRAY['employment verification', 'personnel file', 'former employees', 'verification of employment']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 119),
+('program', 'Physical Education & Health Education', 'https://www.browardschools.com/fs/pages/80916', NULL, 'Physical education and health education.', 'acad', 'S', ARRAY['PE', 'gym', 'physical education', 'health class', 'fitness']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 120),
+('program', 'Policies', 'https://www.browardschools.com/school-board/school-board-policies', NULL, 'School Board policies.', 'gov', 'FCE', ARRAY['school board policies', 'board policy', 'rules']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 121),
+('program', 'PreK', 'https://www.browardschools.com/academics/early-learning/overview', NULL, 'PreK programs.', 'acad', 'F', ARRAY['pre-k', 'preschool', 'VPK', '4 year olds']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 122),
+('program', 'Privacy Information', 'https://www.browardschools.com/programs-and-services/privacy-information/privacy-information', NULL, 'Student and family privacy information.', 'gov', 'F', ARRAY['privacy', 'FERPA', 'student records', 'data privacy', 'opt out']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 123),
+('program', 'Psychological Services', 'https://www.browardschools.com/bcps-departments/exceptional-student-education/psychological-services', 'Exceptional Student Education', 'School psychologists and evaluations.', 'support', 'FS', ARRAY['school psychologist', 'psychological evaluation', 'mental health']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 124),
+('program', 'Register for School', 'https://www.browardschools.com/bcps-departments/school-counseling/register-my-child', 'School Counseling', 'How to register a new student.', 'enroll', 'F', ARRAY['registration', 'enroll', 'enrollment', 'new student', 'register my child', 'kindergarten registration']::text[], '{}'::text[], 2, NULL, NULL, NULL, 125),
+('program', 'Robotics', 'https://www.browardschools.com/fs/pages/119632', NULL, 'Robotics programs and competitions.', 'activities', 'S', ARRAY['robotics team', 'engineering', 'STEM']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 126),
+('program', 'School Choice', 'https://www.browardschools.com/bcps-departments/school-choice123', 'School Choice', 'School choice options and applications.', 'enroll', 'F', ARRAY['choice', 'magnet', 'charter', 'apply', 'transfer', 'choice application']::text[], '{}'::text[], 5, 'School Choice', 2, NULL, 127),
+('program', 'School Counseling', 'https://www.browardschools.com/bcps-departments/school-counseling/overview-programs', 'School Counseling', 'School counseling programs.', 'support', 'SF', ARRAY['counselor', 'college', 'scholarships', 'course selection']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 128),
+('program', 'School Improvement', 'https://www.browardschools.com/bcps-departments/school-improvement', 'School Transformation Office', 'School improvement planning and support.', 'acad', 'EF', ARRAY['school improvement plan', 'SIP', 'school grades']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 129),
+('program', 'School Locator', 'https://www.browardschools.com/bcps-departments/strategy-innovation/demographics-enrollment-planning/find-my-school', 'Strategy & Innovation', 'Find your zoned school by address.', 'enroll', 'F', ARRAY['find my school', 'boundaries', 'zoned school', 'attendance zone', 'which school', 'address lookup']::text[], '{}'::text[], 3, 'Find My School', 6, NULL, 130),
+('program', 'School Social Work Services', 'https://www.browardschools.com/bcps-departments/student-services/school-social-work', 'Student Services', 'School social workers and family support.', 'support', 'FS', ARRAY['social worker', 'social work', 'family support']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 131),
+('program', 'SEDNET', 'https://www.browardschools.com/bcps-departments/exceptional-student-education/sednet', 'Exceptional Student Education', 'Multiagency network for students with emotional and behavioral challenges.', 'support', 'FE', ARRAY['emotional', 'behavioral', 'mental health']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 132),
+('program', 'Single Sign On (SSO)', 'https://www.browardschools.com/bcps-departments/information-technology/single-sign-on', 'Information Technology', 'One login for district apps and tools.', 'tech', 'SEF', ARRAY['SSO', 'login', 'sign in', 'password', 'portal']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 133),
+('program', 'SMART Futures', 'https://www.browardschools.com/bcps-departments/facilities/smart-futures', 'Facilities', 'The district''s SMART Futures facilities program.', 'ops', 'C', ARRAY['SMART program', 'bond', 'construction', 'renovations']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 134),
+('program', 'STEM +CS', 'https://www.browardschools.com/fs/pages/80885', NULL, 'STEM and computer science programs.', 'acad', 'S', ARRAY['STEM', 'science', 'technology', 'engineering', 'math', 'computer science']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 135),
+('program', 'Storm Resource Center', 'https://www.browardschools.com/bcps-departments/safety-security-and-emergency-preparedness/emergency-management/storm-resource-center', 'Safety, Security & Emergency Preparedness', 'Hurricane and storm information, including school closures.', 'safety', 'FEC', ARRAY['hurricane', 'storm', 'school closures', 'shelters', 'weather']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 136),
+('program', 'Student Activities', 'https://www.browardschools.com/bcps-departments/student-activities/overview', 'Student Activities', 'Student clubs and activities.', 'activities', 'S', ARRAY['clubs', 'student government', 'extracurricular']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 137),
+('program', 'Student Enrichment Through the Arts (SEAS)', 'https://www.browardschools.com/fs/pages/85791', NULL, 'Arts enrichment experiences for students.', 'activities', 'S', ARRAY['SEAS', 'arts', 'performances', 'field trips', 'cultural arts']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 138),
+('program', 'Superintendent''s Spotlight', 'https://www.browardschools.com/fs/pages/119081', NULL, 'Stories from the Superintendent''s Spotlight.', 'gov', 'CF', ARRAY['superintendent', 'spotlight', 'stories']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 139),
+('program', 'Testing Calendar', 'https://www.browardschools.com/bcps-departments/educational-assessment-analysis-research/testing-calendar-what-assessments-will-my-child-take-this-year', 'Educational Assessment, Analysis & Research', 'Which assessments students take this year, and when.', 'acad', 'FS', ARRAY['testing', 'test dates', 'assessments', 'FAST', 'EOC', 'state tests', 'exams']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 140),
+('program', 'Transcripts', 'https://www.browardschools.com/bcps-departments/records-retention/transcripts', 'Records Retention', 'Request student transcripts and records.', 'support', 'SF', ARRAY['transcript', 'records', 'diploma', 'former students', 'alumni', 'student records']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 141),
+('program', 'Transportation', 'https://www.browardschools.com/bcps-departments/student-transportation-fleet-services/overview', 'Student Transportation & Fleet Services', 'Student bus transportation.', 'ops', 'FS', ARRAY['bus', 'bus stop', 'bus route', 'school bus', 'ride']::text[], '{}'::text[], 7, NULL, NULL, NULL, 142),
+('program', 'Venture Design', 'https://www.browardschools.com/fs/pages/85882', NULL, 'The Venture Design program.', 'acad', 'S', ARRAY['design', 'program']::text[], '{}'::text[], NULL, NULL, NULL, 'Placeholder description and tags: confirm what this program is with its owner.', 143),
+('program', 'Visual Arts', 'https://www.browardschools.com/fs/pages/80921', NULL, 'Visual arts programs.', 'activities', 'S', ARRAY['art', 'drawing', 'painting', 'art class']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 144),
+('program', 'Voluntary PreK', 'https://www.browardschools.com/fs/pages/83018', NULL, 'Florida''s free Voluntary Prekindergarten (VPK) program.', 'acad', 'F', ARRAY['VPK', 'free PreK', '4 year olds', 'preschool']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 145),
+('program', 'Volunteer', 'https://www.browardschools.com/community/volunteer', NULL, 'Volunteer at a school.', 'family', 'FC', ARRAY['volunteer', 'volunteering', 'chaperone', 'volunteer application', 'background check']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 146),
+('program', 'Warehousing Services', 'https://www.browardschools.com/fs/pages/83566', NULL, 'District warehousing and supply services.', 'money', 'EC', ARRAY['warehouse', 'supplies', 'delivery', 'surplus']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 147),
+('program', 'Watch Live Board Meetings', 'https://www.browardschools.com/school-board/meeting-agendas', NULL, 'School Board meetings, agendas, and livestreams.', 'gov', 'FC', ARRAY['school board', 'board meeting', 'agenda', 'livestream', 'public comment', 'minutes']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 148),
+('program', 'Xello', 'https://www.browardschools.com/fs/pages/83863', NULL, 'Career and college planning with Xello.', 'support', 'S', ARRAY['career exploration', 'college planning', 'career interests']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 149),
+('program', 'Youth Mentoring Programs', 'https://www.browardschools.com/fs/pages/119598', NULL, 'Mentoring programs for students.', 'activities', 'SF', ARRAY['mentoring', 'mentor', 'youth programs']::text[], '{}'::text[], NULL, NULL, NULL, NULL, 150)
+) AS v(kind, name, url, context, description, topic, audiences, tags, includes, demand_rank, popular_label, popular_rank, review_note, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM public.bcps_directory_entries);
+
+-- Widgets hub registration, applied 2026-10-02 after production deploy
+-- dpl_nKfGC8fsc5rkxsrENxy14tjMy84b (commit 85f8466) went READY on bcpsmarcomm.com.
+INSERT INTO public.bcps_widgets (slug, title, description, preview_path, editor_component, sort_order)
+SELECT 'department-program-directory', 'Department & Program Directory',
+  'One search across every department page and every program and service on browardschools.com, A to Z, with plain-language tags, voice search, Most visited links, a Can''t find it? form, and search insights.',
+  '/embeds/department-program-directory.html', 'department-program-directory', 4
+WHERE NOT EXISTS (SELECT 1 FROM public.bcps_widgets WHERE slug = 'department-program-directory');
+INSERT INTO public.acl_objects (brand, kind, slug, title, visibility)
+SELECT 'bcps', 'page', 'department-program-directory', 'Department & Program Directory', 'restricted'
+WHERE NOT EXISTS (SELECT 1 FROM public.acl_objects WHERE brand = 'bcps' AND kind = 'page' AND slug = 'department-program-directory');
+
+-- Follow-up, same day (Sean and Vanessa's review, 2026-10-02): the widget's
+-- "Can't find it?" form and voice search. Applied one statement per call like
+-- the rest of this file. A separate feedback table rather than a new event
+-- type, because widening the events CHECK would need a DROP CONSTRAINT.
+CREATE TABLE IF NOT EXISTS public.bcps_directory_feedback (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  query text CHECK (char_length(query) BETWEEN 0 AND 120),
+  message text NOT NULL CHECK (char_length(message) BETWEEN 1 AND 500),
+  result_count integer CHECK (result_count BETWEEN 0 AND 1000),
+  session_id text CHECK (char_length(session_id) BETWEEN 0 AND 40),
+  host text CHECK (char_length(host) BETWEEN 0 AND 200),
+  status text NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'handled')),
+  handled_at timestamptz,
+  handled_by uuid
+);
+ALTER TABLE public.bcps_directory_feedback ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.bcps_directory_feedback FROM anon, authenticated;
+CREATE INDEX IF NOT EXISTS bcps_directory_feedback_created_idx ON public.bcps_directory_feedback (created_at DESC);
+
+-- Typed or spoken, so the insights tab can show how much voice search is used.
+ALTER TABLE public.bcps_directory_events ADD COLUMN IF NOT EXISTS input text CHECK (input IN ('typed', 'voice'));
+
+-- bcps_directory_insights was then replaced with the version that also returns
+-- voice_searches, feedback_new and feedback (new messages, plus everything in
+-- the period, newest first, up to 50). CREATE OR REPLACE keeps the grants above.
+CREATE OR REPLACE FUNCTION public.bcps_directory_insights(days integer DEFAULT 30)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  WITH ev AS (
+    SELECT * FROM bcps_directory_events WHERE created_at BETWEEN now() - make_interval(days => days) AND 'infinity'::timestamptz
+  ),
+  s AS (SELECT * FROM ev WHERE event = 'search' AND coalesce(query_norm, '') != ''),
+  c AS (SELECT * FROM ev WHERE event = 'click')
+  SELECT jsonb_build_object(
+    'days', days,
+    'sessions', (SELECT count(DISTINCT session_id) FROM ev),
+    'searches', (SELECT count(*) FROM s),
+    'voice_searches', (SELECT count(*) FROM s WHERE input = 'voice'),
+    'zero_result_searches', (SELECT count(*) FROM s WHERE result_count = 0),
+    'clicks', (SELECT count(*) FROM c),
+    'search_sessions', (SELECT count(DISTINCT session_id) FROM s),
+    'search_sessions_with_click', (SELECT count(DISTINCT s.session_id) FROM s JOIN c USING (session_id) WHERE c.created_at BETWEEN s.created_at AND 'infinity'::timestamptz),
+    'top_searches', coalesce((
+      SELECT jsonb_agg(t ORDER BY t.searches DESC, t.query) FROM (
+        SELECT s.query_norm AS query, count(*) AS searches,
+          round(avg(s.result_count)::numeric, 1) AS avg_results,
+          (SELECT count(*) FROM c WHERE c.query_norm = s.query_norm) AS clicks,
+          max(s.created_at) AS last_seen
+        FROM s GROUP BY s.query_norm ORDER BY count(*) DESC, s.query_norm LIMIT 25
+      ) t), '[]'::jsonb),
+    'zero_result', coalesce((
+      SELECT jsonb_agg(t ORDER BY t.searches DESC, t.query) FROM (
+        SELECT query_norm AS query, count(*) AS searches, max(created_at) AS last_seen
+        FROM s WHERE result_count = 0 GROUP BY query_norm ORDER BY count(*) DESC, query_norm LIMIT 25
+      ) t), '[]'::jsonb),
+    'top_clicked', coalesce((
+      SELECT jsonb_agg(t ORDER BY t.clicks DESC, t.name) FROM (
+        SELECT e.id, e.name, e.kind, count(*) AS clicks,
+          count(*) FILTER (WHERE coalesce(c.query_norm, '') = '') AS from_browsing
+        FROM c JOIN bcps_directory_entries e ON e.id = c.entry_id
+        GROUP BY e.id, e.name, e.kind ORDER BY count(*) DESC, e.name LIMIT 15
+      ) t), '[]'::jsonb),
+    'feedback_new', (SELECT count(*) FROM bcps_directory_feedback WHERE status = 'new'),
+    'feedback', coalesce((
+      SELECT jsonb_agg(t ORDER BY t.created_at DESC) FROM (
+        SELECT id, created_at, query, message, result_count, status
+        FROM bcps_directory_feedback
+        WHERE status = 'new' OR created_at BETWEEN now() - make_interval(days => days) AND 'infinity'::timestamptz
+        ORDER BY created_at DESC LIMIT 50
+      ) t), '[]'::jsonb)
+  )
+$$;

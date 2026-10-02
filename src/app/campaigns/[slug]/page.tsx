@@ -141,7 +141,7 @@ export default async function CampaignReportPage({ params }: Props) {
       `}</style>
 
       <header className="bcps-header" role="banner">
-        <a className="bcps-logo-link" href="/?page=dashboard" aria-label="Back to the BCPS Marcom dashboard">
+        <a className="bcps-logo-link" href="/?page=dashboard" aria-label="Back to the BCPS MarComm dashboard">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"
@@ -150,7 +150,7 @@ export default async function CampaignReportPage({ params }: Props) {
           />
         </a>
         <div className="bcps-header-divider" aria-hidden="true" />
-        <span className="bcps-header-title">BCPS Marcom &middot; Campaign Report</span>
+        <span className="bcps-header-title">BCPS MarComm &middot; Campaign Report</span>
       </header>
 
       <main>

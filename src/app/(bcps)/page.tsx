@@ -29,6 +29,7 @@ import NoteApprovalsPage from '@/components/pages/NoteApprovalsPage'
 import DepartmentAuditPage from '@/components/pages/DepartmentAuditPage'
 import FindItFastPage from '@/components/pages/FindItFastPage'
 import WidgetsPage from '@/components/pages/WidgetsPage'
+import DirectoryPage from '@/components/pages/DirectoryPage'
 import AdaScannerPage from '@/components/pages/AdaScannerPage'
 import ADAManagerPage from '@/components/pages/ADAManagerPage'
 import RegistrationsPage from '@/components/pages/RegistrationsPage'
@@ -120,6 +121,7 @@ function HomeInner() {
       {nav.page === 'department-audit'        && <DepartmentAuditPage />}
       {nav.page === 'find-it-fast'            && <FindItFastPage />}
       {nav.page === 'widgets'                 && <WidgetsPage />}
+      {nav.page === 'directory'               && <DirectoryPage />}
       {nav.page === 'ada-scanner'              && <AdaScannerPage />}
       {nav.page === 'ada-manager'              && <ADAManagerPage />}
       {nav.page === 'registrations'            && effectiveRole === 'superadmin' && <RegistrationsPage />}
