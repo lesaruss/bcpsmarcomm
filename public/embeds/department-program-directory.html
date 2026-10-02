@@ -165,6 +165,15 @@
   .group h3 .n { font-family: var(--font-body); font-size: 12px; font-weight: 600; color: var(--text-muted); }
   .more { margin-top: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--blue); font: inherit; font-size: 13px; font-weight: 700; padding: 9px 14px; min-height: 40px; border-radius: var(--radius); cursor: pointer; }
   .more:hover { border-color: var(--blue); background: var(--blue-faint); }
+  .az { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 16px; }
+  .az button, .az span {
+    min-width: 32px; height: 32px; display: inline-grid; place-items: center;
+    border-radius: 6px; font-family: var(--font-head); font-size: 13px; font-weight: 700;
+  }
+  .az button { border: 1px solid var(--border); background: var(--surface); color: var(--blue-dark); cursor: pointer; }
+  .az button:hover { border-color: var(--blue); background: var(--blue-faint); }
+  .az span { color: var(--border); }
+  .group[id] { scroll-margin-top: 12px; }
   .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
   .card {
@@ -235,8 +244,8 @@
       <select id="topic"><option value="">All topics</option></select>
       <label for="sort" class="sr-only">Sort</label>
       <select id="sort">
-        <option value="topic">Group by topic</option>
         <option value="az">A to Z</option>
+        <option value="topic">Group by topic</option>
       </select>
     </div>
   </div>
@@ -422,7 +431,10 @@ function highlight(name, tokens) {
 }
 
 // STATE
-const state = { q: '', type: 'all', aud: '', topic: '', sort: 'topic' };
+// A to Z is the default view (Sean, 2026-10-02): it matches the current
+// Programs & Services directory, so the change is a transition, not a jump.
+// Group by topic stays one click away in the sort menu.
+const state = { q: '', type: 'all', aud: '', topic: '', sort: 'az' };
 const PREVIEW = 6;
 const opened = new Set();
 
@@ -520,8 +532,12 @@ function render() {
     rows.sort(byName);
     const groups = {};
     for (const r of rows) { const L = /[a-z]/i.test(r.it.name[0]) ? r.it.name[0].toUpperCase() : '#'; (groups[L] ||= []).push(r); }
-    html = Object.entries(groups).map(([L, g]) =>
-      `<section class="group"><h3>${L} <span class="n">${g.length}</span></h3><div class="grid">${g.map(r => card(r, tokens)).join('')}</div></section>`).join('');
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    const jump = `<nav class="az" aria-label="Jump to a letter">${letters.map(L => groups[L]
+      ? `<button type="button" data-letter="${L}" aria-label="Jump to ${L}">${L}</button>`
+      : `<span aria-hidden="true">${L}</span>`).join('')}</nav>`;
+    html = jump + Object.entries(groups).map(([L, g]) =>
+      `<section class="group" id="letter-${L}"><h3>${L} <span class="n">${g.length}</span></h3><div class="grid">${g.map(r => card(r, tokens)).join('')}</div></section>`).join('');
   } else {
     html = Object.keys(TOPICS).map(k => {
       const g = rows.filter(r => r.it.topic === k).sort((a, b) =>
@@ -595,6 +611,12 @@ $('clear').addEventListener('click', () => { setQuery(''); qEl.focus(); });
 document.addEventListener('click', e => {
   const tab = e.target.closest('.tab');
   if (tab) { state.type = tab.dataset.type; render(); return; }
+  const letter = e.target.closest('[data-letter]');
+  if (letter) {
+    const target = $('letter-' + letter.dataset.letter);
+    if (target) target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    return;
+  }
   const more = e.target.closest('[data-more]');
   if (more) { opened.add(more.dataset.more); render(); return; }
 });
@@ -610,12 +632,14 @@ document.addEventListener('keydown', e => {
 function setQuery(v) { qEl.value = v; state.q = v; render(); scheduleSearchLog(); }
 
 // The same embed can open pre-filtered on each host page, e.g.
-// ?type=prog on Programs & Services, ?type=dept on Departments, or ?q=bus.
+// ?type=prog on Programs & Services, ?type=dept on Departments, ?q=bus, or
+// ?sort=topic to open grouped by topic instead of A to Z.
 try {
   const p = new URLSearchParams(location.search);
   if (['all', 'dept', 'prog'].includes(p.get('type'))) state.type = p.get('type');
   if (p.get('q')) { state.q = p.get('q'); qEl.value = state.q; }
   if (AUDIENCES[p.get('aud')]) state.aud = p.get('aud');
+  if (['az', 'topic'].includes(p.get('sort'))) { state.sort = p.get('sort'); $('sort').value = state.sort; }
 } catch (e) {}
 
 // Same auto-height contract as the other BCPS embeds: post
