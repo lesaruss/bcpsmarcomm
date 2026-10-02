@@ -216,6 +216,8 @@
   .az button { border: 1px solid var(--border); background: var(--surface); color: var(--blue-dark); cursor: pointer; }
   .az button:hover { border-color: var(--blue); background: var(--blue-faint); }
   .az span { color: var(--border); }
+  .az button[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
+  .az-pager { display: flex; justify-content: space-between; gap: 8px; }
   .group[id] { scroll-margin-top: 12px; }
   .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
@@ -495,7 +497,9 @@ function highlight(name, tokens) {
 // A to Z is the default view (Sean, 2026-10-02): it matches the current
 // Programs & Services directory, so the change is a transition, not a jump.
 // Group by topic stays one click away in the sort menu.
-const state = { q: '', type: 'all', aud: '', topic: '', sort: 'az' };
+// The A to Z view shows one letter at a time, starting at A, rather than one
+// long scroll (Sean, 2026-10-02). state.letter is that letter.
+const state = { q: '', type: 'all', aud: '', topic: '', sort: 'az', letter: 'A' };
 const PREVIEW = 6;
 const opened = new Set();
 
@@ -567,11 +571,25 @@ function render() {
   $('reset').hidden = !(state.q || state.topic || state.type !== 'all');
   $('cantBtn').hidden = !searching;
 
+  // A to Z: group by first letter and settle on a letter that has entries
+  // (a filter can empty the current one, e.g. Programs has no K). Paging by
+  // letter only applies to the full list; once a topic is chosen, its few
+  // entries show A to Z on one screen.
+  const azView = !searching && state.sort === 'az' && rows.length > 0 && !state.topic;
+  const groups = {};
+  if (azView) {
+    rows.sort(byName);
+    for (const r of rows) { const L = /[a-z]/i.test(r.it.name[0]) ? r.it.name[0].toUpperCase() : '#'; (groups[L] ||= []).push(r); }
+    if (!groups[state.letter]) state.letter = Object.keys(groups)[0];
+  }
+
   const noun = state.type === 'dept' ? 'department' : state.type === 'prog' ? 'program or service' : 'result';
   const plural = rows.length === 1 ? noun : (noun === 'program or service' ? 'programs and services' : noun + 's');
   $('statusText').innerHTML = searching
     ? `<strong>${rows.length}</strong> ${plural} for “${escapeHtml(state.q.trim())}”${partial === 'fuzzy' ? ' (closest spelling matches)' : partial ? ' (matching some of your words)' : ''}`
-    : `Showing <strong>${rows.length}</strong> ${plural}`;
+    : azView
+      ? `Showing <strong>${groups[state.letter].length}</strong> starting with “${state.letter}” · ${rows.length} ${plural} in all`
+      : `Showing <strong>${rows.length}</strong> ${plural}`;
 
   if (!rows.length) {
     out.innerHTML = `<div class="empty">
@@ -591,16 +609,26 @@ function render() {
   if (searching) {
     rows.sort((a, b) => b.s.score - a.s.score || (a.it.type === 'dept' ? -1 : 1) - (b.it.type === 'dept' ? -1 : 1) || byName(a, b));
     html = `<div class="group"><h3 class="sr-only">Best matches</h3><div class="grid">${rows.map(r => card(r, tokens)).join('')}</div></div>`;
-  } else if (state.sort === 'az') {
+  } else if (state.sort === 'az' && !azView) {
     rows.sort(byName);
-    const groups = {};
-    for (const r of rows) { const L = /[a-z]/i.test(r.it.name[0]) ? r.it.name[0].toUpperCase() : '#'; (groups[L] ||= []).push(r); }
+    const short = {};
+    for (const r of rows) { const L = /[a-z]/i.test(r.it.name[0]) ? r.it.name[0].toUpperCase() : '#'; (short[L] ||= []).push(r); }
+    html = Object.entries(short).map(([L, g]) =>
+      `<section class="group"><h3>${L} <span class="n">${g.length}</span></h3><div class="grid">${g.map(r => card(r, tokens)).join('')}</div></section>`).join('');
+  } else if (state.sort === 'az') {
+    const present = Object.keys(groups);
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-    const jump = `<nav class="az" aria-label="Jump to a letter">${letters.map(L => groups[L]
-      ? `<button type="button" data-letter="${L}" aria-label="Jump to ${L}">${L}</button>`
+    const bar = `<nav class="az" aria-label="Choose a letter">${letters.map(L => groups[L]
+      ? `<button type="button" data-letter="${L}" aria-pressed="${L === state.letter}" aria-label="${L}, ${groups[L].length} ${groups[L].length === 1 ? 'entry' : 'entries'}">${L}</button>`
       : `<span aria-hidden="true">${L}</span>`).join('')}</nav>`;
-    html = jump + Object.entries(groups).map(([L, g]) =>
-      `<section class="group" id="letter-${L}"><h3>${L} <span class="n">${g.length}</span></h3><div class="grid">${g.map(r => card(r, tokens)).join('')}</div></section>`).join('');
+    const g = groups[state.letter];
+    const i = present.indexOf(state.letter);
+    const prev = present[i - 1], next = present[i + 1];
+    const pager = `<div class="az-pager">
+      ${prev ? `<button type="button" class="more" data-letter="${prev}">← ${prev}</button>` : '<span></span>'}
+      ${next ? `<button type="button" class="more" data-letter="${next}">Next: ${next} →</button>` : '<span></span>'}
+    </div>`;
+    html = bar + `<section class="group" id="letter-${state.letter}" aria-live="polite"><h3>${state.letter} <span class="n">${g.length}</span></h3><div class="grid">${g.map(r => card(r, tokens)).join('')}</div></section>` + pager;
   } else {
     html = Object.keys(TOPICS).map(k => {
       const g = rows.filter(r => r.it.topic === k).sort((a, b) =>
@@ -676,8 +704,13 @@ document.addEventListener('click', e => {
   if (tab) { state.type = tab.dataset.type; render(); return; }
   const letter = e.target.closest('[data-letter]');
   if (letter) {
-    const target = $('letter-' + letter.dataset.letter);
-    if (target) target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    state.letter = letter.dataset.letter;
+    render();
+    // Keep focus on the matching letter in the bar, so keyboard users stay oriented.
+    const btn = document.querySelector(`.az [data-letter="${state.letter}"]`);
+    if (btn) btn.focus({ preventScroll: true });
+    const bar = document.querySelector('.az');
+    if (bar && bar.getBoundingClientRect().top < 0) bar.scrollIntoView({ block: 'start' });
     return;
   }
   const more = e.target.closest('[data-more]');
@@ -686,7 +719,7 @@ document.addEventListener('click', e => {
 topicSel.addEventListener('change', () => { state.topic = topicSel.value; render(); });
 $('sort').addEventListener('change', e => { state.sort = e.target.value; render(); });
 $('reset').addEventListener('click', () => {
-  Object.assign(state, { q: '', type: 'all', aud: '', topic: '' });
+  Object.assign(state, { q: '', type: 'all', aud: '', topic: '', letter: 'A' });
   qEl.value = ''; topicSel.value = ''; render();
 });
 document.addEventListener('keydown', e => {
@@ -696,13 +729,15 @@ function setQuery(v) { qEl.value = v; state.q = v; render(); scheduleSearchLog()
 
 // The same embed can open pre-filtered on each host page, e.g.
 // ?type=prog on Programs & Services, ?type=dept on Departments, ?q=bus, or
-// ?sort=topic to open grouped by topic instead of A to Z.
+// ?sort=topic to open grouped by topic instead of A to Z, or ?letter=S to
+// open the A to Z view on a letter other than A.
 try {
   const p = new URLSearchParams(location.search);
   if (['all', 'dept', 'prog'].includes(p.get('type'))) state.type = p.get('type');
   if (p.get('q')) { state.q = p.get('q'); qEl.value = state.q; }
   if (AUDIENCES[p.get('aud')]) state.aud = p.get('aud');
   if (['az', 'topic'].includes(p.get('sort'))) { state.sort = p.get('sort'); $('sort').value = state.sort; }
+  if (/^[A-Za-z]$/.test(p.get('letter') || '')) state.letter = p.get('letter').toUpperCase();
 } catch (e) {}
 
 // Same auto-height contract as the other BCPS embeds: post
