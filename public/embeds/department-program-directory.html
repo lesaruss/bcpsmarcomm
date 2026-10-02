@@ -127,7 +127,9 @@
   }
   .chip:hover { border-color: var(--blue); color: var(--blue-dark); }
   .chip[aria-pressed="true"] { background: var(--blue-faint); border-color: var(--blue); color: var(--blue-dark); }
-  .chip.try { border-style: dashed; }
+  a.chip { text-decoration: none; display: inline-flex; align-items: center; }
+  .chip.try { border-color: var(--blue); color: var(--blue-dark); }
+  .chip.try:hover { background: var(--blue-faint); }
 
   select {
     padding: 8px 32px 8px 10px; min-height: 38px;
@@ -161,6 +163,8 @@
     display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; text-wrap: balance;
   }
   .group h3 .n { font-family: var(--font-body); font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  .more { margin-top: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--blue); font: inherit; font-size: 13px; font-weight: 700; padding: 9px 14px; min-height: 40px; border-radius: var(--radius); cursor: pointer; }
+  .more:hover { border-color: var(--blue); background: var(--blue-faint); }
   .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
   .card {
@@ -237,13 +241,8 @@
     </div>
   </div>
 
-  <div class="row">
-    <span class="row-label" id="audLabel">I am a</span>
-    <div class="chips" role="group" aria-labelledby="audLabel" id="aud"></div>
-  </div>
-
   <div class="row" id="tryRow">
-    <span class="row-label" id="tryLabel">Popular</span>
+    <span class="row-label" id="tryLabel">Most visited</span>
     <div class="chips" role="group" aria-labelledby="tryLabel" id="try"></div>
   </div>
 </div>
@@ -264,23 +263,66 @@
 <script>
 const BASE = 'https://www.browardschools.com';
 
+// Ordered by demand: the topics holding the most-visited pages come first.
 const TOPICS = {
-  acad:       'Academics & Learning',
   enroll:     'Enrollment & School Choice',
+  hr:         'Employees & Careers',
+  ops:        'Buses, Meals & Facilities',
   support:    'Student Support & Health',
+  acad:       'Academics & Learning',
+  family:     'Families & Community',
   safety:     'Safety & Emergencies',
   activities: 'Arts, Athletics & Activities',
-  family:     'Families & Community',
-  ops:        'Buses, Meals & Facilities',
-  hr:         'Employees & Careers',
   money:      'Finance & Business',
   tech:       'Technology',
   gov:        'News, Board & Governance',
 };
 
+// Audience codes on each entry (F family, S student, E employee, C community or
+// business). There is no audience picker in the UI, per NN/g's research on
+// audience-based navigation; a host page can still preset one with ?aud=E.
 const AUDIENCES = { F: 'Parent or family', S: 'Student', E: 'Employee', C: 'Community or business' };
 
-const POPULAR = ['Bus', 'Lunch menu', 'Register', 'Jobs', 'IEP', 'Calendar', 'Hurricane', 'Transcripts'];
+// Most visited: the department pages with the most GA4 visitors in Sep-Oct 2026
+// (bcps_department_analytics), as one-click links. Re-rank from GA4 each term.
+const POPULAR = [
+  ['Jobs & HR', '/bcps-departments/human-resources'],
+  ['School Choice', '/bcps-departments/school-choice123'],
+  ['Bus Transportation', '/bcps-departments/student-transportation-fleet-services'],
+  ['School Meals', '/bcps-departments/food-and-nutrition-services'],
+  ['School Counseling', '/bcps-departments/school-counseling'],
+  ['Find My School', '/bcps-departments/strategy-innovation/demographics-enrollment-planning/find-my-school'],
+  ['Before & After School Care', '/bcps-departments/strategy-innovation/before-and-after-school-child-care-bascc'],
+  ['Safety & Security', '/bcps-departments/safety-security-and-emergency-preparedness'],
+];
+// Card order inside each topic, most-wanted first. Department pages are ranked by
+// GA4 visitors (Sep-Oct 2026); the program pages listed are the top family tasks
+// those departments' traffic points to. Everything not listed follows A to Z.
+const DEMAND = [
+  '/bcps-departments/human-resources',
+  '/bcps-departments/school-counseling/register-my-child',
+  '/bcps-departments/strategy-innovation/demographics-enrollment-planning/find-my-school',
+  '/bcps-departments/safety-security-and-emergency-preparedness',
+  '/bcps-departments/school-choice123',
+  '/bcps-departments/student-transportation-fleet-services',
+  '/bcps-departments/student-transportation-fleet-services/overview',
+  '/bcps-departments/food-and-nutrition-services',
+  '/bcps-departments/food-and-nutrition-services/power-up-menus',
+  '/bcps-departments/food-and-nutrition-services/meal-benefits',
+  '/calendar-e3',
+  '/bcps-departments/school-counseling',
+  '/bcps-departments/strategy-innovation/demographics-enrollment-planning',
+  '/bcps-departments/school-culture-student-support',
+  '/bcps-departments/strategy-innovation/before-and-after-school-child-care-bascc',
+  '/fs/pages/80656',
+  '/bcps-departments/procurement',
+  '/bcps-departments/exceptional-student-education',
+  '/bcps-departments/strategy-innovation',
+].map(path => BASE + path);
+const rank = it => { const i = DEMAND.indexOf(it.url); return i === -1 ? Infinity : i; };
+
+const popularLinks = () => POPULAR.map(([label, path]) =>
+  `<a class="chip try" href="${BASE + path}" target="_top">${escapeHtml(label)}</a>`).join('');
 
 // Departments: name, path, division, description, topic, audiences, tags, [sub-units on the same page].
 // Source: bcps_departments (website_url and blurb). Sub-units that share one page
@@ -629,6 +671,29 @@ function tokenMatches(field, tok, loose) {
   if (field.words.some(w => w === tok || w === tok + 's' || w === tok + 'es' || (prefixOk && w.startsWith(tok)))) return true;
   return tok.length >= 5 && field.text.includes(tok);
 }
+// Optimal string alignment distance, capped: enough to catch "transportaion",
+// "counsler" or "hurricaine" without matching unrelated words.
+function editDistance(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    let rowMin = Infinity;
+    for (let j = 1; j <= b.length; j++) {
+      const c = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + c);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+      rowMin = Math.min(rowMin, d[i][j]);
+    }
+    if (rowMin > max) return max + 1;
+  }
+  return d[a.length][b.length];
+}
+function fuzzyMatches(field, tok) {
+  if (tok.length < 5 || field.kind === 'desc' || field.kind === 'where') return false;
+  const max = tok.length >= 8 ? 2 : 1;
+  return field.words.some(w => w.length >= 4 && editDistance(tok, w, max) <= max);
+}
 function variants(tok) {
   const v = [tok];
   if (tok.length > 3 && tok.endsWith('es')) v.push(tok.slice(0, -2));
@@ -638,13 +703,13 @@ function variants(tok) {
 
 // Returns { score, why, hits } or null. mode 'all' requires every word to
 // match somewhere; 'any' is the fallback when nothing matches every word.
-function scoreItem(it, tokens, phrase, mode, loose) {
+function scoreItem(it, tokens, phrase, mode, loose, fuzzy) {
   let score = 0, hits = 0, why = null;
   for (const tok of tokens) {
     let best = null;
     for (const f of it.fields) {
       if (best && f.w <= best.w) continue;
-      if (variants(tok).some(t => tokenMatches(f, t, loose))) best = f;
+      if (variants(tok).some(t => tokenMatches(f, t, loose)) || (fuzzy && fuzzyMatches(f, tok))) best = f;
     }
     if (!best) { if (mode === 'all') return null; continue; }
     hits++; score += best.w;
@@ -670,6 +735,8 @@ function highlight(name, tokens) {
 
 // STATE
 const state = { q: '', type: 'all', aud: '', topic: '', sort: 'topic' };
+const PREVIEW = 6;
+const opened = new Set();
 
 const $ = id => document.getElementById(id);
 const qEl = $('q'), out = $('out');
@@ -677,9 +744,7 @@ const qEl = $('q'), out = $('out');
 // Controls
 const topicSel = $('topic');
 for (const [k, v] of Object.entries(TOPICS)) topicSel.insertAdjacentHTML('beforeend', `<option value="${k}">${escapeHtml(v)}</option>`);
-$('aud').innerHTML = Object.entries(AUDIENCES).map(([k, v]) =>
-  `<button type="button" class="chip" data-aud="${k}" aria-pressed="false">${escapeHtml(v)}</button>`).join('');
-$('try').innerHTML = POPULAR.map(p => `<button type="button" class="chip try" data-q="${escapeHtml(p)}">${escapeHtml(p)}</button>`).join('');
+$('try').innerHTML = popularLinks();
 
 function compute() {
   const phrase = norm(state.q);
@@ -693,12 +758,15 @@ function compute() {
   if (searching) {
     // Widen step by step until something matches: every word strictly, every
     // word loosely, then (for multi-word searches) some of the words.
-    const steps = [['all', false], ['all', true]];
-    if (tokens.length > 1) steps.push(['any', false], ['any', true]);
+    // Last resort: tolerate a typo or two in longer words.
+    const steps = [['all', false, false], ['all', true, false]];
+    if (tokens.length > 1) steps.push(['any', false, false], ['any', true, false]);
+    steps.push(['all', true, true]);
+    if (tokens.length > 1) steps.push(['any', true, true]);
     pool = [];
-    for (const [mode, loose] of steps) {
-      pool = base.map(it => ({ it, s: scoreItem(it, tokens, phrase, mode, loose) })).filter(r => r.s);
-      if (pool.length) { partial = mode === 'any'; break; }
+    for (const [mode, loose, fuzzy] of steps) {
+      pool = base.map(it => ({ it, s: scoreItem(it, tokens, phrase, mode, loose, fuzzy) })).filter(r => r.s);
+      if (pool.length) { partial = fuzzy ? 'fuzzy' : mode === 'any'; break; }
     }
   }
   const counts = { all: pool.length, dept: pool.filter(r => r.it.type === 'dept').length, prog: pool.filter(r => r.it.type === 'prog').length };
@@ -732,16 +800,15 @@ function render() {
   $('nDept').textContent = counts.dept;
   $('nProg').textContent = counts.prog;
   document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.type === state.type)));
-  document.querySelectorAll('[data-aud]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.aud === state.aud)));
   $('clear').hidden = !state.q;
   $('tryRow').hidden = searching;
   $('sort').disabled = searching;
-  $('reset').hidden = !(state.q || state.aud || state.topic || state.type !== 'all');
+  $('reset').hidden = !(state.q || state.topic || state.type !== 'all');
 
   const noun = state.type === 'dept' ? 'department' : state.type === 'prog' ? 'program or service' : 'result';
   const plural = rows.length === 1 ? noun : (noun === 'program or service' ? 'programs and services' : noun + 's');
   $('statusText').innerHTML = searching
-    ? `<strong>${rows.length}</strong> ${plural} for “${escapeHtml(state.q.trim())}”${partial ? ' (matching some of your words)' : ''}`
+    ? `<strong>${rows.length}</strong> ${plural} for “${escapeHtml(state.q.trim())}”${partial === 'fuzzy' ? ' (closest spelling matches)' : partial ? ' (matching some of your words)' : ''}`
     : `Showing <strong>${rows.length}</strong> ${plural}`;
 
   if (!rows.length) {
@@ -750,7 +817,8 @@ function render() {
       <p>Try a shorter or more general word, or clear the filters. You can also browse the
         <a href="https://www.browardschools.com/bcps-departments" target="_top">full department list</a> or the
         <a href="https://www.browardschools.com/directory/programs-and-services-63" target="_top">programs &amp; services A to Z</a>.</p>
-      <div class="chips">${POPULAR.slice(0, 5).map(p => `<button type="button" class="chip try" data-q="${escapeHtml(p)}">${escapeHtml(p)}</button>`).join('')}</div>
+      <p><strong>Most visited:</strong></p>
+      <div class="chips">${popularLinks()}</div>
     </div>`;
     postHeight();
     return;
@@ -768,9 +836,13 @@ function render() {
       `<section class="group"><h3>${L} <span class="n">${g.length}</span></h3><div class="grid">${g.map(r => card(r, tokens)).join('')}</div></section>`).join('');
   } else {
     html = Object.keys(TOPICS).map(k => {
-      const g = rows.filter(r => r.it.topic === k).sort((a, b) => (a.it.type === b.it.type ? 0 : a.it.type === 'dept' ? -1 : 1) || byName(a, b));
+      const g = rows.filter(r => r.it.topic === k).sort((a, b) =>
+        (rank(a.it) - rank(b.it) || 0) || (a.it.type === b.it.type ? 0 : a.it.type === 'dept' ? -1 : 1) || byName(a, b));
       if (!g.length) return '';
-      return `<section class="group"><h3>${escapeHtml(TOPICS[k])} <span class="n">${g.length}</span></h3><div class="grid">${g.map(r => card(r, tokens)).join('')}</div></section>`;
+      const all = state.topic === k || opened.has(k) || g.length <= PREVIEW + 2;
+      const shown = all ? g : g.slice(0, PREVIEW);
+      const more = all ? '' : `<button type="button" class="more" data-more="${k}">Show all ${g.length} in ${escapeHtml(TOPICS[k])}</button>`;
+      return `<section class="group"><h3>${escapeHtml(TOPICS[k])} <span class="n">${g.length}</span></h3><div class="grid">${shown.map(r => card(r, tokens)).join('')}</div>${more}</section>`;
     }).join('');
   }
   out.innerHTML = `<div class="results">${html}</div>`;
@@ -785,10 +857,8 @@ $('clear').addEventListener('click', () => { setQuery(''); qEl.focus(); });
 document.addEventListener('click', e => {
   const tab = e.target.closest('.tab');
   if (tab) { state.type = tab.dataset.type; render(); return; }
-  const a = e.target.closest('[data-aud]');
-  if (a) { state.aud = state.aud === a.dataset.aud ? '' : a.dataset.aud; render(); return; }
-  const q = e.target.closest('[data-q]');
-  if (q) { setQuery(q.dataset.q); qEl.focus(); }
+  const more = e.target.closest('[data-more]');
+  if (more) { opened.add(more.dataset.more); render(); return; }
 });
 topicSel.addEventListener('change', () => { state.topic = topicSel.value; render(); });
 $('sort').addEventListener('change', e => { state.sort = e.target.value; render(); });
@@ -807,6 +877,7 @@ try {
   const p = new URLSearchParams(location.search);
   if (['all', 'dept', 'prog'].includes(p.get('type'))) state.type = p.get('type');
   if (p.get('q')) { state.q = p.get('q'); qEl.value = state.q; }
+  if (AUDIENCES[p.get('aud')]) state.aud = p.get('aud');
 } catch (e) {}
 
 // Same auto-height contract as the other BCPS embeds: post
