@@ -64,9 +64,15 @@ export const TOOLS: Tool[] = [
 export const TOOL_GROUPS: Tool['group'][] = ['Daily work', 'Content', 'Websites', 'Accessibility', 'WCM program', 'Me', 'SuperAdmin']
 
 // The tiles each view opens with (Sean approved, mock v3; Widgets added Oct 1).
-export const TOP_TOOLS: Record<'superadmin' | 'comms' | 'appsvc', string[]> = {
+// Director, WCM and member lists added when the left menu was retired
+// (Sean, 2026-10-02), so every role reaches every tool it has from the
+// dashboard. A tile only shows when that person can open the tool.
+export const TOP_TOOLS: Record<'superadmin' | 'comms' | 'appsvc' | 'director' | 'wcm' | 'member', string[]> = {
   // Widgets lives here as a tile rather than its own tab (Sean, 2026-10-01).
   superadmin: ['Web Team Assignments', 'Banner Submissions', 'WCM Roster', 'Documents', 'Meeting Notes', 'Widgets', 'Permissions'],
   comms: ['Web Team Assignments', 'Banner Submissions', 'Departments', 'WCM Roster', 'Documents', 'Meeting Notes', 'Widgets'],
   appsvc: ['Web Team Assignments', 'ADA Scanner', 'ADA Manager', 'School Profiles', 'Banner Submissions', 'Documents', 'Widgets'],
+  director: ['Director Playbook', 'WCM Roster', 'Meeting Notes', 'Documents', 'Department Certification', 'My Profile'],
+  wcm: ['Department Certification', 'Department WCM Playbook', 'ADA Scanner', 'Documents', 'Meeting Notes', 'My Profile'],
+  member: ['Department Certification', 'Registration: Getting Started', 'Director Playbook', 'Documents', 'WCM Roster', 'My Profile'],
 }

@@ -5,8 +5,16 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar, { SAMPLE_SUPERADMIN_ID, type UserRole, type TeamMember } from '@/components/Sidebar'
 import PulseWidget from '@/components/PulseWidget'
+import ViewAsButton from '@/components/ViewAsButton'
+import { TOOLS } from '@/lib/bcps-tools'
 import type { PageId } from '@/lib/types'
 import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
+
+// The left menu is retired (Sean, 2026-10-02): every tool it listed is on the
+// dashboard's Tools & Resources tab, filtered by the same access rules, so the
+// menu button is gone and other pages show a Dashboard button instead. The
+// Sidebar component stays in place; set this to true to bring the menu back.
+const SHOW_LEFT_MENU = false
 
 // ── Context (consumed by bcps/page.tsx for role-gated content) ────────────
 interface BCPSShellContextValue {
@@ -87,6 +95,12 @@ const HamburgerIcon = () => (
     <line x1="3" y1="6" x2="21" y2="6"/>
     <line x1="3" y1="12" x2="21" y2="12"/>
     <line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+)
+
+const HomeIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>
   </svg>
 )
 
@@ -230,7 +244,11 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
     return (searchParams.get('page') as PageId) || 'dashboard'
   }, [pathname, searchParams])
 
-  const { title, sub } = PAGE_TITLES[activePage] ?? PAGE_TITLES['dashboard']
+  // Pages without their own entry take their name from the tools catalog, so
+  // a page never reads "Dashboard" next to the Dashboard button.
+  const catalogTool = TOOLS.find((t) => t.page === activePage)
+  const { title, sub } = PAGE_TITLES[activePage]
+    ?? (catalogTool ? { title: catalogTool.label, sub: PAGE_TITLES['dashboard'].sub } : PAGE_TITLES['dashboard'])
 
   // The page set in force right now: the previewed subject's while previewing,
   // otherwise the signed-in user's own.
@@ -297,7 +315,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   return (
     <BCPSShellContext.Provider value={{ role, viewAs, canManageMessages, pages: effectivePages, setViewAs: handleViewAs }}>
       <div className="app-shell">
-        <Sidebar
+        {SHOW_LEFT_MENU && <Sidebar
           activePage={activePage}
           onNavigate={handleNavigate}
           role={role}
@@ -310,19 +328,25 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           viewAsGroups={viewAsGroups}
           selfEmail={selfEmail}
           onOpenDoc={(title, url) => setDocPreview({ title, url })}
-        />
+        />}
 
         <div className="main-area">
           {/* Global Topbar */}
           <header className="topbar">
             <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <button
-                className="hamburger-btn"
-                onClick={() => setSidebarOpen(s => !s)}
-                aria-label="Open menu"
-              >
-                <HamburgerIcon />
-              </button>
+              {SHOW_LEFT_MENU ? (
+                <button
+                  className="hamburger-btn"
+                  onClick={() => setSidebarOpen(s => !s)}
+                  aria-label="Open menu"
+                >
+                  <HamburgerIcon />
+                </button>
+              ) : activePage !== 'dashboard' && (
+                <button type="button" className="topbar-home-btn" onClick={() => handleNavigate('dashboard')}>
+                  <HomeIcon /> <span>Dashboard</span>
+                </button>
+              )}
               <div>
                 <h1>{title}</h1>
                 <p>{sub}</p>
@@ -330,6 +354,18 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
             </div>
 
             <div className="topbar-right">
+              {/* With the menu gone, its footer's View as switcher lives here:
+                  a sample-people View as for anyone granted it (the SuperAdmin
+                  keeps theirs on the dashboard), and a way back from any page. */}
+              {!SHOW_LEFT_MENU && viewAs && activePage !== 'dashboard' && (
+                <span className="topbar-viewas">
+                  Viewing as {viewAs.name}
+                  <button type="button" onClick={() => handleViewAs(null)}>Return to my view</button>
+                </span>
+              )}
+              {!SHOW_LEFT_MENU && !viewAs && role !== 'superadmin' && viewAsGroups.length > 0 && (
+                <ViewAsButton onPick={handleViewAs} groups={viewAsGroups} className="topbar-viewas-btn" />
+              )}
               <div className="topbar-search">
                 <input type="text" placeholder="Search..." className="search-input" />
               </div>

@@ -9,7 +9,8 @@ import WidgetsPage from './WidgetsPage'
 import DashboardPage from './DashboardPage'
 import { WcmCommunityHub, WcmHubCards, type CertStatus, type HubTab } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
-import { SAMPLE_SUPERADMIN_ID, SAMPLE_ROLE_MEMBERS, Icons } from '@/components/Sidebar'
+import SharedViewAsButton from '@/components/ViewAsButton'
+import { SAMPLE_SUPERADMIN_ID, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
 import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
 import {
@@ -451,42 +452,9 @@ function PreviewBanner({ who, children }: { who?: string; children?: React.React
 
 // The "View as" choices on the SuperAdmin dashboard: sample people only, one
 // per group, never a real person's account (Sean, 2026-10-01).
-const VIEW_AS_CHOICES: { id: string; label: string; desc: string }[] = [
-  { id: 'SDR', label: 'Director', desc: 'A director with two sample departments.' },
-  { id: 'SWC', label: 'Web Content Manager', desc: 'A department WCM working on certification.' },
-  { id: 'SDW', label: 'Web Team: Communications', desc: 'The department side of the District Web Team.' },
-  { id: 'SDA', label: 'Web Team: Application Services', desc: 'ADA, schools and tools.' },
-]
-
 function ViewAsButton() {
   const { setViewAs } = useBCPSShell()
-  const [open, setOpen] = useState(false)
-  return (
-    <>
-      <button type="button" className="wcm-hub2-card-btn" onClick={() => setOpen(true)}>View as</button>
-      {open && (
-        <div className="home-modal-back" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false) }}>
-          <div className="home-modal" role="dialog" aria-modal="true" aria-labelledby="viewas-title">
-            <h2 id="viewas-title">View the dashboard as</h2>
-            <p className="home-card-text">A sample person in each group. Return to your view any time.</p>
-            <div className="home-modal-list">
-              {VIEW_AS_CHOICES.map((c) => {
-                const member = SAMPLE_ROLE_MEMBERS.find((m) => m.id === c.id)
-                if (!member) return null
-                return (
-                  <button key={c.id} type="button" className="home-tool" onClick={() => { setOpen(false); setViewAs(member) }}>
-                    <span className="home-tool-ic" aria-hidden="true">{c.label.replace('Web Team: ', '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2)}</span>
-                    <span><b>{c.label}</b><small>{c.desc}</small></span>
-                  </button>
-                )
-              })}
-            </div>
-            <div className="home-actions"><button type="button" className="wcm-hub2-card-btn" onClick={() => setOpen(false)}>Cancel</button></div>
-          </div>
-        </div>
-      )}
-    </>
-  )
+  return <SharedViewAsButton onPick={setViewAs} />
 }
 
 // Fictitious rows for the web team samples, so a preview never shows a real
@@ -499,7 +467,7 @@ const SAMPLE_TEAM_ASSIGNMENTS: Assignment[] = [
 ]
 
 /* ─── DIRECTOR ─────────────────────────────────────────── */
-type DirectorTab = 'team' | 'review' | 'analytics' | 'notes' | 'widgets' | 'help' | 'wcm'
+type DirectorTab = 'team' | 'review' | 'analytics' | 'notes' | 'widgets' | 'help' | 'wcm' | 'tools'
 
 // The review window that matters most to this director: the open one, else
 // the next upcoming one, else the last one (their departments may span
@@ -510,7 +478,7 @@ function primaryWindow(depts: DepartmentSummary[]): ReviewWindow | null {
   return ws.find((w) => windowState(w) === 'open') ?? ws.find((w) => windowState(w) === 'upcoming') ?? ws[ws.length - 1] ?? null
 }
 
-function DirectorHome({ data, preview }: { data: HomeData; preview?: boolean }) {
+function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
   const [tab, setTab] = useState<DirectorTab>('team')
   const led = data.departments.filter((d) => data.led_department_ids.includes(d.id))
   const totalWcms = led.reduce((n, d) => n + d.wcms.length, 0)
@@ -532,6 +500,7 @@ function DirectorHome({ data, preview }: { data: HomeData; preview?: boolean }) 
     { id: 'help', label: 'Ask & Guide' },
     // A director who is also their department's WCM keeps the WCM cards.
     ...(data.is_wcm ? [{ id: 'wcm' as DirectorTab, label: 'My WCM Work' }] : []),
+    { id: 'tools', label: 'Tools & Resources' },
   ]
 
   return (
@@ -587,6 +556,7 @@ function DirectorHome({ data, preview }: { data: HomeData; preview?: boolean }) 
       {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
       {tab === 'help' && <DirectorHelp myWindow={myWindow} led={led} />}
       {tab === 'wcm' && <WcmCommunityHub />}
+      {tab === 'tools' && <ToolsPanel kind="director" onNavigate={onNavigate} />}
     </div>
   )
 }
@@ -835,9 +805,9 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 // mock v3): heading, status strip, then tabs. Start Here opens with the
 // first steps; My Department holds the audit, the site's visitors and the
 // review; Build Kit, Maintain and Learn are the hub cards.
-type WcmTab = 'start' | 'dept' | 'build' | 'maintain' | 'learn'
+type WcmTab = 'start' | 'dept' | 'build' | 'maintain' | 'learn' | 'tools'
 
-function WcmHome({ data, preview }: { data: HomeData; preview?: boolean }) {
+function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
   const [tab, setTab] = useState<WcmTab>('start')
   const mine = data.departments
   const primary = mine[0]
@@ -852,6 +822,7 @@ function WcmHome({ data, preview }: { data: HomeData; preview?: boolean }) {
     { id: 'build', label: 'Build Kit' },
     { id: 'maintain', label: 'Maintain' },
     { id: 'learn', label: 'Learn' },
+    { id: 'tools', label: 'Tools & Resources' },
   ]
   return (
     <div className="home">
@@ -925,6 +896,7 @@ function WcmHome({ data, preview }: { data: HomeData; preview?: boolean }) {
       )}
       {tab === 'dept' && mine.map((d) => <WcmDepartmentTab key={d.id} dept={d} />)}
       {(tab === 'build' || tab === 'maintain' || tab === 'learn') && <WcmHubCards tab={tab as HubTab} certified={cert.certified} />}
+      {tab === 'tools' && <ToolsPanel kind="wcm" onNavigate={onNavigate} />}
     </div>
   )
 }
@@ -985,7 +957,7 @@ function WcmDepartmentTab({ dept }: { dept: DepartmentSummary }) {
 // Not on the District Web Team, not matched as a director, not a WCM. Most
 // often a director whose department has no director email on file yet, or a
 // WCM whose director has not confirmed them. Only cards they can open.
-function MemberHome({ data }: { data: HomeData }) {
+function MemberHome({ data, onNavigate }: { data: HomeData; onNavigate: Navigate }) {
   const name = firstName(data)
   return (
     <div className="home">
@@ -1011,6 +983,8 @@ function MemberHome({ data }: { data: HomeData }) {
           <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback()}>Send a message</button>
         </div>
       </div>
+      <h2 className="home-grp">Tools &amp; Resources</h2>
+      <ToolsPanel kind="member" onNavigate={onNavigate} />
     </div>
   )
 }
@@ -1235,7 +1209,7 @@ function AuditsPanel({ depts, onNavigate }: { depts: DepartmentSummary[]; onNavi
   )
 }
 
-function ToolsPanel({ kind, onNavigate, kb = [] }: { kind: 'superadmin' | TeamKind; onNavigate: (page: PageId) => void; kb?: KbArticle[] }) {
+function ToolsPanel({ kind, onNavigate, kb = [] }: { kind: keyof typeof TOP_TOOLS; onNavigate: (page: PageId) => void; kb?: KbArticle[] }) {
   const { pages, role, viewAs } = useBCPSShell()
   const [q, setQ] = useState('')
   const isSA = role === 'superadmin' && (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID)
@@ -1253,7 +1227,7 @@ function ToolsPanel({ kind, onNavigate, kb = [] }: { kind: 'superadmin' | TeamKi
   const open = (t: Tool) => { if (t.page) onNavigate(t.page); else if (t.href) window.location.href = t.href }
   return (
     <>
-      <p className="wcm-hub2-intro">Your most used tools, then the knowledge base. Search finds both.</p>
+      <p className="wcm-hub2-intro">{kb.length ? 'Your most used tools, then the knowledge base. Search finds both.' : 'Your most used tools. Search or browse below for everything else you can open.'}</p>
       <div className="home-tools">
         {top.map((t) => (
           <button key={t.label} type="button" className="home-tool" onClick={() => open(t)}>
@@ -1263,7 +1237,7 @@ function ToolsPanel({ kind, onNavigate, kb = [] }: { kind: 'superadmin' | TeamKi
         ))}
       </div>
       <div className="home-tsearch">
-        <label htmlFor={`tool-search-${kind}`}>Find a tool or article</label>
+        <label htmlFor={`tool-search-${kind}`}>{kb.length ? 'Find a tool or article' : 'Find a tool'}</label>
         <input id={`tool-search-${kind}`} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a word, like Minutes or banner" />
         <div className="home-tresults" aria-live="polite">
           {needle && hits.map((t) => <button key={t.label} type="button" className="home-link-btn" onClick={() => open(t)}>{t.label}</button>)}
@@ -1769,9 +1743,9 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { on
   // use the team data the signed-in team member already receives.
   if (viewAsUserId === SAMPLE_DIRECTOR_ID) {
     if (!directorSample) return <div className="wcm-hub2-empty">Loading the preview...</div>
-    return <DirectorHome key="preview-director" data={directorSample} preview />
+    return <DirectorHome key="preview-director" data={directorSample} preview onNavigate={onNavigate} />
   }
-  if (wcmSample) return <WcmHome key="preview-wcm" data={wcmSample} preview />
+  if (wcmSample) return <WcmHome key="preview-wcm" data={wcmSample} preview onNavigate={onNavigate} />
   if (viewAsUserId) {
     if (!data && !failed) return <div className="wcm-hub2-empty">Loading the preview...</div>
     const th = data?.team_home
@@ -1805,7 +1779,7 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { on
   if (data.experience === 'dwt' && data.team_home) {
     return <WebTeamHome data={data} kind={data.team_kind ?? 'comms'} onNavigate={onNavigate} assignments={data.team_home.my_assignments} onShowToast={onShowToast} />
   }
-  if (data.experience === 'director') return <DirectorHome data={data} />
-  if (data.experience === 'wcm') return <WcmHome data={data} />
-  return <MemberHome data={data} />
+  if (data.experience === 'director') return <DirectorHome data={data} onNavigate={onNavigate} />
+  if (data.experience === 'wcm') return <WcmHome data={data} onNavigate={onNavigate} />
+  return <MemberHome data={data} onNavigate={onNavigate} />
 }
