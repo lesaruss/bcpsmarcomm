@@ -51,9 +51,10 @@ const DIRECTOR_PLAYBOOK_URL = '/playbooks/director-department'
 // Department certification deadline (Sept 30 applies to schools only).
 const DEPT_CERT_DEADLINE = 'October 30, 2026'
 // Director videos (Sean, 2026-10-01). For now each one is a still image with
-// Sean's narration (his Higgsfield voice) until he records a scroll-through
-// of the dashboard to replace it. Files live in the public bcps-public
-// bucket, dashboard-media/. Set a video to null to hide its card.
+// Sean's narration until he records a scroll-through of the dashboard to
+// replace it. Stills live in the public bcps-public bucket, dashboard-media/.
+// The narration is Sean's own recording (HQ > Recording Queue, 2026-10-05),
+// leveled into the public site-audio bucket. Set a video to null to hide its card.
 interface NarratedMedia {
   title: string
   sub: string
@@ -63,13 +64,13 @@ interface NarratedMedia {
 }
 const MEDIA_BASE = 'https://fwbhwfxpncrsfhttimna.supabase.co/storage/v1'
 const mediaStill = (name: string) => `${MEDIA_BASE}/render/image/public/bcps-public/dashboard-media/${name}?width=960&quality=80`
-const mediaFile = (name: string) => `${MEDIA_BASE}/object/public/bcps-public/dashboard-media/${name}`
+const siteAudio = (name: string) => `${MEDIA_BASE}/object/public/site-audio/bcps/${name}`
 
 const WALKTHROUGH_VIDEO: NarratedMedia | null = {
   title: 'Start here: What BCPS MarComm is, and why we built it',
   sub: 'Two minutes from Sean A. Russell, District Webmaster.',
   still: mediaStill('director-walkthrough-still.png'),
-  audio: mediaFile('director-walkthrough-narration.wav'),
+  audio: siteAudio('director-walkthrough-narration-1791197518260.wav'),
   transcript: [
     'Hi, I\u2019m Sean A. Russell, District Webmaster in the Office of Communications. Thank you for taking two minutes with me. This is BCPS MarComm, and this page was built for you.',
     'Every department has a website, and families, staff, and vendors count on it being right. Behind each one is a Web Content Manager from your team. BCPS MarComm is where those WCMs are trained, supported, and connected with the District Web Team, so your website stays accurate, accessible, and on brand.',
@@ -83,7 +84,7 @@ const REVIEW_VIDEO: NarratedMedia | null = {
   title: 'How the department review works',
   sub: 'Sean walks through the five steps and the three review windows.',
   still: mediaStill('director-review-still.png'),
-  audio: mediaFile('director-review-narration.wav'),
+  audio: siteAudio('director-review-narration-1791197517965.wav'),
   transcript: [
     'This school year, the District Web Team is meeting with every department to make your web pages better. Here\u2019s how it works, and when your turn comes up.',
     'The review runs every year, July 1 through June 30, in three windows. Window one, October 1 through December 18, covers our priority divisions: Human Resources, Student Services, Academics, and Chief of Staff. Window two, January 11 through March 31, is Finance, Strategy and Operations, Facilities, and Safety and Security. Window three, April 1 through June 30, is Information Systems, Learning Communities, and Independent Offices.',
