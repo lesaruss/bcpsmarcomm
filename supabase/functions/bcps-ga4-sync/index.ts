@@ -1,7 +1,8 @@
 // supabase/functions/bcps-ga4-sync/index.ts
 //
 // Source of the deployed bcps-ga4-sync Edge Function (Supabase project
-// fwbhwfxpncrsfhttimna), checked in 2026-09-22 at version 17. It had lived
+// fwbhwfxpncrsfhttimna), checked in 2026-09-22 at version 17; v24 (2026-10-05)
+// checks the caller itself and runs with verify_jwt off. It had lived
 // only in Supabase until then, so there was no history for a function that
 // feeds every number on the Analytics page. Per-campaign GA4 property,
 // whole-site "/" campaigns and start_date windows added 2026-09-25 (v21).
@@ -111,9 +112,30 @@ function campaignPathFilter(paths: string[], includeSubpages: boolean) {
   return { orGroup: { expressions } };
 }
 
-Deno.serve(async (_req: Request) => {
+// Who may run a sync (2026-10-05, service key rotation). This used to rely on
+// the gateway's verify_jwt, which accepts ANY valid project JWT (even the
+// public anon key) and rejects the new sb_secret_ keys. The function now runs
+// with verify_jwt off and checks the caller itself: the bearer must be the
+// project service key, either the one Supabase injects here or the current
+// copy in lesaruss_secrets.SUPABASE_SERVICE_ROLE_KEY. The HQ Key Room updates
+// that copy and the callers' Vercel env (LESARUSS_SUPABASE_SERVICE_KEY in
+// bcpsmarcomm and k12-unlocked) together, so a rotation never locks them out.
+async function callerAllowed(req: Request, supabase: ReturnType<typeof createClient>): Promise<boolean> {
+  const sent = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!sent) return false;
+  if (SUPABASE_SERVICE_KEY && sent === SUPABASE_SERVICE_KEY) return true;
+  const { data } = await supabase.from('lesaruss_secrets').select('value').eq('key', 'SUPABASE_SERVICE_ROLE_KEY').maybeSingle();
+  return !!data?.value && sent === data.value;
+}
+
+Deno.serve(async (req: Request) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    if (!(await callerAllowed(req, supabase))) {
+      return new Response(JSON.stringify({ success: false, error: 'unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     const { data: secretRows, error: secretErr } = await supabase
       .from('lesaruss_secrets').select('value').eq('key', 'GA4_SERVICE_ACCOUNT_BCPS').single();
