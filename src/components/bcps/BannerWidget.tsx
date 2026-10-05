@@ -1182,7 +1182,7 @@ export default function BannerWidget() {
                     onChange={(e) => chooseFile(it.key, e.target.files?.[0] || null)}
                   />
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                    Image: 2880x1600px target (1920x800px minimum, the Finalsite homepage banner standard). Video: MP4 only, max 30 seconds, 1080p HD recommended (not 4K).
+                    Image: 1920 x 800 px or larger, same wide shape (the Finalsite homepage banner standard). Video: MP4 only, max 30 seconds, 1080p HD recommended (not 4K).
                   </div>
                   {/* The size this tool measured, so a Fail on the size row
                       always says why (Vanessa Deslandes, 2026-10-02). */}
