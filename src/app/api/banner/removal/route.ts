@@ -37,7 +37,9 @@ async function notifyRemovalReceived(row: {
   removal_description: string | null
   wcm_email: string | null
 }) {
-  const { data: admins } = await svc.from('bcps_banner_admins').select('email')
+  // notify_on_submit: only the Application Services reviewers are emailed;
+  // other District Web Team admins review without it (Sean, 2026-10-05).
+  const { data: admins } = await svc.from('bcps_banner_admins').select('email').eq('notify_on_submit', true)
   const recipients = (admins ?? []).map(a => a.email).filter((e): e is string => !!e)
   if (recipients.length === 0) return
 

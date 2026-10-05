@@ -176,7 +176,7 @@ const VALIDATION_CHIP: Record<ValidationState, { bg: string; fg: string; ring: s
   pending: { bg: '#e4e4e4', fg: '#666',    ring: 'none',                       label: 'Pending' },
 }
 
-type Tab = 'upload' | 'removal' | 'mine' | 'review' | 'admins'
+type Tab = 'upload' | 'removal' | 'mine' | 'review' | 'admins' | 'wcms'
 
 // Fixed rejection-reason categories, per the Vanessa Deslandes walkthrough
 // (2026-09-08): reject is a category pick, not free text, so every WCM sees
@@ -371,6 +371,15 @@ export default function BannerWidget() {
   const [newAdminRole, setNewAdminRole] = useState<'admin' | 'manager'>('manager')
   const [adminNotice, setAdminNotice] = useState<string | null>(null)
 
+  // School WCM invites (Sean + Vanessa Deslandes, 2026-10-05) - see
+  // /api/banner/wcm-invite.
+  const [schoolWcms, setSchoolWcms] = useState<Array<{ name: string; wcm_name: string | null; wcm_email: string; school_location_nbr: string | null }>>([])
+  const [inviteName, setInviteName] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteLoc, setInviteLoc] = useState('')
+  const [inviteBusy, setInviteBusy] = useState(false)
+  const [inviteNotice, setInviteNotice] = useState<{ ok: boolean; text: string } | null>(null)
+
   async function authedFetch(path: string, init?: RequestInit) {
     const supabase = createClient()
     const token = (await supabase.auth.getSession()).data.session?.access_token
@@ -403,6 +412,50 @@ export default function BannerWidget() {
     }
   }
 
+  async function loadSchoolWcms() {
+    try {
+      const res = await authedFetch('/api/banner/wcm-invite')
+      const data = await res.json()
+      if (res.ok) setSchoolWcms(data.wcms || [])
+    } catch {
+      // best-effort - the invite form still works
+    }
+  }
+
+  async function handleInviteWcm(resend?: { name: string; email: string; loc: string }) {
+    const payload = resend ?? { name: inviteName.trim(), email: inviteEmail.trim(), loc: inviteLoc }
+    setInviteNotice(null)
+    if (!payload.name || !payload.email || !payload.loc) {
+      setInviteNotice({ ok: false, text: 'Enter a name, an email, and a school.' })
+      return
+    }
+    setInviteBusy(true)
+    try {
+      const res = await authedFetch('/api/banner/wcm-invite', {
+        method: 'POST',
+        body: JSON.stringify({ name: payload.name, email: payload.email, loc_no: payload.loc }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setInviteNotice({ ok: false, text: data.error || 'Could not send the invite.' })
+      } else {
+        const who = `${payload.email} (${data.school})`
+        setInviteNotice({
+          ok: data.email_sent,
+          text: data.email_sent
+            ? (data.status === 'invited' ? `Invite sent to ${who}.` : `${who} already had an account. A sign-in email was sent.`)
+            : `Account is set up for ${who}, but the email did not send: ${data.email_error || 'unknown error'}.`,
+        })
+        if (!resend) { setInviteName(''); setInviteEmail(''); setInviteLoc('') }
+        loadSchoolWcms()
+      }
+    } catch {
+      setInviteNotice({ ok: false, text: 'Could not send the invite.' })
+    } finally {
+      setInviteBusy(false)
+    }
+  }
+
   async function loadReviewQueue() {
     setReviewLoading(true)
     try {
@@ -423,12 +476,13 @@ export default function BannerWidget() {
 
   // Leaving an internal tab when a preview hides it.
   useEffect(() => {
-    if (previewingWcm && (tab === 'review' || tab === 'admins')) setTab('upload')
+    if (previewingWcm && (tab === 'review' || tab === 'admins' || tab === 'wcms')) setTab('upload')
   }, [previewingWcm, tab])
 
   useEffect(() => {
     if (tab === 'review') loadReviewQueue()
     if (tab === 'admins') loadMyRoleAndAdmins()
+    if (tab === 'wcms') loadSchoolWcms()
   }, [tab])
 
   // "View as" a WCM or District Web Team sample: show only the WCM tabs, the
@@ -793,6 +847,7 @@ export default function BannerWidget() {
   // tools for part of the WCM flow.
   const internalTabs: Array<{ id: Tab; label: string }> = []
   if (canReview) internalTabs.push({ id: 'review', label: 'Review Queue' })
+  if (canReview) internalTabs.push({ id: 'wcms', label: 'School WCMs' })
   if (isAdmin) internalTabs.push({ id: 'admins', label: 'Manage Admins' })
 
   const GOLD = '#F4C436'
@@ -989,7 +1044,14 @@ export default function BannerWidget() {
                       overlays the nav + title/caption on the image like the
                       real sites do; narrow-container variant matches the real
                       sites' mobile layout, where both move below the image. */}
-                  <div style={{ position: 'relative', width: '100%', aspectRatio: '2880 / 1600', background: '#000', overflow: 'hidden' }}>
+                  {/* Same 1920 x 800 (2.4 : 1) frame as the live homepage
+                      banner, cropped the same way (object-fit cover), so
+                      anything cut off on the school site is cut off here too.
+                      Was 2880 / 1600 (1.8 : 1), which showed more of the top
+                      and bottom than the live site does: heads Vanessa
+                      Deslandes and Rudy saw in this preview were cropped on the
+                      real site (2026-10-05). */}
+                  <div style={{ position: 'relative', width: '100%', aspectRatio: `${MIN_WIDTH} / ${MIN_HEIGHT}`, background: '#000', overflow: 'hidden' }}>
                     {displayKind === 'video' ? (
                       <video src={displayUrl} muted autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
@@ -1071,7 +1133,10 @@ export default function BannerWidget() {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800 }}>Banner {n + 1}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800 }}>
+                    Banner {n + 1}
+                    {n > 0 && <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}> (optional)</span>}
+                  </div>
                   {items.length > 1 && (
                     <button type="button" className="btn-outline" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => removeItem(it.key)}>
                       Remove
@@ -1080,7 +1145,7 @@ export default function BannerWidget() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Photo or video *</label>
+                  <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Photo or video{n === 0 ? ' *' : ''}</label>
                   <input
                     type="file"
                     accept="image/png,image/jpeg,video/mp4"
@@ -1180,10 +1245,23 @@ export default function BannerWidget() {
               </div>
             ))}
 
+            {/* Colored, headed box so the optional extra banners are not
+                missed, and so it is clear one banner is enough to submit
+                (Vanessa Deslandes, 2026-10-05). */}
             {items.length < MAX_FILES && (
-              <button type="button" className="btn-outline" onClick={addItem} style={{ justifySelf: 'start', fontSize: 12.5, padding: '6px 12px' }}>
-                + Add another banner ({items.length} of {MAX_FILES})
-              </button>
+              <div style={{
+                background: '#eaf1f8', border: '2px dashed #0a3764', borderRadius: 8, padding: 14,
+                display: 'grid', gap: 8,
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#0a3764' }}>Add another banner</div>
+                <div style={{ fontSize: 12, color: '#1f2937' }}>
+                  Optional. One photo or video is all you need to submit. If you have more for your school&apos;s homepage,
+                  you can add up to {MAX_FILES} in this request ({MAX_FILES - items.length} more available).
+                </div>
+                <button type="button" className="btn-primary" onClick={addItem} style={{ justifySelf: 'start', fontSize: 12.5, padding: '7px 14px' }}>
+                  + Add another banner
+                </button>
+              </div>
             )}
 
             {/* Submission requirement acknowledgements - the two items the
@@ -1484,6 +1562,58 @@ export default function BannerWidget() {
               <option value="admin">Admin</option>
             </select>
             <button className="btn-primary" disabled={adminsLoading} onClick={handleAddAdmin}>Add</button>
+          </div>
+        </div>
+      )}
+
+      {tab === 'wcms' && (
+        <div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+            Give a school Web Content Manager access to Banner Submissions. They get an email with their own link to set a
+            password, then sign in and submit banners for their school. Sending again to the same person re-sends the email.
+          </div>
+          {inviteNotice && (
+            <div role="status" style={{ fontSize: 12.5, marginBottom: 10, color: inviteNotice.ok ? '#1e6b3a' : '#a13a2f' }}>{inviteNotice.text}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: 8 }}>
+            <input
+              type="text" placeholder="Full name" value={inviteName} aria-label="WCM full name"
+              onChange={e => setInviteName(e.target.value)} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+            <input
+              type="email" placeholder="email@browardschools.com" value={inviteEmail} aria-label="WCM email"
+              onChange={e => setInviteEmail(e.target.value)} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+            <select value={inviteLoc} onChange={e => setInviteLoc(e.target.value)} className="form-select" aria-label="School" style={{ width: '100%', boxSizing: 'border-box' }}>
+              <option value="">{schoolsLoading ? 'Loading schools...' : 'Select a school...'}</option>
+              {schools.map(s => (
+                <option key={s.loc_no} value={s.loc_no}>{s.school_name}</option>
+              ))}
+            </select>
+          </div>
+          <button className="btn-primary" disabled={inviteBusy} onClick={() => handleInviteWcm()} style={{ marginBottom: 16 }}>
+            {inviteBusy ? 'Sending...' : 'Send invite'}
+          </button>
+
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>School WCMs on file ({schoolWcms.length})</div>
+          <div className="note-list">
+            {schoolWcms.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>None yet.</div>}
+            {schoolWcms.map(w => (
+              <div key={w.wcm_email + (w.school_location_nbr || '')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{w.wcm_name || w.wcm_email}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)', overflowWrap: 'anywhere' }}>{w.wcm_email} · {w.name}</div>
+                </div>
+                {w.school_location_nbr && (
+                  <button
+                    className="btn-outline" style={{ fontSize: 11, padding: '4px 8px', flexShrink: 0 }} disabled={inviteBusy}
+                    onClick={() => handleInviteWcm({ name: w.wcm_name || w.wcm_email, email: w.wcm_email, loc: w.school_location_nbr! })}
+                  >
+                    Resend
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
