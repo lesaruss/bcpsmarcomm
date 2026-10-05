@@ -298,6 +298,139 @@ function statusBadge(status: SubmissionStatus) {
   )
 }
 
+// The mocked school-site frame (header, 1920 x 800 homepage banner, right
+// nav, title/caption), shared by the WCM's live preview and the Review
+// Queue, so reviewers judge a submission in the same frame the WCM saw
+// (Vanessa Deslandes + Rudy Carril, 2026-10-05).
+function BannerSiteFrame({ url, kind, alt, title, caption, frameRef, resizable = false }: {
+  url: string
+  kind: 'image' | 'video' | null
+  alt: string
+  title: string
+  caption: string
+  frameRef?: React.Ref<HTMLDivElement>
+  resizable?: boolean
+}) {
+  return (
+    <>
+      <style>{`
+        .bwp-frame { container-type: inline-size; container-name: bwp; }
+        .bwp-wide-only { display: flex; }
+        .bwp-narrow-only { display: none; }
+        @container bwp (max-width: 480px) {
+          .bwp-wide-only { display: none !important; }
+          .bwp-narrow-only { display: block !important; }
+        }
+      `}</style>
+
+      <div
+        ref={frameRef}
+        className="bwp-frame"
+        style={{
+          width: '100%', maxWidth: '100%', minWidth: 260, resize: resizable ? 'horizontal' : 'none', overflow: 'hidden',
+          borderRadius: 6, border: '1px solid var(--border)', background: '#fff',
+        }}
+      >
+        {/* Mocked site header - generic placeholder logo/title, not the real
+            school's, since one widget serves every BCPS school. */}
+        <div className="bwp-wide-only" style={{
+          background: '#0a3764', color: '#fff', alignItems: 'center', gap: '3cqw',
+          padding: '2.2cqw 3cqw',
+        }}>
+          <div style={{
+            width: '9cqw', height: '9cqw', minWidth: 30, minHeight: 30, maxWidth: 46, maxHeight: 46,
+            background: '#fff', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <svg viewBox="0 0 24 24" width="65%" height="65%" fill="none" stroke="#0a3764" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3 2 8l10 5 10-5-10-5Z" />
+              <path d="M6 10.5V16c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-5.5" />
+            </svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '4.2cqw', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Your School Name</div>
+            <div style={{ fontSize: '2.4cqw', fontStyle: 'italic', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Broward County Public Schools</div>
+          </div>
+          <div style={{ fontSize: '5cqw', lineHeight: 1, flexShrink: 0 }}>☰</div>
+        </div>
+        <div className="bwp-narrow-only" style={{ background: '#0a3764', color: '#fff', padding: '10px 14px', textAlign: 'center' }}>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>Your School Name</div>
+          <div style={{ fontSize: 11, fontStyle: 'italic', opacity: 0.85 }}>Broward County Public Schools</div>
+        </div>
+
+        {/* Hero: the active banner's file. Wide-container variant
+            overlays the nav + title/caption on the image like the
+            real sites do; narrow-container variant matches the real
+            sites' mobile layout, where both move below the image. */}
+        {/* Same 1920 x 800 (2.4 : 1) frame as the live homepage
+            banner, cropped the same way (object-fit cover), so
+            anything cut off on the school site is cut off here too.
+            Was 2880 / 1600 (1.8 : 1), which showed more of the top
+            and bottom than the live site does: heads Vanessa
+            Deslandes and Rudy saw in this preview were cropped on the
+            real site (2026-10-05). */}
+        <div style={{ position: 'relative', width: '100%', aspectRatio: `${MIN_WIDTH} / ${MIN_HEIGHT}`, background: '#000', overflow: 'hidden' }}>
+          {kind === 'video' ? (
+            <video src={url} muted autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <img src={url} alt={alt} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          )}
+          {/* Matches the real school sites' actual nav treatment (checked
+              against a live BCPS school site, 2026-09-03) - a stack of
+              solid white button rows, not a tinted overlay bar: navy
+              bold uppercase text, thin navy divider between rows. */}
+          <div className="bwp-wide-only" style={{
+            position: 'absolute', top: 0, right: 0, bottom: 0, width: '22%', minWidth: 120,
+            flexDirection: 'column',
+          }}>
+            {RIGHT_NAV_ITEMS.map((item, i) => (
+              <div key={item} style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+                background: '#fff', color: '#0a3764', fontSize: '2.1cqw', fontWeight: 800,
+                textTransform: 'uppercase', letterSpacing: '0.01em', lineHeight: 1.15, padding: '2% 8%',
+                borderBottom: i < RIGHT_NAV_ITEMS.length - 1 ? '2px solid #0a3764' : 'none',
+              }}>
+                {item}
+              </div>
+            ))}
+          </div>
+          {/* The WCM's own banner title, and caption beneath it in
+              smaller text, live as they type - nothing until they
+              enter one (Vanessa Deslandes, 2026-09-29 / 2026-10-02). */}
+          {(title || caption) && (
+            <div className="bwp-wide-only" style={{
+              position: 'absolute', left: '3cqw', bottom: '4cqw', right: '25%', color: '#fff',
+              flexDirection: 'column', gap: '0.8cqw', textShadow: '0 1px 6px rgba(0,0,0,0.5)',
+            }}>
+              {title && <div style={{ fontSize: '4.2cqw', fontWeight: 800, lineHeight: 1.15 }}>{title}</div>}
+              {caption && <div style={{ fontSize: '2.3cqw', fontWeight: 600, lineHeight: 1.3 }}>{caption}</div>}
+            </div>
+          )}
+        </div>
+
+        {/* Narrow-container variant: title, caption + full-width
+            stacked nav rows below the image, matching the real
+            sites' mobile layout. */}
+        <div className="bwp-narrow-only">
+          {(title || caption) && (
+            <div style={{ background: '#0a3764', color: '#fff', textAlign: 'center', padding: '16px 10px' }}>
+              {title && <div style={{ fontWeight: 800, fontSize: 18 }}>{title}</div>}
+              {caption && <div style={{ fontWeight: 500, fontSize: 13, marginTop: title ? 6 : 0 }}>{caption}</div>}
+            </div>
+          )}
+          {RIGHT_NAV_ITEMS.map(item => (
+            <div key={item} style={{
+              background: '#fff', color: '#0a3764', fontWeight: 700, fontSize: 13,
+              textAlign: 'center', padding: '14px 10px', borderBottom: '1px solid #0a3764',
+            }}>
+              {item.toUpperCase()}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
 export default function BannerWidget() {
   const [tab, setTab] = useState<Tab>('upload')
   // "View as" preview state, see canReview below.
@@ -370,6 +503,8 @@ export default function BannerWidget() {
   const [newAdminEmail, setNewAdminEmail] = useState('')
   const [newAdminRole, setNewAdminRole] = useState<'admin' | 'manager'>('manager')
   const [adminNotice, setAdminNotice] = useState<string | null>(null)
+  // Review Queue: submission whose school-site preview is open enlarged.
+  const [lightboxId, setLightboxId] = useState<string | null>(null)
 
   // School WCM invites (Sean + Vanessa Deslandes, 2026-10-05) - see
   // /api/banner/wcm-invite.
@@ -484,6 +619,14 @@ export default function BannerWidget() {
     if (tab === 'admins') loadMyRoleAndAdmins()
     if (tab === 'wcms') loadSchoolWcms()
   }, [tab])
+
+  // Esc closes the enlarged preview.
+  useEffect(() => {
+    if (!lightboxId) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightboxId(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightboxId])
 
   // "View as" a WCM or District Web Team sample: show only the WCM tabs, the
   // way a WCM sees this page (Sean + Vanessa Deslandes, 2026-09-29). Data is
@@ -996,120 +1139,7 @@ export default function BannerWidget() {
                   )}
                 </div>
 
-                <style>{`
-                  .bwp-frame { container-type: inline-size; container-name: bwp; }
-                  .bwp-wide-only { display: flex; }
-                  .bwp-narrow-only { display: none; }
-                  @container bwp (max-width: 480px) {
-                    .bwp-wide-only { display: none !important; }
-                    .bwp-narrow-only { display: block !important; }
-                  }
-                `}</style>
-
-                <div
-                  ref={previewFrameRef}
-                  className="bwp-frame"
-                  style={{
-                    width: '100%', maxWidth: '100%', minWidth: 260, resize: 'horizontal', overflow: 'hidden',
-                    borderRadius: 6, border: '1px solid var(--border)', background: '#fff',
-                  }}
-                >
-                  {/* Mocked site header - generic placeholder logo/title, not the real
-                      school's, since one widget serves every BCPS school. */}
-                  <div className="bwp-wide-only" style={{
-                    background: '#0a3764', color: '#fff', alignItems: 'center', gap: '3cqw',
-                    padding: '2.2cqw 3cqw',
-                  }}>
-                    <div style={{
-                      width: '9cqw', height: '9cqw', minWidth: 30, minHeight: 30, maxWidth: 46, maxHeight: 46,
-                      background: '#fff', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>
-                      <svg viewBox="0 0 24 24" width="65%" height="65%" fill="none" stroke="#0a3764" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 3 2 8l10 5 10-5-10-5Z" />
-                        <path d="M6 10.5V16c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-5.5" />
-                      </svg>
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '4.2cqw', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Your School Name</div>
-                      <div style={{ fontSize: '2.4cqw', fontStyle: 'italic', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Broward County Public Schools</div>
-                    </div>
-                    <div style={{ fontSize: '5cqw', lineHeight: 1, flexShrink: 0 }}>☰</div>
-                  </div>
-                  <div className="bwp-narrow-only" style={{ background: '#0a3764', color: '#fff', padding: '10px 14px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 15, fontWeight: 700 }}>Your School Name</div>
-                    <div style={{ fontSize: 11, fontStyle: 'italic', opacity: 0.85 }}>Broward County Public Schools</div>
-                  </div>
-
-                  {/* Hero: the active banner's file. Wide-container variant
-                      overlays the nav + title/caption on the image like the
-                      real sites do; narrow-container variant matches the real
-                      sites' mobile layout, where both move below the image. */}
-                  {/* Same 1920 x 800 (2.4 : 1) frame as the live homepage
-                      banner, cropped the same way (object-fit cover), so
-                      anything cut off on the school site is cut off here too.
-                      Was 2880 / 1600 (1.8 : 1), which showed more of the top
-                      and bottom than the live site does: heads Vanessa
-                      Deslandes and Rudy saw in this preview were cropped on the
-                      real site (2026-10-05). */}
-                  <div style={{ position: 'relative', width: '100%', aspectRatio: `${MIN_WIDTH} / ${MIN_HEIGHT}`, background: '#000', overflow: 'hidden' }}>
-                    {displayKind === 'video' ? (
-                      <video src={displayUrl} muted autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <img src={displayUrl} alt={active.previewUrl ? 'Banner preview' : 'Sample banner placeholder'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    )}
-                    {/* Matches the real school sites' actual nav treatment (checked
-                        against a live BCPS school site, 2026-09-03) - a stack of
-                        solid white button rows, not a tinted overlay bar: navy
-                        bold uppercase text, thin navy divider between rows. */}
-                    <div className="bwp-wide-only" style={{
-                      position: 'absolute', top: 0, right: 0, bottom: 0, width: '22%', minWidth: 120,
-                      flexDirection: 'column',
-                    }}>
-                      {RIGHT_NAV_ITEMS.map((item, i) => (
-                        <div key={item} style={{
-                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-                          background: '#fff', color: '#0a3764', fontSize: '2.1cqw', fontWeight: 800,
-                          textTransform: 'uppercase', letterSpacing: '0.01em', lineHeight: 1.15, padding: '2% 8%',
-                          borderBottom: i < RIGHT_NAV_ITEMS.length - 1 ? '2px solid #0a3764' : 'none',
-                        }}>
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                    {/* The WCM's own banner title, and caption beneath it in
-                        smaller text, live as they type - nothing until they
-                        enter one (Vanessa Deslandes, 2026-09-29 / 2026-10-02). */}
-                    {(title || caption) && (
-                      <div className="bwp-wide-only" style={{
-                        position: 'absolute', left: '3cqw', bottom: '4cqw', right: '25%', color: '#fff',
-                        flexDirection: 'column', gap: '0.8cqw', textShadow: '0 1px 6px rgba(0,0,0,0.5)',
-                      }}>
-                        {title && <div style={{ fontSize: '4.2cqw', fontWeight: 800, lineHeight: 1.15 }}>{title}</div>}
-                        {caption && <div style={{ fontSize: '2.3cqw', fontWeight: 600, lineHeight: 1.3 }}>{caption}</div>}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Narrow-container variant: title, caption + full-width
-                      stacked nav rows below the image, matching the real
-                      sites' mobile layout. */}
-                  <div className="bwp-narrow-only">
-                    {(title || caption) && (
-                      <div style={{ background: '#0a3764', color: '#fff', textAlign: 'center', padding: '16px 10px' }}>
-                        {title && <div style={{ fontWeight: 800, fontSize: 18 }}>{title}</div>}
-                        {caption && <div style={{ fontWeight: 500, fontSize: 13, marginTop: title ? 6 : 0 }}>{caption}</div>}
-                      </div>
-                    )}
-                    {RIGHT_NAV_ITEMS.map(item => (
-                      <div key={item} style={{
-                        background: '#fff', color: '#0a3764', fontWeight: 700, fontSize: 13,
-                        textAlign: 'center', padding: '14px 10px', borderBottom: '1px solid #0a3764',
-                      }}>
-                        {item.toUpperCase()}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <BannerSiteFrame url={displayUrl} kind={displayKind} alt={active.previewUrl ? 'Banner preview' : 'Sample banner placeholder'} title={title} caption={caption} frameRef={previewFrameRef} resizable />
 
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                   {active.previewUrl
@@ -1396,6 +1426,33 @@ export default function BannerWidget() {
 
       {tab === 'review' && (
         <div>
+          {(() => {
+            const lb = lightboxId ? reviewItems.find(x => x.id === lightboxId) : null
+            if (!lb || !lb.signed_url) return null
+            return (
+              <div
+                role="dialog" aria-modal="true" aria-label="School-site preview, enlarged"
+                onClick={() => setLightboxId(null)}
+                style={{
+                  position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.78)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, overflowY: 'auto',
+                }}
+              >
+                <div onClick={e => e.stopPropagation()} style={{ width: 'min(1200px, 100%)', background: '#fff', borderRadius: 8, padding: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 14 }}>{lb.banner_title || lb.file_name}</div>
+                      <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{lb.school_name ? `${lb.school_name} · ` : ''}{lb.wcm_email}</div>
+                    </div>
+                    <button type="button" className="btn-outline" autoFocus onClick={() => setLightboxId(null)} style={{ fontSize: 12, padding: '5px 12px', flexShrink: 0 }}>
+                      Close
+                    </button>
+                  </div>
+                  <BannerSiteFrame url={lb.signed_url} kind={lb.file_type} alt={lb.alt_text || ''} title={lb.banner_title || ''} caption={lb.banner_caption || ''} />
+                </div>
+              </div>
+            )
+          })()}
           {reviewNotice && <div style={{ fontSize: 12.5, marginBottom: 10, color: reviewNotice.startsWith('Approved') || reviewNotice.startsWith('Rejected') ? '#1e6b3a' : '#a13a2f' }}>{reviewNotice}</div>}
           <div role="group" aria-label="Filter by status" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
             {([
@@ -1462,12 +1519,34 @@ export default function BannerWidget() {
                 )}
                 {r.type === 'upload' && r.signed_url && (
                   <div style={{ marginTop: 8 }}>
-                    {r.file_type === 'video' ? (
-                      <video src={r.signed_url} controls style={{ maxWidth: 320, borderRadius: 5 }} />
-                    ) : (
-                      <img src={r.signed_url} alt={r.alt_text || ''} style={{ maxWidth: 320, borderRadius: 5 }} />
-                    )}
-                    {r.alt_text && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Alt text: {r.alt_text}</div>}
+                    {/* Original file on the left, the same school-site frame
+                        the WCM previewed on the right; click the frame for a
+                        larger view (Vanessa Deslandes + Rudy Carril,
+                        2026-10-05). */}
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                      <div style={{ flex: '0 1 320px', minWidth: 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>Submitted file</div>
+                        {r.file_type === 'video' ? (
+                          <video src={r.signed_url} controls style={{ width: '100%', maxWidth: 320, borderRadius: 5, display: 'block' }} />
+                        ) : (
+                          <img src={r.signed_url} alt={r.alt_text || ''} style={{ width: '100%', maxWidth: 320, borderRadius: 5, display: 'block' }} />
+                        )}
+                      </div>
+                      <div style={{ flex: '1 1 320px', minWidth: 0, maxWidth: 560 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>On the school site (click to enlarge)</div>
+                        <button
+                          type="button"
+                          onClick={() => setLightboxId(r.id)}
+                          aria-label={`Enlarge the school-site preview for ${r.banner_title || r.file_name || 'this banner'}`}
+                          style={{ display: 'block', width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'zoom-in', textAlign: 'left' }}
+                        >
+                          <div style={{ pointerEvents: 'none' }}>
+                            <BannerSiteFrame url={r.signed_url} kind={r.file_type} alt={r.alt_text || ''} title={r.banner_title || ''} caption={r.banner_caption || ''} />
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                    {r.alt_text && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Alt text: {r.alt_text}</div>}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 6 }}>
                       {r.download_url && (
                         <a href={r.download_url} className="btn-outline" style={{ display: 'inline-flex', fontSize: 12, padding: '5px 10px', textDecoration: 'none', borderRadius: 8 }}>
