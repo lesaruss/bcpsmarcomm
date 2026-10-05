@@ -54,7 +54,9 @@ const ALLOWED_MIME: Record<string, { ext: string; kind: 'image' | 'video' }> = {
 const TITLE_MAX = 40
 const CAPTION_MAX = 115
 
-const REQUIRED_ACK_KEYS = ['media_release', 'final_ack'] as const
+// faces_visible added 2026-10-05 (Sean + Vanessa Deslandes): no blurred,
+// erased, or covered faces.
+const REQUIRED_ACK_KEYS = ['media_release', 'faces_visible', 'final_ack'] as const
 
 async function verifyCaller(token: string) {
   if (!token) return null

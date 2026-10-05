@@ -120,6 +120,14 @@ const CHECKLIST = [
     section: 'Approvals & Permissions',
     text: 'I confirm that all students appearing in submitted photos or videos have a signed media release on file.',
   },
+  // Sean + Vanessa Deslandes, 2026-10-05: a pilot WCM erased a student's face
+  // instead of choosing another photo. Manual attestation for now; an
+  // automated image check is planned once API credits are in place.
+  {
+    key: 'faces_visible' as const,
+    section: 'Approvals & Permissions',
+    text: 'I confirm that no faces in my photos or videos have been blurred, erased, covered, or edited out. If a student cannot appear, I chose a different photo.',
+  },
   {
     key: 'final_ack' as const,
     section: 'Final Acknowledgment',
@@ -188,6 +196,7 @@ const REJECT_REASON_CATEGORIES = [
   'Wrong photo dimensions or orientation',
   'Image quality too low',
   'Embedded text or logos',
+  'Faces blurred, erased, or covered',
   'Other',
 ] as const
 
@@ -770,7 +779,7 @@ export default function BannerWidget() {
     nav_clearance: all(i => !!i.scanResult?.nav_clearance_pass),
     title: all(i => i.title.trim() !== ''),
     alt: all(i => i.alt.trim() !== ''),
-    approvals: !!checks.media_release,
+    approvals: !!checks.media_release && !!checks.faces_visible,
     final_ack: !!checks.final_ack,
   }
   const allValidationPassed = VALIDATION_CHECKLIST.every(v => validationStatus[v.key])
@@ -811,7 +820,7 @@ export default function BannerWidget() {
       if (!i.scanResult?.no_overlays_pass || !i.scanResult?.nav_clearance_pass) { setUploadNotice(`${name}This image needs to pass the automated content scan before it can be submitted.`); return }
       if (i.scanResult?.text_detected && !i.inSceneText) { setUploadNotice(`${name}Text was detected - confirm it is part of the actual scene before submitting.`); return }
     }
-    if (!allChecked) { setUploadNotice('Both requirement checkboxes must be checked before submitting.'); return }
+    if (!allChecked) { setUploadNotice('All requirement checkboxes must be checked before submitting.'); return }
 
     // One /api/banner/submit call per banner, in order. A banner that saves
     // leaves the form; one that fails stays with its error so the WCM can fix
@@ -1357,6 +1366,13 @@ export default function BannerWidget() {
                   {uploadNotice}
                 </div>
               )}
+              {/* Vanessa Deslandes, 2026-10-05: WCMs read "Submit" as "approved",
+                  especially after a Pass on every row. */}
+              <div style={{ fontSize: 12, color: '#0a3764', background: '#eaf1f8', borderRadius: 6, padding: '8px 10px', marginTop: 8, lineHeight: 1.45 }}>
+                <strong>Submitting is not approval.</strong> The District Web Team checks every banner by eye before it
+                goes live, including anything flagged for manual review above. You will get an email once it is approved
+                or if changes are needed.
+              </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
                 Up to {MAX_FILES} banners per request. Each banner is reviewed on its own.
               </div>
