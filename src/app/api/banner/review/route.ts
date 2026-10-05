@@ -38,10 +38,22 @@ const FIXED_REJECT_REASONS = [
 // both WCM emails (Vanessa Deslandes, 2026-10-02).
 const FOOTER = 'This is an automated message from the School WCM Banner Submission Form.'
 
-const GUIDELINES_MESSAGE =
-  'As outlined in the Identity Banner Guidelines, photos/videos must be high-quality, photos must not have faces ' +
-  'blocked by the right navigation, be free of any embedded text or lettering, and be horizontal/landscape to ' +
-  'display correctly. Please review the guidelines before submitting new images.'
+// Vanessa Deslandes's wording, updated 2026-10-05 (adds the no-blurred-faces
+// rule after a pilot WCM erased a face). Verbatim; the guidelines link is the
+// district's published Identity Homepage Banner page.
+const GUIDELINES_URL =
+  'https://www.browardschools.com/wcm-community/schools/standards-guidelines/website-guidelines/homepage/identity-homepage-banner'
+const GUIDELINES_LINK = `<a href="${GUIDELINES_URL}">Identity Banner Guidelines</a>`
+const GUIDELINES_MESSAGE = `
+  <p>As outlined in the ${GUIDELINES_LINK}, please review the following requirements before submitting new photos or videos:</p>
+  <ul style="margin:0 0 14px;padding-left:20px;line-height:1.6">
+    <li><strong>High quality:</strong> Submit clear, high-resolution photos and videos.</li>
+    <li><strong>Landscape orientation:</strong> Images should be horizontal/landscape to display correctly.</li>
+    <li><strong>Faces:</strong> Do not submit photos where student or staff faces are blocked by the right-side navigation.</li>
+    <li><strong>No embedded text:</strong> Photos and videos must be free of text, lettering, graphics, or other overlays.</li>
+    <li><strong>Do not blur faces:</strong> Do not blur, cover, or otherwise edit student or staff faces. If a face should not appear in the image, please select a different photo.</li>
+  </ul>
+  <p>Please review the ${GUIDELINES_LINK} before submitting new images.</p>`
 
 // Served from public/banner-guidelines.jpg; Resend fetches it at send time.
 const GUIDELINES_ATTACHMENT = {
@@ -177,7 +189,7 @@ export async function POST(req: NextRequest) {
           <p>Your ${isUpload ? 'banner submission' : 'removal request'} <strong>"${escapeHtml(label)}"</strong>
           was reviewed by the District Web Team and was <strong>not approved</strong>.</p>
           <p style="background:#f7f7f7;border-left:3px solid #c0392b;padding:12px 16px;color:#333">${safeReason}</p>
-          ${isUpload ? `<p>${GUIDELINES_MESSAGE}</p>` : ''}
+          ${isUpload ? GUIDELINES_MESSAGE : ''}
           <p>You're welcome to correct the issue and submit again through the Banner tool on your bcpsmarcomm.com dashboard.</p>
           ${isUpload ? `<p><img src="cid:${GUIDELINES_ATTACHMENT.content_id}" alt="Identity Banner Guidelines: horizontal images only, leave space on the right for the navigation, and keep images clean and text-free." width="600" style="max-width:100%;height:auto;border:1px solid #ddd" /></p>` : ''}
           <p>Best regards,<br />District Web Team</p>

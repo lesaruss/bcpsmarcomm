@@ -11,6 +11,7 @@ import { SAMPLE_ROLE_MEMBERS, type TeamMember } from '@/components/Sidebar'
 export const VIEW_AS_CHOICES: { id: string; label: string; desc: string }[] = [
   { id: 'SDR', label: 'Director', desc: 'A director with two sample departments.' },
   { id: 'SWC', label: 'Web Content Manager', desc: 'A department WCM working on certification.' },
+  { id: 'SSW', label: 'School WCM', desc: 'A school WCM who submits homepage banners.' },
   { id: 'SDW', label: 'Web Team: Communications', desc: 'The department side of the District Web Team.' },
   { id: 'SDA', label: 'Web Team: Application Services', desc: 'ADA, schools and tools.' },
 ]

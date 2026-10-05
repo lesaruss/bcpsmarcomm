@@ -37,6 +37,8 @@ export const SAMPLE_ROLE_MEMBERS: TeamMember[] = [
   // departments, and the public page set a real director gets.
   { id: 'SDR', name: 'Marcus Bell',   initials: 'SDR', color: '#9CA3AF', roleLabel: 'Director (Sample)', previewGroup: 'Director' },
   { id: 'SWC', name: 'Wendy Ramirez', initials: 'SWC', color: '#9CA3AF', roleLabel: 'Web Content Manager (Sample)', previewGroup: 'Web Content Management' },
+  // School WCM preview (Sean, 2026-10-05): the banner-only school home.
+  { id: 'SSW', name: 'Jordan Ellis',  initials: 'SSW', color: '#9CA3AF', roleLabel: 'School WCM (Sample)', previewGroup: 'Web Content Management' },
   // Web team previews (2026-10-01): the two team views, Communications
   // (department side) and Application Services (ADA, schools, tools). My
   // Work shows a real team member's assignments, labeled on the page.

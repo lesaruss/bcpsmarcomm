@@ -222,7 +222,7 @@ interface DirectorNote {
 }
 
 interface HomeData {
-  experience: 'superadmin' | 'dwt' | 'director' | 'wcm' | 'member'
+  experience: 'superadmin' | 'dwt' | 'director' | 'school_wcm' | 'wcm' | 'member'
   is_dwt: boolean
   is_director: boolean
   is_superadmin?: boolean
@@ -238,6 +238,9 @@ interface HomeData {
   team: { roster_pending: number; messages_unread: number; access_requests: number; certifications_7d: number } | null
   widgets?: WidgetItem[]
   director_notes?: DirectorNote[]
+  // School WCMs (2026-10-05): their schools and their own banner requests.
+  schools?: { name: string; loc_no: string | null }[]
+  my_banners?: { pending: number; ready: number; posted: number; rejected: number } | null
 }
 
 // Same labels the WCM Audit Portal uses (src/app/(bcps)/wcm-portal/page.tsx).
@@ -254,6 +257,17 @@ const AUDIT_LABELS: Record<string, string> = {
 /* ─── "View as" samples ──────────────────────────────── */
 const SAMPLE_DIRECTOR_ID = 'SDR'
 const SAMPLE_WCM_ID = 'SWC'
+const SAMPLE_SCHOOL_WCM_ID = 'SSW'
+
+function sampleSchoolWcmData(): HomeData {
+  return {
+    experience: 'school_wcm', is_dwt: false, is_director: false, is_wcm: true,
+    name: 'Jordan Ellis', email: 'sample-school-wcm@preview.local',
+    led_department_ids: [], departments: [], team: null,
+    schools: [{ name: 'Sample Elementary', loc_no: null }],
+    my_banners: { pending: 1, ready: 1, posted: 2, rejected: 1 },
+  }
+}
 
 function sampleAnalytics(scale: number): DepartmentAnalytics {
   return {
@@ -986,6 +1000,69 @@ function MemberHome({ data, onNavigate }: { data: HomeData; onNavigate: Navigate
       </div>
       <h2 className="home-grp">Tools &amp; Resources</h2>
       <ToolsPanel kind="member" onNavigate={onNavigate} />
+    </div>
+  )
+}
+
+/* ─── SCHOOL WCM ─────────────────────────────────────── */
+// School Web Content Managers (Sean + Vanessa Deslandes, 2026-10-05). For now
+// their only job here is their school's homepage banner, so the home is just
+// that: what is waiting on the District Web Team, and the way in to submit.
+// Kept deliberately small; add a card only when its link works for a school.
+
+const BANNER_GUIDELINES_URL =
+  'https://www.browardschools.com/wcm-community/schools/standards-guidelines/website-guidelines/homepage/identity-homepage-banner'
+
+function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
+  const name = firstName(data)
+  const schools = (data.schools ?? []).map((x) => x.name)
+  const schoolLabel = schools.length ? schools.join(', ') : 'your school'
+  const b = data.my_banners ?? { pending: 0, ready: 0, posted: 0, rejected: 0 }
+  const openBanners = () => onNavigate('banner-submissions')
+  return (
+    <div className="home">
+      {preview && <PreviewBanner who="School WCM">
+        <strong>Previewing the School WCM dashboard</strong> with a sample person and school. Every link and button is the real one.
+      </PreviewBanner>}
+      <div className="home-hero">
+        <div className="home-hero-label">BCPS MarComm School Web Content Manager</div>
+        <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
+        <p>Homepage banners for {schoolLabel}. Submit new photos and videos, and follow each one through District Web Team review.</p>
+        <div className="home-actions">
+          <button type="button" className="home-btn" onClick={openBanners}>Submit a banner</button>
+          <a className="wcm-hub2-card-btn" href={BANNER_GUIDELINES_URL} target="_blank" rel="noopener noreferrer">Identity Banner Guidelines</a>
+        </div>
+      </div>
+
+      <div className="home-strip">
+        <StatTile label="Waiting for review" value={b.pending} note="The District Web Team checks each one by eye." />
+        <StatTile label="Approved" value={b.ready} note="Posted to your site within 24 to 48 hours." />
+        <StatTile label="Live on your site" value={b.posted} />
+        <StatTile label="Not approved" value={b.rejected} note={b.rejected ? 'See the reason under My Submissions.' : undefined} tone={b.rejected ? 'warn' : undefined} />
+      </div>
+
+      <div className="wcm-hub2-grid">
+        <div className="wcm-hub2-card">
+          <h3>Submit a Homepage Banner</h3>
+          <p>Upload a photo or video, check it in the live preview of your homepage, and send it for review. One banner is all you need; you can add up to three.</p>
+          <button type="button" className="wcm-hub2-card-btn" onClick={openBanners}>Open Banner Submissions</button>
+        </div>
+        <div className="wcm-hub2-card">
+          <h3>Your Submissions</h3>
+          <p>Every banner you have sent, its status, and the reason if one was not approved. Open Banner Submissions, then My Submissions. Request Removal takes a banner down.</p>
+          <button type="button" className="wcm-hub2-card-btn" onClick={openBanners}>View my submissions</button>
+        </div>
+        <div className="wcm-hub2-card">
+          <h3>Identity Banner Guidelines</h3>
+          <p>Horizontal, high-quality images with faces clear of the right-side navigation, no text or graphics, and no blurred or covered faces.</p>
+          <a className="wcm-hub2-card-btn" href={BANNER_GUIDELINES_URL} target="_blank" rel="noopener noreferrer">Read the guidelines</a>
+        </div>
+        <div className="wcm-hub2-card">
+          <h3>Ask the District Web Team</h3>
+          <p>Questions about a banner, your account, or which school you are listed for.</p>
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback()}>Send a message</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -1737,6 +1814,7 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { on
     [viewAsUserId, data, failed]
   )
   const wcmSample = useMemo(() => (viewAsUserId === SAMPLE_WCM_ID ? sampleWcmData() : null), [viewAsUserId])
+  const schoolWcmSample = useMemo(() => (viewAsUserId === SAMPLE_SCHOOL_WCM_ID ? sampleSchoolWcmData() : null), [viewAsUserId])
 
   // "View as" previews: the Director and WCM samples get their own home with
   // sample data. The web team previews (the two samples, or a real team
@@ -1747,6 +1825,7 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { on
     return <DirectorHome key="preview-director" data={directorSample} preview onNavigate={onNavigate} />
   }
   if (wcmSample) return <WcmHome key="preview-wcm" data={wcmSample} preview onNavigate={onNavigate} />
+  if (schoolWcmSample) return <SchoolWcmHome key="preview-school-wcm" data={schoolWcmSample} preview onNavigate={onNavigate} />
   if (viewAsUserId) {
     if (!data && !failed) return <div className="wcm-hub2-empty">Loading the preview...</div>
     const th = data?.team_home
@@ -1781,6 +1860,7 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { on
     return <WebTeamHome data={data} kind={data.team_kind ?? 'comms'} onNavigate={onNavigate} assignments={data.team_home.my_assignments} onShowToast={onShowToast} />
   }
   if (data.experience === 'director') return <DirectorHome data={data} onNavigate={onNavigate} />
+  if (data.experience === 'school_wcm') return <SchoolWcmHome data={data} onNavigate={onNavigate} />
   if (data.experience === 'wcm') return <WcmHome data={data} onNavigate={onNavigate} />
   return <MemberHome data={data} onNavigate={onNavigate} />
 }

@@ -147,7 +147,33 @@ export async function GET(req: NextRequest) {
     .filter((m) => (m.wcm_email || '').trim().toLowerCase() === email)
   const isWcm = groups.includes('Web Content Management') || myRosterRows.length > 0
 
-  const experience = isSuperadmin ? 'superadmin' : isDwt ? 'dwt' : isDirector ? 'director' : isWcm ? 'wcm' : 'member'
+  // School WCMs (Sean + Vanessa Deslandes, 2026-10-05): listed as a school's
+  // WCM on bcps_schools, the same record /api/banner/wcm-invite writes. For
+  // now their whole job here is homepage banners, so they get the simple
+  // school home instead of the department WCM dashboard, even when they
+  // registered through the department signup and landed in the WCM group.
+  const { data: schoolRows } = await svc.from('bcps_schools')
+    .select('name, school_location_nbr, wcm_email').not('wcm_email', 'is', null)
+  const mySchools = (schoolRows ?? [])
+    .filter((r) => (r.wcm_email || '').trim().toLowerCase() === email)
+    .map((r) => ({ name: r.name as string, loc_no: (r.school_location_nbr as string | null) ?? null }))
+  const isSchoolWcm = mySchools.length > 0 && !isDwt && !isDirector
+
+  const experience = isSuperadmin ? 'superadmin' : isDwt ? 'dwt' : isDirector ? 'director' : isSchoolWcm ? 'school_wcm' : isWcm ? 'wcm' : 'member'
+
+  // A school WCM's own banner requests, for their status strip.
+  let myBanners: { pending: number; ready: number; posted: number; rejected: number } | null = null
+  if (isSchoolWcm) {
+    const { data: subs } = await svc.from('bcps_banner_submissions')
+      .select('status, posted_at').eq('wcm_user_id', user.id).eq('type', 'upload')
+    const rows = subs ?? []
+    myBanners = {
+      pending: rows.filter((r) => r.status === 'pending').length,
+      ready: rows.filter((r) => r.status === 'approved' && !r.posted_at).length,
+      posted: rows.filter((r) => r.status === 'approved' && !!r.posted_at).length,
+      rejected: rows.filter((r) => r.status === 'rejected').length,
+    }
+  }
 
   // Departments shown: every department for the team, the led ones for a
   // director, the caller's own roster departments for a WCM.
@@ -253,6 +279,8 @@ export async function GET(req: NextRequest) {
     my_cert: myCert,
     team_kind: teamKind,
     is_wcm: isWcm,
+    schools: isSchoolWcm ? mySchools : [],
+    my_banners: myBanners,
     name: profileRes.data?.full_name ?? null,
     email,
     led_department_ids: ledIds,
