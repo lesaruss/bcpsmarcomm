@@ -583,6 +583,10 @@ export default function BCPSLoginPage() {
                   Create an account
                 </button>.
               </p>
+              <p style={{ textAlign: 'center', marginTop: '6px', fontSize: '12px', lineHeight: '1.6' }}>
+                School Web Content Manager?{' '}
+                <a href="/school-registration" style={{ ...linkStyle, fontSize: '12px', textDecoration: 'none' }}>Create your school account</a>.
+              </p>
             </>
           )}
         </div>
