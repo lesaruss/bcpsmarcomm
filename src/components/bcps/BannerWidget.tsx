@@ -441,7 +441,13 @@ function BannerSiteFrame({ url, kind, alt, title, caption, frameRef, resizable =
 }
 
 export default function BannerWidget() {
-  const [tab, setTab] = useState<Tab>('upload')
+  // ?tab=mine or ?tab=removal opens that tab directly (the school home's
+  // "Your Submissions" tile, 2026-10-05). Internal tabs are not linkable.
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window === 'undefined') return 'upload'
+    const t = new URLSearchParams(window.location.search).get('tab')
+    return t === 'mine' || t === 'removal' ? t : 'upload'
+  })
   // "View as" preview state, see canReview below.
   const { viewAs } = useBCPSShell()
   const previewingWcm = !!viewAs && viewAs.id !== SAMPLE_SUPERADMIN_ID

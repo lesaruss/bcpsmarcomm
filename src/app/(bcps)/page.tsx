@@ -41,7 +41,7 @@ import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages
 function HomeInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { role, viewAs, canManageMessages } = useBCPSShell()
+  const { role, viewAs, canManageMessages, isSchoolWcm } = useBCPSShell()
   // The fictitious Superadmin sample identity previews the real superadmin
   // experience instead of collapsing to 'user' like every other viewAs pick.
   const effectiveRole: UserRole = viewAs ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? 'superadmin' : 'user') : role
@@ -84,6 +84,16 @@ function HomeInner() {
       router.replace('/?page=dashboard', { scroll: false })
     }
   }, [nav.page, router])
+
+  // School WCMs land on Banner Submissions, the way a new department WCM lands
+  // on certification (Sean + Vanessa Deslandes, 2026-10-05). Only a bare "/"
+  // (sign-in, signup, a typed address) is sent there; the Dashboard button
+  // goes to ?page=dashboard, so their school home stays one click away.
+  useEffect(() => {
+    if (isSchoolWcm && !viewAs && !searchParams.get('page')) {
+      router.replace('/?page=banner-submissions', { scroll: false })
+    }
+  }, [isSchoolWcm, viewAs, searchParams, router])
 
   const showToast = useCallback((msg: string) => {
     setToast(msg)

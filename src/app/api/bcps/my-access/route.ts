@@ -105,7 +105,17 @@ export async function GET(req: NextRequest) {
     allowed = all.filter(p => p.visibility === 'public' || grantedObjIds.has(p.id)).map(p => p.slug)
   }
 
-  const res = NextResponse.json({ ok: true, role, pages: allowed, groups, view_as_groups: viewAsGroups })
+  // School WCMs (2026-10-05): on file as a school's WCM on bcps_schools and
+  // not district staff. The app sends them straight to Banner Submissions on
+  // sign-in. Same test as the school home in /api/bcps/home.
+  let isSchoolWcm = false
+  if (role === 'user' && !groups.includes('District Web Team') && user.email) {
+    const me = user.email.trim().toLowerCase()
+    const { data: schoolRows } = await svc.from('bcps_schools').select('wcm_email').not('wcm_email', 'is', null)
+    isSchoolWcm = (schoolRows ?? []).some(r => (r.wcm_email || '').trim().toLowerCase() === me)
+  }
+
+  const res = NextResponse.json({ ok: true, role, pages: allowed, groups, view_as_groups: viewAsGroups, is_school_wcm: isSchoolWcm })
   res.headers.set('Cache-Control', 'no-store')
   return res
 }

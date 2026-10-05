@@ -26,6 +26,8 @@ interface BCPSShellContextValue {
   pages: string[] | null
   // Starts or ends a "View as" preview, the same as the sidebar switcher.
   setViewAs: (member: TeamMember | null) => void
+  // Signed-in person is a school WCM (my-access); null until it answers.
+  isSchoolWcm: boolean | null
 }
 export const BCPSShellContext = createContext<BCPSShellContextValue>({
   role: 'user',
@@ -33,6 +35,7 @@ export const BCPSShellContext = createContext<BCPSShellContextValue>({
   canManageMessages: false,
   pages: null,
   setViewAs: () => {},
+  isSchoolWcm: null,
 })
 export function useBCPSShell() { return useContext(BCPSShellContext) }
 
@@ -152,6 +155,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   // Hicks) an admin had no visible effect on the bell/inbox. This fixes
   // that specific gap without touching the Sidebar role model.
   const [canManageMessages, setCanManageMessages] = useState(false)
+  const [isSchoolWcm, setIsSchoolWcm] = useState<boolean | null>(null)
   const tokenRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -173,6 +177,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           setMyGroups(Array.isArray(j.groups) ? j.groups as string[] : null)
           setMyRawRole(typeof j.role === 'string' ? j.role : null)
           setViewAsGroups(Array.isArray(j.view_as_groups) ? j.view_as_groups as string[] : [])
+          setIsSchoolWcm(!!j.is_school_wcm)
           return
         }
       } catch { /* fall through to safe default */ }
@@ -314,7 +319,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <BCPSShellContext.Provider value={{ role, viewAs, canManageMessages, pages: effectivePages, setViewAs: handleViewAs }}>
+    <BCPSShellContext.Provider value={{ role, viewAs, canManageMessages, pages: effectivePages, setViewAs: handleViewAs, isSchoolWcm }}>
       <div className="app-shell">
         {SHOW_LEFT_MENU && <Sidebar
           activePage={activePage}

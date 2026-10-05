@@ -1013,6 +1013,16 @@ function MemberHome({ data, onNavigate }: { data: HomeData; onNavigate: Navigate
 const BANNER_GUIDELINES_URL =
   'https://www.browardschools.com/wcm-community/schools/standards-guidelines/website-guidelines/homepage/identity-homepage-banner'
 
+// Tiles are things a school WCM does inside BCPS MarComm; Quick Links are
+// outside sites, each opening in a new tab (Sean + Vanessa Deslandes,
+// 2026-10-05). Links supplied by Sean the same day.
+const SCHOOL_QUICK_LINKS: { label: string; sub: string; href: string; ic: string }[] = [
+  { label: 'Identity Banner Guidelines', sub: 'What makes a banner approvable', href: BANNER_GUIDELINES_URL, ic: 'IB' },
+  { label: 'WCM Community', sub: 'Details and support for Web Content Managers', href: 'https://www.browardschools.com/wcm-community', ic: 'WC' },
+  { label: 'Submit a ticket (IIQ)', sub: 'Questions and help requests, IncidentIQ', href: 'https://browardschools.incidentiq.com/', ic: 'IQ' },
+  { label: 'Finalsite dashboard', sub: 'Sign in to edit your school website', href: 'https://www.browardschools.com/fs/admin', ic: 'FS' },
+]
+
 function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
   const name = firstName(data)
   const schools = (data.schools ?? []).map((x) => x.name)
@@ -1030,7 +1040,6 @@ function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?
         <p>Homepage banners for {schoolLabel}. Submit new photos and videos, and follow each one through District Web Team review.</p>
         <div className="home-actions">
           <button type="button" className="home-btn" onClick={openBanners}>Submit a banner</button>
-          <a className="wcm-hub2-card-btn" href={BANNER_GUIDELINES_URL} target="_blank" rel="noopener noreferrer">Identity Banner Guidelines</a>
         </div>
       </div>
 
@@ -1038,7 +1047,7 @@ function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?
         <StatTile label="Waiting for review" value={b.pending} note="The District Web Team checks each one by eye." />
         <StatTile label="Approved" value={b.ready} note="Posted to your site within 24 to 48 hours." />
         <StatTile label="Live on your site" value={b.posted} />
-        <StatTile label="Not approved" value={b.rejected} note={b.rejected ? 'See the reason under My Submissions.' : undefined} tone={b.rejected ? 'warn' : undefined} />
+        <StatTile label="Not approved" value={b.rejected} note={b.rejected ? 'See the reason under Your Submissions.' : undefined} tone={b.rejected ? 'warn' : undefined} />
       </div>
 
       <div className="wcm-hub2-grid">
@@ -1049,19 +1058,29 @@ function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?
         </div>
         <div className="wcm-hub2-card">
           <h3>Your Submissions</h3>
-          <p>Every banner you have sent, its status, and the reason if one was not approved. Open Banner Submissions, then My Submissions. Request Removal takes a banner down.</p>
-          <button type="button" className="wcm-hub2-card-btn" onClick={openBanners}>View my submissions</button>
+          <p>Every banner you have sent, where it stands, and the reason if one was not approved. You can also request that a banner be taken down.</p>
+          <a className="wcm-hub2-card-btn" href="/?page=banner-submissions&tab=mine">View my submissions</a>
         </div>
-        <div className="wcm-hub2-card">
-          <h3>Identity Banner Guidelines</h3>
-          <p>Horizontal, high-quality images with faces clear of the right-side navigation, no text or graphics, and no blurred or covered faces.</p>
-          <a className="wcm-hub2-card-btn" href={BANNER_GUIDELINES_URL} target="_blank" rel="noopener noreferrer">Read the guidelines</a>
+        {/* Coming soon (Sean, 2026-10-05): the one deliberate exception to
+            "a card only appears when its link works", so schools see what is
+            next. Not clickable. */}
+        <div className="wcm-hub2-card" aria-disabled="true" style={{ background: '#f7f9fb', borderStyle: 'dashed' }}>
+          <h3>ADA Compliance <span className="home-status todo" style={{ marginLeft: 6, verticalAlign: 'middle' }}>Coming soon</span></h3>
+          <p>Accessibility scan results for your school website, with what to fix and how.</p>
         </div>
-        <div className="wcm-hub2-card">
-          <h3>Ask the District Web Team</h3>
-          <p>Questions about a banner, your account, or which school you are listed for.</p>
-          <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback()}>Send a message</button>
-        </div>
+      </div>
+
+      <h2 className="home-grp">Quick Links</h2>
+      <div className="home-tools">
+        {SCHOOL_QUICK_LINKS.map((l) => (
+          <a key={l.href} className="home-tool" href={l.href} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+            <span className="home-tool-ic" aria-hidden="true">{l.ic}</span>
+            <span style={{ minWidth: 0 }}>
+              <b>{l.label}</b>
+              <small>{l.sub} <span aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span></small>
+            </span>
+          </a>
+        ))}
       </div>
     </div>
   )
