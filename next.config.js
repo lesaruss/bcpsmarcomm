@@ -21,6 +21,14 @@ const nextConfig = {
         './node_modules/@sparticuz/chromium/bin/**',
         './node_modules/axe-core/axe.min.js',
       ],
+      // run-audit added 2026-10-06: department audit v2 calls runAxeScan
+      // too. Shipped without this entry and every audit failed live with
+      // the same "chromium/bin does not exist" error. ANY route that calls
+      // runAxeScan (lib/axe-scan.ts) must be listed here.
+      '/api/bcps/run-audit': [
+        './node_modules/@sparticuz/chromium/bin/**',
+        './node_modules/axe-core/axe.min.js',
+      ],
       // Banner content scan added 2026-09-03 (lib/bannerVision.ts) - same
       // problem as ada-scan above, different package: tesseract.js spawns a
       // Node worker_thread via a runtime path.join(__dirname, ...) that
