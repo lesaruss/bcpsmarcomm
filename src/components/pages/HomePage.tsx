@@ -47,6 +47,8 @@ async function authHeaders(): Promise<Record<string, string>> {
 // Director confirmation form (bcps_wcm_roster_submissions), the same link the
 // roster page and director emails use.
 const ROSTER_SIGNUP_URL = '/wcm-roster-signup'
+// Official 2026 WCM Certified shield (Sean, 2026-10-06).
+const CERT_SHIELD_SRC = '/brand/wcm-certified-shield-2026.png'
 const HOT_LAB_JOIN_URL = 'https://teams.microsoft.com/meet/264785803068551?p=uQvBT8hLfn90fHBTN0'
 const DIRECTOR_PLAYBOOK_URL = '/playbooks/director-department'
 // Department certification deadline (Sept 30 applies to schools only).
@@ -409,11 +411,11 @@ function DepartmentCard({ dept, showAudit = true }: { dept: DepartmentSummary; s
 
 type StatLink = { label: string; href?: string; onClick?: () => void; external?: boolean }
 
-function StatTile({ label, value, note, tone, link }: { label: string; value: string | number; note?: string; tone?: 'warn'; link?: StatLink }) {
+function StatTile({ label, value, note, tone, link, icon }: { label: string; value: string | number; note?: string; tone?: 'warn'; link?: StatLink; icon?: string }) {
   return (
     <div className={`home-stat${tone ? ` ${tone}` : ''}`}>
       <div className="home-stat-label">{label}</div>
-      <div className="home-stat-value">{value}</div>
+      <div className="home-stat-value">{icon && <img className="home-stat-icon" src={icon} alt="" />}{value}</div>
       {note && <div className="home-stat-note">{note}</div>}
       {link && (link.href
         ? <a className="home-stat-link" href={link.href} {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{link.label} &rarr;</a>
@@ -877,7 +879,8 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
           value={cert.certified ? 'Certified' : `${cert.pct}%`}
           note={cert.certified ? 'Department WCM Certification complete' : `${cert.total ? `${cert.done} of ${cert.total} pages. ` : ''}Due ${DEPT_CERT_DEADLINE}.`}
           tone={cert.certified ? undefined : 'warn'}
-          link={cert.certified ? { label: 'Certificate and next steps', href: '/briefs/bcps-wcm-cert-complete-2026-27' } : { label: cert.pct > 0 ? 'Continue certification' : 'Start certification', href: '/certification/departments/dashboard' }}
+          icon={cert.certified ? CERT_SHIELD_SRC : undefined}
+          link={cert.certified ? { label: 'Certificate and badge', href: '/certification/departments/complete' } : { label: cert.pct > 0 ? 'Continue certification' : 'Start certification', href: '/certification/departments/dashboard' }}
         />
         {w && <StatTile label="Your review window" value={formatWindowRange(w)} note={`${w.label}. Bring your director.`}
           link={mine.length ? { label: 'How the review works', onClick: () => setTab('review') } : undefined} />}
