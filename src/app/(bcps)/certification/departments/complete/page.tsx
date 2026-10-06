@@ -39,13 +39,8 @@ export default async function CompletePage() {
 
       <main style={S.main}>
         <div style={S.card}>
-          <div style={S.sealRing}>
-            <div style={S.sealInner}>
-              <div style={S.sealTop}>BCPS</div>
-              <div style={S.sealMain}>CERTIFIED</div>
-              <div style={S.sealSub}>WCM - Department</div>
-            </div>
-          </div>
+          {/* Official 2026 WCM Certified shield (Sean, 2026-10-06). */}
+          <img src={SHIELD_SRC} alt="Broward County Public Schools Web Content Manager Certified 2026 badge" style={S.shield} />
 
           <h1 style={S.heading}>Congratulations!</h1>
           <p style={S.name}>{certUser?.full_name || user.email}</p>
@@ -77,7 +72,11 @@ export default async function CompletePage() {
               brief covers more than Finalsite login. Certified WCMs are added to that
               brief's recipient list by the bcps_cert_complete_add_recipient trigger, so
               this link always opens for the person who just earned the certificate. */}
-          <a href="/briefs/bcps-wcm-cert-complete-2026-27" style={S.dashBtn}>What&apos;s Next</a>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href="/briefs/bcps-wcm-cert-complete-2026-27" style={S.dashBtn}>What&apos;s Next</a>
+            <a href={SHIELD_SRC} download="BCPS-WCM-Certified-2026.png" style={S.badgeBtn}>Download badge</a>
+          </div>
+          <p style={S.badgeHint}>Add the badge to your email signature. In Outlook, open Signatures, then insert the downloaded image.</p>
           <div style={{ marginTop: 14, display: 'flex', gap: 18, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/?page=dashboard" style={{ fontSize: 13, color: '#1672A7', fontWeight: 700, textDecoration: 'underline' }}>Go to Your Dashboard</Link>
             <Link href="/" style={{ fontSize: 13, color: '#888', textDecoration: 'underline' }}>Return to Dashboard</Link>
@@ -88,18 +87,18 @@ export default async function CompletePage() {
   )
 }
 
+const SHIELD_SRC = '/brand/wcm-certified-shield-2026.png'
+
 const S: Record<string, React.CSSProperties> = {
+  shield: { display: 'block', width: 200, maxWidth: '70%', height: 'auto', margin: '0 auto 24px' },
+  badgeBtn: { display: 'inline-block', padding: '12px 28px', background: '#fff', color: '#1672A7', border: '2px solid #1672A7', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none' },
+  badgeHint: { fontSize: 12, color: '#777', margin: '12px 0 0' },
   page: { minHeight: '100vh', background: '#f0f4f8', fontFamily: "'Montserrat', sans-serif" },
   header: { background: '#fff', borderBottom: '3px solid #1672A7', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', gap: 16 },
   headerTitle: { display: 'block', fontSize: 16, fontWeight: 700, color: '#0e4e73' },
   headerSub: { display: 'block', fontSize: 11, color: '#888' },
   main: { display: 'flex', justifyContent: 'center', padding: '60px 24px' },
   card: { background: '#fff', borderRadius: 16, boxShadow: '0 8px 40px rgba(0,0,0,0.10)', padding: '48px 40px', maxWidth: 520, width: '100%', textAlign: 'center' },
-  sealRing: { width: 120, height: 120, borderRadius: '50%', background: 'linear-gradient(135deg, #1672A7, #0e4e73)', margin: '0 auto 28px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(22,114,167,0.35)' },
-  sealInner: { width: 100, height: 100, borderRadius: '50%', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '2px solid #1672A7' },
-  sealTop: { fontSize: 11, fontWeight: 800, color: '#1672A7', letterSpacing: 2 },
-  sealMain: { fontSize: 14, fontWeight: 900, color: '#0e4e73', letterSpacing: 1.5 },
-  sealSub: { fontSize: 9, fontWeight: 600, color: '#888', letterSpacing: 0.5 },
   heading: { fontSize: 28, fontWeight: 900, color: '#16750C', margin: '0 0 8px' },
   name: { fontSize: 20, fontWeight: 700, color: '#0e4e73', margin: '0 0 4px' },
   dept: { fontSize: 13, color: '#777', margin: '0 0 16px' },
