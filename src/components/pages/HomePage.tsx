@@ -482,7 +482,7 @@ const SAMPLE_TEAM_ASSIGNMENTS: Assignment[] = [
 ]
 
 /* ─── DIRECTOR ─────────────────────────────────────────── */
-type DirectorTab = 'team' | 'review' | 'analytics' | 'notes' | 'widgets' | 'help' | 'wcm' | 'tools'
+type DirectorTab = 'overview' | 'review' | 'analytics' | 'notes' | 'widgets' | 'help' | 'wcm' | 'tools'
 
 // The review window that matters most to this director: the open one, else
 // the next upcoming one, else the last one (their departments may span
@@ -494,7 +494,7 @@ function primaryWindow(depts: DepartmentSummary[]): ReviewWindow | null {
 }
 
 function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
-  const [tab, setTab] = useState<DirectorTab>('team')
+  const [tab, setTab] = useState<DirectorTab>('overview')
   const led = data.departments.filter((d) => data.led_department_ids.includes(d.id))
   const totalWcms = led.reduce((n, d) => n + d.wcms.length, 0)
   const certified = led.reduce((n, d) => n + d.wcms.filter((w) => w.certified).length, 0)
@@ -507,7 +507,7 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
   const almostDone = led.flatMap((d) => d.wcms).filter((w) => !w.certified && w.progress_pct >= 90).length
 
   const tabs: { id: DirectorTab; label: string }[] = [
-    { id: 'team', label: 'My Team' },
+    { id: 'overview', label: 'Overview' },
     { id: 'review', label: 'Website Review' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'notes', label: 'Meeting Notes' },
@@ -521,6 +521,8 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
   return (
     <div className="home">
       {preview && <PreviewBanner who="director" />}
+      <HomeTabs tabs={tabs} active={tab} onChange={(t) => setTab(t as DirectorTab)} />
+      {tab === 'overview' && <>
       <div className={`home-hero${WALKTHROUGH_VIDEO ? ' with-side' : ''}`}>
         <div>
           <div className="home-hero-label">BCPS MarComm Director</div>
@@ -551,10 +553,9 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
         )}
         {period && <StatTile label={`Visitors in ${monthLabel(period).split(' ')[0]}`} value={fmtNum(visitors)} note={led.length > 1 ? 'Across your departments’ pages' : 'Across your department’s pages'} />}
       </div>
+      </>}
 
-      <HomeTabs tabs={tabs} active={tab} onChange={(t) => setTab(t as DirectorTab)} />
-
-      {tab === 'team' && (
+      {tab === 'overview' && (
         <>
           <p className="wcm-hub2-intro">Your Web Content Managers and where each one stands with the Department WCM Certification.</p>
           <div className="home-dept-grid">
@@ -820,10 +821,10 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 // mock v3): heading, status strip, then tabs. Start Here opens with the
 // first steps; My Department holds the audit, the site's visitors and the
 // review; Build Kit, Maintain and Learn are the hub cards.
-type WcmTab = 'start' | 'dept' | 'build' | 'maintain' | 'learn' | 'tools'
+type WcmTab = 'overview' | 'dept' | 'build' | 'maintain' | 'learn' | 'tools'
 
 function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
-  const [tab, setTab] = useState<WcmTab>('start')
+  const [tab, setTab] = useState<WcmTab>('overview')
   const mine = data.departments
   const primary = mine[0]
   const cert = data.my_cert ?? { certified: !!data.my_certified, done: 0, total: 0, pct: data.my_certified ? 100 : 0 }
@@ -832,7 +833,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
   const fixed = mine.reduce((n, d) => n + d.findings_fixed, 0)
   const name = firstName(data)
   const tabs: { id: WcmTab; label: string }[] = [
-    { id: 'start', label: 'Start Here' },
+    { id: 'overview', label: 'Overview' },
     ...(mine.length ? [{ id: 'dept' as WcmTab, label: mine.length > 1 ? 'My Departments' : 'My Department' }] : []),
     { id: 'build', label: 'Build Kit' },
     { id: 'maintain', label: 'Maintain' },
@@ -842,6 +843,8 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
   return (
     <div className="home">
       {preview && <PreviewBanner who="WCM" />}
+      <HomeTabs tabs={tabs} active={tab} onChange={(x) => setTab(x as WcmTab)} />
+      {tab === 'overview' && <>
       <div className="home-hero">
         <div className="home-hero-label">BCPS MarComm Web Content Manager</div>
         <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
@@ -879,10 +882,9 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
         )}
         <StatTile label="Next Hot Lab" value={nextHotLab()} note="Tuesdays and Thursdays" />
       </div>
+      </>}
 
-      <HomeTabs tabs={tabs} active={tab} onChange={(x) => setTab(x as WcmTab)} />
-
-      {tab === 'start' && (
+      {tab === 'overview' && (
         <>
           <div className="home-dept home-section">
             <h3 className="home-card-title">Your next steps</h3>
@@ -1652,7 +1654,7 @@ function DepartmentsPanel({ onNavigate }: { onNavigate: Navigate }) {
 }
 
 function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }: { data: HomeData; onNavigate: Navigate; viewAsUserId?: string; preview?: boolean; onShowToast?: (msg: string) => void }) {
-  const [tab, setTab] = useState('decisions')
+  const [tab, setTab] = useState('overview')
   // The full inbox lives in Team Operations (voice replies, account access).
   const openInbox = () => {
     setTab('ops')
@@ -1665,7 +1667,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
   const wStats = p.windows.find((x) => x.id === w.id)
   const name = firstName(data)
   const tabs = [
-    { id: 'decisions', label: 'Decisions' },
+    { id: 'overview', label: 'Overview' },
     { id: 'program', label: 'Program' },
     ...((th.team_members?.length ?? 0) > 0 ? [{ id: 'team', label: 'Team' }] : []),
     { id: 'departments', label: 'Departments' },
@@ -1679,6 +1681,8 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
   return (
     <div className="home">
       {preview && <PreviewBanner><strong>Previewing the SuperAdmin dashboard.</strong> Numbers and lists are live.</PreviewBanner>}
+      <HomeTabs tabs={tabs} active={tab} onChange={setTab} />
+      {tab === 'overview' && <>
       <div className="home-hero">
         <div className="home-hero-label">BCPS MarComm SuperAdmin</div>
         <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
@@ -1689,13 +1693,13 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
         </div>
       </div>
       <div className="home-strip">
-        <StatTile label="Needs your decision" value={decisions} note={decisions ? 'See the Decisions tab' : 'Nothing waiting'} tone={decisions ? 'warn' : undefined} />
+        <StatTile label="Needs your decision" value={decisions} note={decisions ? 'Listed below' : 'Nothing waiting'} tone={decisions ? 'warn' : undefined} />
         <StatTile label="WCMs certified" value={`${p.wcms_certified} of ${p.wcms_total}`} note={`Rostered department WCMs. Due ${DEPT_CERT_DEADLINE}.`} tone={p.wcms_certified < p.wcms_total ? 'warn' : undefined} />
         <StatTile label="Directors signed in" value={`${p.directors_signed_in} of ${p.directors_on_file}`} note="Directors on file with an account" />
         <StatTile label={`${w.label} ${windowState(w) === 'open' ? 'open' : 'next'}`} value={`${wStats?.departments ?? 0} depts`} note={`${formatWindowRange(w)}. ${wStats?.signed_off ?? 0} signed off.`} />
       </div>
-      <HomeTabs tabs={tabs} active={tab} onChange={setTab} />
-      {tab === 'decisions' && <DecisionsPanel th={th} team={data.team} onNavigate={onNavigate} onOpenOps={() => setTab('ops')} onOpenInbox={openInbox} />}
+      <DecisionsPanel th={th} team={data.team} onNavigate={onNavigate} onOpenOps={() => setTab('ops')} onOpenInbox={openInbox} />
+      </>}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'team' && <TeamPanel members={th.team_members ?? []} />}
@@ -1718,7 +1722,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   previewNote?: string
   onShowToast?: (msg: string) => void
 }) {
-  const [tab, setTab] = useState('work')
+  const [tab, setTab] = useState('overview')
   const { pages } = useBCPSShell()
   const canAnalytics = !pages || pages.includes('analytics')
   const th = data.team_home!
@@ -1730,7 +1734,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   const greet = who ? who.split(/\s+/)[0] : firstName(data)
   const tabs = kind === 'comms'
     ? [
-        { id: 'work', label: 'My Work' },
+        { id: 'overview', label: 'Overview' },
         { id: 'audits', label: 'Audits' },
         { id: 'program', label: 'Program' },
         { id: 'departments', label: 'Departments' },
@@ -1740,7 +1744,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         { id: 'tools', label: 'Tools & Resources' },
       ]
     : [
-        { id: 'work', label: 'My Work' },
+        { id: 'overview', label: 'Overview' },
         { id: 'ada', label: 'ADA' },
         { id: 'banners', label: 'Banners' },
         { id: 'program', label: 'Program' },
@@ -1750,6 +1754,8 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   return (
     <div className="home">
       {previewNote && <PreviewBanner>{previewNote}</PreviewBanner>}
+      <HomeTabs tabs={tabs} active={tab} onChange={setTab} />
+      {tab === 'overview' && <>
       <div className="home-hero">
         <div className="home-hero-label">BCPS MarComm District Web Team</div>
         <h1 className="home-title">{greet ? `Welcome, ${greet}` : 'Welcome'}</h1>
@@ -1776,8 +1782,8 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         )}
         <StatTile label="Banners to review" value={th.banners.pending} note="Banner Submissions" tone={th.banners.pending ? 'warn' : undefined} />
       </div>
-      <HomeTabs tabs={tabs} active={tab} onChange={setTab} />
-      {tab === 'work' && <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />}
+      <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />
+      </>}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
