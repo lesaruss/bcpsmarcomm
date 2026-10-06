@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useBCPSShell } from '@/components/BCPSShell'
 import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
+import { lookupAxeEntry } from '@/lib/ada-glossary'
 
 // ─── Period types ─────────────────────────────────────────────────────────────
 type PeriodMode = 'calendar' | 'school' | 'custom'
@@ -15,7 +16,7 @@ const CUR_SCHOOL_START_D = CUR_MONTH_D >= 8 ? CUR_YEAR_D : CUR_YEAR_D - 1
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Dept { id: string; slug?: string; name: string; division?: string; health_status?: string; website_url?: string; wcm_name?: string; wcm_email?: string; director_name?: string; director_email?: string; chief_name?: string; chief_title?: string; audit_status?: string; ada_score?: number }
-interface Audit { id: string; audited_at: string; page_url?: string | null; overall_score: number | null; layout_score: number | null; content_score: number | null; nav_score: number | null; ada_score: number | null; status: string; auditor?: string; issues?: unknown; ada_violations?: unknown; ada_violations_critical?: number; ada_violations_serious?: number; ada_violations_moderate?: number; ada_violations_minor?: number }
+interface Audit { id: string; audited_at: string; page_url?: string | null; overall_score: number | null; layout_score: number | null; content_score: number | null; nav_score: number | null; ada_score: number | null; marketing_score?: number | null; audit_version?: number | null; status: string; auditor?: string; issues?: unknown; ada_violations?: unknown; ada_violations_critical?: number; ada_violations_serious?: number; ada_violations_moderate?: number; ada_violations_minor?: number }
 interface AnalyticsRow { period: string; synced_at?: string; monthly_visitors?: number; avg_time_seconds?: number; bounce_rate?: number; mobile_pct?: number; top_pages?: Array<{ title: string; url: string; views: number }>; traffic_sources?: Array<{ source: string; sessions: number | string; pct: string }>; top_queries?: Array<{ query: string; clicks: number; impressions: number }> }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -32,8 +33,8 @@ function esc(s?: string | null) { if (!s) return ''; return String(s).replace(/&
 function scoreLabel(n: number | null) { return n == null ? 'N/A' : String(n) }
 function parseArr<T>(v: unknown): T[] { if (Array.isArray(v)) return v as T[]; if (typeof v === 'string' && v) { try { const p = JSON.parse(v); return Array.isArray(p) ? p as T[] : [] } catch { return [] } } return [] }
 
-type IssueItem = {category:string;passed:boolean;severity?:string;label:string;detail?:string;fix_instructions?:string[]}
-type AdaItem = {impact?:string;id:string;nodes?:number;description:string;fix_instructions?:string;helpUrl?:string}
+type IssueItem = {id?:string;category:string;passed:boolean;severity?:string;label:string;detail?:string;fix_instructions?:string[]}
+type AdaItem = {impact?:string;id:string;nodes?:number;description:string;fix_instructions?:string;helpUrl?:string;owner?:string}
 function getIssues(audit: Audit): IssueItem[] { return Array.isArray(audit.issues) ? audit.issues as IssueItem[] : JSON.parse((audit.issues as string) || '[]') as IssueItem[] }
 function getAdaViolations(audit: Audit): AdaItem[] { return Array.isArray(audit.ada_violations) ? audit.ada_violations as AdaItem[] : JSON.parse((audit.ada_violations as string) || '[]') as AdaItem[] }
 
@@ -187,7 +188,7 @@ function DepartmentContent() {
         const [deptRes, auditRes, histRes, analyticsRes] = await Promise.all([
           supabase.from('bcps_departments').select('*').eq('id', id).single(),
           supabase.from('bcps_audit_results').select('*').eq('department_id', id).order('audited_at', { ascending: false }).limit(1).maybeSingle(),
-          supabase.from('bcps_audit_results').select('id,audited_at,overall_score,layout_score,content_score,nav_score,ada_score,status,auditor').eq('department_id', id).order('audited_at', { ascending: false }).limit(10),
+          supabase.from('bcps_audit_results').select('id,audited_at,overall_score,layout_score,content_score,nav_score,ada_score,marketing_score,audit_version,status,auditor').eq('department_id', id).order('audited_at', { ascending: false }).limit(10),
           supabase.from('bcps_department_analytics').select('*').eq('department_id', id).order('period', { ascending: false }).limit(24)
         ])
         if (deptRes.error || !deptRes.data) { setError('Department not found.'); setLoading(false); return }
@@ -205,7 +206,7 @@ function DepartmentContent() {
   const runAudit = useCallback(async () => {
     if (!dept) return
     setAuditRunning(true)
-    const steps = ['Scanning page structure...', 'Running Phase 1 checklist...', 'Running ADA scan...', 'Scoring results...']
+    const steps = ['Loading the page...', 'Running accessibility scan...', 'Checking links and content...', 'Scoring results...']
     let i = 0
     setAuditStep(steps[0])
     const interval = setInterval(() => { i++; if (i < steps.length) setAuditStep(steps[i]) }, 900)
@@ -299,8 +300,12 @@ function DepartmentContent() {
   const adaSorted = [...adaViolations].sort((a, b) => { const o: Record<string,number> = {critical:0,serious:1,moderate:2,minor:3}; return (o[a.impact||'']??4)-(o[b.impact||'']??4) })
   // ADA scope classification: WCM can fix in Finalsite PageBuilder vs. requires Finalsite/template-level ticket
   const WCM_FIXABLE_IDS = new Set(['image-alt', 'heading-order', 'link-name', 'pdf-tagged', 'color-contrast'])
-  const adaWcmItems = adaSorted.filter(v => WCM_FIXABLE_IDS.has(v.id))
-  const adaFinalsiteItems = adaSorted.filter(v => !WCM_FIXABLE_IDS.has(v.id))
+  // v2 audits store the glossary owner on each violation; older rows fall
+  // back to the original hardcoded list.
+  const isV2 = (a?.audit_version ?? 1) >= 2
+  const wcmOwned = (v: AdaItem) => v.owner ? v.owner !== 'finalsite' : WCM_FIXABLE_IDS.has(v.id)
+  const adaWcmItems = adaSorted.filter(wcmOwned)
+  const adaFinalsiteItems = adaSorted.filter(v => !wcmOwned(v))
   const adaScoped = adaScope === 'wcm' ? adaWcmItems : adaFinalsiteItems
 
   // "Page audited" now names the page the stored audit ACTUALLY scanned
@@ -538,7 +543,7 @@ function DepartmentContent() {
         {!a && (
           <div className="queue-banner">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            No audit on record. Click &quot;Run Audit&quot; to queue a full Phase 1 + ADA scan.
+            No audit on record. Click &quot;Run Audit&quot; to run the marketing and accessibility audit.
           </div>
         )}
 
@@ -549,10 +554,20 @@ function DepartmentContent() {
             <div className="score-ring-wrap" dangerouslySetInnerHTML={{__html: buildScoreRing(overallScore) + `<div class="score-ring-num${overallScore==null?' na':''}">${overallScore!=null?overallScore:'N/A'}</div>`}} />
             <div style={{fontSize:10,fontWeight:700,color:'var(--lr-text-50)'}}>{a ? statusLabel(a.status) : 'Not audited'}</div>
           </div>
+          {isV2 ? (<>
+            <div dangerouslySetInnerHTML={{__html: renderCatScore('Marketing', a?.marketing_score??null, a ? (issues.filter(i=>i.category==='marketing'&&!i.passed).length + ' of ' + issues.filter(i=>i.category==='marketing').length + ' checks to fix') : null)}} />
+            <div dangerouslySetInnerHTML={{__html: renderCatScore('Accessibility', a?.ada_score??null, adaWcmItems.length > 0 ? `${adaWcmItems.length} for you to fix` : null)}} />
+            <a href="/playbooks/wcm-department/score-100-checklist" className="score-card" style={{textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',justifyContent:'center',gap:6}}>
+              <div className="score-card-label">Score 100 Checklist</div>
+              <div style={{fontSize:12,color:'var(--lr-text-50)',lineHeight:1.4}}>Every check this audit runs and the steps that pass it.</div>
+              <div style={{fontSize:12,fontWeight:700,color:'#1672A7'}}>Open checklist &rarr;</div>
+            </a>
+          </>) : (<>
           <div dangerouslySetInnerHTML={{__html: renderCatScore('Layout', a?.layout_score??null, a ? (issues.filter(i=>i.category==='layout'&&!i.passed).length + ' issues') : null)}} />
           <div dangerouslySetInnerHTML={{__html: renderCatScore('Content', a?.content_score??null, a ? (issues.filter(i=>i.category==='content'&&!i.passed).length + ' issues') : null)}} />
           <div dangerouslySetInnerHTML={{__html: renderCatScore('Navigation', a?.nav_score??null, a ? (issues.filter(i=>i.category==='nav'&&!i.passed).length + ' issues') : null)}} />
           <div dangerouslySetInnerHTML={{__html: renderCatScore('ADA', a?.ada_score??null, adaCritical+adaSerious > 0 ? `${adaCritical+adaSerious} critical/serious` : null)}} />
+          </>)}
         </div>
 
         {/* ADA SEVERITY */}
@@ -636,6 +651,7 @@ function DepartmentContent() {
                                       <li key={i}><span className="issue-fix-step-num">{i+1}</span><span className="issue-fix-step-text">{s}</span></li>
                                     ))}
                                   </ol>
+                                  {issue.id && <a href={`/playbooks/wcm-department/score-100-checklist#${issue.id}`} style={{display:'inline-block',marginTop:8,fontSize:12,fontWeight:700,color:'#1672A7'}}>Why this matters, in the Score 100 Checklist &rarr;</a>}
                                 </div>
                               )}
                             </div>
@@ -644,9 +660,9 @@ function DepartmentContent() {
                       </div>
                     </>
                   ) : a ? (
-                    <div className="empty-state"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><div className="empty-state-title">No issues found</div><div className="empty-state-text">All Phase 1 checks passed.</div></div>
+                    <div className="empty-state"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><div className="empty-state-title">No issues found</div><div className="empty-state-text">All checks passed.</div></div>
                   ) : (
-                    <div className="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><div className="empty-state-title">No audit data</div><div className="empty-state-text">Run an audit to see Phase 1 checklist results with Finalsite fix instructions.</div></div>
+                    <div className="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><div className="empty-state-title">No audit data</div><div className="empty-state-text">Run an audit to see each check with the steps to fix it in Finalsite.</div></div>
                   )}
                 </div>
               )}
@@ -679,13 +695,18 @@ function DepartmentContent() {
                             <div key={idx} className="ada-violation-card">
                               <div className="ada-violation-header" onClick={() => setExpandedAda(prev => { const n=new Set(prev); n.has(idx)?n.delete(idx):n.add(idx); return n })}>
                                 <span className={`ada-violation-impact ${v.impact||'moderate'}`}>{v.impact||'moderate'}</span>
-                                <span className="ada-violation-id">{v.id}</span>
+                                <span className="ada-violation-id">{lookupAxeEntry(v.id)?.title ?? v.id}</span>
                                 <span className="ada-violation-nodes">{v.nodes||1} element{(v.nodes||1)!==1?'s':''}</span>
                               </div>
                               {expandedAda.has(idx) && (
                                 <div className="ada-violation-detail">
                                   {v.description && <div className="ada-violation-desc">{v.description}</div>}
-                                  {v.fix_instructions && <><div className="ada-violation-fix-label">How to Fix</div><div className="ada-violation-fix">{v.fix_instructions}</div></>}
+                                  {v.fix_instructions ? <><div className="ada-violation-fix-label">How to Fix</div><div className="ada-violation-fix">{v.fix_instructions}</div></> : (() => {
+                                    const g = lookupAxeEntry(v.id)
+                                    if (!g) return null
+                                    if (wcmOwned(v) && g.fixSteps?.length) return <><div className="ada-violation-fix-label">How to Fix</div><ol className="ada-violation-fix" style={{paddingLeft:18,margin:0}}>{g.fixSteps.map((st,i) => <li key={i}>{st}</li>)}</ol></>
+                                    return g.escalationNote ? <><div className="ada-violation-fix-label">Who Fixes This</div><div className="ada-violation-fix">{g.escalationNote}</div></> : null
+                                  })()}
                                   {v.helpUrl && <a className="ada-violation-link" href={v.helpUrl} target="_blank" rel="noopener">More info <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>}
                                 </div>
                               )}
@@ -871,10 +892,10 @@ function DepartmentContent() {
                           {audit?.id===h.id && <span style={{background:'#EBF4FA',color:'#1672A7',borderRadius:4,padding:'1px 5px',fontSize:9,fontWeight:900}}>CURRENT</span>}
                         </div>
                         <div className="history-card-scores">
-                          {([['Overall','overall_score'],['Layout','layout_score'],['Content','content_score'],['Nav','nav_score'],['ADA','ada_score']] as const).map(([label,k]) => (
+                          {((h.audit_version ?? 1) >= 2 ? ([['Overall','overall_score'],['Marketing','marketing_score'],['Access.','ada_score']] as const) : ([['Overall','overall_score'],['Layout','layout_score'],['Content','content_score'],['Nav','nav_score'],['ADA','ada_score']] as const)).map(([label,k]) => (
                             <div key={k} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
                               <span style={{fontSize:8,fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em',color:'var(--lr-text-50)'}}>{label}</span>
-                              <span className={`score-pill ${scoreClass(h[k])}`}>{scoreLabel(h[k])}</span>
+                              <span className={`score-pill ${scoreClass(h[k] ?? null)}`}>{scoreLabel(h[k] ?? null)}</span>
                             </div>
                           ))}
                         </div>

@@ -20,6 +20,8 @@ interface Dept {
   layout_score?: number
   content_score?: number
   nav_score?: number
+  marketing_score?: number
+  audit_version?: number
   traffic_rank?: number
   website_url?: string
   wcm_name?: string
@@ -117,7 +119,7 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
         .order('name'),
       supabase
         .from('bcps_audit_results')
-        .select('department_id,overall_score,layout_score,content_score,nav_score,ada_score,audited_at')
+        .select('department_id,overall_score,layout_score,content_score,nav_score,ada_score,marketing_score,audit_version,audited_at')
         .order('audited_at', { ascending: false }),
       supabase
         .from('bcps_department_analytics')
@@ -127,7 +129,7 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
 
       const auditMap = new Map<string, {
         overall_score: number; layout_score: number; content_score: number
-        nav_score: number; ada_score: number
+        nav_score: number; ada_score: number; marketing_score: number; audit_version: number
       }>()
       for (const a of (auditRes.data ?? [])) {
         if (!auditMap.has(a.department_id)) {
@@ -137,6 +139,8 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
             content_score: a.content_score,
             nav_score: a.nav_score,
             ada_score: a.ada_score,
+            marketing_score: a.marketing_score,
+            audit_version: a.audit_version,
           })
         }
       }
@@ -457,8 +461,10 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
                   </div>
 
                   <div className="dv-subscores">
-                    {(['Layout', 'Content', 'Nav', 'ADA'] as const).map((label) => {
-                      const key = label === 'Layout' ? 'layout_score' : label === 'Content' ? 'content_score' : label === 'Nav' ? 'nav_score' : 'ada_score'
+                    {((dept.audit_version ?? 1) >= 2
+                      ? [['Marketing', 'marketing_score'], ['Accessibility', 'ada_score']] as const
+                      : [['Layout', 'layout_score'], ['Content', 'content_score'], ['Nav', 'nav_score'], ['ADA', 'ada_score']] as const
+                    ).map(([label, key]) => {
                       const val = dept[key as keyof Dept] as number | undefined
                       return (
                         <div key={label} className="dv-subscore">
