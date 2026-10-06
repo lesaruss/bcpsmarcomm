@@ -11,6 +11,7 @@ import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
 import fs from 'fs'
 import path from 'path'
+import { COLLECT_FACTS_SCRIPT, OVERFLOW_SCRIPT, type PageFacts } from './dept-audit'
 
 export type AxeImpact = 'critical' | 'serious' | 'moderate' | 'minor' | null
 
@@ -50,6 +51,8 @@ export type AxeScanResult = {
   violations: AxeViolation[]
   counts: AxeCounts
   adaScore: number | null
+  /** Page facts for the department audit's marketing checks, when asked for. */
+  facts?: PageFacts
 }
 
 // Read axe-core's bundled UMD build so it can be injected via CDP
@@ -75,7 +78,7 @@ function loadAxeSource(): string {
   return fs.readFileSync(p, 'utf8')
 }
 
-export async function runAxeScan(url: string): Promise<AxeScanResult> {
+export async function runAxeScan(url: string, opts: { collectFacts?: boolean } = {}): Promise<AxeScanResult> {
   let browser: import('puppeteer-core').Browser | null = null
   try {
     const executablePath = await chromium.executablePath()
@@ -126,7 +129,22 @@ export async function runAxeScan(url: string): Promise<AxeScanResult> {
 
     const adaScore = Math.max(0, 100 - (counts.critical * 15 + counts.serious * 10 + counts.moderate * 5 + counts.minor * 2))
 
-    return { ok: true, violations, counts, adaScore }
+    // Department audit v2: read the same loaded page for its marketing
+    // checks, then re-measure width at phone size. A failure here never
+    // fails the accessibility scan.
+    let facts: PageFacts | undefined
+    if (opts.collectFacts) {
+      try {
+        facts = await page.evaluate(COLLECT_FACTS_SCRIPT) as PageFacts
+        await page.setViewport({ width: 375, height: 812 })
+        await new Promise((r) => setTimeout(r, 800))
+        facts.horizontalOverflowAt375 = await page.evaluate(OVERFLOW_SCRIPT) as boolean
+      } catch (e) {
+        console.error('[runAxeScan] fact collection failed', e)
+      }
+    }
+
+    return { ok: true, violations, counts, adaScore, facts }
   } catch (err) {
     console.error('[runAxeScan] failed', err instanceof Error ? err.stack : err)
     return {
