@@ -195,12 +195,16 @@ export async function GET(req: NextRequest) {
         .select('is_admin').ilike('email', callerEmail).eq('is_admin', true).maybeSingle()
       isDocAdmin = !!adminRow
     }
-    const canReadBody = (slug: string) => {
-      const recips = recipientsBySlug.get(slug)
+    // A grant on the note's series also opens it (hasSeriesGrant in
+    // src/lib/bcps-doc-access.ts): series notes are for the whole series
+    // audience, not only that session's attendees (Sean, 2026-10-06).
+    const canReadBody = (d: (typeof meetingNoteDocs)[number]) => {
+      const recips = recipientsBySlug.get(d.slug)
       if (!recips || recips.size === 0) return true
+      if (d.series_id && !!myGrant(d.effective_object_id)) return true
       return isDocAdmin || (!!callerEmail && recips.has(callerEmail))
     }
-    const readableNotes = meetingNoteDocs.filter(d => canReadBody(d.slug))
+    const readableNotes = meetingNoteDocs.filter(d => canReadBody(d))
 
     const briefingSlugs = readableNotes.filter(d => d.doc_url?.startsWith('/playbooks/')).map(d => d.slug)
     const mockSlugs = readableNotes.filter(d => d.doc_url?.startsWith('/briefs/') && !d.doc_url.endsWith('.html')).map(d => d.slug)

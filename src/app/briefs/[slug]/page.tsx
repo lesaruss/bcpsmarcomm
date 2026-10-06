@@ -11,6 +11,7 @@ import { createClient } from '@supabase/supabase-js'
 import { notFound, redirect, permanentRedirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { hasSeriesGrant } from '@/lib/bcps-doc-access'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -88,7 +89,9 @@ export default async function BcpsPublicBriefPage({ params }: Props) {
     const sessionEmail = await getSessionEmail()
     const allowed = recipients.map((r: { attendee_email: string }) => r.attendee_email.toLowerCase())
     const onList = !!sessionEmail && allowed.includes(sessionEmail.toLowerCase())
-    if (!onList && !(await isAdminEmail(sessionEmail))) {
+    // Series notes (e.g. older Hot Labs) open for anyone with the series
+    // grant, same rule as /playbooks/ (hasSeriesGrant).
+    if (!onList && !(await isAdminEmail(sessionEmail)) && !(await hasSeriesGrant(db, slug, sessionEmail))) {
       redirect(`/login?next=/briefs/${slug}`)
     }
   }

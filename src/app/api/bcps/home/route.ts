@@ -5,6 +5,7 @@ import {
   loadAssignments, assignmentsFor, loadProgram, loadAda, loadBanners, loadWidgets, loadDecisions,
   type TeamMemberWork,
 } from '@/lib/bcps-team-home'
+import { hasSeriesGrant } from '@/lib/bcps-doc-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -228,7 +229,7 @@ export async function GET(req: NextRequest) {
   // The latest Hot Lab notes this person can open, for the WCM dashboard.
   // Notes are restricted per session, so only list what will open for them.
   let hotLabs: { title: string; date: string; url: string }[] = []
-  if (isWcm && !isDwt) hotLabs = await loadHotLabs(email, isSuperadmin)
+  if (isWcm && !isDwt) hotLabs = await loadHotLabs(email, isSuperadmin || (await hasSeriesGrant(svc, HOT_LAB_SERIES_ANCHOR_SLUG, email)))
 
   const displayName = profileRes.data?.full_name || nameFromEmail(email)
 
@@ -301,8 +302,11 @@ export async function GET(req: NextRequest) {
 }
 
 // Department WCM Hot Lab notes, newest first, limited to the ones the
-// caller can open (no recipient list, on the list, or an admin).
+// caller can open (no recipient list, on the list, an admin, or anyone with
+// the Hot Lab series grant, which covers every Department WCM).
 const HOT_LAB_SERIES_ID = '158c496c-7964-407c-8015-4001ceddafdf'
+// Any filed Hot Lab doc works as the anchor for the series grant check.
+const HOT_LAB_SERIES_ANCHOR_SLUG = 'bcps-hot-lab-dept-wcms-2026-09-29'
 async function loadHotLabs(email: string, admin: boolean): Promise<{ title: string; date: string; url: string }[]> {
   const { data: docs } = await svc.from('acl_objects')
     .select('slug, doc_date, doc_url, doc_date_sort')

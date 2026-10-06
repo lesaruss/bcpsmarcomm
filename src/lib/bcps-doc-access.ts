@@ -60,7 +60,40 @@ export async function isAdminEmail(db: SupabaseClient, email: string | null): Pr
   }
 }
 
-/** Public unless recipients exist; then session email must be listed or admin. */
+/**
+ * True when the doc belongs to a document series (Meeting Notes catalog,
+ * acl_objects kind='document_series') and this person holds a grant on that
+ * series, directly or through a group. Series notes are meant for the whole
+ * series audience, not just the people who attended one session (Sean,
+ * 2026-10-06: every Department WCM can open every Hot Lab, that is the point
+ * of the notes). This is the same gate the Meeting Notes catalog uses, so a
+ * note that shows in someone's list always opens for them.
+ */
+export async function hasSeriesGrant(db: SupabaseClient, slug: string, email: string | null): Promise<boolean> {
+  if (!email) return false
+  try {
+    const { data: doc } = await db.from('acl_objects').select('series_id').eq('kind', 'document').eq('slug', slug).maybeSingle()
+    const seriesId = doc?.series_id as string | null | undefined
+    if (!seriesId) return false
+    const { data: acct } = await db.from('wcm_cert_users').select('user_id').ilike('email', email).not('user_id', 'is', null).limit(1).maybeSingle()
+    const userId = acct?.user_id as string | undefined
+    if (!userId) return false
+    const [{ data: grants }, { data: gm }] = await Promise.all([
+      db.from('acl_grants').select('subject_type, subject_id').eq('object_id', seriesId),
+      db.from('acl_group_members').select('group_id').eq('user_id', userId),
+    ])
+    const groups = new Set((gm ?? []).map((g: { group_id: string }) => g.group_id))
+    return (grants ?? []).some((g: { subject_type: string; subject_id: string }) =>
+      (g.subject_type === 'user' && g.subject_id === userId) || (g.subject_type === 'group' && groups.has(g.subject_id)))
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Public unless recipients exist; then the session email must be listed, an
+ * admin, or hold a grant on the doc's series (see hasSeriesGrant).
+ */
 export async function checkDocAccess(db: SupabaseClient, slug: string): Promise<{ restricted: boolean; allowed: boolean }> {
   const { data: recipients } = await db
     .from('bcps_brief_recipients')
@@ -72,7 +105,8 @@ export async function checkDocAccess(db: SupabaseClient, slug: string): Promise<
   const allowed = recipients!.map((r: { attendee_email: string }) => r.attendee_email.toLowerCase())
   const onList = !!sessionEmail && allowed.includes(sessionEmail.toLowerCase())
   if (onList) return { restricted: true, allowed: true }
-  return { restricted: true, allowed: await isAdminEmail(db, sessionEmail) }
+  if (await isAdminEmail(db, sessionEmail)) return { restricted: true, allowed: true }
+  return { restricted: true, allowed: await hasSeriesGrant(db, slug, sessionEmail) }
 }
 
 export interface BcpsDoc {
