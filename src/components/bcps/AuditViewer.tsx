@@ -150,7 +150,7 @@ export default function AuditViewer({ audit }: { audit: AuditV3 }) {
                   return (
                     <div key={c.id} ref={(el) => { rowRefs.current[c.id] = el }} className={`av-row${open ? ' open' : ''}`}>
                       <button type="button" className="av-row-head" onClick={() => pick(c)} aria-expanded={open}>
-                        <span className="av-num" style={{ background: num ? chip.dot : 'transparent', color: num ? '#fff' : chip.dot, border: num ? 'none' : `2px solid ${chip.dot}` }}>{num ?? (c.status === 'pass' ? '✓' : '')}</span>
+                        <span className="av-num" style={{ background: num ? chip.dot : 'transparent', color: num ? '#fff' : chip.dot, border: num ? 'none' : `2px solid ${chip.dot}` }}>{num ?? (c.status === 'pass' ? '✓' : c.status === 'fail' ? '!' : '?')}</span>
                         <span className="av-row-text">
                           <span className="av-row-title">{c.title}</span>
                           <span className="av-row-detail">{c.detail}</span>
@@ -196,7 +196,7 @@ const CSS = `
 @media (max-width:980px){.av-grid{grid-template-columns:1fr}}
 .av-page,.av-list{background:#fff;border:1px solid var(--lr-border,rgba(0,0,0,.09));border-radius:10px;padding:12px 14px}
 .av-page{position:sticky;top:12px}
-@media (max-width:980px){.av-page{position:static}}
+@media (max-width:980px){.av-page{position:static}.av-scroll{height:55vh}}
 .av-page-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .av-h{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:#1672A7}
 .av-toggle{display:inline-flex;border:1px solid var(--lr-border,rgba(0,0,0,.12));border-radius:8px;overflow:hidden}
@@ -222,9 +222,9 @@ const CSS = `
 .av-row-title{font-size:13px;font-weight:800;color:var(--lr-text,#1a1a1a);line-height:1.35}
 .av-row-detail{font-size:12px;color:var(--lr-text-75,rgba(26,26,26,.75));line-height:1.45}
 .av-row-body{padding:2px 14px 12px 44px;font-size:12.5px;color:var(--lr-text-75,#333);line-height:1.55}
-.av-row-body p{margin:0 0 6px}.av-row-body ol{margin:0 0 6px 18px}.av-row-body li{margin-bottom:3px}
+.av-row-body p{margin:0 0 6px}.av-row-body ol{margin:0 0 6px 0;padding-left:18px}.av-row-body li{margin-bottom:3px}
 .av-lbl{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;color:var(--lr-text-50,#777);margin:8px 0 3px}
-.av-items{margin:0 0 4px 18px;font-size:12px;word-break:break-word}
+.av-items{margin:0 0 4px 0;padding-left:18px;font-size:12px;word-break:break-word}
 .av-course{display:inline-block;margin-top:6px;font-size:12px;font-weight:800;color:#1672A7;text-decoration:none}
 .av-course:hover{text-decoration:underline}
 .av-finalsite{margin-top:12px;font-size:12px;line-height:1.5;color:var(--lr-text-75,#444);background:#f8fafb;border-radius:8px;padding:10px 12px}
