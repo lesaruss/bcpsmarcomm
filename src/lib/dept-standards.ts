@@ -79,7 +79,7 @@ export const COLLECT_STANDARDS_SCRIPT = `(() => {
 
   const kindOf = (el) => {
     const c = el.classList
-    if (c.contains('fsContent')) return 'a Content element'
+    if (c.contains('fsContent')) return txt(el) ? 'a Content element' : (el.querySelector('img') ? 'an image inside a Content element' : 'an empty Content element')
     if (c.contains('fsResourceElement')) return 'an image or file element'
     if (c.contains('fsPanelGroup')) return c.contains('fsTabs') ? 'a tabs element' : 'an accordion'
     if (c.contains('fsConstituent')) return 'the staff directory'
@@ -99,7 +99,8 @@ export const COLLECT_STANDARDS_SCRIPT = `(() => {
   const f = els[0]
   const first = f ? { ref: ref(f), kind: kindOf(f), isContent: f.classList.contains('fsContent') && txt(f).length > 0, text: txt(f).slice(0, 2000) } : null
 
-  const imgName = (img) => (img.getAttribute('alt') || img.dataset.resourceTitle || (img.closest('[data-resource-title]') || {}).dataset?.resourceTitle || (img.currentSrc || img.src || '').split('/').pop() || 'image').slice(0, 80)
+  const dec = (v) => { try { return decodeURIComponent(v) } catch (e) { return v } }
+  const imgName = (img) => dec(img.getAttribute('alt') || img.dataset.resourceTitle || (img.closest('[data-resource-title]') || {}).dataset?.resourceTitle || (img.currentSrc || img.src || '').split('/').pop() || 'image').slice(0, 80)
   const bigImg = (img) => (img.naturalWidth || img.width || 0) >= 80 && (img.naturalHeight || img.height || 0) >= 40
   const contentImages = Array.from(main.querySelectorAll('.fsContent img')).filter((i) => visible(i) && bigImg(i)).slice(0, 10).map((i) => ({ ref: ref(i), name: imgName(i) }))
   const images = Array.from(main.querySelectorAll('img')).filter((i) => visible(i) && bigImg(i) && !i.closest('.fsConstituent')).slice(0, 12).map((i) => ({ ref: ref(i), name: imgName(i) }))
@@ -127,7 +128,8 @@ export const COLLECT_STANDARDS_SCRIPT = `(() => {
     if (!contact || score(c) > score(contact)) contact = c
   }
 
-  const navEl = document.querySelector('#fsBannerLeft .fsNavigation') || document.querySelector('nav[aria-label="secondary"]')
+  // Only the left banner counts; the site header has its own (template) menus.
+  const navEl = document.querySelector('#fsBannerLeft .fsNavigation')
   let leftNav = null
   if (navEl && visible(navEl)) {
     const top = Array.from(navEl.querySelectorAll('.fsNavLevel1 > li > a'))
@@ -327,7 +329,7 @@ export const STANDARD_CHECKS: StdCheck[] = [
     run: ({ facts }) => {
       const bad = facts.links.filter((l) => VAGUE.test(l.text.replace(/[.:!»>›]+$/, '').trim()) || (/^https?:\/\//i.test(l.text)))
       return bad.length === 0
-        ? { status: 'pass', detail: `All ${facts.links.length} links describe their destination.`, targets: [] }
+        ? { status: 'pass', detail: facts.links.length === 1 ? 'The one link on the page describes its destination.' : `All ${facts.links.length} links describe their destination.`, targets: [] }
         : { status: 'fail', detail: `${bad.length} link${bad.length === 1 ? ' does' : 's do'} not say where ${bad.length === 1 ? 'it goes' : 'they go'}.`, items: bad.map((l) => `"${l.text}"`), targets: bad.map((l) => t(l.ref, `"${l.text}"`)) }
     },
   },
@@ -554,7 +556,9 @@ export async function capturePage(page: Page, axeSelectors: string[]): Promise<P
   }
 
   const desktop = await shoot()
-  await page.setViewport({ width: 375, height: 812, isMobile: true, deviceScaleFactor: 1 })
+  // Width only: switching isMobile makes Puppeteer reload the page, which
+  // would wipe the data-audit-ref markers the pins depend on.
+  await page.setViewport({ width: 375, height: 812, deviceScaleFactor: 1 })
   await new Promise((r) => setTimeout(r, 900))
   facts.overflowAt375 = await page.evaluate(`document.documentElement.scrollWidth > window.innerWidth + 2`) as boolean
   const mobile = await shoot()
