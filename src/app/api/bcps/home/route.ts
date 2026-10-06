@@ -218,10 +218,17 @@ export async function GET(req: NextRequest) {
   // their own edit rights (also used by the "View as" director preview).
   if (isDwt) {
     widgets = await loadWidgets(svc, BRAND, user.id, gids, role === 'admin' || isSuperadmin)
-  } else if (isDirector) {
+  } else if (isDirector || isWcm) {
+    // Directors and WCMs see the catalog as a showroom: preview only, no
+    // embed or edit (Sean, Oct 6 Hot Lab).
     const { data: wRows } = await svc.from('bcps_widgets').select('slug, title, description, preview_path').order('sort_order')
     widgets = (wRows ?? []).filter((w) => w.preview_path)
   }
+
+  // The latest Hot Lab notes this person can open, for the WCM dashboard.
+  // Notes are restricted per session, so only list what will open for them.
+  let hotLabs: { title: string; date: string; url: string }[] = []
+  if (isWcm && !isDwt) hotLabs = await loadHotLabs(email, isSuperadmin)
 
   const displayName = profileRes.data?.full_name || nameFromEmail(email)
 
@@ -287,9 +294,37 @@ export async function GET(req: NextRequest) {
     departments,
     team,
     widgets,
+    hot_labs: hotLabs,
     director_notes: directorNotes,
     team_home: teamHome,
   })
+}
+
+// Department WCM Hot Lab notes, newest first, limited to the ones the
+// caller can open (no recipient list, on the list, or an admin).
+const HOT_LAB_SERIES_ID = '158c496c-7964-407c-8015-4001ceddafdf'
+async function loadHotLabs(email: string, admin: boolean): Promise<{ title: string; date: string; url: string }[]> {
+  const { data: docs } = await svc.from('acl_objects')
+    .select('slug, doc_date, doc_url, doc_date_sort')
+    .eq('brand', BRAND).eq('series_id', HOT_LAB_SERIES_ID)
+    .order('doc_date_sort', { ascending: false }).limit(25)
+  if (!docs?.length) return []
+  const slugs = docs.map((d) => d.slug as string)
+  const { data: recips } = await svc.from('bcps_brief_recipients').select('brief_slug, attendee_email').in('brief_slug', slugs)
+  const lists = new Map<string, string[]>()
+  for (const r of recips ?? []) {
+    const k = r.brief_slug as string
+    lists.set(k, [...(lists.get(k) ?? []), ((r.attendee_email as string) || '').toLowerCase()])
+  }
+  let isAdmin = admin
+  if (!isAdmin) {
+    const { data } = await svc.from('wcm_cert_users').select('is_admin').ilike('email', email).eq('is_admin', true).maybeSingle()
+    isAdmin = !!data
+  }
+  return docs
+    .filter((d) => { const l = lists.get(d.slug as string); return !l || isAdmin || l.includes(email) })
+    .slice(0, 5)
+    .map((d) => ({ title: `Hot Lab, ${d.doc_date}`, date: d.doc_date as string, url: d.doc_url as string }))
 }
 
 async function loadDepartments(ids: string[] | null): Promise<DepartmentSummary[]> {

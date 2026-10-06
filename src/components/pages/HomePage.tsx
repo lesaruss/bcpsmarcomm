@@ -7,7 +7,7 @@ import DepartmentsPage from './DepartmentsPage'
 import AnalyticsPage from './AnalyticsPage'
 import WidgetsPage from './WidgetsPage'
 import DashboardPage from './DashboardPage'
-import { WcmCommunityHub, WcmHubCards, type CertStatus, type HubTab } from './WCMPage'
+import { WcmCommunityHub, WcmHubCards, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
 import SharedViewAsButton from '@/components/ViewAsButton'
 import { SAMPLE_SUPERADMIN_ID, Icons } from '@/components/Sidebar'
@@ -47,6 +47,7 @@ async function authHeaders(): Promise<Record<string, string>> {
 // Director confirmation form (bcps_wcm_roster_submissions), the same link the
 // roster page and director emails use.
 const ROSTER_SIGNUP_URL = '/wcm-roster-signup'
+const HOT_LAB_JOIN_URL = 'https://teams.microsoft.com/meet/264785803068551?p=uQvBT8hLfn90fHBTN0'
 const DIRECTOR_PLAYBOOK_URL = '/playbooks/director-department'
 // Department certification deadline (Sept 30 applies to schools only).
 const DEPT_CERT_DEADLINE = 'October 30, 2026'
@@ -237,6 +238,8 @@ interface HomeData {
   departments: DepartmentSummary[]
   team: { roster_pending: number; messages_unread: number; access_requests: number; certifications_7d: number } | null
   widgets?: WidgetItem[]
+  // Latest Department WCM Hot Labs the WCM can open (newest first).
+  hot_labs?: { title: string; date: string; url: string }[]
   director_notes?: DirectorNote[]
   // School WCMs (2026-10-05): their schools and their own banner requests.
   schools?: { name: string; loc_no: string | null }[]
@@ -402,12 +405,17 @@ function DepartmentCard({ dept, showAudit = true }: { dept: DepartmentSummary; s
   )
 }
 
-function StatTile({ label, value, note, tone }: { label: string; value: string | number; note?: string; tone?: 'warn' }) {
+type StatLink = { label: string; href?: string; onClick?: () => void; external?: boolean }
+
+function StatTile({ label, value, note, tone, link }: { label: string; value: string | number; note?: string; tone?: 'warn'; link?: StatLink }) {
   return (
     <div className={`home-stat${tone ? ` ${tone}` : ''}`}>
       <div className="home-stat-label">{label}</div>
       <div className="home-stat-value">{value}</div>
       {note && <div className="home-stat-note">{note}</div>}
+      {link && (link.href
+        ? <a className="home-stat-link" href={link.href} {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{link.label} &rarr;</a>
+        : <button type="button" className="home-stat-link" onClick={link.onClick}>{link.label} &rarr;</button>)}
     </div>
   )
 }
@@ -482,7 +490,7 @@ const SAMPLE_TEAM_ASSIGNMENTS: Assignment[] = [
 ]
 
 /* ─── DIRECTOR ─────────────────────────────────────────── */
-type DirectorTab = 'overview' | 'review' | 'analytics' | 'notes' | 'widgets' | 'help' | 'wcm' | 'tools'
+type DirectorTab = 'overview' | 'review' | 'analytics' | 'notes' | 'widgets' | 'wcm' | 'tools'
 
 // The review window that matters most to this director: the open one, else
 // the next upcoming one, else the last one (their departments may span
@@ -512,7 +520,6 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
     { id: 'analytics', label: 'Analytics' },
     { id: 'notes', label: 'Meeting Notes' },
     ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets' as DirectorTab, label: 'Widgets' }] : []),
-    { id: 'help', label: 'Ask & Guide' },
     // A director who is also their department's WCM keeps the WCM cards.
     ...(data.is_wcm ? [{ id: 'wcm' as DirectorTab, label: 'My WCM Work' }] : []),
     { id: 'tools', label: 'Tools & Resources' },
@@ -570,9 +577,12 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
       {tab === 'analytics' && <AnalyticsTab led={led} />}
       {tab === 'notes' && <NotesTab notes={data.director_notes ?? []} led={led} />}
       {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
-      {tab === 'help' && <DirectorHelp myWindow={myWindow} led={led} />}
       {tab === 'wcm' && <WcmCommunityHub />}
-      {tab === 'tools' && <ToolsPanel kind="director" onNavigate={onNavigate} />}
+      {tab === 'tools' && <>
+        {/* Ask & Guide folded in here (Sean, Oct 5 OOC Web Huddle). */}
+        <DirectorHelp myWindow={myWindow} led={led} />
+        <ToolsPanel kind="director" onNavigate={onNavigate} />
+      </>}
     </div>
   )
 }
@@ -818,10 +828,12 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 
 /* ─── WCM ──────────────────────────────────────────────── */
 // The WCM dashboard, laid out like the other dashboards (Sean approved,
-// mock v3): heading, status strip, then tabs. Start Here opens with the
-// first steps; My Department holds the audit, the site's visitors and the
-// review; Build Kit, Maintain and Learn are the hub cards.
-type WcmTab = 'overview' | 'dept' | 'build' | 'maintain' | 'learn' | 'tools'
+// mock v3): tabs, then the welcome and status strip on Overview only.
+// Overview opens with the first steps and Hot Labs; My Department holds the
+// audit, the site's visitors and the review; Widgets is a view-only
+// showroom; Learn is the hub cards. Maintain was dropped and Build Kit
+// became Widgets (Sean, Oct 6 Hot Lab).
+type WcmTab = 'overview' | 'dept' | 'widgets' | 'learn' | 'tools'
 
 function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
   const [tab, setTab] = useState<WcmTab>('overview')
@@ -835,8 +847,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
   const tabs: { id: WcmTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
     ...(mine.length ? [{ id: 'dept' as WcmTab, label: mine.length > 1 ? 'My Departments' : 'My Department' }] : []),
-    { id: 'build', label: 'Build Kit' },
-    { id: 'maintain', label: 'Maintain' },
+    { id: 'widgets', label: 'Widgets' },
     { id: 'learn', label: 'Learn' },
     { id: 'tools', label: 'Tools & Resources' },
   ]
@@ -857,35 +868,34 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
         </div>
       </div>
 
-      {mine.length === 0 && data.is_wcm && (
-        <div className="home-notice">
-          Your director has not confirmed you on the WCM roster yet. Send them the{' '}
-          <a href={ROSTER_SIGNUP_URL}>confirmation form</a> so you are listed for your department.
-        </div>
-      )}
-
       <div className="home-strip">
         <StatTile
           label="Certification"
           value={cert.certified ? 'Certified' : `${cert.pct}%`}
           note={cert.certified ? 'Department WCM Certification complete' : `${cert.total ? `${cert.done} of ${cert.total} pages. ` : ''}Due ${DEPT_CERT_DEADLINE}.`}
           tone={cert.certified ? undefined : 'warn'}
+          link={cert.certified ? { label: 'Certificate and next steps', href: '/briefs/bcps-wcm-cert-complete-2026-27' } : { label: cert.pct > 0 ? 'Continue certification' : 'Start certification', href: '/certification/departments/dashboard' }}
         />
-        {w && <StatTile label="Your review window" value={formatWindowRange(w)} note={`${w.label}. Bring your director.`} />}
+        {w && <StatTile label="Your review window" value={formatWindowRange(w)} note={`${w.label}. Bring your director.`}
+          link={mine.length ? { label: 'Your review', onClick: () => setTab('dept') } : undefined} />}
         {mine.length > 0 && (
           <StatTile
             label="Audit items to fix"
             value={open ? `${open} open` : open + fixed ? 'All fixed' : 'None yet'}
             note={open + fixed ? `${fixed} already fixed` : 'Your audit items will show here'}
             tone={open ? 'warn' : undefined}
+            link={{ label: mine.length > 1 ? 'My Departments' : 'My Department', onClick: () => setTab('dept') }}
           />
         )}
-        <StatTile label="Next Hot Lab" value={nextHotLab()} note="Tuesdays and Thursdays" />
+        <StatTile label="Next Hot Lab" value={hotLabLive() ? 'Live now' : nextHotLab()} note="Tuesdays and Thursdays, 11:30 AM"
+          link={{ label: hotLabLive() ? 'Join now' : 'Join on Teams', href: HOT_LAB_JOIN_URL, external: true }} />
       </div>
       </>}
 
       {tab === 'overview' && (
         <>
+          <div className="home-wcm-cols home-section">
+          <div className="home-wcm-main">
           <div className="home-dept home-section">
             <h3 className="home-card-title">Your next steps</h3>
             <ol className="home-wsteps">
@@ -893,11 +903,6 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
                 <b>Finish your certification</b>
                 <span>{cert.certified ? 'Done. Your certificate and what comes next are on the What\u2019s Next page.' : `The Department WCM Certification is due ${DEPT_CERT_DEADLINE}. It covers how the audit works.`}</span>
                 {!cert.certified && <a className="wcm-hub2-card-btn" href="/certification/departments/dashboard">Open certification</a>}
-              </li>
-              <li className={cert.certified ? 'now' : undefined}>
-                <b>Scan your pages</b>
-                <span>Run the ADA Scanner on your department pages so you know what the audit will find.</span>
-                {cert.certified && <a className="wcm-hub2-card-btn" href="/?page=ada-scanner">Open ADA Scanner</a>}
               </li>
               {mine.length > 0 && (
                 <li>
@@ -908,11 +913,15 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
               )}
             </ol>
           </div>
-          <WcmHubCards tab="start" certified={cert.certified} />
+          <HotLabCard items={data.hot_labs ?? []} />
+          </div>
+          <div className="home-wcm-side"><WcmHubCards tab="start" certified={cert.certified} /></div>
+          </div>
         </>
       )}
       {tab === 'dept' && mine.map((d) => <WcmDepartmentTab key={d.id} dept={d} />)}
-      {(tab === 'build' || tab === 'maintain' || tab === 'learn') && <WcmHubCards tab={tab as HubTab} certified={cert.certified} />}
+      {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
+      {tab === 'learn' && <WcmHubCards tab="learn" certified={cert.certified} />}
       {tab === 'tools' && <ToolsPanel kind="wcm" onNavigate={onNavigate} />}
     </div>
   )
@@ -1097,6 +1106,36 @@ function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?
 // are the SuperAdmin's.
 
 type TeamKind = 'comms' | 'appsvc'
+
+// Hot Lab is live Tuesdays and Thursdays, 11:30 AM to 12:30 PM Eastern.
+function hotLabLive(now: Date = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(now)
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? ''
+  const mins = Number(get('hour')) * 60 + Number(get('minute'))
+  return (get('weekday') === 'Tue' || get('weekday') === 'Thu') && mins >= 11 * 60 + 30 && mins < 12 * 60 + 30
+}
+
+// The WCM's Hot Lab card: times, a Live badge while a session runs, and the
+// latest notes they can open (Sean, Oct 6 Hot Lab).
+function HotLabCard({ items }: { items: { title: string; date: string; url: string }[] }) {
+  const live = hotLabLive()
+  return (
+    <div className="home-dept home-section">
+      <div className="home-dept-head">
+        <h3>Hot Lab</h3>
+        {live && <span className="home-live-pill">Live now</span>}
+      </div>
+      <p className="home-card-text">Tuesdays and Thursdays, 11:30 AM to 12:30 PM on Teams. Bring a page, a task or a question.</p>
+      <a className="home-btn" href={HOT_LAB_JOIN_URL} target="_blank" rel="noopener noreferrer">{live ? 'Join the Hot Lab now' : 'Join on Teams'}</a>
+      {items.length > 0 && (
+        <ul className="home-hotlab-list">
+          {items.map((h) => <li key={h.url}><a href={h.url}>{h.date}</a></li>)}
+        </ul>
+      )}
+      <a className="home-link-btn" href="/?page=notes">All meeting notes</a>
+    </div>
+  )
+}
 
 function nextHotLab(today: Date = new Date()): string {
   // Department WCM Hot Labs run Tuesdays and Thursdays.
