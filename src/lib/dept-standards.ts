@@ -361,7 +361,7 @@ export const STANDARD_CHECKS: StdCheck[] = [
     why: 'District standard requires the left nav on all department pages. It gives visitors access to every sub-page and section.',
     steps: ['In Compose Mode, click the building block icon, then Page Appearance, then Left Banner.', 'Set the left nav tier: Tier 2 for main department pages, Tier 3 for sub-pages.', 'Publish, then check every sub-page appears in the menu.'],
     run: ({ facts }) => facts.leftNav && facts.leftNav.links > 0
-      ? { status: 'pass', detail: `The left menu is present with ${facts.leftNav.links} links.`, targets: [] }
+      ? { status: 'pass', detail: 'The left navigation menu is on the page.', targets: [] }
       : { status: 'fail', detail: 'No left navigation menu was found on this page.', targets: [] },
   },
   {
@@ -407,7 +407,7 @@ export const STANDARD_CHECKS: StdCheck[] = [
 // Template-level rules (the header, menus, footer) are Finalsite's and are
 // reported separately; rules missing from the glossary are treated the same
 // way, because an unknown rule is not something the course taught.
-const A11Y_ROWS: { axeIds: string[]; title: string; course: CourseRef }[] = [
+export const A11Y_ROWS: { axeIds: string[]; title: string; course: CourseRef }[] = [
   { axeIds: ['image-alt', 'role-img-alt', 'input-image-alt'], title: 'Every image has alt text', course: C.altText },
   { axeIds: ['heading-order', 'empty-heading', 'page-has-heading-one'], title: 'Headings are in order, with none skipped or empty', course: C.accessiblePage },
   { axeIds: ['link-name'], title: 'Every link has readable text', course: C.linkLanguage },
