@@ -6,6 +6,9 @@
 // using PageSpeed-only results for the BCPS ADA Scanner and switch to the
 // same proven stack already live elsewhere. Portable/vendored as-is: this
 // function takes an arbitrary URL string, no brand-slug binding.
+//
+// Every API route that calls runAxeScan must be listed in next.config.js
+// outputFileTracingIncludes, or Chromium's bin/ never reaches the Lambda.
 
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
