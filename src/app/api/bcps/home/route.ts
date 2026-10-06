@@ -226,10 +226,20 @@ export async function GET(req: NextRequest) {
     widgets = (wRows ?? []).filter((w) => w.preview_path)
   }
 
-  // The latest Hot Lab notes this person can open, for the WCM dashboard.
-  // Notes are restricted per session, so only list what will open for them.
-  let hotLabs: { title: string; date: string; url: string }[] = []
-  if (isWcm && !isDwt) hotLabs = await loadHotLabs(email, isSuperadmin || (await hasSeriesGrant(svc, HOT_LAB_SERIES_ANCHOR_SLUG, email)))
+  // The latest Hot Lab notes this person can open, for the WCM dashboard's
+  // Hot Lab card and every dashboard's Tools & Resources Hot Labs tile.
+  const hotLabs = await loadHotLabs(email, isSuperadmin || (await hasSeriesGrant(svc, HOT_LAB_SERIES_ANCHOR_SLUG, email)))
+
+  // Knowledge base for Tools & Resources outside the team (the team gets
+  // theirs in team_home). Directors and WCMs see the articles written for them.
+  let kbArticles: { id: string; topic: string; title: string; summary: string; href: string }[] = []
+  if (!isDwt && (isDirector || isWcm)) {
+    const { data: kb } = await svc.from('bcps_kb_articles')
+      .select('id, topic, title, summary, href, sort_order')
+      .eq('state', 'live').overlaps('audience', [...(isWcm ? ['wcm'] : []), ...(isDirector ? ['director'] : [])])
+      .order('topic').order('sort_order')
+    kbArticles = kb ?? []
+  }
 
   const displayName = profileRes.data?.full_name || nameFromEmail(email)
 
@@ -296,6 +306,7 @@ export async function GET(req: NextRequest) {
     team,
     widgets,
     hot_labs: hotLabs,
+    kb_articles: kbArticles,
     director_notes: directorNotes,
     team_home: teamHome,
   })

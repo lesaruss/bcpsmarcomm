@@ -240,6 +240,8 @@ interface HomeData {
   widgets?: WidgetItem[]
   // Latest Department WCM Hot Labs the WCM can open (newest first).
   hot_labs?: { title: string; date: string; url: string }[]
+  // Knowledge base for directors and WCMs (the team's is in team_home).
+  kb_articles?: KbArticle[]
   director_notes?: DirectorNote[]
   // School WCMs (2026-10-05): their schools and their own banner requests.
   schools?: { name: string; loc_no: string | null }[]
@@ -581,7 +583,7 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
       {tab === 'tools' && <>
         {/* Ask & Guide folded in here (Sean, Oct 5 OOC Web Huddle). */}
         <DirectorHelp myWindow={myWindow} led={led} />
-        <ToolsPanel kind="director" onNavigate={onNavigate} />
+        <ToolsPanel kind="director" onNavigate={onNavigate} kb={data.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />
       </>}
     </div>
   )
@@ -831,9 +833,10 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 // mock v3): tabs, then the welcome and status strip on Overview only.
 // Overview opens with the first steps and Hot Labs; My Department holds the
 // audit, the site's visitors and the review; Widgets is a view-only
-// showroom; Learn is the hub cards. Maintain was dropped and Build Kit
-// became Widgets (Sean, Oct 6 Hot Lab).
-type WcmTab = 'overview' | 'dept' | 'widgets' | 'learn' | 'tools'
+// showroom. Maintain was dropped, Build Kit became Widgets, WCMs got the
+// director's Website Review tab, and Learn folded into Tools & Resources
+// (its Hot Labs tile and knowledge base) (Sean, Oct 6).
+type WcmTab = 'overview' | 'dept' | 'review' | 'widgets' | 'tools'
 
 function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
   const [tab, setTab] = useState<WcmTab>('overview')
@@ -847,8 +850,8 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
   const tabs: { id: WcmTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
     ...(mine.length ? [{ id: 'dept' as WcmTab, label: mine.length > 1 ? 'My Departments' : 'My Department' }] : []),
+    ...(mine.length ? [{ id: 'review' as WcmTab, label: 'Website Review' }] : []),
     { id: 'widgets', label: 'Widgets' },
-    { id: 'learn', label: 'Learn' },
     { id: 'tools', label: 'Tools & Resources' },
   ]
   return (
@@ -877,7 +880,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
           link={cert.certified ? { label: 'Certificate and next steps', href: '/briefs/bcps-wcm-cert-complete-2026-27' } : { label: cert.pct > 0 ? 'Continue certification' : 'Start certification', href: '/certification/departments/dashboard' }}
         />
         {w && <StatTile label="Your review window" value={formatWindowRange(w)} note={`${w.label}. Bring your director.`}
-          link={mine.length ? { label: 'Your review', onClick: () => setTab('dept') } : undefined} />}
+          link={mine.length ? { label: 'How the review works', onClick: () => setTab('review') } : undefined} />}
         {mine.length > 0 && (
           <StatTile
             label="Audit items to fix"
@@ -921,8 +924,8 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
       )}
       {tab === 'dept' && mine.map((d) => <WcmDepartmentTab key={d.id} dept={d} />)}
       {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
-      {tab === 'learn' && <WcmHubCards tab="learn" certified={cert.certified} />}
-      {tab === 'tools' && <ToolsPanel kind="wcm" onNavigate={onNavigate} />}
+      {tab === 'review' && <ReviewTab led={mine} myWindow={primaryWindow(mine)} />}
+      {tab === 'tools' && <ToolsPanel kind="wcm" onNavigate={onNavigate} kb={data.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
     </div>
   )
 }
@@ -1010,7 +1013,7 @@ function MemberHome({ data, onNavigate }: { data: HomeData; onNavigate: Navigate
         </div>
       </div>
       <h2 className="home-grp">Tools &amp; Resources</h2>
-      <ToolsPanel kind="member" onNavigate={onNavigate} />
+      <ToolsPanel kind="member" onNavigate={onNavigate} hotLabs={data.hot_labs ?? []} />
     </div>
   )
 }
@@ -1347,7 +1350,16 @@ function AuditsPanel({ depts, onNavigate }: { depts: DepartmentSummary[]; onNavi
   )
 }
 
-function ToolsPanel({ kind, onNavigate, kb = [] }: { kind: keyof typeof TOP_TOOLS; onNavigate: (page: PageId) => void; kb?: KbArticle[] }) {
+type HotLabLink = { title: string; date: string; url: string }
+
+// Tools & Resources (Sean, 2026-10-06 Hot Lab): search first. With no
+// search, a grid of tiles: your tools (most used, plus Ask a question and
+// Suggest a Hot Lab topic), Hot Labs (the latest sessions), then one tile per
+// knowledge base topic. Typing turns the grid into a filterable portfolio of
+// every tool, article and Hot Lab that matches, exact matches first, then
+// close ones. "Tools and apps" articles are covered by the tool tiles, so they
+// only show up in search.
+function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof typeof TOP_TOOLS; onNavigate: (page: PageId) => void; kb?: KbArticle[]; hotLabs?: HotLabLink[] }) {
   const { pages, role, viewAs } = useBCPSShell()
   const [q, setQ] = useState('')
   const isSA = role === 'superadmin' && (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID)
@@ -1358,65 +1370,99 @@ function ToolsPanel({ kind, onNavigate, kb = [] }: { kind: keyof typeof TOP_TOOL
     : isSA || !SUPERADMIN_PAGES_SET.has(t.gate)
   const mine = TOOLS.filter(canOpen)
   const top = TOP_TOOLS[kind].map((l) => mine.find((t) => t.label === l)).filter((t): t is Tool => !!t)
-  const needle = q.trim().toLowerCase()
-  const hits = needle ? mine.filter((t) => t.label.toLowerCase().includes(needle)) : []
-  const articleHits = needle ? kb.filter((a) => `${a.title} ${a.summary} ${a.topic}`.toLowerCase().includes(needle)) : []
-  const topics = Array.from(new Set(kb.map((a) => a.topic)))
   const open = (t: Tool) => { if (t.page) onNavigate(t.page); else if (t.href) window.location.href = t.href }
+  const topics = Array.from(new Set(kb.map((a) => a.topic))).filter((t) => t !== 'Tools and apps')
+
+  type Item = { key: string; kind: string; title: string; desc: string; text: string; icon?: React.ReactNode; go: () => void }
+  const items: Item[] = [
+    ...mine.map((t) => ({ key: `t:${t.label}`, kind: 'Tool', title: t.label, desc: t.desc, text: `${t.label} ${t.desc} ${t.group}`, icon: Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0], go: () => open(t) })),
+    ...kb.map((a) => ({ key: `a:${a.id}`, kind: a.topic, title: a.title, desc: a.summary, text: `${a.title} ${a.summary} ${a.topic}`, go: () => { window.location.href = a.href } })),
+    ...hotLabs.map((h) => ({ key: `h:${h.url}`, kind: 'Hot Lab', title: h.title, desc: 'Notes and recording', text: `hot lab ${h.title} ${h.date} notes recording`, go: () => { window.location.href = h.url } })),
+    { key: 'x:ask', kind: 'Ask', title: 'Ask a question', desc: 'Can\u2019t find it? Ask, and the answer can become the next article.', text: 'ask a question help support', go: () => openFeedback('Question for the knowledge base: ') },
+    { key: 'x:topic', kind: 'Ask', title: 'Suggest a Hot Lab topic', desc: 'Something to walk through together.', text: 'suggest a hot lab topic idea', go: () => openFeedback('Hot Lab topic suggestion: ') },
+  ]
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const searching = words.length > 0
+  const exact = searching ? items.filter((i) => words.every((w) => i.text.toLowerCase().includes(w))) : []
+  // Close matches: any word of 3+ letters, or its first 4 letters, appears.
+  const close = searching ? items.filter((i) => !exact.includes(i) && words.some((w) => w.length >= 3 && (i.text.toLowerCase().includes(w) || (w.length > 4 && i.text.toLowerCase().includes(w.slice(0, 4)))))) : []
+
+  const tile = (i: Item) => (
+    <button key={i.key} type="button" className="home-ptile" onClick={i.go}>
+      {i.icon && <span className="home-tool-ic" aria-hidden="true">{i.icon}</span>}
+      <span><small className="home-ptile-kind">{i.kind}</small><b>{i.title}</b><small>{i.desc}</small></span>
+    </button>
+  )
+
   return (
     <>
-      <p className="wcm-hub2-intro">{kb.length ? 'Your most used tools, then the knowledge base. Search finds both.' : 'Your most used tools. Search or browse below for everything else you can open.'}</p>
-      <div className="home-tools">
-        {top.map((t) => (
-          <button key={t.label} type="button" className="home-tool" onClick={() => open(t)}>
-            <span className="home-tool-ic" aria-hidden="true">{Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0]}</span>
-            <span><b>{t.label}</b><small>{t.desc}</small></span>
-          </button>
-        ))}
+      <div className="home-tsearch home-tsearch-top">
+        <label htmlFor={`tool-search-${kind}`}>Find a tool or article</label>
+        <input id={`tool-search-${kind}`} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a word, like banner, roster or Hot Lab" />
       </div>
-      <div className="home-tsearch">
-        <label htmlFor={`tool-search-${kind}`}>{kb.length ? 'Find a tool or article' : 'Find a tool'}</label>
-        <input id={`tool-search-${kind}`} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a word, like Minutes or banner" />
-        <div className="home-tresults" aria-live="polite">
-          {needle && hits.map((t) => <button key={t.label} type="button" className="home-link-btn" onClick={() => open(t)}>{t.label}</button>)}
-          {needle && articleHits.map((a) => <a key={a.id} className="home-link-btn" href={a.href}>{a.title}</a>)}
-          {needle && !hits.length && !articleHits.length && <span className="home-hint">Nothing by that name. Try another word, or ask us below.</span>}
+
+      {searching ? (
+        <div aria-live="polite">
+          {exact.length > 0 && <div className="home-portfolio">{exact.map(tile)}</div>}
+          {close.length > 0 && (
+            <>
+              <h3 className="home-grp">{exact.length ? 'Close matches' : 'Nothing exact. Close matches'}</h3>
+              <div className="home-portfolio">{close.map(tile)}</div>
+            </>
+          )}
+          {!exact.length && !close.length && (
+            <p className="home-hint">Nothing by that name. Try another word, or <button type="button" className="home-link-btn" onClick={() => openFeedback(`Looking for: ${q.trim()}. `)}>ask us</button>.</p>
+          )}
         </div>
-      </div>
-      {kb.length > 0 && (
-        <>
-          <h3 className="home-grp">Knowledge base</h3>
-          <div className="home-dept-grid">
-            {topics.map((topic) => (
-              <div key={topic} className="home-dept">
-                <h3 className="home-card-title">{topic}</h3>
-                <ul className="home-tasks">
-                  {kb.filter((a) => a.topic === topic).map((a) => (
-                    <li key={a.id}>
-                      <a className="home-task" href={a.href}>
-                        <span className="home-task-title">{a.title}</span>
-                        <span className="home-task-meta">{a.summary}</span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+      ) : (
+        <div className="home-tgrid">
+          <div className="home-dept">
+            <h3 className="home-card-title">Your tools</h3>
+            <div className="home-tools-mini">
+              {top.map((t) => (
+                <button key={t.label} type="button" className="home-tool home-tool-sm" onClick={() => open(t)}>
+                  <span className="home-tool-ic" aria-hidden="true">{Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0]}</span>
+                  <span><b>{t.label}</b></span>
+                </button>
+              ))}
+              <button type="button" className="home-tool home-tool-sm" onClick={() => openFeedback('Question for the knowledge base: ')}>
+                <span className="home-tool-ic" aria-hidden="true">?</span><span><b>Ask a question</b></span>
+              </button>
+              <button type="button" className="home-tool home-tool-sm" onClick={() => openFeedback('Hot Lab topic suggestion: ')}>
+                <span className="home-tool-ic" aria-hidden="true">+</span><span><b>Suggest a Hot Lab topic</b></span>
+              </button>
+            </div>
           </div>
-        </>
+          <div className="home-dept">
+            <h3 className="home-card-title">Hot Labs</h3>
+            <ul className="home-tasks">
+              {hotLabs.slice(0, 3).map((h) => (
+                <li key={h.url}><a className="home-task" href={h.url}><span className="home-task-title">{h.date}</span><span className="home-task-meta">Notes and recording</span></a></li>
+              ))}
+              {kb.filter((a) => a.topic === 'Hot Labs').map((a) => (
+                <li key={a.id}><a className="home-task" href={a.href}><span className="home-task-title">{a.title}</span><span className="home-task-meta">{a.summary}</span></a></li>
+              ))}
+            </ul>
+            <a className="home-link-btn" href="/?page=notes">See all Hot Labs</a>
+          </div>
+          {topics.filter((t) => t !== 'Hot Labs').map((topic) => (
+            <div key={topic} className="home-dept">
+              <h3 className="home-card-title">{topic}</h3>
+              <ul className="home-tasks">
+                {kb.filter((a) => a.topic === topic).map((a) => (
+                  <li key={a.id}>
+                    <a className="home-task" href={a.href}>
+                      <span className="home-task-title">{a.title}</span>
+                      <span className="home-task-meta">{a.summary}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
-      <div className="wcm-hub2-grid home-gap">
-        <div className="wcm-hub2-card">
-          <h3>Ask a question</h3>
-          <p>Can&apos;t find it? Ask, and the answer can become the next article.</p>
-          <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback('Question for the knowledge base: ')}>Ask a question</button>
-        </div>
-        <div className="wcm-hub2-card">
-          <h3>Suggest a Hot Lab topic</h3>
-          <p>Something the team or WCMs should walk through together.</p>
-          <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback('Hot Lab topic suggestion: ')}>Suggest a topic</button>
-        </div>
-      </div>
+
       <details className="home-browse">
         <summary>Browse every tool ({mine.length})</summary>
         {TOOL_GROUPS.map((g) => {
@@ -1745,7 +1791,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} />}
-      {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} />}
+      {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
       {tab === 'admin' && <AdminPanel onNavigate={onNavigate} />}
       {tab === 'ops' && <DashboardPage onNavigate={onNavigate} viewAsUserId={viewAsUserId} />}
     </div>
@@ -1830,7 +1876,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'wcm' && <WcmCommunityHub />}
-      {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} kb={th.kb_articles ?? []} />}
+      {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
     </div>
   )
 }
