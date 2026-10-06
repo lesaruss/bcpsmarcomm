@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { useBCPSShell } from '@/components/BCPSShell'
 import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
 import { lookupAxeEntry } from '@/lib/ada-glossary'
+import AuditViewer, { type AuditV3 } from '@/components/bcps/AuditViewer'
 
 // ─── Period types ─────────────────────────────────────────────────────────────
 type PeriodMode = 'calendar' | 'school' | 'custom'
@@ -16,7 +17,7 @@ const CUR_SCHOOL_START_D = CUR_MONTH_D >= 8 ? CUR_YEAR_D : CUR_YEAR_D - 1
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Dept { id: string; slug?: string; name: string; division?: string; health_status?: string; website_url?: string; wcm_name?: string; wcm_email?: string; director_name?: string; director_email?: string; chief_name?: string; chief_title?: string; audit_status?: string; ada_score?: number }
-interface Audit { id: string; audited_at: string; page_url?: string | null; overall_score: number | null; layout_score: number | null; content_score: number | null; nav_score: number | null; ada_score: number | null; marketing_score?: number | null; audit_version?: number | null; status: string; auditor?: string; issues?: unknown; ada_violations?: unknown; ada_violations_critical?: number; ada_violations_serious?: number; ada_violations_moderate?: number; ada_violations_minor?: number }
+interface Audit { id: string; audited_at: string; page_url?: string | null; overall_score: number | null; layout_score: number | null; content_score: number | null; nav_score: number | null; ada_score: number | null; marketing_score?: number | null; audit_version?: number | null; checks?: unknown; checks_passed?: number | null; checks_failed?: number | null; checks_review?: number | null; screenshots?: unknown; status: string; auditor?: string; issues?: unknown; ada_violations?: unknown; ada_violations_critical?: number; ada_violations_serious?: number; ada_violations_moderate?: number; ada_violations_minor?: number }
 interface AnalyticsRow { period: string; synced_at?: string; monthly_visitors?: number; avg_time_seconds?: number; bounce_rate?: number; mobile_pct?: number; top_pages?: Array<{ title: string; url: string; views: number }>; traffic_sources?: Array<{ source: string; sessions: number | string; pct: string }>; top_queries?: Array<{ query: string; clicks: number; impressions: number }> }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -206,10 +207,10 @@ function DepartmentContent() {
   const runAudit = useCallback(async () => {
     if (!dept) return
     setAuditRunning(true)
-    const steps = ['Loading the page...', 'Running accessibility scan...', 'Checking links and content...', 'Scoring results...']
+    const steps = ['Loading your page...', 'Running the accessibility scan...', 'Checking the course standards...', 'Checking links...', 'Taking screenshots...', 'Saving results...']
     let i = 0
     setAuditStep(steps[0])
-    const interval = setInterval(() => { i++; if (i < steps.length) setAuditStep(steps[i]) }, 900)
+    const interval = setInterval(() => { i++; if (i < steps.length) setAuditStep(steps[i]) }, 7000)
     try {
       // 2026-09-23: run-audit has required an admin bearer token since the
       // Hot Lab 2026-07-28 gate (requireBcpsAdmin), but this call never sent
@@ -303,6 +304,9 @@ function DepartmentContent() {
   // v2 audits store the glossary owner on each violation; older rows fall
   // back to the original hardcoded list.
   const isV2 = (a?.audit_version ?? 1) >= 2
+  const isV3 = (a?.audit_version ?? 1) >= 3
+  const isDeptWcm = !!dept.wcm_email && !!myEmail && dept.wcm_email.trim().toLowerCase() === myEmail
+  const canRun = isAdmin || isDeptWcm
   const wcmOwned = (v: AdaItem) => v.owner ? v.owner !== 'finalsite' : WCM_FIXABLE_IDS.has(v.id)
   const adaWcmItems = adaSorted.filter(wcmOwned)
   const adaFinalsiteItems = adaSorted.filter(v => !wcmOwned(v))
@@ -516,11 +520,11 @@ function DepartmentContent() {
               <a className="btn-secondary" href="/?page=departments">
                 <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>Back
               </a>
-              {isAdmin ? (
+              {canRun ? (
                 <button className="btn-primary" disabled={!dept.website_url || auditRunning} onClick={runAudit}>
                   {auditRunning
                     ? <><span style={{width:13,height:13,border:'2px solid rgba(255,255,255,.4)',borderTopColor:'#fff',borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite'}} /> Running...</>
-                    : <><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Run Audit</>
+                    : <><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>{isAdmin ? 'Run Audit' : 'Re-check my page'}</>
                   }
                 </button>
               ) : (
@@ -530,7 +534,7 @@ function DepartmentContent() {
                 </button>
               )}
             </div>
-            {!isAdmin && <div style={{fontSize:11,color:'var(--lr-text-50)',marginTop:6,textAlign:'right'}}>Scheduled: 1st of each month</div>}
+            {!isAdmin && <div style={{fontSize:11,color:'var(--lr-text-50)',marginTop:6,textAlign:'right'}}>{isDeptWcm ? 'Fixed something? Re-check up to 3 times a day. Full audit runs the 1st of each month.' : 'Scheduled: 1st of each month'}</div>}
             {auditRunning && auditStep && (
               <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8,padding:'8px 12px',background:'#EBF4FA',borderRadius:8,fontSize:11,fontWeight:700,color:'#1672A7'}}>
                 <span style={{width:11,height:11,border:'2px solid rgba(22,114,167,.3)',borderTopColor:'#1672A7',borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite',flexShrink:0}} />
@@ -543,10 +547,11 @@ function DepartmentContent() {
         {!a && (
           <div className="queue-banner">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            No audit on record. Click &quot;Run Audit&quot; to run the marketing and accessibility audit.
+            No audit on record yet. The audit checks this page against the WCM certification course standards and pins each finding on a screenshot of the page.
           </div>
         )}
 
+        {isV3 && a ? <AuditViewer audit={a as unknown as AuditV3} /> : (<>
         {/* SCORES */}
         <div className="scores-row">
           <div className="score-card overall">
@@ -580,6 +585,8 @@ function DepartmentContent() {
           ))}
         </div>
 
+        </>)}
+
         {/* CONTENT COLS */}
         <div className="content-cols">
           <div>
@@ -587,6 +594,7 @@ function DepartmentContent() {
             <div className="panel">
               {/* Tab bar */}
               <div className="dept-tab-bar">
+                {!isV3 && <>
                 <button className={`dept-tab${activeTab==='audit'?' active':''}`} onClick={() => setActiveTab('audit')}>
                   Audit Issues
                   {a && failedCount > 0 && <span className="dept-tab-badge">{failedCount}</span>}
@@ -595,13 +603,14 @@ function DepartmentContent() {
                   ADA Accessibility
                   {a && (adaCritical+adaSerious) > 0 && <span className="dept-tab-badge">{adaCritical+adaSerious}</span>}
                 </button>
-                <button className={`dept-tab${activeTab==='analytics'?' active':''}`} onClick={() => setActiveTab('analytics')}>
+                </>}
+                <button className={`dept-tab${activeTab==='analytics'||isV3?' active':''}`} onClick={() => setActiveTab('analytics')}>
                   Analytics
                 </button>
               </div>
 
               {/* AUDIT ISSUES TAB */}
-              {activeTab === 'audit' && (
+              {activeTab === 'audit' && !isV3 && (
                 <div className="panel-body">
                   {a && issues.length > 0 ? (
                     <>
@@ -668,7 +677,7 @@ function DepartmentContent() {
               )}
 
               {/* ADA ACCESSIBILITY TAB */}
-              {activeTab === 'ada' && (
+              {activeTab === 'ada' && !isV3 && (
                 <div className="panel-body">
                   {pageAuditedRow}
                   {adaSorted.length > 0 ? (
@@ -730,7 +739,7 @@ function DepartmentContent() {
               )}
 
               {/* ANALYTICS TAB */}
-              {activeTab === 'analytics' && (
+              {(activeTab === 'analytics' || isV3) && (
                 <div className="panel-body">
                   <div className="analytics-header" style={{marginBottom:12}}>
                     <span className="analytics-sync-info">{cur?.synced_at ? `GA4 data - synced ${new Date(cur.synced_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}` : 'Synced from GA4 - 1st of each month'}</span>
@@ -892,7 +901,7 @@ function DepartmentContent() {
                           {audit?.id===h.id && <span style={{background:'#EBF4FA',color:'#1672A7',borderRadius:4,padding:'1px 5px',fontSize:9,fontWeight:900}}>CURRENT</span>}
                         </div>
                         <div className="history-card-scores">
-                          {((h.audit_version ?? 1) >= 2 ? ([['Overall','overall_score'],['Marketing','marketing_score'],['Access.','ada_score']] as const) : ([['Overall','overall_score'],['Layout','layout_score'],['Content','content_score'],['Nav','nav_score'],['ADA','ada_score']] as const)).map(([label,k]) => (
+                          {((h.audit_version ?? 1) >= 3 ? ([['Overall','overall_score'],['Access.','ada_score']] as const) : (h.audit_version ?? 1) >= 2 ? ([['Overall','overall_score'],['Marketing','marketing_score'],['Access.','ada_score']] as const) : ([['Overall','overall_score'],['Layout','layout_score'],['Content','content_score'],['Nav','nav_score'],['ADA','ada_score']] as const)).map(([label,k]) => (
                             <div key={k} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
                               <span style={{fontSize:8,fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em',color:'var(--lr-text-50)'}}>{label}</span>
                               <span className={`score-pill ${scoreClass(h[k] ?? null)}`}>{scoreLabel(h[k] ?? null)}</span>

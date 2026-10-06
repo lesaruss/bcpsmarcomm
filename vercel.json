@@ -8,6 +8,14 @@
     "src/app/api/bcps/school-scan/route.ts": {
       "memory": 3009,
       "maxDuration": 240
+    },
+    "src/app/api/bcps/run-audit/route.ts": {
+      "memory": 3009,
+      "maxDuration": 240
+    },
+    "src/app/api/bcps/audit-preview/route.ts": {
+      "memory": 3009,
+      "maxDuration": 240
     }
   }
 }

@@ -29,6 +29,11 @@ const nextConfig = {
         './node_modules/@sparticuz/chromium/bin/**',
         './node_modules/axe-core/axe.min.js',
       ],
+      // audit-preview (2026-10-06): preview-only dry run of the same audit.
+      '/api/bcps/audit-preview': [
+        './node_modules/@sparticuz/chromium/bin/**',
+        './node_modules/axe-core/axe.min.js',
+      ],
       // Banner content scan added 2026-09-03 (lib/bannerVision.ts) - same
       // problem as ada-scan above, different package: tesseract.js spawns a
       // Node worker_thread via a runtime path.join(__dirname, ...) that
