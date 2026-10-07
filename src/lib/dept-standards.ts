@@ -152,7 +152,8 @@ export const COLLECT_STANDARDS_SCRIPT = `(() => {
   for (const h of Array.from(main.querySelectorAll('h1, h2, h3, h4, h5, h6'))) {
     if (!visible(h) || h.closest('[aria-hidden="true"]')) continue
     const level = Number(h.tagName[1])
-    const text = txt(h)
+    // textContent, not innerText: the site's CSS uppercases headings.
+    const text = (h.textContent || '').replace(/\s+/g, ' ').trim()
     if (!text) headingSkips.push({ ref: ref(h), text: '', from: prevLevel, to: level })
     else if (prevLevel && level > prevLevel + 1) headingSkips.push({ ref: ref(h), text: text.slice(0, 80), from: prevLevel, to: level })
     prevLevel = level
