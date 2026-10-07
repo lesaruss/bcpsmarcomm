@@ -29,6 +29,11 @@ const nextConfig = {
         './node_modules/@sparticuz/chromium/bin/**',
         './node_modules/axe-core/axe.min.js',
       ],
+      // audit-worker (2026-10-07): the monthly run, one department per call.
+      '/api/bcps/audit-worker': [
+        './node_modules/@sparticuz/chromium/bin/**',
+        './node_modules/axe-core/axe.min.js',
+      ],
       // audit-preview (2026-10-06): preview-only dry run of the same audit.
       '/api/bcps/audit-preview': [
         './node_modules/@sparticuz/chromium/bin/**',
