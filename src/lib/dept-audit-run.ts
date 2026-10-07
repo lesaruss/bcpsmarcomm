@@ -253,3 +253,43 @@ export async function discoverDeptPages(mainUrl: string): Promise<{ url: string;
   }
   return pages
 }
+
+const MAX_SCHOOL_PAGES = 80
+
+/**
+ * A school's site = its homepage plus every page its menus link to on the
+ * school's own address (Silver Ridge's homepage menu lists about 65). School
+ * sitemaps sit behind a bot check, so the menu is the reliable list.
+ */
+export async function discoverSchoolPages(homeUrl: string): Promise<{ url: string; title: string; isMain: boolean }[]> {
+  const home = norm(homeUrl)
+  const pages: { url: string; title: string; isMain: boolean }[] = [{ url: home, title: '', isMain: true }]
+  let html = ''
+  let finalUrl = homeUrl
+  try {
+    const ctl = new AbortController()
+    const tm = setTimeout(() => ctl.abort(), 20000)
+    const res = await fetch(homeUrl, { signal: ctl.signal, headers: { 'user-agent': 'Mozilla/5.0 (BCPS MarComm accessibility audit)' } })
+    clearTimeout(tm)
+    html = res.ok ? await res.text() : ''
+    if (res.url) finalUrl = res.url
+  } catch { html = '' }
+  const base = new URL(finalUrl)
+  const seen = new Set([home, norm(finalUrl)])
+  const re = /<a\s[^>]*href="([^"#]+)"[^>]*>([\s\S]*?)<\/a>/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(html)) && pages.length < MAX_SCHOOL_PAGES) {
+    let u: URL
+    try { u = new URL(m[1], base) } catch { continue }
+    if (u.host !== base.host) continue
+    const path = u.pathname.replace(/\/+$/, '')
+    // Pages only: no Finalsite internals, assets, files or the site map.
+    if (!path || /^\/(fs|assets|uploaded|site-map)(\/|$)/i.test(path) || /\.[a-z0-9]{2,5}$/i.test(path)) continue
+    const url = norm(u.origin + path)
+    if (seen.has(url)) continue
+    seen.add(url)
+    const title = m[2].replace(/<span[^>]*fsStyleSROnly[\s\S]*?<\/span>/gi, '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim()
+    pages.push({ url, title, isMain: false })
+  }
+  return pages
+}
