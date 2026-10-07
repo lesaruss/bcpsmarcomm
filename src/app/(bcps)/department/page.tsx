@@ -7,6 +7,7 @@ import { useBCPSShell } from '@/components/BCPSShell'
 import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
 import { lookupAxeEntry } from '@/lib/ada-glossary'
 import AuditViewer, { type AuditV3 } from '@/components/bcps/AuditViewer'
+import AdaResults from '@/components/bcps/AdaResults'
 
 // ─── Period types ─────────────────────────────────────────────────────────────
 type PeriodMode = 'calendar' | 'school' | 'custom'
@@ -166,7 +167,7 @@ function DepartmentContent() {
   const [expandedIssues, setExpandedIssues] = useState<Set<number>>(new Set())
   const [expandedAda, setExpandedAda] = useState<Set<number>>(new Set())
   // Sean, 2026-10-07: Overview (analytics + contact + history) | Web Review | ADA Accessibility.
-  const [activeTab, setActiveTab] = useState<'overview' | 'review' | 'ada'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'review'>('overview')
   const [adaScope, setAdaScope] = useState<'wcm' | 'finalsite'>('wcm')
 
   // Analytics period state
@@ -601,10 +602,6 @@ function DepartmentContent() {
               Web Review
               {a && (isV3 ? (a.checks_failed ?? 0) : failedCount) > 0 && <span className="dept-tab-badge">{isV3 ? a.checks_failed : failedCount}</span>}
             </button>
-            <button role="tab" aria-selected={activeTab==='ada'} className={`dept-tab${activeTab==='ada'?' active':''}`} onClick={() => setActiveTab('ada')}>
-              ADA Accessibility
-              {a && (adaCritical+adaSerious) > 0 && <span className="dept-tab-badge">{adaCritical+adaSerious}</span>}
-            </button>
           </div>
         </div>
 
@@ -795,7 +792,7 @@ function DepartmentContent() {
         </div>
         )}
 
-        {activeTab === 'review' && (isV3 && a ? <AuditViewer audit={a as unknown as AuditV3} /> : (
+        {activeTab === 'review' && (isV3 && a ? <><AuditViewer audit={a as unknown as AuditV3} /><AdaResults violations={a.ada_violations} /></> : (
           <div className="panel">
               {/* AUDIT ISSUES TAB */}
               {(
@@ -867,8 +864,9 @@ function DepartmentContent() {
           </div>
         ))}
 
-        {activeTab === 'ada' && (
-          <div className="panel">
+        {/* Legacy (pre-v3) audits: their separate ADA list, shown under Web Review. */}
+        {activeTab === 'review' && !(isV3 && a) && (
+          <div className="panel" style={{marginTop:16}}>
               {/* ADA ACCESSIBILITY TAB */}
               {(
                 <div className="panel-body">
