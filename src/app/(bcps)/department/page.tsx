@@ -6,8 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { useBCPSShell } from '@/components/BCPSShell'
 import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
 import { lookupAxeEntry } from '@/lib/ada-glossary'
-import AuditViewer, { type AuditV3 } from '@/components/bcps/AuditViewer'
-import AdaResults from '@/components/bcps/AdaResults'
+import SiteAudit from '@/components/bcps/SiteAudit'
 
 // ─── Period types ─────────────────────────────────────────────────────────────
 type PeriodMode = 'calendar' | 'school' | 'custom'
@@ -792,7 +791,9 @@ function DepartmentContent() {
         </div>
         )}
 
-        {activeTab === 'review' && (isV3 && a ? <><AuditViewer audit={a as unknown as AuditV3} /><AdaResults violations={a.ada_violations} /></> : (
+        {/* Web Review: the whole site, page by page (Sean, 2026-10-07). */}
+        {activeTab === 'review' && <SiteAudit owner={{ department_id: dept.id }} isAdmin={isAdmin} />}
+        {activeTab === 'review' && !(isV3 && a) && a && (
           <div className="panel">
               {/* AUDIT ISSUES TAB */}
               {(
@@ -862,10 +863,10 @@ function DepartmentContent() {
               )}
 
           </div>
-        ))}
+        )}
 
         {/* Legacy (pre-v3) audits: their separate ADA list, shown under Web Review. */}
-        {activeTab === 'review' && !(isV3 && a) && (
+        {activeTab === 'review' && !(isV3 && a) && a && (
           <div className="panel" style={{marginTop:16}}>
               {/* ADA ACCESSIBILITY TAB */}
               {(
