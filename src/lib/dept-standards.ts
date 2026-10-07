@@ -62,6 +62,8 @@ export interface StdFacts {
   leftNav: { ref: string; links: number; genericLabels: { ref: string; text: string }[] } | null
   links: { ref: string; href: string; raw: string; text: string }[]
   longBlocks: { ref: string; words: number }[]
+  /** Headings in the content that skip a level or are empty (course: "Do not skip heading levels"). */
+  headingSkips: { ref: string; text: string; from: number; to: number }[]
   images: { ref: string; name: string }[]
   mainText: string
   overflowAt375?: boolean
@@ -142,12 +144,26 @@ export const COLLECT_STANDARDS_SCRIPT = `(() => {
     return h && !/^(#|mailto:|tel:|javascript:)/i.test(h) && !a.closest('.fsElementPagination, .fsTabsNav') && !a.classList.contains('fsConstituentProfileLink') && visible(a)
   }).slice(0, 150).map((a) => ({ ref: ref(a), href: a.href, raw: a.getAttribute('href') || '', text: (txt(a) || a.getAttribute('aria-label') || a.getAttribute('title') || '').slice(0, 120) }))
 
+  // Our own heading-order check, in reading order from the page title. axe's
+  // heading-order rule proved inconsistent between runs on the same page
+  // (Labor Relations, Oct 6-7), and the course rule is simple: no skips.
+  const headingSkips = []
+  let prevLevel = 0
+  for (const h of Array.from(main.querySelectorAll('h1, h2, h3, h4, h5, h6'))) {
+    if (!visible(h) || h.closest('[aria-hidden="true"]')) continue
+    const level = Number(h.tagName[1])
+    const text = txt(h)
+    if (!text) headingSkips.push({ ref: ref(h), text: '', from: prevLevel, to: level })
+    else if (prevLevel && level > prevLevel + 1) headingSkips.push({ ref: ref(h), text: text.slice(0, 80), from: prevLevel, to: level })
+    prevLevel = level
+  }
+
   const longBlocks = Array.from(main.querySelectorAll('.fsContent p, .fsContent > .fsElementContent > div')).map((p) => ({ p, words: txt(p).split(' ').filter(Boolean).length }))
     .filter((x) => x.words >= 150 && visible(x.p)).slice(0, 8).map((x) => ({ ref: ref(x.p), words: x.words }))
 
   return {
     url: location.href, title: txt(titleEl), pageLayoutClass: layout ? layout.className : '',
-    multiColumn, first, contentImages, buttons, directory, contact, leftNav, links, longBlocks, images,
+    multiColumn, first, contentImages, buttons, directory, contact, leftNav, links, longBlocks, images, headingSkips,
     mainText: txt(main).slice(0, 60000),
   }
 })()`
@@ -421,7 +437,7 @@ export const A11Y_ROWS: { axeIds: string[]; title: string; course: CourseRef }[]
 export interface AxeLikeViolation { id: string; impact: string | null; description: string; help?: string; helpUrl?: string; nodeCount: number; nodes?: { target: string; html: string }[] }
 
 /** inContent says whether an axe selector points inside the department's own content area (#fsPageContent); template elements never count. */
-export function accessibilityRows(violations: AxeLikeViolation[], inContent: (sel: string) => boolean): { rows: CheckResult[]; finalsite: AxeLikeViolation[] } {
+export function accessibilityRows(violations: AxeLikeViolation[], inContent: (sel: string) => boolean, own: { headingSkips?: StdFacts['headingSkips'] } = {}): { rows: CheckResult[]; finalsite: AxeLikeViolation[] } {
   const finalsite: AxeLikeViolation[] = []
   const used = new Set<string>()
   const rows: CheckResult[] = A11Y_ROWS.map((row) => {
@@ -431,6 +447,18 @@ export function accessibilityRows(violations: AxeLikeViolation[], inContent: (se
     const nodes = hits.flatMap((v) => (v.nodes ?? []).filter((n) => inContent(n.target)).map((n) => ({ v, n })))
     const entry = lookupAxeEntry(row.axeIds[0])
     const steps = entry?.fixSteps ?? []
+    // Headings: our own reading-order check is the main signal; axe adds to it.
+    if (row.axeIds.includes('heading-order') && own.headingSkips?.length) {
+      const sk = own.headingSkips
+      const say = (h: (typeof sk)[number]) => h.text ? `"${h.text}" is a Heading ${h.to} right after a Heading ${h.from}; make it a Heading ${Math.min(h.to, h.from + 1)}.` : `An empty Heading ${h.to}; delete it or add its text.`
+      return {
+        id: `a11y-${row.axeIds[0]}`, area: 'Accessibility', title: row.title, status: 'fail',
+        detail: sk.length === 1 ? say(sk[0]) : `${sk.length} headings skip a level or are empty.`,
+        items: sk.length > 1 ? sk.slice(0, 10).map(say) : undefined,
+        targets: sk.slice(0, 10).map((h) => ({ label: h.text || 'Empty heading', ref: h.ref })),
+        why: entry?.definition ?? '', steps, course: row.course,
+      }
+    }
     if (nodes.length === 0) return { id: `a11y-${row.axeIds[0]}`, area: 'Accessibility', title: row.title, status: 'pass', detail: 'The scan found no problems of this kind in your content.', targets: [], why: entry?.definition ?? '', steps, course: row.course }
     const total = hits.reduce((n, v) => n + v.nodeCount, 0)
     return {
@@ -539,7 +567,7 @@ export async function capturePage(page: Page, axeSelectors: string[]): Promise<P
     const s = new Set<string>()
     const add = (r?: string) => r && s.add(`ref:${r}`)
     facts.multiColumn.forEach((m) => add(m.ref)); add(facts.first?.ref); facts.contentImages.forEach((i) => add(i.ref)); facts.images.forEach((i) => add(i.ref))
-    facts.buttons.forEach((b) => add(b.ref)); add(facts.contact?.ref); facts.leftNav?.genericLabels.forEach((g) => add(g.ref)); facts.links.forEach((l) => add(l.ref)); facts.longBlocks.forEach((b) => add(b.ref))
+    facts.buttons.forEach((b) => add(b.ref)); add(facts.contact?.ref); facts.leftNav?.genericLabels.forEach((g) => add(g.ref)); facts.links.forEach((l) => add(l.ref)); facts.longBlocks.forEach((b) => add(b.ref)); facts.headingSkips.forEach((h) => add(h.ref))
     axeSelectors.forEach((sel) => s.add(`sel:${sel}`))
     return Array.from(s)
   })()

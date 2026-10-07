@@ -38,7 +38,7 @@ export async function auditDepartmentPage(url: string, deptName: string): Promis
   const toCheck = linksToCheck(cap.facts)
   const brokenLinks = await findBrokenLinks(toCheck)
   const standards = runStandards({ facts: cap.facts, deptName, brokenLinks, linksChecked: toCheck.length, now: new Date() })
-  const a11y = accessibilityRows(scan.violations, cap.inContent)
+  const a11y = accessibilityRows(scan.violations, cap.inContent, { headingSkips: cap.facts.headingSkips })
   const results = [...standards, ...a11y.rows]
   cap.place(results)
 
