@@ -11,6 +11,7 @@ import { WcmCommunityHub, WcmHubCards, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
 import SharedViewAsButton from '@/components/ViewAsButton'
 import AuditViewer, { type AuditV3 } from '@/components/bcps/AuditViewer'
+import { lookupAxeEntry } from '@/lib/ada-glossary'
 import { SAMPLE_SUPERADMIN_ID, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
 import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
@@ -496,7 +497,7 @@ const SAMPLE_TEAM_ASSIGNMENTS: Assignment[] = [
 ]
 
 /* ─── DIRECTOR ─────────────────────────────────────────── */
-type DirectorTab = 'overview' | 'review' | 'analytics' | 'notes' | 'widgets' | 'wcm' | 'tools'
+type DirectorTab = 'overview' | 'audit' | 'review' | 'analytics' | 'notes' | 'widgets' | 'wcm' | 'tools'
 
 // The review window that matters most to this director: the open one, else
 // the next upcoming one, else the last one (their departments may span
@@ -522,7 +523,8 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
 
   const tabs: { id: DirectorTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
-    { id: 'review', label: 'Web Review' },
+    { id: 'audit', label: 'Run Audit' },
+    { id: 'review', label: 'Website Review' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'notes', label: 'Meeting Notes' },
     ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets' as DirectorTab, label: 'Widgets' }] : []),
@@ -579,7 +581,8 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
           </div>
         </>
       )}
-      {tab === 'review' && <WebReviewTab depts={led} canRecheck={false} process={<ReviewTab led={led} myWindow={myWindow} />} />}
+      {tab === 'audit' && <RunAuditTab depts={led} canRecheck={false} />}
+      {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} />}
       {tab === 'analytics' && <AnalyticsTab led={led} />}
       {tab === 'notes' && <NotesTab notes={data.director_notes ?? []} led={led} />}
       {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
@@ -840,9 +843,10 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 // showroom. Maintain was dropped, Build Kit became Widgets, WCMs got the
 // director's Website Review tab, and Learn folded into Tools & Resources
 // (its Hot Labs tile and knowledge base) (Sean, Oct 6).
-// Oct 7: My Department folded into Web Review, which now opens on the
-// department page itself with every audit check pinned on it (Sean).
-type WcmTab = 'overview' | 'review' | 'widgets' | 'tools'
+// Oct 7 (Sean): Overview is the consolidated dashboard (My Department folded
+// in); Run Audit is only the audit and ADA results; Website Review is the
+// process, the windows and how to work through the audit.
+type WcmTab = 'overview' | 'audit' | 'review' | 'widgets' | 'tools'
 
 function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
   const [tab, setTab] = useState<WcmTab>('overview')
@@ -855,7 +859,8 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
   const name = firstName(data)
   const tabs: { id: WcmTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
-    ...(mine.length ? [{ id: 'review' as WcmTab, label: 'Web Review' }] : []),
+    ...(mine.length ? [{ id: 'audit' as WcmTab, label: 'Run Audit' }] : []),
+    ...(mine.length ? [{ id: 'review' as WcmTab, label: 'Website Review' }] : []),
     { id: 'widgets', label: 'Widgets' },
     { id: 'tools', label: 'Tools & Resources' },
   ]
@@ -893,7 +898,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
             value={open ? `${open} open` : open + fixed ? 'All fixed' : 'None yet'}
             note={open + fixed ? `${fixed} already fixed` : 'Your audit items will show here'}
             tone={open ? 'warn' : undefined}
-            link={{ label: 'Open Web Review', onClick: () => setTab('review') }}
+            link={{ label: 'Open Run Audit', onClick: () => setTab('audit') }}
           />
         )}
         <StatTile label="Next Hot Lab" value={hotLabLive() ? 'Live now' : nextHotLab()} note="Tuesdays and Thursdays, 11:30 AM"
@@ -916,8 +921,8 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
               {mine.length > 0 && (
                 <li>
                   <b>Work through your audit</b>
-                  <span>Web Review shows your page with every check pinned on it: green passes, red needs a fix, amber needs you to look.</span>
-                  <button type="button" className="home-link-btn" onClick={() => setTab('review')}>Go to Web Review</button>
+                  <span>Run Audit shows your page with every check pinned on it: green passes, red needs a fix, amber needs you to look. Website Review walks you through it.</span>
+                  <button type="button" className="home-link-btn" onClick={() => setTab('audit')}>Go to Run Audit</button>
                 </li>
               )}
             </ol>
@@ -926,26 +931,31 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
           </div>
           <div className="home-wcm-side"><WcmHubCards tab="start" certified={cert.certified} /></div>
           </div>
+          {mine.map((d) => <WcmDepartmentCards key={d.id} dept={d} showName={mine.length > 1} onAudit={() => setTab('audit')} />)}
         </>
       )}
       {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
-      {tab === 'review' && <WebReviewTab depts={mine} canRecheck process={<ReviewTab led={mine} myWindow={primaryWindow(mine)} />} />}
+      {tab === 'audit' && <RunAuditTab depts={mine} canRecheck />}
+      {tab === 'review' && <>
+        {mine.map((d) => <WcmAuditSteps key={d.id} dept={d} showName={mine.length > 1} onAudit={() => setTab('audit')} />)}
+        <ReviewTab led={mine} myWindow={primaryWindow(mine)} />
+      </>}
       {tab === 'tools' && <ToolsPanel kind="wcm" onNavigate={onNavigate} kb={data.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
     </div>
   )
 }
 
-// Web Review tab (Sean, 2026-10-07): the department's latest audit, the
-// same viewer as the department profile, right on the dashboard. A WCM can
-// re-check after fixing something (the API allows the department's own WCM,
-// 3 a day); directors see it read-only. The review process sits below.
-function WebReviewTab({ depts, canRecheck, process }: { depts: DepartmentSummary[]; canRecheck: boolean; process: React.ReactNode }) {
+// Run Audit tab (Sean, 2026-10-07): only the audit. The department page with
+// every check pinned (same viewer as the department profile), the re-check
+// button for the department's WCM (the API allows 3 a day), and the full ADA
+// scan from the same run. Directors see it read-only.
+function RunAuditTab({ depts, canRecheck }: { depts: DepartmentSummary[]; canRecheck: boolean }) {
   const [pick, setPick] = useState(depts[0]?.id ?? '')
   const [fresh, setFresh] = useState<Record<string, AuditV3>>({})
   const [running, setRunning] = useState(false)
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null)
   const dept = depts.find((d) => d.id === pick) ?? depts[0]
-  if (!dept) return <>{process}</>
+  if (!dept) return null
   const audit = fresh[dept.id] ?? dept.web_review ?? null
 
   const recheck = async () => {
@@ -973,25 +983,131 @@ function WebReviewTab({ depts, canRecheck, process }: { depts: DepartmentSummary
           </label>
         ) : <h3 className="home-card-title" style={{ margin: 0 }}>{dept.name}</h3>}
         <span className="home-card-text" style={{ margin: 0 }}>
-          {audit ? `Checked ${new Date(audit.audited_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. ` : ''}
-          The District Web Team runs this check on the 1st of each month.
+          {audit ? `Last run ${new Date(audit.audited_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. ` : ''}
+          Each run checks the course standards and the ADA scan together. The District Web Team runs it on the 1st of each month.
         </span>
         <div style={{ flex: 1 }} />
         {canRecheck && dept.website_url && (
-          <button type="button" className="home-btn" disabled={running} onClick={recheck}>{running ? 'Checking…' : audit ? 'Re-check my page' : 'Check my page'}</button>
+          <button type="button" className="home-btn" disabled={running} onClick={recheck}>{running ? 'Running…' : audit ? 'Run audit again' : 'Run audit'}</button>
         )}
       </div>
       {msg && <p className="home-card-text" role="status" style={{ color: msg.bad ? '#a13a2f' : undefined, fontWeight: 700 }}>{msg.text}</p>}
-      {audit ? <AuditViewer audit={audit} /> : (
+      {audit ? (<>
+        <AuditViewer audit={audit} />
+        <AdaResults violations={audit.ada_violations} />
+      </>) : (
         <div className="home-dept home-section">
-          <h3 className="home-card-title">No web review yet</h3>
-          <p className="home-card-text">{dept.website_url ? 'Your page has not been checked with the new web review. Results show here after the next monthly check' + (canRecheck ? ', or check it now.' : '.') : 'There is no website address on file for this department. Let the District Web Team know the page to check.'}</p>
+          <h3 className="home-card-title">No audit results yet</h3>
+          <p className="home-card-text">{dept.website_url ? 'Your page has not been audited with the new audit. Results show here after the next monthly run' + (canRecheck ? ', or run it now.' : '.') : 'There is no website address on file for this department. Let the District Web Team know the page to audit.'}</p>
         </div>
       )}
-      <details className="home-dept home-section">
-        <summary style={{ cursor: 'pointer', fontWeight: 800 }}>How the website review works, and your review window</summary>
-        <div style={{ marginTop: 12 }}>{process}</div>
-      </details>
+    </div>
+  )
+}
+
+// The full ADA scan from the same run: what the WCM fixes in Composer, and
+// what belongs to Finalsite (site header, menus, footer; reported monthly).
+function AdaResults({ violations }: { violations: unknown }) {
+  const [scope, setScope] = useState<'wcm' | 'finalsite'>('wcm')
+  const all = (Array.isArray(violations) ? violations : []) as { id: string; impact?: string; nodes?: number; description?: string; helpUrl?: string; owner?: string }[]
+  const order: Record<string, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 }
+  const list = all.filter((v) => (scope === 'finalsite') === (v.owner === 'finalsite')).sort((a, b) => (order[a.impact || ''] ?? 4) - (order[b.impact || ''] ?? 4))
+  const wcmCount = all.filter((v) => v.owner !== 'finalsite').length
+  return (
+    <div className="home-dept home-section">
+      <div className="home-dept-head">
+        <h3>ADA scan results</h3>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button type="button" className={scope === 'wcm' ? 'home-btn' : 'wcm-hub2-card-btn'} onClick={() => setScope('wcm')}>You can fix ({wcmCount})</button>
+          <button type="button" className={scope === 'finalsite' ? 'home-btn' : 'wcm-hub2-card-btn'} onClick={() => setScope('finalsite')}>Finalsite fixes ({all.length - wcmCount})</button>
+        </div>
+      </div>
+      <p className="home-card-text">{scope === 'wcm' ? 'WCAG 2.1 AA issues the scan found that you can fix in Finalsite Composer. These are also pinned on your page above, under Accessibility.' : 'Issues in the site header, menus and footer. They belong to Finalsite, are reported to them every month, and never count against your page.'}</p>
+      {list.length === 0 ? <p className="home-card-text"><b>None found.</b></p> : (
+        <ul className="home-tasks">
+          {list.map((v) => {
+            const g = lookupAxeEntry(v.id)
+            return (
+              <li key={v.id}>
+                <details>
+                  <summary className="home-task" style={{ cursor: 'pointer' }}>
+                    <span className="home-task-title">{g?.title ?? v.description ?? v.id}</span>
+                    <span className="home-task-meta">{(v.impact || 'moderate').replace(/^./, (c) => c.toUpperCase())} · {v.nodes ?? 1} on the page</span>
+                  </summary>
+                  <div className="home-card-text" style={{ padding: '6px 4px 10px' }}>
+                    {g?.definition && <p style={{ margin: '0 0 6px' }}>{g.definition}</p>}
+                    {scope === 'wcm' && g?.fixSteps?.length ? <ol style={{ margin: '0 0 6px', paddingLeft: 18 }}>{g.fixSteps.map((st, i) => <li key={i}>{st}</li>)}</ol> : null}
+                    {scope === 'finalsite' && g?.escalationNote ? <p style={{ margin: '0 0 6px' }}>{g.escalationNote}</p> : null}
+                    {v.helpUrl && <a className="home-link-btn" href={v.helpUrl} target="_blank" rel="noopener">Technical detail</a>}
+                  </div>
+                </details>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// Overview: one department at a glance (formerly My Department).
+function WcmDepartmentCards({ dept, showName, onAudit }: { dept: DepartmentSummary; showName: boolean; onAudit: () => void }) {
+  const s = dept.audit_status || 'not_started'
+  const w = windowForDivision(dept.division)
+  const a = dept.analytics
+  const wr = dept.web_review
+  return (
+    <div className="home-section">
+      {showName && <h3 className="home-grp">{dept.name}</h3>}
+      <div className="home-dept-grid home-section">
+        <div className="home-dept">
+          <div className="home-dept-head"><h3>Your audit</h3><span className="home-chip">{AUDIT_LABELS[s] || s}</span></div>
+          <p className="home-card-text">{wr ? `${wr.checks_passed ?? 0} checks pass, ${wr.checks_failed ?? 0} to fix, ${wr.checks_review ?? 0} to review.` : 'Your audit results show here after your page is audited.'}</p>
+          <button type="button" className="home-btn" onClick={onAudit}>Open Run Audit</button>
+        </div>
+        <div className="home-dept">
+          <h3 className="home-card-title">{a ? `${monthLabel(a.period).split(' ')[0]} visitors` : 'Visitors'}</h3>
+          {a ? (
+            <div className="home-kpis">
+              <div className="home-kpi"><b>{fmtNum(a.visitors)}</b><span>Visitors</span></div>
+              {a.engaged_pct !== null && <div className="home-kpi"><b>{a.engaged_pct}%</b><span>Engaged visits</span></div>}
+            </div>
+          ) : <p className="home-card-text">Visitor numbers for your pages are not connected yet.</p>}
+        </div>
+        <div className="home-dept">
+          <h3 className="home-card-title">Your review</h3>
+          <p className="home-card-text">{w ? `${w.label}, ${formatWindowRange(w)}. Work through your audit first, then bring your director to the one-hour meeting.` : 'Work through your audit first, then bring your director to the one-hour meeting.'}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Website Review: how to work through the audit, step by step.
+function WcmAuditSteps({ dept, showName, onAudit }: { dept: DepartmentSummary; showName: boolean; onAudit: () => void }) {
+  const s = dept.audit_status || 'not_started'
+  const w = windowForDivision(dept.division)
+  const steps: { title: string; body: string; done: boolean; action?: React.ReactNode }[] = [
+    { title: 'Run your audit', body: 'Open Run Audit. Your page appears with a numbered pin on every check: green passes, red needs a fix, amber needs you to look.', done: !!dept.web_review, action: <button type="button" className="wcm-hub2-card-btn" onClick={onAudit}>Open Run Audit</button> },
+    { title: 'Fix the red items', body: 'Click a red check to see where it is on your page, why it matters and the steps in Finalsite. Each one links to the course page that teaches it.', done: !!dept.web_review && (dept.web_review.checks_failed ?? 1) === 0 },
+    { title: 'Look at the amber items', body: 'Amber items need a person to look, like whether an image is a flyer or a PDF is tagged. They never lower your score.', done: false },
+    { title: 'Run the audit again', body: 'After you fix something in Finalsite, run the audit again (up to 3 times a day) and watch the checks turn green.', done: !!dept.web_review && (dept.web_review.checks_failed ?? 1) === 0 },
+    { title: 'Submit for review', body: 'When every red item is fixed, submit your audit. The District Web Team checks the fixes.', done: ['wcm_submitted', 'admin_review', 'complete'].includes(s), action: <a className="wcm-hub2-card-btn" href="/wcm-portal">Submit in my audit</a> },
+    { title: 'Bring your director to the review', body: w ? `${dept.division} is in ${w.label}, ${formatWindowRange(w)}. Your director books the one-hour meeting.` : 'Your director books the one-hour review meeting with the District Web Team.', done: s === 'complete' },
+  ]
+  const current = steps.findIndex((x) => !x.done)
+  return (
+    <div className="home-dept home-section">
+      <h3 className="home-card-title">{showName ? `${dept.name}: your audit, step by step` : 'Your audit, step by step'}</h3>
+      <ol className="home-wsteps">
+        {steps.map((x, i) => (
+          <li key={x.title} className={x.done ? 'done' : i === current ? 'now' : undefined}>
+            <b>{x.title}</b>
+            <span>{x.body}</span>
+            {i === current && x.action}
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }
@@ -1385,7 +1501,6 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
   const mine = TOOLS.filter(canOpen)
   const top = TOP_TOOLS[kind].map((l) => mine.find((t) => t.label === l)).filter((t): t is Tool => !!t)
   const open = (t: Tool) => { if (t.page) onNavigate(t.page); else if (t.href) window.location.href = t.href }
-  const topics = Array.from(new Set(kb.map((a) => a.topic))).filter((t) => t !== 'Tools and apps')
 
   type Item = { key: string; kind: string; title: string; desc: string; text: string; icon?: React.ReactNode; go: () => void }
   const items: Item[] = [
@@ -1429,52 +1544,21 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
           )}
         </div>
       ) : (
-        <div className="home-tgrid">
-          <div className="home-dept">
-            <h3 className="home-card-title">Your tools</h3>
-            <div className="home-tools-mini">
-              {top.map((t) => (
-                <button key={t.label} type="button" className="home-tool home-tool-sm" onClick={() => open(t)}>
-                  <span className="home-tool-ic" aria-hidden="true">{Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0]}</span>
-                  <span><b>{t.label}</b></span>
-                </button>
-              ))}
-              <button type="button" className="home-tool home-tool-sm" onClick={() => openFeedback('Question for the knowledge base: ')}>
-                <span className="home-tool-ic" aria-hidden="true">?</span><span><b>Ask a question</b></span>
-              </button>
-              <button type="button" className="home-tool home-tool-sm" onClick={() => openFeedback('Hot Lab topic suggestion: ')}>
-                <span className="home-tool-ic" aria-hidden="true">+</span><span><b>Suggest a Hot Lab topic</b></span>
-              </button>
-            </div>
+        <>
+          {/* Sean, Oct 7: every tool as a large tile, four to a row. */}
+          <h3 className="home-grp">Your tools</h3>
+          <div className="home-tiles4">
+            {top.map((t) => tile({ key: `top:${t.label}`, kind: t.group, title: t.label, desc: t.desc, text: '', icon: Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0], go: () => open(t) }))}
+            {tile({ key: 'top:ask', kind: 'Ask', title: 'Ask a question', desc: 'Can\u2019t find it? Ask, and the answer can become the next article.', text: '', icon: '?', go: () => openFeedback('Question for the knowledge base: ') })}
+            {tile({ key: 'top:topic', kind: 'Ask', title: 'Suggest a Hot Lab topic', desc: 'Something to walk through together.', text: '', icon: '+', go: () => openFeedback('Hot Lab topic suggestion: ') })}
           </div>
-          <div className="home-dept">
-            <h3 className="home-card-title">Hot Labs</h3>
-            <ul className="home-tasks">
-              {hotLabs.slice(0, 3).map((h) => (
-                <li key={h.url}><a className="home-task" href={h.url}><span className="home-task-title">{h.date}</span><span className="home-task-meta">Notes and recording</span></a></li>
-              ))}
-              {kb.filter((a) => a.topic === 'Hot Labs').map((a) => (
-                <li key={a.id}><a className="home-task" href={a.href}><span className="home-task-title">{a.title}</span><span className="home-task-meta">{a.summary}</span></a></li>
-              ))}
-            </ul>
-            <a className="home-link-btn" href="/?page=notes">See all Hot Labs</a>
+          <h3 className="home-grp">Hot Labs and guides</h3>
+          <div className="home-tiles4">
+            {hotLabs.slice(0, 3).map((h) => tile({ key: `hl:${h.url}`, kind: 'Hot Lab', title: h.date, desc: 'Notes and recording', text: '', go: () => { window.location.href = h.url } }))}
+            {tile({ key: 'hl:all', kind: 'Hot Labs', title: 'See all Hot Labs', desc: 'Every session, with notes and the recording', text: '', go: () => { window.location.href = '/?page=notes' } })}
+            {kb.filter((a) => a.topic !== 'Tools and apps').map((a) => tile({ key: `kb:${a.id}`, kind: a.topic, title: a.title, desc: a.summary, text: '', go: () => { window.location.href = a.href } }))}
           </div>
-          {topics.filter((t) => t !== 'Hot Labs').map((topic) => (
-            <div key={topic} className="home-dept">
-              <h3 className="home-card-title">{topic}</h3>
-              <ul className="home-tasks">
-                {kb.filter((a) => a.topic === topic).map((a) => (
-                  <li key={a.id}>
-                    <a className="home-task" href={a.href}>
-                      <span className="home-task-title">{a.title}</span>
-                      <span className="home-task-meta">{a.summary}</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        </>
       )}
 
       <details className="home-browse">
