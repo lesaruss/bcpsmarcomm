@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID, timingSafeEqual } from 'crypto'
-import { discoverDeptPages, runAndSavePageAudit } from '@/lib/dept-audit-run'
+import { discoverDeptPages, discoverSchoolPages, runAndSavePageAudit } from '@/lib/dept-audit-run'
 
 // Audit worker (Sean, 2026-10-07). pg_cron calls this every 4 minutes while
 // bcps_audit_queue has work (migrations 20261007_bcps_audit_monthly and
@@ -53,8 +53,9 @@ async function runSiteJob(job: Job): Promise<string> {
   } else if (job.school_id) {
     const { data: school } = await supabase.from('bcps_schools').select('id, name, site_url').eq('id', job.school_id).maybeSingle()
     if (!school?.site_url) { await finish(job.id, { status: 'skipped', last_error: 'no website address on file' }); return 'skipped: no url' }
-    // Schools: the homepage for now; more pages once the schools' scope is set.
-    pages = [{ url: school.site_url.replace(/\/+$/, ''), title: `${school.name} homepage`, isMain: true }]
+    // Schools: the homepage plus every page its menus link to (Sean, Oct 7).
+    pages = await discoverSchoolPages(school.site_url)
+    pages[0].title = `${school.name} homepage`
   }
 
   const owner = job.department_id ? { department_id: job.department_id } : { school_id: job.school_id }
