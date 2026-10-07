@@ -153,7 +153,7 @@ export const COLLECT_STANDARDS_SCRIPT = `(() => {
     if (!visible(h) || h.closest('[aria-hidden="true"]')) continue
     const level = Number(h.tagName[1])
     // textContent, not innerText: the site's CSS uppercases headings.
-    const text = (h.textContent || '').replace(/\s+/g, ' ').trim()
+    const text = (h.textContent || '').replace(/\\s+/g, ' ').trim()
     if (!text) headingSkips.push({ ref: ref(h), text: '', from: prevLevel, to: level })
     else if (prevLevel && level > prevLevel + 1) headingSkips.push({ ref: ref(h), text: text.slice(0, 80), from: prevLevel, to: level })
     prevLevel = level
