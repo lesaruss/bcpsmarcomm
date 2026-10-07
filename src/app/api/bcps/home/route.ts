@@ -92,6 +92,8 @@ interface DepartmentSummary {
   findings_fixed: number
   wcms: WcmStatus[]
   analytics?: DepartmentAnalytics | null
+  /** Latest audit v3 result (checks + screenshots) for the dashboard's Web Review tab. */
+  web_review?: Record<string, unknown> | null
 }
 
 interface DirectorNote {
@@ -203,6 +205,19 @@ export async function GET(req: NextRequest) {
     const ids = departments.map((d) => d.id)
     const analytics = await loadAnalytics(ids, departments)
     for (const d of departments) d.analytics = analytics.get(d.id) ?? null
+  }
+
+  // Web Review tab (Sean, 2026-10-07): each department's latest audit, so
+  // directors and WCMs see their page and its checks without opening the
+  // department profile. Only v3 audits carry checks and screenshots.
+  if (!isDwt && departments.length) {
+    await Promise.all(departments.map(async (d) => {
+      const { data } = await svc.from('bcps_audit_results')
+        .select('id, department_id, audited_at, page_url, audit_version, overall_score, ada_score, checks, checks_passed, checks_failed, checks_review, screenshots, ada_violations')
+        .eq('department_id', d.id).gte('audit_version', 3)
+        .order('audited_at', { ascending: false }).limit(1).maybeSingle()
+      d.web_review = data ?? null
+    }))
   }
 
   // The caller's own certification progress (WCM status strip). Only
