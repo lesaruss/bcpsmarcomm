@@ -219,20 +219,24 @@ export async function discoverDeptPages(mainUrl: string): Promise<{ url: string;
   const main = norm(mainUrl)
   const pages: { url: string; title: string; isMain: boolean }[] = [{ url: main, title: '', isMain: true }]
   let html = ''
+  let finalUrl = mainUrl
   try {
     const ctl = new AbortController()
     const tm = setTimeout(() => ctl.abort(), 20000)
     const res = await fetch(mainUrl, { signal: ctl.signal, headers: { 'user-agent': 'Mozilla/5.0 (BCPS MarComm department audit)' } })
     clearTimeout(tm)
     html = res.ok ? await res.text() : ''
+    // A stored address can redirect (Early Childhood Education's moved under
+    // /academics/); the site's pages sit under where it lands.
+    if (res.url) finalUrl = res.url
   } catch { html = '' }
   const start = html.indexOf('id="fsBannerLeft"')
   if (start < 0) return pages
   const end = html.indexOf('id="fsPageContent"', start)
   const nav = html.slice(start, end > start ? end : start + 200000)
-  const base = new URL(mainUrl)
-  const prefix = new URL(main).pathname
-  const seen = new Set([main])
+  const base = new URL(finalUrl)
+  const prefix = new URL(norm(finalUrl)).pathname
+  const seen = new Set([main, norm(finalUrl)])
   const re = /<a\s[^>]*href="([^"#]+)"[^>]*>([\s\S]*?)<\/a>/gi
   let m: RegExpExecArray | null
   while ((m = re.exec(nav)) && pages.length < MAX_SITE_PAGES) {
