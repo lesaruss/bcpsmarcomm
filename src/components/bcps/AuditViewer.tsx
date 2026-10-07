@@ -6,7 +6,7 @@
 // Finalsite and which course page teaches it. Modeled on the Banner
 // Submission validation panel (same chip colors).
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { courseHref, type CheckResult, type CheckStatus, type Rect } from '@/lib/dept-standards'
 
 export interface AuditV3 {
@@ -31,7 +31,10 @@ const AREAS = ['Homepage', 'Layout', 'Content', 'Navigation', 'Accessibility'] a
 
 // note replaces the summary line; showCourse=false hides the course links
 // (school audits: the department course is not the schools' standard).
-export default function AuditViewer({ audit, note, showCourse = true }: { audit: AuditV3; note?: React.ReactNode; showCourse?: boolean }) {
+// toolbar sits at the front of the summary bar (the site audit puts the site
+// score and the page picker there); focus opens that check on load, used
+// when the WCM clicks an issue in the site-wide list.
+export default function AuditViewer({ audit, note, showCourse = true, toolbar, focus }: { audit: AuditV3; note?: React.ReactNode; showCourse?: boolean; toolbar?: React.ReactNode; focus?: string | null }) {
   const checks = useMemo(() => (Array.isArray(audit.checks) ? audit.checks : []), [audit.checks])
   const [view, setView] = useState<'desktop' | 'mobile'>('desktop')
   const [active, setActive] = useState<string | null>(null)
@@ -78,12 +81,30 @@ export default function AuditViewer({ audit, note, showCourse = true }: { audit:
     setTimeout(() => rowRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50)
   }
 
+  // Open the focused check once the screenshot has its size, so the page
+  // scrolls to the pin.
+  const focused = useRef<string | null>(null)
+  useEffect(() => {
+    const key = focus ? `${audit.id}:${focus}` : null
+    if (!key || focused.current === key) return
+    const c = checks.find((x) => x.id === focus)
+    if (!c) return
+    const hasPin = c.targets.some((t) => (view === 'desktop' ? t.desktop : t.mobile))
+    if (hasPin && !natural) return
+    focused.current = key
+    if (c.status === 'pass') setFilter('all')
+    showOnPage(c)
+    setTimeout(() => rowRefs.current[c.id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus, audit.id, checks, natural])
+
   const visible = checks.filter((c) => filter === 'all' || c.status !== 'pass')
 
   return (
     <div className="av">
       <style>{CSS}</style>
       <div className="av-summary">
+        {toolbar}
         <div className="av-count"><b>{passed}</b> of {passed + failed} checks pass</div>
         <span className="av-chip" style={{ background: CHIP.fail.bg, color: CHIP.fail.fg }}>{failed} to fix</span>
         <span className="av-chip" style={{ background: CHIP.review.bg, color: CHIP.review.fg }}>{review} to review</span>

@@ -4,7 +4,8 @@ import { deptAccess, identifyCaller } from '@/lib/bcps-audit-auth'
 
 // Full-site audit, read and queue (Sean, 2026-10-07).
 //   GET  ?department_id= | ?school_id=      the site's pages, each with its
-//        latest audit summary, plus queue progress
+//        latest audit summary, every open issue across those pages (each
+//        tagged with its page), plus queue progress
 //   GET  ...&result_id=                     one page's full audit (checks,
 //        screenshots, ADA results) for the viewer
 //   POST { department_id | school_id }      queue a full-site audit (admins)
@@ -54,8 +55,23 @@ export async function GET(req: NextRequest) {
   const list = (pages ?? []).map((p) => ({ ...p, result: latest.get(p.id) ?? (p.is_main ? legacyMain ?? null : null) }))
   if (!list.length && legacyMain) list.push({ id: 'main', url: legacyMain.page_url ?? '', title: null, is_main: true, active: true, result: legacyMain })
   const scored = list.filter((p) => p.result?.overall_score != null)
+
+  // Every red and amber check on every page's latest audit, slimmed to what
+  // the site-wide list shows. The full check loads with the page.
+  const byResult = new Map(list.filter((p) => p.result).map((p) => [p.result!.id, p.id]))
+  const issues: { page_id: string; result_id: string; check_id: string; area: string; title: string; detail: string; status: string }[] = []
+  if (byResult.size) {
+    const { data: checkRows } = await supabase.from('bcps_audit_results').select('id, checks').in('id', Array.from(byResult.keys()))
+    for (const r of checkRows ?? []) {
+      for (const c of (Array.isArray(r.checks) ? r.checks : []) as { id: string; area: string; title: string; detail: string; status: string }[]) {
+        if (c.status === 'pass') continue
+        issues.push({ page_id: byResult.get(r.id)!, result_id: r.id, check_id: c.id, area: c.area, title: c.title, detail: c.detail, status: c.status })
+      }
+    }
+  }
   return NextResponse.json({
     pages: list,
+    issues,
     site_score: scored.length ? Math.round(scored.reduce((n, p) => n + (p.result!.overall_score as number), 0) / scored.length) : null,
     in_progress: (queue ?? []).length,
     can_run: ok.run,
