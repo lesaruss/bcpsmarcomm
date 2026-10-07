@@ -29,7 +29,9 @@ const CHIP: Record<CheckStatus, { label: string; bg: string; fg: string; dot: st
 const ORDER: Record<CheckStatus, number> = { fail: 0, review: 1, pass: 2 }
 const AREAS = ['Homepage', 'Layout', 'Content', 'Navigation', 'Accessibility'] as const
 
-export default function AuditViewer({ audit }: { audit: AuditV3 }) {
+// note replaces the summary line; showCourse=false hides the course links
+// (school audits: the department course is not the schools' standard).
+export default function AuditViewer({ audit, note, showCourse = true }: { audit: AuditV3; note?: React.ReactNode; showCourse?: boolean }) {
   const checks = useMemo(() => (Array.isArray(audit.checks) ? audit.checks : []), [audit.checks])
   const [view, setView] = useState<'desktop' | 'mobile'>('desktop')
   const [active, setActive] = useState<string | null>(null)
@@ -87,7 +89,7 @@ export default function AuditViewer({ audit }: { audit: AuditV3 }) {
         <span className="av-chip" style={{ background: CHIP.review.bg, color: CHIP.review.fg }}>{review} to review</span>
         <span className="av-chip" style={{ background: CHIP.pass.bg, color: CHIP.pass.fg }}>{passed} passed</span>
         <div style={{ flex: 1 }} />
-        <span className="av-note">Every check is a standard from the <a href="/certification/departments">WCM certification course</a>. Amber items need you to look; they do not change your score.</span>
+        <span className="av-note">{note ?? <>Every check is a standard from the <a href="/certification/departments">WCM certification course</a>. Amber items need you to look; they do not change your score.</>}</span>
       </div>
 
       <div className="av-grid">
@@ -166,7 +168,7 @@ export default function AuditViewer({ audit }: { audit: AuditV3 }) {
                           {c.status !== 'pass' && c.steps.length > 0 && (
                             <><div className="av-lbl">{c.status === 'review' ? 'What to check' : 'How to fix it in Finalsite'}</div><ol>{c.steps.map((s, i) => <li key={i}>{s}</li>)}</ol></>
                           )}
-                          <a className="av-course" href={courseHref(c.course)}>Learn it in the course: {c.course.label} &rarr;</a>
+                          {showCourse && <a className="av-course" href={courseHref(c.course)}>Learn it in the course: {c.course.label} &rarr;</a>}
                         </div>
                       )}
                     </div>

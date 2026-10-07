@@ -10,8 +10,8 @@ import DashboardPage from './DashboardPage'
 import { WcmCommunityHub, WcmHubCards, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
 import SharedViewAsButton from '@/components/ViewAsButton'
-import AuditViewer, { type AuditV3 } from '@/components/bcps/AuditViewer'
-import AdaResults from '@/components/bcps/AdaResults'
+import type { AuditV3 } from '@/components/bcps/AuditViewer'
+import SiteAudit from '@/components/bcps/SiteAudit'
 import { SAMPLE_SUPERADMIN_ID, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
 import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
@@ -945,62 +945,28 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
   )
 }
 
-// Run Audit tab (Sean, 2026-10-07): only the audit. The department page with
-// every check pinned (same viewer as the department profile), the re-check
-// button for the department's WCM (the API allows 3 a day), and the full ADA
-// scan from the same run. Directors see it read-only.
-function RunAuditTab({ depts, canRecheck }: { depts: DepartmentSummary[]; canRecheck: boolean }) {
+// Run Audit tab (Sean, 2026-10-07): only the audit, for the whole department
+// site. The page list with scores, the chosen page with every check pinned,
+// and the ADA results from the same run (components/bcps/SiteAudit). The
+// department's WCM can run the audit again on a page; directors read only
+// (the API decides who may run).
+function RunAuditTab({ depts }: { depts: DepartmentSummary[]; canRecheck?: boolean }) {
   const [pick, setPick] = useState(depts[0]?.id ?? '')
-  const [fresh, setFresh] = useState<Record<string, AuditV3>>({})
-  const [running, setRunning] = useState(false)
-  const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null)
   const dept = depts.find((d) => d.id === pick) ?? depts[0]
   if (!dept) return null
-  const audit = fresh[dept.id] ?? dept.web_review ?? null
-
-  const recheck = async () => {
-    setRunning(true); setMsg({ text: 'Checking your page. This takes a minute or two.' })
-    try {
-      const res = await fetch('/api/bcps/run-audit', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify({ department_id: dept.id }) })
-      const json = await res.json()
-      if (!res.ok || json.error) throw new Error(json.error || 'The check did not finish.')
-      setFresh((f) => ({ ...f, [dept.id]: json.result as AuditV3 }))
-      setMsg({ text: 'Done. Your results below are up to date.' })
-    } catch (e) {
-      setMsg({ text: e instanceof Error ? e.message : 'The check did not finish.', bad: true })
-    } finally { setRunning(false) }
-  }
-
   return (
     <div className="home-section">
-      <div className="home-dept home-section" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        {depts.length > 1 ? (
+      {depts.length > 1 && (
+        <div className="home-dept home-section" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
             Department
-            <select value={dept.id} onChange={(e) => { setPick(e.target.value); setMsg(null) }} style={{ font: 'inherit', padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,.15)' }}>
+            <select value={dept.id} onChange={(e) => setPick(e.target.value)} style={{ font: 'inherit', padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,.15)' }}>
               {depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </label>
-        ) : <h3 className="home-card-title" style={{ margin: 0 }}>{dept.name}</h3>}
-        <span className="home-card-text" style={{ margin: 0 }}>
-          {audit ? `Last run ${new Date(audit.audited_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. ` : ''}
-          Each run checks the course standards and the ADA scan together. The District Web Team runs it on the 1st of each month.
-        </span>
-        <div style={{ flex: 1 }} />
-        {canRecheck && dept.website_url && (
-          <button type="button" className="home-btn" disabled={running} onClick={recheck}>{running ? 'Running…' : audit ? 'Run audit again' : 'Run audit'}</button>
-        )}
-      </div>
-      {msg && <p className="home-card-text" role="status" style={{ color: msg.bad ? '#a13a2f' : undefined, fontWeight: 700 }}>{msg.text}</p>}
-      {audit ? (<>
-        <AuditViewer audit={audit} />
-        <AdaResults violations={audit.ada_violations} />
-      </>) : (
-        <div className="home-dept home-section">
-          <h3 className="home-card-title">No audit results yet</h3>
-          <p className="home-card-text">{dept.website_url ? 'Your page has not been audited with the new audit. Results show here after the next monthly run' + (canRecheck ? ', or run it now.' : '.') : 'There is no website address on file for this department. Let the District Web Team know the page to audit.'}</p>
         </div>
       )}
+      <SiteAudit key={dept.id} owner={{ department_id: dept.id }} />
     </div>
   )
 }

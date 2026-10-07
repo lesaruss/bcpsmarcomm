@@ -213,7 +213,7 @@ export async function GET(req: NextRequest) {
   if (!isDwt && departments.length) {
     await Promise.all(departments.map(async (d) => {
       const { data } = await svc.from('bcps_audit_results')
-        .select('id, department_id, audited_at, page_url, audit_version, overall_score, ada_score, checks, checks_passed, checks_failed, checks_review, screenshots, ada_violations')
+        .select('id, department_id, audited_at, page_url, audit_version, overall_score, ada_score, checks_passed, checks_failed, checks_review')
         .eq('department_id', d.id).gte('audit_version', 3)
         .order('audited_at', { ascending: false }).limit(1).maybeSingle()
       d.web_review = data ?? null

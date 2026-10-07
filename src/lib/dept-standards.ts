@@ -482,8 +482,10 @@ export function accessibilityRows(violations: AxeLikeViolation[], inContent: (se
 }
 
 // ── Putting it together ──────────────────────────────────────────────────
-export function runStandards(ctx: StdContext): CheckResult[] {
-  return STANDARD_CHECKS.map((c) => {
+/** homepage=false (a sub-page of the site) leaves out the Homepage-only standards. */
+export function runStandards(ctx: StdContext, opts: { homepage?: boolean } = {}): CheckResult[] {
+  const homepage = opts.homepage ?? true
+  return STANDARD_CHECKS.filter((c) => homepage || c.area !== 'Homepage').map((c) => {
     let r: Pick<CheckResult, 'status' | 'detail' | 'items' | 'targets'>
     try { r = c.run(ctx) } catch (e) { r = { status: 'review', detail: `This check could not run on this page (${e instanceof Error ? e.message : 'error'}); look at it by hand.`, targets: [] } }
     return { id: c.id, area: c.area, title: c.title, why: c.why, steps: c.steps, course: c.course, ...r }
@@ -561,9 +563,18 @@ const keyOf = (tg: CheckTarget) => (tg.ref ? `ref:${tg.ref}` : tg.selector ? `se
  * load lazy images, takes a desktop and a phone screenshot and records where
  * every element sits in each, so pins can be resolved after the checks run.
  */
-export async function capturePage(page: Page, axeSelectors: string[]): Promise<PageCapture> {
+/**
+ * scope 'dept': only #fsPageContent counts as the WCM's (the district
+ * template around it is Finalsite's). scope 'school': everything except the
+ * site header and footer counts, since a school homepage is built from
+ * elements the school's WCM places (Sean, 2026-10-07, Silver Ridge test).
+ */
+export async function capturePage(page: Page, axeSelectors: string[], opts: { scope?: 'dept' | 'school' } = {}): Promise<PageCapture> {
   const facts = await page.evaluate(COLLECT_STANDARDS_SCRIPT) as StdFacts
-  const contentSelectors = new Set(await page.evaluate(`(() => ${JSON.stringify(axeSelectors)}.filter((s) => { try { const el = document.querySelector(s); return !!(el && el.closest('#fsPageContent')) } catch (e) { return false } }))()`) as string[])
+  const ownTest = opts.scope === 'school'
+    ? `!el.closest('#fsHeader, #fsFooter, .fsHeader, .fsFooter, header[role="banner"], footer[role="contentinfo"], body > header, body > footer')`
+    : `!!el.closest('#fsPageContent')`
+  const contentSelectors = new Set(await page.evaluate(`(() => ${JSON.stringify(axeSelectors)}.filter((s) => { try { const el = document.querySelector(s); return !!(el && ${ownTest}) } catch (e) { return false } }))()`) as string[])
   const refKeys = (() => {
     const s = new Set<string>()
     const add = (r?: string) => r && s.add(`ref:${r}`)
