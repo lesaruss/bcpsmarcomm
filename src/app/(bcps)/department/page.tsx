@@ -165,7 +165,8 @@ function DepartmentContent() {
   const [toast, setToast] = useState<{ msg: string; type?: string } | null>(null)
   const [expandedIssues, setExpandedIssues] = useState<Set<number>>(new Set())
   const [expandedAda, setExpandedAda] = useState<Set<number>>(new Set())
-  const [activeTab, setActiveTab] = useState<'audit' | 'ada' | 'analytics'>('audit')
+  // Sean, 2026-10-07: Overview (analytics + contact + history) | Web Review | ADA Accessibility.
+  const [activeTab, setActiveTab] = useState<'overview' | 'review' | 'ada'>('overview')
   const [adaScope, setAdaScope] = useState<'wcm' | 'finalsite'>('wcm')
 
   // Analytics period state
@@ -305,6 +306,9 @@ function DepartmentContent() {
   // back to the original hardcoded list.
   const isV2 = (a?.audit_version ?? 1) >= 2
   const isV3 = (a?.audit_version ?? 1) >= 3
+  const v3Checks = (isV3 && Array.isArray(a?.checks) ? a!.checks : []) as { area: string; status: string }[]
+  const v3Std = (() => { const std = v3Checks.filter((c) => c.area !== 'Accessibility'); const p = std.filter((c) => c.status === 'pass').length, f = std.filter((c) => c.status === 'fail').length; return { score: p + f ? Math.round((p / (p + f)) * 100) : null, failed: f, review: std.filter((c) => c.status === 'review').length } })()
+  const v3A11yFail = v3Checks.filter((c) => c.area === 'Accessibility' && c.status === 'fail').length
   const isDeptWcm = !!dept.wcm_email && !!myEmail && dept.wcm_email.trim().toLowerCase() === myEmail
   const canRun = isAdmin || isDeptWcm
   const wcmOwned = (v: AdaItem) => v.owner ? v.owner !== 'finalsite' : WCM_FIXABLE_IDS.has(v.id)
@@ -551,7 +555,6 @@ function DepartmentContent() {
           </div>
         )}
 
-        {isV3 && a ? <AuditViewer audit={a as unknown as AuditV3} /> : (<>
         {/* SCORES */}
         <div className="scores-row">
           <div className="score-card overall">
@@ -559,7 +562,12 @@ function DepartmentContent() {
             <div className="score-ring-wrap" dangerouslySetInnerHTML={{__html: buildScoreRing(overallScore) + `<div class="score-ring-num${overallScore==null?' na':''}">${overallScore!=null?overallScore:'N/A'}</div>`}} />
             <div style={{fontSize:10,fontWeight:700,color:'var(--lr-text-50)'}}>{a ? statusLabel(a.status) : 'Not audited'}</div>
           </div>
-          {isV2 ? (<>
+          {isV3 ? (<>
+            <div dangerouslySetInnerHTML={{__html: renderCatScore('Web Review', v3Std.score, `${v3Std.failed} to fix, ${v3Std.review} to review`)}} />
+            <div dangerouslySetInnerHTML={{__html: renderCatScore('Accessibility', a?.ada_score??null, v3A11yFail > 0 ? `${v3A11yFail} for you to fix` : null)}} />
+            <div className="score-card"><div className="score-card-label">To Fix</div><div className="cat-score-num red" style={{fontSize:30}}>{a?.checks_failed ?? 0}</div><div className="cat-score-checks">red checks across the page</div></div>
+            <div className="score-card"><div className="score-card-label">To Review</div><div className="cat-score-num yellow" style={{fontSize:30}}>{a?.checks_review ?? 0}</div><div className="cat-score-checks">need a person to look</div></div>
+          </>) : isV2 ? (<>
             <div dangerouslySetInnerHTML={{__html: renderCatScore('Marketing', a?.marketing_score??null, a ? (issues.filter(i=>i.category==='marketing'&&!i.passed).length + ' of ' + issues.filter(i=>i.category==='marketing').length + ' checks to fix') : null)}} />
             <div dangerouslySetInnerHTML={{__html: renderCatScore('Accessibility', a?.ada_score??null, adaWcmItems.length > 0 ? `${adaWcmItems.length} for you to fix` : null)}} />
             <a href="/playbooks/wcm-department/score-100-checklist" className="score-card" style={{textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',justifyContent:'center',gap:6}}>
@@ -585,161 +593,28 @@ function DepartmentContent() {
           ))}
         </div>
 
-        </>)}
+        {/* TABS (Sean, 2026-10-07): each section gets the full width instead of one long scroll */}
+        <div className="panel" style={{marginBottom:16}}>
+          <div className="dept-tab-bar" style={{borderBottom:'none'}} role="tablist">
+            <button role="tab" aria-selected={activeTab==='overview'} className={`dept-tab${activeTab==='overview'?' active':''}`} onClick={() => setActiveTab('overview')}>Overview</button>
+            <button role="tab" aria-selected={activeTab==='review'} className={`dept-tab${activeTab==='review'?' active':''}`} onClick={() => setActiveTab('review')}>
+              Web Review
+              {a && (isV3 ? (a.checks_failed ?? 0) : failedCount) > 0 && <span className="dept-tab-badge">{isV3 ? a.checks_failed : failedCount}</span>}
+            </button>
+            <button role="tab" aria-selected={activeTab==='ada'} className={`dept-tab${activeTab==='ada'?' active':''}`} onClick={() => setActiveTab('ada')}>
+              ADA Accessibility
+              {a && (adaCritical+adaSerious) > 0 && <span className="dept-tab-badge">{adaCritical+adaSerious}</span>}
+            </button>
+          </div>
+        </div>
 
-        {/* CONTENT COLS */}
+        {activeTab === 'overview' && (
         <div className="content-cols">
           <div>
-            {/* TABBED PANEL */}
             <div className="panel">
-              {/* Tab bar */}
-              <div className="dept-tab-bar">
-                {!isV3 && <>
-                <button className={`dept-tab${activeTab==='audit'?' active':''}`} onClick={() => setActiveTab('audit')}>
-                  Audit Issues
-                  {a && failedCount > 0 && <span className="dept-tab-badge">{failedCount}</span>}
-                </button>
-                <button className={`dept-tab${activeTab==='ada'?' active':''}`} onClick={() => setActiveTab('ada')}>
-                  ADA Accessibility
-                  {a && (adaCritical+adaSerious) > 0 && <span className="dept-tab-badge">{adaCritical+adaSerious}</span>}
-                </button>
-                </>}
-                <button className={`dept-tab${activeTab==='analytics'||isV3?' active':''}`} onClick={() => setActiveTab('analytics')}>
-                  Analytics
-                </button>
-              </div>
-
-              {/* AUDIT ISSUES TAB */}
-              {activeTab === 'audit' && !isV3 && (
-                <div className="panel-body">
-                  {a && issues.length > 0 ? (
-                    <>
-                      <div className="cat-tabs">
-                        {cats.map(c => (
-                          <button key={c} className={`cat-tab${activeCat===c?' active':''}`} onClick={() => setActiveCat(c)}>
-                            {c === 'all' ? 'All' : catLabel(c)}
-                          </button>
-                        ))}
-                      </div>
-                      <div style={{fontSize:10,color:'var(--lr-text-50)',marginBottom:12,fontWeight:600}}>
-                        {failedCount} issue{failedCount!==1?'s':''} of {visibleIssues.length} checks
-                      </div>
-                      {/* Per Sean, Hot Lab 2026-07-28: the audit issue detail
-                          view never said which page an issue was on. Phase 1
-                          only ever audits the department's one website_url
-                          (no multi-page crawl exists yet), so every finding
-                          below applies to this exact page - state that
-                          plainly instead of leaving it implicit.
-                          2026-09-23: the row now shows the audit's own
-                          page_url (see pageAuditedRow), not website_url. */}
-                      {pageAuditedRow}
-                      <div className="issue-list">
-                        {visibleIssues.map((issue, idx) => {
-                          const hasSteps = !issue.passed && (issue.fix_instructions?.length ?? 0) > 0
-                          const expanded = expandedIssues.has(idx)
-                          return (
-                            <div key={idx} className={`issue-card ${issue.passed?'passed':'failed'} severity-${(issue.severity||'medium').toLowerCase()}`}>
-                              <div className="issue-card-header" onClick={() => hasSteps && setExpandedIssues(prev => { const n=new Set(prev); n.has(idx)?n.delete(idx):n.add(idx); return n })}>
-                                <span className={`issue-check-icon ${issue.passed?'pass':'fail'}`}>
-                                  {issue.passed
-                                    ? <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                                    : <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
-                                </span>
-                                <div className="issue-body">
-                                  <div className="issue-label">{issue.label}</div>
-                                  {issue.detail && <div className="issue-detail">{issue.detail}</div>}
-                                </div>
-                                {!issue.passed && <span className={`issue-sev ${(issue.severity||'medium').toLowerCase()}`}>{issue.severity||'medium'}</span>}
-                                {hasSteps && <button className={`issue-expand-btn${expanded?' open':''}`} type="button" onClick={e => { e.stopPropagation(); setExpandedIssues(prev => { const n=new Set(prev); n.has(idx)?n.delete(idx):n.add(idx); return n }) }}><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>}
-                              </div>
-                              {hasSteps && expanded && (
-                                <div className="issue-fix">
-                                  <div className="issue-fix-label">How to Fix in Finalsite</div>
-                                  <ol className="issue-fix-steps">
-                                    {(issue.fix_instructions||[]).map((s,i) => (
-                                      <li key={i}><span className="issue-fix-step-num">{i+1}</span><span className="issue-fix-step-text">{s}</span></li>
-                                    ))}
-                                  </ol>
-                                  {issue.id && <a href={`/playbooks/wcm-department/score-100-checklist#${issue.id}`} style={{display:'inline-block',marginTop:8,fontSize:12,fontWeight:700,color:'#1672A7'}}>Why this matters, in the Score 100 Checklist &rarr;</a>}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </>
-                  ) : a ? (
-                    <div className="empty-state"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><div className="empty-state-title">No issues found</div><div className="empty-state-text">All checks passed.</div></div>
-                  ) : (
-                    <div className="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><div className="empty-state-title">No audit data</div><div className="empty-state-text">Run an audit to see each check with the steps to fix it in Finalsite.</div></div>
-                  )}
-                </div>
-              )}
-
-              {/* ADA ACCESSIBILITY TAB */}
-              {activeTab === 'ada' && !isV3 && (
-                <div className="panel-body">
-                  {pageAuditedRow}
-                  {adaSorted.length > 0 ? (
-                    <>
-                      <div className="ada-scope-row">
-                        <span className="ada-scope-label">{adaScoped.length} violation{adaScoped.length!==1?'s':''}</span>
-                        <div className="ada-scope-toggle">
-                          <button className={`ada-scope-btn ${adaScope==='wcm'?'active':'inactive'}`} onClick={() => setAdaScope('wcm')}>
-                            WCM Can Fix
-                          </button>
-                          <button className={`ada-scope-btn ${adaScope==='finalsite'?'active':'inactive'}`} onClick={() => setAdaScope('finalsite')}>
-                            Finalsite Fix
-                          </button>
-                        </div>
-                      </div>
-                      {adaScope === 'wcm' ? (
-                        <div className="ada-scope-note">These items can be resolved directly in Finalsite PageBuilder without a ticket to the web team.</div>
-                      ) : (
-                        <div className="ada-scope-note">These items require a WCM ticket to the Finalsite web team for a template-level or system-level fix.</div>
-                      )}
-                      {adaScoped.length > 0 ? (
-                        <div className="ada-violations-list">
-                          {adaScoped.map((v, idx) => (
-                            <div key={idx} className="ada-violation-card">
-                              <div className="ada-violation-header" onClick={() => setExpandedAda(prev => { const n=new Set(prev); n.has(idx)?n.delete(idx):n.add(idx); return n })}>
-                                <span className={`ada-violation-impact ${v.impact||'moderate'}`}>{v.impact||'moderate'}</span>
-                                <span className="ada-violation-id">{lookupAxeEntry(v.id)?.title ?? v.id}</span>
-                                <span className="ada-violation-nodes">{v.nodes||1} element{(v.nodes||1)!==1?'s':''}</span>
-                              </div>
-                              {expandedAda.has(idx) && (
-                                <div className="ada-violation-detail">
-                                  {v.description && <div className="ada-violation-desc">{v.description}</div>}
-                                  {v.fix_instructions ? <><div className="ada-violation-fix-label">How to Fix</div><div className="ada-violation-fix">{v.fix_instructions}</div></> : (() => {
-                                    const g = lookupAxeEntry(v.id)
-                                    if (!g) return null
-                                    if (wcmOwned(v) && g.fixSteps?.length) return <><div className="ada-violation-fix-label">How to Fix</div><ol className="ada-violation-fix" style={{paddingLeft:18,margin:0}}>{g.fixSteps.map((st,i) => <li key={i}>{st}</li>)}</ol></>
-                                    return g.escalationNote ? <><div className="ada-violation-fix-label">Who Fixes This</div><div className="ada-violation-fix">{g.escalationNote}</div></> : null
-                                  })()}
-                                  {v.helpUrl && <a className="ada-violation-link" href={v.helpUrl} target="_blank" rel="noopener">More info <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="empty-state" style={{padding:'20px 0'}}>
-                          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                          <div className="empty-state-title">No {adaScope === 'wcm' ? 'WCM-fixable' : 'Finalsite-level'} violations</div>
-                          <div className="empty-state-text">{adaScope === 'wcm' ? 'Switch to "Finalsite Fix" to see template-level items.' : 'Switch to "WCM Can Fix" to see PageBuilder-fixable items.'}</div>
-                        </div>
-                      )}
-                    </>
-                  ) : a ? (
-                    <div className="empty-state"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><div className="empty-state-title">No ADA violations found</div><div className="empty-state-text">Passed axe-core WCAG 2.1 AA scan.</div></div>
-                  ) : (
-                    <div className="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><div className="empty-state-title">No ADA scan data</div><div className="empty-state-text">Run an audit to see WCAG 2.1 AA violations with remediation steps.</div></div>
-                  )}
-                </div>
-              )}
-
+              <div className="panel-header"><span className="panel-title">Analytics</span></div>
               {/* ANALYTICS TAB */}
-              {(activeTab === 'analytics' || isV3) && (
+              {(
                 <div className="panel-body">
                   <div className="analytics-header" style={{marginBottom:12}}>
                     <span className="analytics-sync-info">{cur?.synced_at ? `GA4 data - synced ${new Date(cur.synced_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}` : 'Synced from GA4 - 1st of each month'}</span>
@@ -918,6 +793,146 @@ function DepartmentContent() {
             </div>
           </div>
         </div>
+        )}
+
+        {activeTab === 'review' && (isV3 && a ? <AuditViewer audit={a as unknown as AuditV3} /> : (
+          <div className="panel">
+              {/* AUDIT ISSUES TAB */}
+              {(
+                <div className="panel-body">
+                  {a && issues.length > 0 ? (
+                    <>
+                      <div className="cat-tabs">
+                        {cats.map(c => (
+                          <button key={c} className={`cat-tab${activeCat===c?' active':''}`} onClick={() => setActiveCat(c)}>
+                            {c === 'all' ? 'All' : catLabel(c)}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{fontSize:10,color:'var(--lr-text-50)',marginBottom:12,fontWeight:600}}>
+                        {failedCount} issue{failedCount!==1?'s':''} of {visibleIssues.length} checks
+                      </div>
+                      {/* Per Sean, Hot Lab 2026-07-28: the audit issue detail
+                          view never said which page an issue was on. Phase 1
+                          only ever audits the department's one website_url
+                          (no multi-page crawl exists yet), so every finding
+                          below applies to this exact page - state that
+                          plainly instead of leaving it implicit.
+                          2026-09-23: the row now shows the audit's own
+                          page_url (see pageAuditedRow), not website_url. */}
+                      {pageAuditedRow}
+                      <div className="issue-list">
+                        {visibleIssues.map((issue, idx) => {
+                          const hasSteps = !issue.passed && (issue.fix_instructions?.length ?? 0) > 0
+                          const expanded = expandedIssues.has(idx)
+                          return (
+                            <div key={idx} className={`issue-card ${issue.passed?'passed':'failed'} severity-${(issue.severity||'medium').toLowerCase()}`}>
+                              <div className="issue-card-header" onClick={() => hasSteps && setExpandedIssues(prev => { const n=new Set(prev); n.has(idx)?n.delete(idx):n.add(idx); return n })}>
+                                <span className={`issue-check-icon ${issue.passed?'pass':'fail'}`}>
+                                  {issue.passed
+                                    ? <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                                    : <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                                </span>
+                                <div className="issue-body">
+                                  <div className="issue-label">{issue.label}</div>
+                                  {issue.detail && <div className="issue-detail">{issue.detail}</div>}
+                                </div>
+                                {!issue.passed && <span className={`issue-sev ${(issue.severity||'medium').toLowerCase()}`}>{issue.severity||'medium'}</span>}
+                                {hasSteps && <button className={`issue-expand-btn${expanded?' open':''}`} type="button" onClick={e => { e.stopPropagation(); setExpandedIssues(prev => { const n=new Set(prev); n.has(idx)?n.delete(idx):n.add(idx); return n }) }}><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>}
+                              </div>
+                              {hasSteps && expanded && (
+                                <div className="issue-fix">
+                                  <div className="issue-fix-label">How to Fix in Finalsite</div>
+                                  <ol className="issue-fix-steps">
+                                    {(issue.fix_instructions||[]).map((s,i) => (
+                                      <li key={i}><span className="issue-fix-step-num">{i+1}</span><span className="issue-fix-step-text">{s}</span></li>
+                                    ))}
+                                  </ol>
+                                  {issue.id && <a href={`/playbooks/wcm-department/score-100-checklist#${issue.id}`} style={{display:'inline-block',marginTop:8,fontSize:12,fontWeight:700,color:'#1672A7'}}>Why this matters, in the Score 100 Checklist &rarr;</a>}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </>
+                  ) : a ? (
+                    <div className="empty-state"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><div className="empty-state-title">No issues found</div><div className="empty-state-text">All checks passed.</div></div>
+                  ) : (
+                    <div className="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><div className="empty-state-title">No audit data</div><div className="empty-state-text">Run an audit to see each check with the steps to fix it in Finalsite.</div></div>
+                  )}
+                </div>
+              )}
+
+          </div>
+        ))}
+
+        {activeTab === 'ada' && (
+          <div className="panel">
+              {/* ADA ACCESSIBILITY TAB */}
+              {(
+                <div className="panel-body">
+                  {pageAuditedRow}
+                  {adaSorted.length > 0 ? (
+                    <>
+                      <div className="ada-scope-row">
+                        <span className="ada-scope-label">{adaScoped.length} violation{adaScoped.length!==1?'s':''}</span>
+                        <div className="ada-scope-toggle">
+                          <button className={`ada-scope-btn ${adaScope==='wcm'?'active':'inactive'}`} onClick={() => setAdaScope('wcm')}>
+                            WCM Can Fix
+                          </button>
+                          <button className={`ada-scope-btn ${adaScope==='finalsite'?'active':'inactive'}`} onClick={() => setAdaScope('finalsite')}>
+                            Finalsite Fix
+                          </button>
+                        </div>
+                      </div>
+                      {adaScope === 'wcm' ? (
+                        <div className="ada-scope-note">These items can be resolved directly in Finalsite PageBuilder without a ticket to the web team.</div>
+                      ) : (
+                        <div className="ada-scope-note">These items require a WCM ticket to the Finalsite web team for a template-level or system-level fix.</div>
+                      )}
+                      {adaScoped.length > 0 ? (
+                        <div className="ada-violations-list">
+                          {adaScoped.map((v, idx) => (
+                            <div key={idx} className="ada-violation-card">
+                              <div className="ada-violation-header" onClick={() => setExpandedAda(prev => { const n=new Set(prev); n.has(idx)?n.delete(idx):n.add(idx); return n })}>
+                                <span className={`ada-violation-impact ${v.impact||'moderate'}`}>{v.impact||'moderate'}</span>
+                                <span className="ada-violation-id">{lookupAxeEntry(v.id)?.title ?? v.id}</span>
+                                <span className="ada-violation-nodes">{v.nodes||1} element{(v.nodes||1)!==1?'s':''}</span>
+                              </div>
+                              {expandedAda.has(idx) && (
+                                <div className="ada-violation-detail">
+                                  {v.description && <div className="ada-violation-desc">{v.description}</div>}
+                                  {v.fix_instructions ? <><div className="ada-violation-fix-label">How to Fix</div><div className="ada-violation-fix">{v.fix_instructions}</div></> : (() => {
+                                    const g = lookupAxeEntry(v.id)
+                                    if (!g) return null
+                                    if (wcmOwned(v) && g.fixSteps?.length) return <><div className="ada-violation-fix-label">How to Fix</div><ol className="ada-violation-fix" style={{paddingLeft:18,margin:0}}>{g.fixSteps.map((st,i) => <li key={i}>{st}</li>)}</ol></>
+                                    return g.escalationNote ? <><div className="ada-violation-fix-label">Who Fixes This</div><div className="ada-violation-fix">{g.escalationNote}</div></> : null
+                                  })()}
+                                  {v.helpUrl && <a className="ada-violation-link" href={v.helpUrl} target="_blank" rel="noopener">More info <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="empty-state" style={{padding:'20px 0'}}>
+                          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                          <div className="empty-state-title">No {adaScope === 'wcm' ? 'WCM-fixable' : 'Finalsite-level'} violations</div>
+                          <div className="empty-state-text">{adaScope === 'wcm' ? 'Switch to "Finalsite Fix" to see template-level items.' : 'Switch to "WCM Can Fix" to see PageBuilder-fixable items.'}</div>
+                        </div>
+                      )}
+                    </>
+                  ) : a ? (
+                    <div className="empty-state"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><div className="empty-state-title">No ADA violations found</div><div className="empty-state-text">Passed axe-core WCAG 2.1 AA scan.</div></div>
+                  ) : (
+                    <div className="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><div className="empty-state-title">No ADA scan data</div><div className="empty-state-text">Run an audit to see WCAG 2.1 AA violations with remediation steps.</div></div>
+                  )}
+                </div>
+              )}
+
+          </div>
+        )}
 
       </div>
 

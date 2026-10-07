@@ -10,6 +10,7 @@ import DashboardPage from './DashboardPage'
 import { WcmCommunityHub, WcmHubCards, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
 import SharedViewAsButton from '@/components/ViewAsButton'
+import AuditViewer, { type AuditV3 } from '@/components/bcps/AuditViewer'
 import { SAMPLE_SUPERADMIN_ID, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
 import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
@@ -129,6 +130,7 @@ interface DepartmentSummary {
   findings_fixed: number
   wcms: WcmStatus[]
   analytics?: DepartmentAnalytics | null
+  web_review?: AuditV3 | null
 }
 
 interface WidgetItem { slug: string; title: string; description: string | null; preview_path: string | null; can_edit?: boolean }
@@ -520,7 +522,7 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
 
   const tabs: { id: DirectorTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
-    { id: 'review', label: 'Website Review' },
+    { id: 'review', label: 'Web Review' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'notes', label: 'Meeting Notes' },
     ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets' as DirectorTab, label: 'Widgets' }] : []),
@@ -577,7 +579,7 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
           </div>
         </>
       )}
-      {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} />}
+      {tab === 'review' && <WebReviewTab depts={led} canRecheck={false} process={<ReviewTab led={led} myWindow={myWindow} />} />}
       {tab === 'analytics' && <AnalyticsTab led={led} />}
       {tab === 'notes' && <NotesTab notes={data.director_notes ?? []} led={led} />}
       {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
@@ -838,7 +840,9 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 // showroom. Maintain was dropped, Build Kit became Widgets, WCMs got the
 // director's Website Review tab, and Learn folded into Tools & Resources
 // (its Hot Labs tile and knowledge base) (Sean, Oct 6).
-type WcmTab = 'overview' | 'dept' | 'review' | 'widgets' | 'tools'
+// Oct 7: My Department folded into Web Review, which now opens on the
+// department page itself with every audit check pinned on it (Sean).
+type WcmTab = 'overview' | 'review' | 'widgets' | 'tools'
 
 function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
   const [tab, setTab] = useState<WcmTab>('overview')
@@ -851,8 +855,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
   const name = firstName(data)
   const tabs: { id: WcmTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
-    ...(mine.length ? [{ id: 'dept' as WcmTab, label: mine.length > 1 ? 'My Departments' : 'My Department' }] : []),
-    ...(mine.length ? [{ id: 'review' as WcmTab, label: 'Website Review' }] : []),
+    ...(mine.length ? [{ id: 'review' as WcmTab, label: 'Web Review' }] : []),
     { id: 'widgets', label: 'Widgets' },
     { id: 'tools', label: 'Tools & Resources' },
   ]
@@ -890,7 +893,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
             value={open ? `${open} open` : open + fixed ? 'All fixed' : 'None yet'}
             note={open + fixed ? `${fixed} already fixed` : 'Your audit items will show here'}
             tone={open ? 'warn' : undefined}
-            link={{ label: mine.length > 1 ? 'My Departments' : 'My Department', onClick: () => setTab('dept') }}
+            link={{ label: 'Open Web Review', onClick: () => setTab('review') }}
           />
         )}
         <StatTile label="Next Hot Lab" value={hotLabLive() ? 'Live now' : nextHotLab()} note="Tuesdays and Thursdays, 11:30 AM"
@@ -913,8 +916,8 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
               {mine.length > 0 && (
                 <li>
                   <b>Work through your audit</b>
-                  <span>The rest of your steps are on the {mine.length > 1 ? 'My Departments' : 'My Department'} tab.</span>
-                  <button type="button" className="home-link-btn" onClick={() => setTab('dept')}>Go to {mine.length > 1 ? 'My Departments' : 'My Department'}</button>
+                  <span>Web Review shows your page with every check pinned on it: green passes, red needs a fix, amber needs you to look.</span>
+                  <button type="button" className="home-link-btn" onClick={() => setTab('review')}>Go to Web Review</button>
                 </li>
               )}
             </ol>
@@ -925,62 +928,70 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
           </div>
         </>
       )}
-      {tab === 'dept' && mine.map((d) => <WcmDepartmentTab key={d.id} dept={d} />)}
       {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
-      {tab === 'review' && <ReviewTab led={mine} myWindow={primaryWindow(mine)} />}
+      {tab === 'review' && <WebReviewTab depts={mine} canRecheck process={<ReviewTab led={mine} myWindow={primaryWindow(mine)} />} />}
       {tab === 'tools' && <ToolsPanel kind="wcm" onNavigate={onNavigate} kb={data.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
     </div>
   )
 }
 
-// One department on the WCM's My Department tab: what the audit found, how
-// many people use the site, when it is reviewed, then the audit steps.
-function WcmDepartmentTab({ dept }: { dept: DepartmentSummary }) {
-  const s = dept.audit_status || 'not_started'
-  const w = windowForDivision(dept.division)
-  const total = dept.findings_open + dept.findings_fixed
-  const a = dept.analytics
-  const steps: { title: string; body: string; done: boolean; href?: string; cta?: string }[] = [
-    { title: 'Fix what the audit found', body: total ? `${dept.findings_open} item${dept.findings_open === 1 ? '' : 's'} to fix, ${dept.findings_fixed} fixed. Mark each one as you fix it.` : 'When the District Web Team audits your site, each item to fix is listed in your audit.', done: ['wcm_submitted', 'admin_review', 'complete'].includes(s), href: '/wcm-portal', cta: 'Open my audit' },
-    { title: 'Submit for review', body: 'When every item is fixed, submit your audit. The District Web Team checks the fixes.', done: ['wcm_submitted', 'admin_review', 'complete'].includes(s), href: '/wcm-portal', cta: 'Submit in my audit' },
-    { title: 'Bring your director to the review', body: w ? `${dept.division} is in ${w.label}, ${formatWindowRange(w)}. Your director books the one-hour meeting.` : 'Your director books the one-hour review meeting with the District Web Team.', done: s === 'complete' },
-  ]
-  const current = steps.findIndex((x) => !x.done)
+// Web Review tab (Sean, 2026-10-07): the department's latest audit, the
+// same viewer as the department profile, right on the dashboard. A WCM can
+// re-check after fixing something (the API allows the department's own WCM,
+// 3 a day); directors see it read-only. The review process sits below.
+function WebReviewTab({ depts, canRecheck, process }: { depts: DepartmentSummary[]; canRecheck: boolean; process: React.ReactNode }) {
+  const [pick, setPick] = useState(depts[0]?.id ?? '')
+  const [fresh, setFresh] = useState<Record<string, AuditV3>>({})
+  const [running, setRunning] = useState(false)
+  const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null)
+  const dept = depts.find((d) => d.id === pick) ?? depts[0]
+  if (!dept) return <>{process}</>
+  const audit = fresh[dept.id] ?? dept.web_review ?? null
+
+  const recheck = async () => {
+    setRunning(true); setMsg({ text: 'Checking your page. This takes a minute or two.' })
+    try {
+      const res = await fetch('/api/bcps/run-audit', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify({ department_id: dept.id }) })
+      const json = await res.json()
+      if (!res.ok || json.error) throw new Error(json.error || 'The check did not finish.')
+      setFresh((f) => ({ ...f, [dept.id]: json.result as AuditV3 }))
+      setMsg({ text: 'Done. Your results below are up to date.' })
+    } catch (e) {
+      setMsg({ text: e instanceof Error ? e.message : 'The check did not finish.', bad: true })
+    } finally { setRunning(false) }
+  }
+
   return (
     <div className="home-section">
-      <p className="wcm-hub2-intro">{dept.name}: what the audit found, how many people use the site, and when it is reviewed.</p>
-      <div className="home-dept-grid home-section">
-        <div className="home-dept">
-          <div className="home-dept-head"><h3>Audit items</h3><span className="home-chip">{AUDIT_LABELS[s] || s}</span></div>
-          <p className="home-card-text">{total ? `${dept.findings_open} open, ${dept.findings_fixed} fixed. Mark each one fixed in your audit; the District Web Team reviews it.` : 'No audit items yet. They show here once your site is audited.'}</p>
-          <a className="home-btn" href="/wcm-portal">Open my audit</a>
-        </div>
-        <div className="home-dept">
-          <h3 className="home-card-title">{a ? `${monthLabel(a.period).split(' ')[0]} visitors` : 'Visitors'}</h3>
-          {a ? (
-            <div className="home-kpis">
-              <div className="home-kpi"><b>{fmtNum(a.visitors)}</b><span>Visitors</span></div>
-              {a.engaged_pct !== null && <div className="home-kpi"><b>{a.engaged_pct}%</b><span>Engaged visits</span></div>}
-            </div>
-          ) : <p className="home-card-text">Visitor numbers for your pages are not connected yet.</p>}
-        </div>
-        <div className="home-dept">
-          <h3 className="home-card-title">Your review</h3>
-          <p className="home-card-text">{w ? `${w.label}, ${formatWindowRange(w)}. Complete the page checklist first, then bring your director to the one-hour meeting.` : 'Complete the page checklist first, then bring your director to the one-hour meeting.'}</p>
-        </div>
+      <div className="home-dept home-section" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        {depts.length > 1 ? (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+            Department
+            <select value={dept.id} onChange={(e) => { setPick(e.target.value); setMsg(null) }} style={{ font: 'inherit', padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,.15)' }}>
+              {depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </label>
+        ) : <h3 className="home-card-title" style={{ margin: 0 }}>{dept.name}</h3>}
+        <span className="home-card-text" style={{ margin: 0 }}>
+          {audit ? `Checked ${new Date(audit.audited_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. ` : ''}
+          The District Web Team runs this check on the 1st of each month.
+        </span>
+        <div style={{ flex: 1 }} />
+        {canRecheck && dept.website_url && (
+          <button type="button" className="home-btn" disabled={running} onClick={recheck}>{running ? 'Checking…' : audit ? 'Re-check my page' : 'Check my page'}</button>
+        )}
       </div>
-      <div className="home-dept">
-        <h3 className="home-card-title">Your audit, step by step</h3>
-        <ol className="home-wsteps">
-          {steps.map((x, i) => (
-            <li key={x.title} className={x.done ? 'done' : i === current ? 'now' : undefined}>
-              <b>{x.title}</b>
-              <span>{x.body}</span>
-              {i === current && x.href && <a className="wcm-hub2-card-btn" href={x.href}>{x.cta}</a>}
-            </li>
-          ))}
-        </ol>
-      </div>
+      {msg && <p className="home-card-text" role="status" style={{ color: msg.bad ? '#a13a2f' : undefined, fontWeight: 700 }}>{msg.text}</p>}
+      {audit ? <AuditViewer audit={audit} /> : (
+        <div className="home-dept home-section">
+          <h3 className="home-card-title">No web review yet</h3>
+          <p className="home-card-text">{dept.website_url ? 'Your page has not been checked with the new web review. Results show here after the next monthly check' + (canRecheck ? ', or check it now.' : '.') : 'There is no website address on file for this department. Let the District Web Team know the page to check.'}</p>
+        </div>
+      )}
+      <details className="home-dept home-section">
+        <summary style={{ cursor: 'pointer', fontWeight: 800 }}>How the website review works, and your review window</summary>
+        <div style={{ marginTop: 12 }}>{process}</div>
+      </details>
     </div>
   )
 }
