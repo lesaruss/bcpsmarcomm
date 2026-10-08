@@ -33,8 +33,12 @@ const AREAS = ['Homepage', 'Layout', 'Content', 'Navigation', 'Accessibility'] a
 // (school audits: the department course is not the schools' standard).
 // toolbar sits at the front of the summary bar (the site audit puts the site
 // score and the page picker there); focus opens that check on load, used
-// when the WCM clicks an issue in the site-wide list.
-export default function AuditViewer({ audit, note, showCourse = true, toolbar, focus }: { audit: AuditV3; note?: React.ReactNode; showCourse?: boolean; toolbar?: React.ReactNode; focus?: string | null }) {
+// when the WCM steps to an issue in the site audit; extra renders at the
+// foot of an open item (the site audit puts Ask a question there).
+// Every item is tagged Audit (a course standard) or ADA (WCAG scan); ADA
+// items in the site header, menus and footer are Finalsite's and are not
+// shown here at all (Sean, 2026-10-08).
+export default function AuditViewer({ audit, note, showCourse = true, toolbar, focus, extra }: { audit: AuditV3; note?: React.ReactNode; showCourse?: boolean; toolbar?: React.ReactNode; focus?: string | null; extra?: (c: CheckResult) => React.ReactNode }) {
   const checks = useMemo(() => (Array.isArray(audit.checks) ? audit.checks : []), [audit.checks])
   const [view, setView] = useState<'desktop' | 'mobile'>('desktop')
   const [active, setActive] = useState<string | null>(null)
@@ -56,7 +60,6 @@ export default function AuditViewer({ audit, note, showCourse = true, toolbar, f
   const passed = audit.checks_passed ?? checks.filter((c) => c.status === 'pass').length
   const failed = audit.checks_failed ?? checks.filter((c) => c.status === 'fail').length
   const review = audit.checks_review ?? checks.filter((c) => c.status === 'review').length
-  const finalsiteCount = Array.isArray(audit.ada_violations) ? (audit.ada_violations as { owner?: string }[]).filter((v) => v.owner === 'finalsite').length : 0
 
   const shot = audit.screenshots?.[view] ?? null
   const rectOf = (r?: Rect | null) => r && natural ? { left: `${(r.x / natural.w) * 100}%`, top: `${(r.y / natural.h) * 100}%`, width: `${(r.w / natural.w) * 100}%`, height: `${(r.h / natural.h) * 100}%` } : null
@@ -165,7 +168,7 @@ export default function AuditViewer({ audit, note, showCourse = true, toolbar, f
             if (!rows.length) return null
             return (
               <div key={area} className="av-area">
-                <div className="av-area-h">{area}</div>
+                <div className="av-area-h">{area === 'Accessibility' ? 'ADA (accessibility scan)' : area}</div>
                 {rows.map((c) => {
                   const chip = CHIP[c.status]
                   const open = active === c.id
@@ -175,7 +178,7 @@ export default function AuditViewer({ audit, note, showCourse = true, toolbar, f
                       <button type="button" className="av-row-head" onClick={() => pick(c)} aria-expanded={open}>
                         <span className="av-num" style={{ background: num ? chip.dot : 'transparent', color: num ? '#fff' : chip.dot, border: num ? 'none' : `2px solid ${chip.dot}` }}>{num ?? (c.status === 'pass' ? '✓' : c.status === 'fail' ? '!' : '?')}</span>
                         <span className="av-row-text">
-                          <span className="av-row-title">{c.title}</span>
+                          <span className="av-row-title"><span className={`av-kind${c.area === 'Accessibility' ? ' ada' : ''}`}>{c.area === 'Accessibility' ? 'ADA' : 'Audit'}</span>{c.title}</span>
                           <span className="av-row-detail">{c.detail}</span>
                         </span>
                         <span className="av-chip" style={{ background: chip.bg, color: chip.fg }}>{chip.label}</span>
@@ -190,6 +193,7 @@ export default function AuditViewer({ audit, note, showCourse = true, toolbar, f
                             <><div className="av-lbl">{c.status === 'review' ? 'What to check' : 'How to fix it in Finalsite'}</div><ol>{c.steps.map((s, i) => <li key={i}>{s}</li>)}</ol></>
                           )}
                           {showCourse && <a className="av-course" href={courseHref(c.course)}>Learn it in the course: {c.course.label} &rarr;</a>}
+                          {extra?.(c)}
                         </div>
                       )}
                     </div>
@@ -198,11 +202,6 @@ export default function AuditViewer({ audit, note, showCourse = true, toolbar, f
               </div>
             )
           })}
-          {finalsiteCount > 0 && (
-            <div className="av-finalsite">
-              <b>Not yours to fix:</b> the scan also found {finalsiteCount} accessibility issue{finalsiteCount === 1 ? '' : 's'} in the site header, menus or footer. Those belong to Finalsite, are reported to them every month, and never count against your page.
-            </div>
-          )}
         </section>
       </div>
     </div>
@@ -250,5 +249,5 @@ const CSS = `
 .av-items{margin:0 0 4px 0;padding-left:18px;font-size:12px;word-break:break-word}
 .av-course{display:inline-block;margin-top:6px;font-size:12px;font-weight:800;color:#1672A7;text-decoration:none}
 .av-course:hover{text-decoration:underline}
-.av-finalsite{margin-top:12px;font-size:12px;line-height:1.5;color:var(--lr-text-75,#444);background:#f8fafb;border-radius:8px;padding:10px 12px}
+.av-kind{display:inline-block;font-size:9.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:2px 5px;margin-right:6px;vertical-align:1px;background:#e3eef6;color:#0e4e73}.av-kind.ada{background:#efe7f6;color:#5b2d82}
 `

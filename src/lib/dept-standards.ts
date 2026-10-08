@@ -471,12 +471,27 @@ export function accessibilityRows(violations: AxeLikeViolation[], inContent: (se
     }
   })
   for (const v of violations) {
-    if (used.has(v.id)) {
-      // A WCM rule whose only hits sit in the template is Finalsite's too.
-      if (!(v.nodes ?? []).some((n) => inContent(n.target))) finalsite.push(v)
-      continue
-    }
-    finalsite.push(v)
+    const mine = (v.nodes ?? []).filter((n) => inContent(n.target))
+    // A rule whose only hits sit in the template (header, menus, footer) is
+    // Finalsite's.
+    if (!mine.length) { finalsite.push(v); continue }
+    if (used.has(v.id)) continue
+    // Any other rule with hits in the WCM's own content gets its own row, so
+    // the one issue list holds every ADA item they can fix (Sean, 2026-10-08).
+    const entry = lookupAxeEntry(v.id)
+    rows.push({
+      id: `a11y-${v.id}`, area: 'Accessibility', title: entry?.title ?? v.help ?? v.description, status: 'fail',
+      detail: `The scan found ${mine.length} element${mine.length === 1 ? '' : 's'} to fix: ${v.description}`,
+      items: mine.slice(0, 10).map((n) => n.html.replace(/\s+/g, ' ').slice(0, 120)),
+      targets: mine.slice(0, 10).map((n) => ({ label: entry?.title ?? v.id, selector: n.target })),
+      why: entry?.definition ?? v.description,
+      steps: entry?.fixSteps?.length ? entry.fixSteps : [
+        'Use the marker on the screenshot to find the element on your page.',
+        'Open the page in Composer and edit that element so it meets the rule above.',
+        'Not sure what to change? Ask a question below and the District Web Team will answer.',
+      ],
+      course: C.adaIntro,
+    })
   }
   return { rows, finalsite }
 }
