@@ -251,6 +251,7 @@ interface HomeData {
   // School WCMs (2026-10-05): their schools and their own banner requests.
   schools?: { name: string; loc_no: string | null }[]
   my_banners?: { pending: number; ready: number; posted: number; rejected: number } | null
+  my_proud_points?: { pending: number; ready: number; posted: number; rejected: number; drafts: number } | null
 }
 
 // Same labels the WCM Audit Portal uses (src/app/(bcps)/wcm-portal/page.tsx).
@@ -276,6 +277,7 @@ function sampleSchoolWcmData(): HomeData {
     led_department_ids: [], departments: [], team: null,
     schools: [{ name: 'Sample Elementary', loc_no: null }],
     my_banners: { pending: 1, ready: 1, posted: 2, rejected: 1 },
+    my_proud_points: { pending: 0, ready: 0, posted: 0, rejected: 0, drafts: 1 },
   }
 }
 
@@ -1083,6 +1085,7 @@ const BANNER_GUIDELINES_URL =
 // 2026-10-05). Links supplied by Sean the same day.
 const SCHOOL_QUICK_LINKS: { label: string; sub: string; href: string; ic: string }[] = [
   { label: 'Identity Banner Guidelines', sub: 'What makes a banner approvable', href: BANNER_GUIDELINES_URL, ic: 'IB' },
+  { label: 'Proud Points Guidelines', sub: 'How to write your six homepage highlights', href: 'https://www.browardschools.com/wcm-community/schools/standards-guidelines/website-guidelines/homepage/proud-points', ic: 'PP' },
   { label: 'WCM Community', sub: 'Details and support for Web Content Managers', href: 'https://www.browardschools.com/wcm-community', ic: 'WC' },
   { label: 'Submit a ticket (IIQ)', sub: 'Questions and help requests, IncidentIQ', href: 'https://browardschools.incidentiq.com/', ic: 'IQ' },
   { label: 'Finalsite dashboard', sub: 'Sign in to edit your school website', href: 'https://www.browardschools.com/fs/admin', ic: 'FS' },
@@ -1092,8 +1095,13 @@ function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?
   const name = firstName(data)
   const schools = (data.schools ?? []).map((x) => x.name)
   const schoolLabel = schools.length ? schools.join(', ') : 'your school'
-  const b = data.my_banners ?? { pending: 0, ready: 0, posted: 0, rejected: 0 }
+  // Counts cover every submission type (banners and Proud Points), the same
+  // way Your Submissions lists them together (Vanessa Deslandes, 2026-10-08).
+  const bn = data.my_banners ?? { pending: 0, ready: 0, posted: 0, rejected: 0 }
+  const pp = data.my_proud_points ?? { pending: 0, ready: 0, posted: 0, rejected: 0, drafts: 0 }
+  const b = { pending: bn.pending + pp.pending, ready: bn.ready + pp.ready, posted: bn.posted + pp.posted, rejected: bn.rejected + pp.rejected }
   const openBanners = () => onNavigate('banner-submissions')
+  const openProudPoints = () => onNavigate('proud-points')
   return (
     <div className="home">
       {preview && <PreviewBanner who="School WCM">
@@ -1102,15 +1110,16 @@ function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?
       <div className="home-hero">
         <div className="home-hero-label">BCPS MarComm School Web Content Manager</div>
         <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
-        <p>Homepage banners for {schoolLabel}. Submit new photos and videos, and follow each one through District Web Team review.</p>
+        <p>Homepage banners and Proud Points for {schoolLabel}. Submit them here and follow each one through District Web Team review.</p>
         <div className="home-actions">
           <button type="button" className="home-btn" onClick={openBanners}>Submit a banner</button>
+          <button type="button" className="home-btn" onClick={openProudPoints}>Submit Proud Points</button>
         </div>
       </div>
 
       <div className="home-strip">
         <StatTile label="Waiting for review" value={b.pending} note="The District Web Team checks each one by eye." />
-        <StatTile label="Approved" value={b.ready} note="Posted to your site within 24 to 48 hours." />
+        <StatTile label="Approved" value={b.ready} note="The web team posts it and emails you when it is live." />
         <StatTile label="Live on your site" value={b.posted} />
         <StatTile label="Not approved" value={b.rejected} note={b.rejected ? 'See the reason under Your Submissions.' : undefined} tone={b.rejected ? 'warn' : undefined} />
       </div>
@@ -1122,9 +1131,14 @@ function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?
           <button type="button" className="wcm-hub2-card-btn" onClick={openBanners}>Open Banner Submissions</button>
         </div>
         <div className="wcm-hub2-card">
+          <h3>Submit Proud Points</h3>
+          <p>{pp.drafts ? 'You have a draft in progress. ' : ''}The six highlights on your homepage: a data point, heading, caption and photo for each. Replace one at a time once your six are up.</p>
+          <button type="button" className="wcm-hub2-card-btn" onClick={openProudPoints}>{pp.drafts ? 'Continue your draft' : 'Open Proud Points'}</button>
+        </div>
+        <div className="wcm-hub2-card">
           <h3>Your Submissions</h3>
-          <p>Every banner you have sent, where it stands, and the reason if one was not approved. You can also request that a banner be taken down.</p>
-          <a className="wcm-hub2-card-btn" href="/?page=banner-submissions&tab=mine">View my submissions</a>
+          <p>Every banner and Proud Point you have sent, where it stands, and the reason if one was not approved.</p>
+          <a className="wcm-hub2-card-btn" href="/?page=my-submissions">View my submissions</a>
         </div>
         {/* Coming soon (Sean, 2026-10-05): the one deliberate exception to
             "a card only appears when its link works", so schools see what is

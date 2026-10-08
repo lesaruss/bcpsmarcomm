@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data, error } = await svc.from('bcps_banner_submissions')
-    .select('id, type, status, file_name, file_type, banner_title, banner_caption, alt_text, target_submission_id, requested_removal_date, removal_description, rejection_reason, submitted_at, reviewed_at')
+    .select('id, type, status, file_name, file_type, banner_title, banner_caption, alt_text, target_submission_id, requested_removal_date, removal_description, rejection_reason, submitted_at, reviewed_at, posted_at')
     .eq('wcm_user_id', user.id)
     .order('submitted_at', { ascending: false })
 

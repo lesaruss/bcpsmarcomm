@@ -30,6 +30,8 @@ export type PageId =
   | 'ada-scanner'
   | 'ada-manager'
   | 'banner-submissions'
+  | 'proud-points'
+  | 'my-submissions'
   | 'school-profiles'
   | 'wcm-roster'
 

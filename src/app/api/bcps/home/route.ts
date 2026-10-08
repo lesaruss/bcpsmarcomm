@@ -177,6 +177,21 @@ export async function GET(req: NextRequest) {
       rejected: rows.filter((r) => r.status === 'rejected').length,
     }
   }
+  // Their Proud Points submissions (2026-10-08), same four counts; drafts are
+  // not counted because nothing has been sent yet.
+  let myProudPoints: { pending: number; ready: number; posted: number; rejected: number; drafts: number } | null = null
+  if (isSchoolWcm) {
+    const { data: subs } = await svc.from('bcps_proud_point_submissions')
+      .select('status, posted_at').eq('wcm_user_id', user.id).is('archived_at', null)
+    const rows = subs ?? []
+    myProudPoints = {
+      pending: rows.filter((r) => r.status === 'pending').length,
+      ready: rows.filter((r) => r.status === 'approved' && !r.posted_at).length,
+      posted: rows.filter((r) => r.status === 'approved' && !!r.posted_at).length,
+      rejected: rows.filter((r) => r.status === 'rejected').length,
+      drafts: rows.filter((r) => r.status === 'draft').length,
+    }
+  }
 
   // Departments shown: every department for the team, the led ones for a
   // director, the caller's own roster departments for a WCM.
@@ -314,6 +329,7 @@ export async function GET(req: NextRequest) {
     is_wcm: isWcm,
     schools: isSchoolWcm ? mySchools : [],
     my_banners: myBanners,
+    my_proud_points: myProudPoints,
     name: profileRes.data?.full_name ?? null,
     email,
     led_department_ids: ledIds,
