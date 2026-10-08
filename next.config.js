@@ -61,6 +61,13 @@ const nextConfig = {
         './node_modules/tesseract.js-core/**',
         './node_modules/sharp/**',
       ],
+      // Proud Points photo check (2026-10-08): runs the same banner content
+      // scan plus sharp, so it needs the same files shipped.
+      '/api/proud-points/photo': [
+        './node_modules/tesseract.js/src/worker-script/node/**',
+        './node_modules/tesseract.js-core/**',
+        './node_modules/sharp/**',
+      ],
     },
   },
   async rewrites() {

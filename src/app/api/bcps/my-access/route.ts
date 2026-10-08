@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { VIEW_AS_GROUP_TIER, DIRECTOR_PREVIEW, SCHOOL_WCM_PREVIEW, previewableGroups } from '@/lib/view-as'
-import { SCHOOL_WCM_PAGES } from '@/lib/school-wcm-pages'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,8 +79,8 @@ export async function GET(req: NextRequest) {
       return directorRes
     }
     if (previewGroup === SCHOOL_WCM_PREVIEW) {
-      // A school WCM holds no group: public pages plus the school pages.
-      const schoolPages = all.filter(p => p.visibility === 'public' || (SCHOOL_WCM_PAGES as readonly string[]).includes(p.slug)).map(p => p.slug)
+      // A school WCM holds no group: the public pages, like a director.
+      const schoolPages = all.filter(p => p.visibility === 'public').map(p => p.slug)
       const schoolRes = NextResponse.json({ ok: true, role: 'user', preview_group: previewGroup, pages: schoolPages, groups: [] })
       schoolRes.headers.set('Cache-Control', 'no-store')
       return schoolRes
@@ -121,14 +120,6 @@ export async function GET(req: NextRequest) {
     const me = user.email.trim().toLowerCase()
     const { data: schoolRows } = await svc.from('bcps_schools').select('wcm_email').not('wcm_email', 'is', null)
     isSchoolWcm = (schoolRows ?? []).some(r => (r.wcm_email || '').trim().toLowerCase() === me)
-  }
-  // Their pages (Proud Points, Your Submissions) are restricted, and they
-  // hold no group to grant them through, so they are added here. Only pages
-  // that exist in the registry are added.
-  if (isSchoolWcm) {
-    for (const slug of SCHOOL_WCM_PAGES) {
-      if (!allowed.includes(slug) && all.some(p => p.slug === slug)) allowed.push(slug)
-    }
   }
 
   const res = NextResponse.json({ ok: true, role, pages: allowed, groups, view_as_groups: viewAsGroups, is_school_wcm: isSchoolWcm })

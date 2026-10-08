@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { svc, requireProudPointsAccess } from '@/lib/proudPointsApi'
-import { PHOTO_ALLOWED_MIME, PHOTO_MAX_BYTES, proudPointUploadPrefix } from '@/lib/proudPoints'
+import { svc, requireProudPointsAccess, ACCESS_ERROR, ownerFolder } from '@/lib/proudPointsApi'
+import { PHOTO_ALLOWED_MIME, PHOTO_MAX_BYTES } from '@/lib/proudPoints'
 
 // Step 1 of attaching a background photo: a one-time signed URL so the browser
 // sends the file straight to the private bcps-client bucket (Vercel refuses a
@@ -8,8 +8,8 @@ import { PHOTO_ALLOWED_MIME, PHOTO_MAX_BYTES, proudPointUploadPrefix } from '@/l
 // is scoped to the caller; /api/proud-points/photo only checks paths under it.
 
 export async function POST(req: NextRequest) {
-  const { user, status } = await requireProudPointsAccess(req)
-  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
+  const { ident: me, status } = await requireProudPointsAccess(req)
+  if (!me) return NextResponse.json({ error: ACCESS_ERROR[status] }, { status })
 
   const { file_name, mime_type, size } = (await req.json().catch(() => ({}))) as { file_name?: string; mime_type?: string; size?: number }
   if (!file_name || !mime_type) return NextResponse.json({ error: 'file_name and mime_type are required' }, { status: 400 })
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   }
 
   const safeName = file_name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const path = `${proudPointUploadPrefix(user.id)}${Date.now()}-${safeName}`
+  const path = `${ownerFolder(me.email)}${Date.now()}-${safeName}`
   const { data, error } = await svc.storage.from('bcps-client').createSignedUploadUrl(path)
   if (error || !data) return NextResponse.json({ error: error?.message || 'Could not start the upload.' }, { status: 500 })
   return NextResponse.json({ path: data.path, token: data.token })

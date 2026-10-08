@@ -32,10 +32,6 @@ export const PHOTO_MAX_BYTES = 50 * 1024 * 1024
 export const PHOTO_ALLOWED_MIME: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg' }
 export const PHOTO_RULES_PENDING = true
 
-export function proudPointUploadPrefix(userId: string): string {
-  return `proud-points/${userId}/`
-}
-
 export interface ProudPoint {
   slot: number
   stat: string

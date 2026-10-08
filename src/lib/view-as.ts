@@ -11,8 +11,8 @@
 // below every group, so anyone granted View as may preview it.
 export const DIRECTOR_PREVIEW = 'Director'
 // 'School WCM' is not an acl group either: school WCMs are recognized by
-// bcps_schools.wcm_email. Their preview is the public pages plus
-// SCHOOL_WCM_PAGES (lib/school-wcm-pages.ts), what a real school WCM gets.
+// bcps_schools.wcm_email. Their preview is the public page set, what a real
+// school WCM gets, with the school dashboard.
 export const SCHOOL_WCM_PREVIEW = 'School WCM'
 export const VIEW_AS_GROUP_TIER: Record<string, number> = {
   [DIRECTOR_PREVIEW]: 0,

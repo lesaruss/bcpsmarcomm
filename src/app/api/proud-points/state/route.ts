@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { svc, requireProudPointsAccess, schoolByLoc } from '@/lib/proudPointsApi'
+import { svc, requireProudPointsAccess, ACCESS_ERROR, schoolByLoc } from '@/lib/proudPointsApi'
 import { schoolState, mySchoolLocs, signPhoto, type ProudPoint } from '@/lib/proudPoints'
 
 // Everything the form needs for one school: whether it already has six (which
@@ -9,11 +9,11 @@ import { schoolState, mySchoolLocs, signPhoto, type ProudPoint } from '@/lib/pro
 // so the form can preselect one.
 
 export async function GET(req: NextRequest) {
-  const { user, status } = await requireProudPointsAccess(req)
-  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
+  const { ident: me, status } = await requireProudPointsAccess(req)
+  if (!me) return NextResponse.json({ error: ACCESS_ERROR[status] }, { status })
 
   const loc = req.nextUrl.searchParams.get('loc')
-  if (!loc) return NextResponse.json({ my_schools: await mySchoolLocs(svc, user.email) })
+  if (!loc) return NextResponse.json({ my_schools: await mySchoolLocs(svc, me.email) })
 
   const school = await schoolByLoc(loc)
   if (!school) return NextResponse.json({ error: 'Unknown school' }, { status: 404 })
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const [state, { data: draft }, { data: waiting }] = await Promise.all([
     schoolState(svc, loc),
     svc.from('bcps_proud_point_submissions').select('id, kind, points, updated_at')
-      .eq('wcm_user_id', user.id).eq('school_location_nbr', loc).eq('status', 'draft').maybeSingle(),
+      .eq('wcm_email', me.email).eq('school_location_nbr', loc).eq('status', 'draft').maybeSingle(),
     svc.from('bcps_proud_point_submissions').select('id, kind, submitted_at, wcm_email, replace_slot')
       .eq('school_location_nbr', loc).eq('status', 'pending').is('archived_at', null)
       .order('submitted_at', { ascending: false }).limit(1).maybeSingle(),
@@ -44,6 +44,6 @@ export async function GET(req: NextRequest) {
     legacy_points: state.legacy_points,
     legacy_count: state.legacy_count,
     draft: draft ? { id: draft.id, kind: draft.kind, points: draftPoints, updated_at: draft.updated_at } : null,
-    waiting: waiting ? { id: waiting.id, kind: waiting.kind, submitted_at: waiting.submitted_at, mine: waiting.wcm_email === user.email } : null,
+    waiting: waiting ? { id: waiting.id, kind: waiting.kind, submitted_at: waiting.submitted_at, mine: (waiting.wcm_email || '').toLowerCase() === me.email } : null,
   })
 }

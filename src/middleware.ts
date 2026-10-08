@@ -103,6 +103,9 @@ export async function middleware(request: NextRequest) {
     //     record on approval (see wcm-roster-queue) - a self-declared address
     //     never writes an identity, it only labels the request.
     //   - unverified submitters still raise identity_flag and the review email.
+    // Embeds framed on other sites (Finalsite). Each embed checks who is
+    // using it itself; Proud Points uses an emailed code (2026-10-08).
+    pathname.startsWith('/embed/') ||
     pathname.startsWith('/wcm-roster-signup') ||
     // WCM Department Registration welcome page (renamed from WCM Pilot
     // Program 2026-07-28): shared with brand new WCMs who have no account

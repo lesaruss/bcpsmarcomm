@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
-import { svc, requireProudPointsAccess } from '@/lib/proudPointsApi'
+import { svc, requireProudPointsAccess, ACCESS_ERROR, ownerFolder } from '@/lib/proudPointsApi'
 import { analyzeBannerImage } from '@/lib/bannerVision'
 import {
-  PHOTO_ALLOWED_MIME, PHOTO_MAX_BYTES, PHOTO_MIN_HEIGHT, PHOTO_MIN_WIDTH, proudPointUploadPrefix,
+  PHOTO_ALLOWED_MIME, PHOTO_MAX_BYTES, PHOTO_MIN_HEIGHT, PHOTO_MIN_WIDTH,
 } from '@/lib/proudPoints'
 
 // Step 2 of attaching a background photo: the server checks the uploaded file
@@ -20,11 +20,11 @@ import {
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
-  const { user, status } = await requireProudPointsAccess(req)
-  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
+  const { ident: me, status } = await requireProudPointsAccess(req)
+  if (!me) return NextResponse.json({ error: ACCESS_ERROR[status] }, { status })
 
   const { file_path, mime_type } = (await req.json().catch(() => ({}))) as { file_path?: string; mime_type?: string }
-  if (!file_path || !file_path.startsWith(proudPointUploadPrefix(user.id)) || file_path.includes('..')) {
+  if (!file_path || !file_path.startsWith(ownerFolder(me.email)) || file_path.includes('..')) {
     return NextResponse.json({ error: 'Invalid file path.' }, { status: 400 })
   }
   if (!mime_type || !PHOTO_ALLOWED_MIME[mime_type]) return NextResponse.json({ error: 'Photo must be PNG or JPG.' }, { status: 400 })
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   const refuse = async (reason: string, extra: Record<string, unknown> = {}) => {
     await bucket.remove([file_path]).catch(() => {})
     await svc.from('bcps_proud_point_photos').upsert({
-      path: file_path, wcm_user_id: user.id, mime_type, bytes: blob.size, ok: false, refused_reason: reason, ...extra,
+      path: file_path, wcm_user_id: me.userId, owner_email: me.email, mime_type, bytes: blob.size, ok: false, refused_reason: reason, ...extra,
     })
     return NextResponse.json({ ok: false, error: reason, ...extra }, { status: 400 })
   }
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error: upErr } = await svc.from('bcps_proud_point_photos').upsert({
-    path: file_path, wcm_user_id: user.id, mime_type, bytes: blob.size, width, height, content_scan: scan, ok: true, refused_reason: null,
+    path: file_path, wcm_user_id: me.userId, owner_email: me.email, mime_type, bytes: blob.size, width, height, content_scan: scan, ok: true, refused_reason: null,
   })
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 })
 

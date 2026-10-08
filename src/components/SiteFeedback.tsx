@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
 // Site-wide "report an issue" launcher for bcpsmarcomm.com. Started as
@@ -19,6 +20,7 @@ import { createClient } from '@/lib/supabase'
 // login) have no session, so they just see a manual email field, same
 // as before.
 export default function SiteFeedback() {
+  const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [contactEmail, setContactEmail] = useState('')
@@ -133,6 +135,10 @@ export default function SiteFeedback() {
       setSending(false)
     }
   }
+
+  // Not inside embeds: they live on other sites (Finalsite), and the button
+  // would float over the host page.
+  if (pathname?.startsWith('/embed/')) return null
 
   return (
     <>

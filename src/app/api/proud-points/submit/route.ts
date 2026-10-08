@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { svc, requireProudPointsAccess, schoolByLoc } from '@/lib/proudPointsApi'
+import { svc, requireProudPointsAccess, ACCESS_ERROR, schoolByLoc } from '@/lib/proudPointsApi'
 import { sendEmail } from '@/lib/resend'
 import {
   POINT_COUNT, cleanPoint, validatePoint, schoolState, isTestBuild, escapeHtml, type ProudPoint,
@@ -18,15 +18,15 @@ import {
 const REQUIRED_ACK_KEYS = ['media_release', 'faces_visible', 'final_ack'] as const
 const FOOTER = 'This is an automated message from the School Proud Points Submission Form.'
 
-async function photoOk(path: string | null, userId: string): Promise<boolean> {
+async function photoOk(path: string | null, email: string): Promise<boolean> {
   if (!path) return false
-  const { data } = await svc.from('bcps_proud_point_photos').select('ok, wcm_user_id').eq('path', path).maybeSingle()
-  return !!data && data.ok && data.wcm_user_id === userId
+  const { data } = await svc.from('bcps_proud_point_photos').select('ok, owner_email').eq('path', path).maybeSingle()
+  return !!data && data.ok && data.owner_email === email
 }
 
 export async function POST(req: NextRequest) {
-  const { user, status } = await requireProudPointsAccess(req)
-  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
+  const { ident: me, status } = await requireProudPointsAccess(req)
+  if (!me) return NextResponse.json({ error: ACCESS_ERROR[status] }, { status })
 
   const body = (await req.json().catch(() => ({}))) as {
     loc?: string; kind?: 'initial' | 'replace'
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
   for (const p of points) {
     const err = validatePoint(p, { complete: true })
     if (err) return NextResponse.json({ error: err }, { status: 400 })
-    if (!(await photoOk(p.photo_path, user.id))) {
+    if (!(await photoOk(p.photo_path, me.email))) {
       return NextResponse.json({ error: `The photo for point ${p.slot} was not accepted. Choose it again.` }, { status: 400 })
     }
   }
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString()
   const test = isTestBuild()
   const row = {
-    wcm_user_id: user.id, wcm_email: user.email, school_location_nbr: school.loc_no, school_name: school.school_name,
+    wcm_user_id: me.userId, wcm_email: me.email, school_location_nbr: school.loc_no, school_name: school.school_name,
     kind: expected, status: 'pending', points, replace_slot: replaceSlot, replaced_text: replacedText,
     checklist_ack: { ...Object.fromEntries(REQUIRED_ACK_KEYS.map(k => [k, true])), acked_at: now },
     submitted_at: now, updated_at: now, is_test: test,
@@ -93,14 +93,14 @@ export async function POST(req: NextRequest) {
   // The first-six flow turns the caller's draft into the submission, so the
   // draft does not linger after it is sent.
   const { data: draft } = await svc.from('bcps_proud_point_submissions').select('id')
-    .eq('wcm_user_id', user.id).eq('school_location_nbr', school.loc_no).eq('status', 'draft').maybeSingle()
+    .eq('wcm_email', me.email).eq('school_location_nbr', school.loc_no).eq('status', 'draft').maybeSingle()
   const write = draft && expected === 'initial'
     ? svc.from('bcps_proud_point_submissions').update(row).eq('id', draft.id).select('id').single()
     : svc.from('bcps_proud_point_submissions').insert(row).select('id').single()
   const { data: saved, error } = await write
   if (error || !saved) return NextResponse.json({ error: error?.message || 'Could not save the submission.' }, { status: 500 })
 
-  await notifyReviewers(saved.id, { school: school.school_name, kind: expected, wcm: user.email ?? null, test }).catch(() => {})
+  await notifyReviewers(saved.id, { school: school.school_name, kind: expected, wcm: me.email, test }).catch(() => {})
   return NextResponse.json({ ok: true, id: saved.id, test })
 }
 

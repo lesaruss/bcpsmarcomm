@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
             <p>Hi Web Content Manager,</p>
             <p>The District Web Team reviewed your ${label} for <strong>${escapeHtml(school)}</strong> and could not post ${sub.kind === 'initial' ? 'them' : 'it'} yet.</p>
             <p style="background:#f7f7f7;border-left:3px solid #c0392b;padding:12px 16px;color:#333">${escapeHtml(reason)}</p>
-            <p>Open Proud Points on your bcpsmarcomm.com dashboard, choose <strong>Edit and resend</strong> under My Submissions, make the change, and send it again.</p>
+            <p>Open the Proud Points form (on the WCM Community page, or at <a href="https://bcpsmarcomm.com/embed/proud-points">bcpsmarcomm.com/embed/proud-points</a>), choose <strong>Edit and resend</strong> under My Submissions, make the change, and send it again.</p>
             <p>Best regards,<br />District Web Team</p>
             <p style="color:#888;font-size:12px">${FOOTER}</p>`,
         })

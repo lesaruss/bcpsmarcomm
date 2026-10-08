@@ -185,11 +185,19 @@ export function ProudPointsPreview({ tiles }: { tiles: Tile[] }) {
   )
 }
 
+// In the embed (/embed/proud-points) there is no bcpsmarcomm.com session: the
+// person signed in with an emailed code and holds a signed token instead.
+let embedToken: string | null = null
+export function setProudPointsEmbedToken(t: string | null) { embedToken = t }
+
 async function authedFetch(path: string, init?: RequestInit) {
-  const supabase = createClient()
-  const token = (await supabase.auth.getSession()).data.session?.access_token
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(init?.headers as Record<string, string>) }
-  if (token) headers.Authorization = `Bearer ${token}`
+  if (embedToken) {
+    headers['X-Proud-Points-Token'] = embedToken
+  } else {
+    const token = (await createClient().auth.getSession()).data.session?.access_token
+    if (token) headers.Authorization = `Bearer ${token}`
+  }
   return fetch(path, { ...init, headers })
 }
 
@@ -203,7 +211,7 @@ function readDims(file: File): Promise<{ w: number; h: number } | null> {
   })
 }
 
-export default function ProudPointsWidget() {
+export default function ProudPointsWidget({ embed = false }: { embed?: boolean } = {}) {
   const [tab, setTab] = useState<Tab>(() => {
     if (typeof window === 'undefined') return 'submit'
     const t = new URLSearchParams(window.location.search).get('tab')
@@ -291,17 +299,19 @@ export default function ProudPointsWidget() {
     loadIdeas()
     ;(async () => {
       try {
+        // The review tools need a bcpsmarcomm.com sign-in, so the embed never
+        // asks for a reviewer role.
         const [sr, mr, ar] = await Promise.all([
-          authedFetch('/api/banner/schools'), authedFetch('/api/proud-points/state'), authedFetch('/api/banner/admins'),
+          authedFetch('/api/proud-points/schools'), authedFetch('/api/proud-points/state'), embed ? null : authedFetch('/api/banner/admins'),
         ])
-        const sd = await sr.json(); const md = await mr.json(); const ad = await ar.json()
+        const sd = await sr.json(); const md = await mr.json(); const ad = ar ? await ar.json() : {}
         setSchools(sd.schools || [])
         setRole(ad.my_role || null)
         const first = (md.my_schools || [])[0]
         if (first) { setLoc(first); loadState(first) }
       } catch { /* best effort */ }
     })()
-  }, [loadMine, loadIdeas, loadState])
+  }, [loadMine, loadIdeas, loadState, embed])
 
   useEffect(() => {
     if (previewingWcm && (tab === 'review' || tab === 'schools')) setTab('submit')
