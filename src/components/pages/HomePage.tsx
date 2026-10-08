@@ -1354,6 +1354,42 @@ const AUDIT_GROUPS: { id: string; label: string; statuses: (string | null)[] }[]
   { id: 'done', label: 'Complete', statuses: ['complete'] },
 ]
 
+// View a scan (Sean, 2026-10-08): pull up any audited site's scan from the
+// Audits tab, the department sites and the school sites, to walk WCMs or a
+// school team through how a scan looks.
+function ScanShowcase() {
+  const [sites, setSites] = useState<{ kind: 'department' | 'school'; id: string; name: string; pages: number }[] | null>(null)
+  const [pick, setPick] = useState('')
+  useEffect(() => {
+    (async () => {
+      const { data } = await createClient().auth.getSession()
+      const t = data.session?.access_token
+      const res = await fetch('/api/bcps/site-audit?list=1', { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+      const json = await res.json().catch(() => ({}))
+      setSites(res.ok ? json.sites ?? [] : [])
+    })()
+  }, [])
+  const site = sites?.find((x) => x.id === pick) ?? null
+  return (
+    <div className="home-section">
+      <div className="home-dept home-section" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0 }}>View a scan</h3>
+        <select aria-label="Pick a site" value={pick} onChange={(e) => setPick(e.target.value)} style={{ font: 'inherit', padding: '7px 10px', borderRadius: 8, border: '1px solid #1672A7', minWidth: 260, maxWidth: '100%' }}>
+          <option value="">{sites ? (sites.length ? 'Pick a department or school…' : 'No sites audited yet') : 'Loading…'}</option>
+          {(['department', 'school'] as const).map((k) => sites?.some((x) => x.kind === k) ? (
+            <optgroup key={k} label={k === 'department' ? 'Department sites' : 'School sites (ADA only)'}>
+              {sites.filter((x) => x.kind === k).map((x) => <option key={x.id} value={x.id}>{x.name} ({x.pages} pages)</option>)}
+            </optgroup>
+          ) : null)}
+        </select>
+        {site && <button type="button" className="home-link-btn" onClick={() => setPick('')}>Close</button>}
+        <span className="home-card-text" style={{ margin: 0 }}>Shows the scan exactly as the WCM sees it.</span>
+      </div>
+      {site && <SiteAudit key={site.id} owner={site.kind === 'department' ? { department_id: site.id } : { school_id: site.id }} adaOnly={site.kind === 'school'} isAdmin />}
+    </div>
+  )
+}
+
 function AuditsPanel({ depts, onNavigate }: { depts: DepartmentSummary[]; onNavigate: Navigate }) {
   const [group, setGroup] = useState<string>('all')
   const [q, setQ] = useState('')
@@ -1363,6 +1399,7 @@ function AuditsPanel({ depts, onNavigate }: { depts: DepartmentSummary[]; onNavi
     .filter((d) => !q.trim() || d.name.toLowerCase().includes(q.trim().toLowerCase()))
   return (
     <>
+      <ScanShowcase />
       <p className="wcm-hub2-intro">Every department site&apos;s audit, from first scan to sign-off. Pick a group to see who is up next.</p>
       <div className="home-kpis">
         {counts.map((c) => (

@@ -8,6 +8,7 @@ import { deptAccess, identifyCaller } from '@/lib/bcps-audit-auth'
 //        tagged with its page), plus queue progress
 //   GET  ...&result_id=                     one page's full audit (checks,
 //        screenshots, ADA results) for the viewer
+//   GET  ?list=1                            every audited site (admins)
 //   POST { department_id | school_id }      queue a full-site audit (admins)
 // Departments: admins, the department's WCM and its director may view.
 // Schools: admins only for now.
@@ -29,6 +30,24 @@ async function access(req: NextRequest, owner: { department_id?: string | null; 
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams
+  // ?list=1 (admins): every site with audited pages, for the dashboard's
+  // scan picker.
+  if (q.get('list')) {
+    const caller = await identifyCaller(req, supabase)
+    if (!caller.ok) return NextResponse.json({ error: 'Not signed in' }, { status: caller.status })
+    if (!caller.admin) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+    const { data: rows } = await supabase.from('bcps_site_pages').select('department_id, school_id, bcps_departments(name), bcps_schools(name)').eq('active', true).limit(5000)
+    const sites = new Map<string, { kind: 'department' | 'school'; id: string; name: string; pages: number }>()
+    for (const r of rows ?? []) {
+      const kind = r.department_id ? 'department' : 'school'
+      const id = (r.department_id ?? r.school_id) as string
+      if (!id) continue
+      const owner = (kind === 'department' ? r.bcps_departments : r.bcps_schools) as unknown as { name: string } | null
+      const s = sites.get(id) ?? { kind, id, name: owner?.name ?? 'Unnamed', pages: 0 }
+      s.pages++; sites.set(id, s)
+    }
+    return NextResponse.json({ sites: Array.from(sites.values()).sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)) })
+  }
   const owner = { department_id: q.get('department_id'), school_id: q.get('school_id') }
   if (!owner.department_id && !owner.school_id) return NextResponse.json({ error: 'department_id or school_id required' }, { status: 400 })
   const ok = await access(req, owner)
