@@ -2,179 +2,584 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Find Your School Support Lead</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find Your District Web Team Lead</title>
 <!--
-  Find Your School Support Lead (Vanessa + Sean, 2026-10-08). Embed for the
-  Finalsite school WCM page. A WCM types their school's name and sees their
-  District Web Team support lead for 2026-27: photo, short bio, a link to
-  request an IIQ ticket, and the Tuesday and Thursday Hot Labs.
+  Find Your District Web Team Lead (Vanessa + Sean, 2026-10-08). Embed for
+  the Finalsite school WCM page, built on the Find It Fast frame
+  (public/widgets/find-it-fast.html): search, filter chips, card grid,
+  pagination, auto height. A WCM types their school's name or location
+  number and sees their District Web Team Lead for 2026-27 and how to get
+  help. Copy is Vanessa's (Teams, Oct 8).
   Data: bcps_school_assignments, bcps_support_leads, bcps_support_settings
-  (public read, anon key, same as the other directory embeds). Change an
-  assignment, bio, photo or link in those tables; this page needs no edit.
+  (public read, anon key, same as the other directory embeds). The split
+  itself is the doc bcps-school-assignments-2026-27. Change an assignment,
+  photo, bio or link in those tables; this page needs no edit.
 -->
 <style>
-  :root {
-    --navy: #0C2340; --accent: #1672A7; --accent-dark: #0E4E73; --text: #1a1a1a;
-    --text-mid: #555555; --muted: #767676; --border: #e2e6ea; --tint: #EBF1F8;
-    --font-head: "Century Gothic", "Apple Gothic", "URW Gothic", Futura, Arial, Helvetica, sans-serif;
+  #dwt-module, #dwt-module * { box-sizing: border-box; }
+  #dwt-module {
+    /* Same BCPS brand tokens as Find It Fast: BCPS Blue accent, navy/gold
+       pairing, Century Gothic headlines, Arial body. */
+    --fif-navy: #0C2340;
+    --fif-navy-2: #13315C;
+    --fif-accent: #1672A7;
+    --fif-accent-dark: #0E4E73;
+    --fif-gold: #C8A24A;
+    --fif-text: #1a1a1a;
+    --fif-secondary: #555555;
+    --fif-muted: #767676;
+    --fif-border: #e2e6ea;
+    --fif-bg-tint: #EBF1F8;
+    --fif-font-head: "Century Gothic", "Apple Gothic", Arial, Helvetica, sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #ffffff;
+    color: var(--fif-text);
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 28px 24px 32px;
+    border: 1px solid var(--fif-border);
+    border-radius: 10px;
   }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: transparent; font-family: Arial, Helvetica, sans-serif; color: var(--text); font-size: 15px; line-height: 1.5; }
-  .ssl { max-width: 760px; margin: 0 auto; padding: 16px; }
-  .ssl-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
-  .ssl h2 { font-family: var(--font-head); font-size: 26px; line-height: 1.2; margin: 4px 0 6px; color: var(--navy); }
-  .ssl-lede { color: var(--text-mid); margin: 0 0 14px; }
-  .ssl-search { position: relative; }
-  .ssl-search label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 6px; }
-  .ssl-search input { width: 100%; font: inherit; font-size: 16px; padding: 12px 14px; border: 2px solid var(--accent); border-radius: 10px; background: #fff; color: var(--text); }
-  .ssl-search input:focus { outline: 3px solid rgba(22,114,167,.3); outline-offset: 1px; }
-  .ssl-list { list-style: none; margin: 6px 0 0; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: #fff; max-height: 280px; overflow: auto; }
-  .ssl-list[hidden] { display: none; }
-  .ssl-list li { margin: 0; }
-  .ssl-list button { display: flex; justify-content: space-between; gap: 10px; width: 100%; text-align: left; font: inherit; background: #fff; border: 0; border-bottom: 1px solid var(--border); padding: 10px 14px; cursor: pointer; color: var(--text); }
-  .ssl-list li:last-child button { border-bottom: 0; }
-  .ssl-list button:hover, .ssl-list button:focus { background: var(--tint); outline: none; }
-  .ssl-list small { color: var(--muted); white-space: nowrap; }
-  .ssl-empty { color: var(--text-mid); font-size: 14px; margin: 8px 2px 0; }
-  .ssl-card { margin-top: 16px; border: 1px solid var(--border); border-radius: 14px; background: #fff; overflow: hidden; }
-  .ssl-card-top { background: var(--tint); padding: 10px 18px; font-size: 13px; color: var(--accent-dark); font-weight: 700; }
-  .ssl-card-body { display: flex; gap: 18px; padding: 18px; align-items: flex-start; }
-  .ssl-photo { flex-shrink: 0; width: 112px; height: 112px; border-radius: 50%; object-fit: cover; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-size: 36px; font-weight: 700; }
-  .ssl-who { min-width: 0; flex: 1; }
-  .ssl-role { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
-  .ssl-name { font-family: var(--font-head); font-size: 22px; margin: 2px 0 2px; color: var(--navy); }
-  .ssl-title { color: var(--text-mid); font-size: 14px; margin: 0 0 8px; }
-  .ssl-bio { margin: 0 0 14px; }
-  .ssl-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-  .ssl-btn { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 8px; padding: 10px 16px; min-height: 44px; }
-  .ssl-btn.primary { background: var(--accent); color: #fff; }
-  .ssl-btn.primary:hover { background: var(--accent-dark); }
-  .ssl-btn.secondary { background: #fff; color: var(--accent-dark); border: 2px solid var(--accent); }
-  .ssl-btn.secondary:hover { background: var(--tint); }
-  .ssl-btn:focus-visible { outline: 3px solid rgba(22,114,167,.4); outline-offset: 2px; }
-  .ssl-hotlab { margin-top: 12px; font-size: 13.5px; color: var(--text-mid); }
-  .ssl-note { margin-top: 14px; font-size: 13px; color: var(--muted); }
-  @media (max-width: 560px) {
-    .ssl-card-body { flex-direction: column; align-items: center; text-align: center; }
-    .ssl-actions { justify-content: center; }
-    .ssl-btn { width: 100%; justify-content: center; }
+  body { margin: 0; }
+  #dwt-module .fif-eyebrow {
+    color: var(--fif-accent);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 13px;
+    margin: 0 0 6px;
+  }
+  #dwt-module h2 {
+    font-family: var(--fif-font-head);
+    margin: 0 0 8px;
+    font-size: 28px;
+    line-height: 1.2;
+    color: var(--fif-text);
+  }
+  #dwt-module .fif-intro {
+    margin: 0 0 10px;
+    color: var(--fif-secondary);
+    font-size: 15px;
+    line-height: 1.5;
+    max-width: 680px;
+  }
+  #dwt-module .fif-intro strong { color: var(--fif-text); }
+  #dwt-module .dwt-process {
+    margin: 4px 0 20px;
+    padding: 12px 14px;
+    background: var(--fif-bg-tint);
+    border-left: 4px solid var(--fif-accent);
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--fif-text);
+  }
+  #dwt-module .dwt-process a { color: var(--fif-accent-dark); font-weight: 700; }
+  #dwt-module .fif-search-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  #dwt-module .fif-search-wrap {
+    position: relative;
+    flex: 1;
+  }
+  #dwt-module .fif-search-wrap svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: var(--fif-muted);
+  }
+  #dwt-module input[type="search"] {
+    width: 100%;
+    padding: 12px 14px 12px 38px;
+    border: 1px solid #c7ced4;
+    border-radius: 6px;
+    font-size: 16px;
+    color: var(--fif-text);
+  }
+  #dwt-module input[type="search"]:focus,
+  #dwt-module button:focus-visible,
+  #dwt-module a:focus-visible {
+    outline: 3px solid var(--fif-accent);
+    outline-offset: 2px;
+  }
+  #dwt-module .fif-clear-btn {
+    background: #e5e5e5;
+    border: 1px solid #e5e5e5;
+    border-radius: 100px;
+    padding: 0 18px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #262626;
+    cursor: pointer;
+  }
+  #dwt-module .fif-clear-btn:hover { background: rgba(220, 221, 224, 0.8); color: #232327; }
+  #dwt-module .fif-cats-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--fif-secondary);
+    margin: 0 0 8px;
+  }
+  #dwt-module .fif-cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+  #dwt-module .fif-cat-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 100px;
+    border: 1px solid #e5e5e5;
+    background: #e5e5e5;
+    color: #262626;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #dwt-module .fif-cat-btn:hover { background: rgba(220, 221, 224, 0.8); color: #232327; }
+  #dwt-module .fif-cat-btn[aria-pressed="true"] {
+    background: linear-gradient(135deg, var(--fif-navy), var(--fif-navy-2));
+    border-color: var(--fif-navy);
+    color: #ffffff;
+  }
+  #dwt-module .fif-count {
+    font-size: 13px;
+    color: var(--fif-muted);
+    margin: 0 0 10px;
+  }
+  #dwt-module .fif-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+    gap: 14px;
+  }
+  #dwt-module .fif-card {
+    border: 1px solid var(--fif-border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #ffffff;
+    min-width: 0;
+  }
+  #dwt-module .fif-card-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--fif-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  #dwt-module .fif-card-tag svg { width: 14px; height: 14px; flex-shrink: 0; }
+  #dwt-module .fif-card h3 {
+    font-family: var(--fif-font-head);
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.3;
+  }
+  #dwt-module .dwt-loc {
+    margin: -6px 0 0;
+    font-size: 13px;
+    color: var(--fif-muted);
+  }
+  #dwt-module .dwt-lead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--fif-border);
+  }
+  #dwt-module .dwt-avatar {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: linear-gradient(135deg, var(--fif-navy), var(--fif-navy-2));
+    color: #ffffff;
+    font-family: var(--fif-font-head);
+    font-weight: 700;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #dwt-module .dwt-lead-text { min-width: 0; }
+  #dwt-module .dwt-lead-role {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fif-muted);
+  }
+  #dwt-module .dwt-lead-name {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--fif-text);
+  }
+  #dwt-module .dwt-lead-title {
+    display: block;
+    font-size: 12.5px;
+    color: var(--fif-secondary);
+  }
+  #dwt-module .dwt-bio {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--fif-secondary);
+    line-height: 1.45;
+  }
+  #dwt-module .fif-card .fif-visit {
+    margin-top: auto;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--fif-accent-dark);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  #dwt-module .fif-card .fif-visit:hover { text-decoration: underline; }
+  #dwt-module .fif-card .fif-visit svg { width: 13px; height: 13px; }
+  #dwt-module .fif-empty {
+    padding: 30px 10px;
+    text-align: center;
+    color: var(--fif-muted);
+    font-size: 14px;
+    margin: 0;
+  }
+  #dwt-module .fif-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 20px;
+  }
+  #dwt-module .fif-pagination[hidden] { display: none; }
+  #dwt-module .fif-page-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ffffff;
+    border: 1px solid #c7ced4;
+    border-radius: 8px;
+    padding: 8px 14px;
+    min-height: 40px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fif-text);
+    cursor: pointer;
+  }
+  #dwt-module .fif-page-btn svg { width: 14px; height: 14px; }
+  #dwt-module .fif-page-btn:hover:not(:disabled) { background: var(--fif-bg-tint); }
+  #dwt-module .fif-page-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  #dwt-module .fif-page-info {
+    font-size: 13px;
+    color: var(--fif-secondary);
+    font-weight: 600;
+  }
+  #dwt-module .dwt-hotlab {
+    margin: 22px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--fif-border);
+    font-size: 13.5px;
+    color: var(--fif-secondary);
+    line-height: 1.5;
+  }
+  #dwt-module .fif-sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+  @media (max-width: 520px) {
+    #dwt-module { padding: 20px 16px 24px; }
+    #dwt-module h2 { font-size: 22px; }
+    #dwt-module .fif-search-row { flex-direction: column; }
+    #dwt-module .fif-clear-btn { padding: 10px 14px; }
+    #dwt-module .fif-pagination { gap: 8px; }
+    #dwt-module .fif-page-btn span.fif-page-btn-label { display: none; }
   }
 </style>
 </head>
 <body>
-<div class="ssl">
-  <div class="ssl-eyebrow">School WCM Support</div>
-  <h2>Find your support lead</h2>
-  <p class="ssl-lede">Every school has a dedicated member of the District Web Team. Search for your school to see who supports you.</p>
-  <div class="ssl-search">
-    <label for="ssl-q">Your school</label>
-    <input id="ssl-q" type="search" autocomplete="off" placeholder="Start typing your school's name" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ssl-results">
-    <ul id="ssl-results" class="ssl-list" role="listbox" hidden></ul>
+
+<section id="dwt-module" aria-labelledby="dwt-heading">
+  <p class="fif-eyebrow">District Support Team</p>
+  <h2 id="dwt-heading">Need website support? Know who to contact.</h2>
+  <p class="fif-intro">Every school is now assigned a <strong>District Web Team Lead</strong> to provide consistent, dedicated support for WCMs. Use the directory below to find your school and identify your assigned <strong>District Web Team Lead</strong>.</p>
+  <p class="dwt-process"><strong>The support process remains the same:</strong> Submit an <a id="dwt-iiq-link" href="https://browardschools.incidentiq.com/" target="_blank" rel="noopener noreferrer">Incident IQ (IIQ) ticket</a> when you need assistance. Your school's District Web Team Lead will help guide your request and provide support.</p>
+
+  <div class="fif-search-row">
+    <div class="fif-search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <label for="dwt-search-input" class="fif-sr-only">Search for your school</label>
+      <input type="search" id="dwt-search-input" autocomplete="off" placeholder="School name or location number">
+    </div>
+    <button type="button" class="fif-clear-btn" id="dwt-clear">Clear</button>
   </div>
-  <p id="ssl-status" class="ssl-empty" role="status" aria-live="polite">Loading schools…</p>
-  <div id="ssl-card" aria-live="polite"></div>
-</div>
+
+  <p class="fif-cats-label" id="dwt-cats-label">Or browse by District Web Team Lead</p>
+  <div class="fif-cats" role="group" aria-labelledby="dwt-cats-label" id="dwt-cats"></div>
+
+  <p class="fif-count" id="dwt-count" aria-live="polite"></p>
+  <div class="fif-grid" id="dwt-grid"></div>
+  <p class="fif-empty" id="dwt-empty" hidden>No school matches that search. Try part of the name, or your school's location number.</p>
+
+  <nav class="fif-pagination" id="dwt-pagination" aria-label="School results pages" hidden>
+    <button type="button" class="fif-page-btn" id="dwt-prev" aria-label="Previous page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      <span class="fif-page-btn-label">Previous</span>
+    </button>
+    <span class="fif-page-info" id="dwt-page-info" aria-live="polite"></span>
+    <button type="button" class="fif-page-btn" id="dwt-next" aria-label="Next page">
+      <span class="fif-page-btn-label">Next</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+  </nav>
+
+  <p class="dwt-hotlab" id="dwt-hotlab" hidden></p>
+</section>
+
 <script>
 (function () {
-  var SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
-  var ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
-  var DEFAULT_IIQ = 'https://browardschools.incidentiq.com/';
-  var schools = [], leads = {}, settings = {};
-  var q = document.getElementById('ssl-q'), list = document.getElementById('ssl-results');
-  var statusEl = document.getElementById('ssl-status'), card = document.getElementById('ssl-card');
+  var PAGE_SIZE = 9;
+  var SLUG = "school-support-lead";
+  var DEFAULT_IIQ = "https://browardschools.incidentiq.com/";
+  var SUPABASE_URL = "https://fwbhwfxpncrsfhttimna.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA";
 
-  function get(path) {
-    return fetch(SUPABASE_URL + '/rest/v1/' + path, { headers: { apikey: ANON, Authorization: 'Bearer ' + ANON } })
-      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
-  }
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function safeUrl(u) { return /^https:\/\//i.test(u || '') ? u : ''; }
-  function norm(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
-  function initials(n) { return n.split(/\s+/).filter(Boolean).map(function (w) { return w[0]; }).filter(function (c) { return /[A-Z]/.test(c); }).slice(0, 2).join(''); }
+  var SCHOOL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M10 21v-5h4v5"/></svg>';
+  var EXT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>';
 
-  Promise.all([
-    get('bcps_school_assignments?select=loc_no,display_name,school_level,region,lead_email&order=display_name'),
-    get('bcps_support_leads?select=email,full_name,title,bio,photo_url'),
-    get('bcps_support_settings?select=key,value')
-  ]).then(function (r) {
-    schools = r[0].map(function (s) { s.key = norm(s.display_name + ' ' + s.loc_no); return s; });
-    r[1].forEach(function (l) { leads[l.email] = l; });
-    r[2].forEach(function (s) { settings[s.key] = s.value; });
-    statusEl.textContent = '';
-    var pre = new URLSearchParams(location.search).get('school');
-    if (pre) { var hit = schools.find(function (s) { return s.loc_no === pre; }); if (hit) choose(hit); }
-  }).catch(function () {
-    statusEl.textContent = 'The school list could not load. Please refresh the page, or submit an IIQ ticket for help.';
-  });
+  var LEADS = [];      // [{ id: email, name, title, bio, photo }]
+  var LEAD_BY = {};
+  var SCHOOLS = [];    // [{ name, loc, level, region, lead, key }]
+  var SETTINGS = {};
+  var state = { lead: "all", q: "", page: 1 };
 
-  function render(matches) {
-    list.innerHTML = '';
-    if (!matches.length) { list.hidden = true; q.setAttribute('aria-expanded', 'false'); return; }
-    matches.slice(0, 12).forEach(function (s, i) {
-      var li = document.createElement('li');
-      li.innerHTML = '<button type="button" role="option" id="ssl-opt-' + i + '">' + esc(s.display_name) + '<small>' + esc(s.region || '') + (s.region ? ' · ' : '') + '#' + esc(s.loc_no) + '</small></button>';
-      li.firstChild.addEventListener('click', function () { choose(s); });
-      list.appendChild(li);
+  var catsEl = document.getElementById("dwt-cats");
+  var gridEl = document.getElementById("dwt-grid");
+  var countEl = document.getElementById("dwt-count");
+  var emptyEl = document.getElementById("dwt-empty");
+  var searchEl = document.getElementById("dwt-search-input");
+  var clearBtn = document.getElementById("dwt-clear");
+  var paginationEl = document.getElementById("dwt-pagination");
+  var pageInfoEl = document.getElementById("dwt-page-info");
+  var prevBtn = document.getElementById("dwt-prev");
+  var nextBtn = document.getElementById("dwt-next");
+  var hotlabEl = document.getElementById("dwt-hotlab");
+  var iiqLinkEl = document.getElementById("dwt-iiq-link");
+
+  function supabaseGet(path) {
+    return fetch(SUPABASE_URL + "/rest/v1/" + path, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
+    }).then(function (r) {
+      if (!r.ok) throw new Error(path + " fetch failed: " + r.status);
+      return r.json();
     });
-    list.hidden = false; q.setAttribute('aria-expanded', 'true');
   }
-  q.addEventListener('input', function () {
-    var t = norm(q.value);
-    if (!t) { render([]); statusEl.textContent = ''; return; }
-    var words = t.split(' ');
-    var m = schools.filter(function (s) { return words.every(function (w) { return s.key.indexOf(w) !== -1; }); });
-    render(m);
-    statusEl.textContent = m.length ? '' : 'No school matches "' + q.value + '". Try a shorter name, or your school\'s location number.';
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function safeUrl(u) { return /^https:\/\//i.test(u || "") ? u : ""; }
+  function norm(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+  function initials(n) {
+    return n.split(/\s+/).filter(function (w) { return /^[A-Z]/.test(w) && w.length > 1; })
+      .map(function (w) { return w[0]; }).filter(function (c, i, a) { return i === 0 || i === a.length - 1; }).join("");
+  }
+  function iiqUrl() { return safeUrl(SETTINGS.iiq_url) || DEFAULT_IIQ; }
+
+  function loadContent() {
+    return Promise.all([
+      supabaseGet("bcps_school_assignments?select=loc_no,display_name,school_level,region,lead_email&order=display_name"),
+      supabaseGet("bcps_support_leads?select=email,full_name,title,bio,photo_url,sort_order&order=sort_order"),
+      supabaseGet("bcps_support_settings?select=key,value")
+    ]).then(function (r) {
+      LEADS = r[1].map(function (l) {
+        return { id: l.email, name: l.full_name, title: l.title || "", bio: l.bio || "", photo: safeUrl(l.photo_url) };
+      });
+      LEADS.forEach(function (l) { LEAD_BY[l.id] = l; });
+      SCHOOLS = r[0].map(function (s) {
+        var lead = LEAD_BY[s.lead_email];
+        var loc = String(s.loc_no || "");
+        return {
+          name: s.display_name, loc: loc, level: s.school_level || "", region: s.region || "", lead: s.lead_email,
+          // Location numbers match with or without the leading zero (0131 or 131).
+          key: norm(s.display_name + " " + loc + " " + loc.replace(/^0+/, "") + " " + (lead ? lead.name : ""))
+        };
+      });
+      r[2].forEach(function (s) { SETTINGS[s.key] = s.value; });
+    });
+  }
+
+  // Auto height for iframe embeds, same contract as Find It Fast.
+  var lastPostedHeight = 0;
+  function postHeight() {
+    var height = Math.ceil(document.body.getBoundingClientRect().height);
+    if (Math.abs(height - lastPostedHeight) < 2) return;
+    lastPostedHeight = height;
+    window.parent.postMessage({ type: "bcps-widget-resize", slug: SLUG, height: height }, "*");
+  }
+
+  function renderCats() {
+    var cats = [{ id: "all", label: "All schools" }].concat(LEADS.map(function (l) { return { id: l.id, label: l.name }; }));
+    catsEl.innerHTML = cats.map(function (c) {
+      return '<button type="button" class="fif-cat-btn" data-lead="' + esc(c.id) + '" aria-pressed="' + (state.lead === c.id) + '">' + esc(c.label) + '</button>';
+    }).join("");
+    Array.prototype.forEach.call(catsEl.querySelectorAll(".fif-cat-btn"), function (btn) {
+      btn.addEventListener("click", function () {
+        state.lead = btn.getAttribute("data-lead");
+        state.page = 1;
+        render();
+      });
+    });
+  }
+
+  function pad4(n) { return ("0000" + n).slice(-4); }
+
+  function matches(s) {
+    if (state.lead !== "all" && s.lead !== state.lead) return false;
+    var q = norm(state.q.replace(/#/g, ""));
+    if (!q) return true;
+    // A full location number (131 or 0131) finds that school only, not every
+    // number that happens to contain those digits.
+    if (/^\d{1,4}$/.test(q) && SCHOOLS.some(function (x) { return x.loc === pad4(q); })) return s.loc === pad4(q);
+    return q.split(" ").every(function (w) { return s.key.indexOf(w) !== -1; });
+  }
+
+  function avatar(l) {
+    return l.photo
+      ? '<img class="dwt-avatar" src="' + esc(l.photo) + '" alt="">'
+      : '<span class="dwt-avatar" aria-hidden="true">' + esc(initials(l.name)) + '</span>';
+  }
+
+  function card(s, single) {
+    var l = LEAD_BY[s.lead];
+    var tag = [s.level, s.region].filter(Boolean).join(" · ");
+    var lead = l
+      ? '<div class="dwt-lead">' + avatar(l) +
+          '<span class="dwt-lead-text"><span class="dwt-lead-role">District Web Team Lead</span>' +
+          '<span class="dwt-lead-name">' + esc(l.name) + '</span>' +
+          (l.title ? '<span class="dwt-lead-title">' + esc(l.title) + '</span>' : '') + '</span></div>' +
+          (single && l.bio ? '<p class="dwt-bio">' + esc(l.bio) + '</p>' : '')
+      : '<p class="dwt-bio">A District Web Team Lead for this school is being assigned. Submit an IIQ ticket and the team will help.</p>';
+    return '<article class="fif-card">' +
+      '<span class="fif-card-tag">' + SCHOOL_ICON + esc(tag) + '</span>' +
+      '<h3>' + esc(s.name) + '</h3>' +
+      '<p class="dwt-loc">Location number ' + esc(s.loc) + '</p>' +
+      lead +
+      '<a class="fif-visit" href="' + esc(iiqUrl()) + '" target="_blank" rel="noopener noreferrer">Submit an IIQ ticket' + EXT_ICON + '</a>' +
+      '</article>';
+  }
+
+  function renderPagination(totalPages) {
+    if (totalPages <= 1) {
+      paginationEl.hidden = true;
+      pageInfoEl.textContent = "";
+      return;
+    }
+    paginationEl.hidden = false;
+    pageInfoEl.textContent = "Page " + state.page + " of " + totalPages;
+    prevBtn.disabled = state.page <= 1;
+    nextBtn.disabled = state.page >= totalPages;
+  }
+
+  function render(scrollTop) {
+    Array.prototype.forEach.call(catsEl.querySelectorAll(".fif-cat-btn"), function (btn) {
+      btn.setAttribute("aria-pressed", String(btn.getAttribute("data-lead") === state.lead));
+    });
+    var results = SCHOOLS.filter(matches);
+    var total = results.length;
+    var totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (state.page > totalPages) state.page = totalPages;
+    if (state.page < 1) state.page = 1;
+
+    if (total === 0) {
+      countEl.textContent = "0 schools";
+      gridEl.innerHTML = "";
+      emptyEl.hidden = false;
+      paginationEl.hidden = true;
+      postHeight();
+      return;
+    }
+    emptyEl.hidden = true;
+    var startIdx = (state.page - 1) * PAGE_SIZE;
+    var pageResults = results.slice(startIdx, startIdx + PAGE_SIZE);
+    countEl.textContent = total === 1 ? "1 school" :
+      "Showing " + (startIdx + 1) + "-" + (startIdx + pageResults.length) + " of " + total + " schools";
+    gridEl.innerHTML = pageResults.map(function (s) { return card(s, total === 1); }).join("");
+    renderPagination(totalPages);
+    postHeight();
+    if (scrollTop) {
+      var moduleEl = document.getElementById("dwt-module");
+      if (moduleEl && moduleEl.scrollIntoView) moduleEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  searchEl.addEventListener("input", function (e) {
+    state.q = e.target.value;
+    state.page = 1;
+    render();
   });
-  q.addEventListener('keydown', function (e) {
-    var opts = list.querySelectorAll('button');
-    if (e.key === 'ArrowDown' && opts.length) { e.preventDefault(); opts[0].focus(); }
-    if (e.key === 'Enter' && opts.length) { e.preventDefault(); opts[0].click(); }
-    if (e.key === 'Escape') render([]);
+  clearBtn.addEventListener("click", function () {
+    state.q = "";
+    state.lead = "all";
+    state.page = 1;
+    searchEl.value = "";
+    render();
+    searchEl.focus();
   });
-  list.addEventListener('keydown', function (e) {
-    var opts = Array.prototype.slice.call(list.querySelectorAll('button'));
-    var i = opts.indexOf(document.activeElement);
-    if (e.key === 'ArrowDown' && i < opts.length - 1) { e.preventDefault(); opts[i + 1].focus(); }
-    if (e.key === 'ArrowUp') { e.preventDefault(); (i > 0 ? opts[i - 1] : q).focus(); }
-    if (e.key === 'Escape') { render([]); q.focus(); }
+  prevBtn.addEventListener("click", function () {
+    if (state.page > 1) { state.page -= 1; render(true); }
+  });
+  nextBtn.addEventListener("click", function () {
+    state.page += 1;
+    render(true);
   });
 
-  function choose(s) {
-    render([]);
-    q.value = s.display_name;
-    var l = leads[s.lead_email];
-    if (!l) { card.innerHTML = '<p class="ssl-empty">A support lead for ' + esc(s.display_name) + ' is being assigned. Submit an IIQ ticket and the District Web Team will help.</p>'; return; }
-    var first = l.full_name.split(' ')[0];
-    var iiq = safeUrl(settings.iiq_url) || DEFAULT_IIQ;
-    var tue = safeUrl(settings.hot_lab_tuesday_url), thu = safeUrl(settings.hot_lab_thursday_url);
-    var photo = safeUrl(l.photo_url)
-      ? '<img class="ssl-photo" src="' + esc(l.photo_url) + '" alt="Photo of ' + esc(l.full_name) + '">'
-      : '<div class="ssl-photo" aria-hidden="true">' + esc(initials(l.full_name)) + '</div>';
-    var bio = l.bio || (first + ' is the District Web Team member dedicated to your school this year. Reach out for help with your website, your WCM training, or anything on your school\'s site.');
-    var hot = '';
-    if (tue) hot += '<a class="ssl-btn secondary" href="' + esc(tue) + '" target="_blank" rel="noopener">Join Tuesday Hot Lab</a>';
-    if (thu) hot += '<a class="ssl-btn secondary" href="' + esc(thu) + '" target="_blank" rel="noopener">Join Thursday Hot Lab</a>';
-    card.innerHTML =
-      '<div class="ssl-card">' +
-        '<div class="ssl-card-top">' + esc(s.display_name) + (s.region ? ' · ' + esc(s.region) : '') + '</div>' +
-        '<div class="ssl-card-body">' + photo +
-          '<div class="ssl-who">' +
-            '<div class="ssl-role">Your support lead</div>' +
-            '<div class="ssl-name">' + esc(l.full_name) + '</div>' +
-            (l.title ? '<p class="ssl-title">' + esc(l.title) + '</p>' : '') +
-            '<p class="ssl-bio">' + esc(bio) + '</p>' +
-            '<div class="ssl-actions">' +
-              '<a class="ssl-btn primary" href="' + esc(iiq) + '" target="_blank" rel="noopener">Request an IIQ ticket</a>' + hot +
-            '</div>' +
-            '<p class="ssl-hotlab">' + esc(settings.hot_lab_text || 'Hot Labs are open drop-in support sessions every Tuesday and Thursday. Bring your questions and work on your site with the team.') + '</p>' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-      '<p class="ssl-note">Put your school\'s name in your IIQ ticket so it reaches ' + esc(first) + '.</p>';
+  countEl.textContent = "Loading schools...";
+  loadContent().then(function () {
+    iiqLinkEl.href = iiqUrl();
+    if (SETTINGS.hot_lab_text) { hotlabEl.textContent = SETTINGS.hot_lab_text; hotlabEl.hidden = false; }
+    // ?school=2551 (or a name) opens the widget already filtered to that school.
+    var pre = new URLSearchParams(location.search).get("school");
+    if (pre) { state.q = pre; searchEl.value = pre; }
+    renderCats();
+    render();
+  }).catch(function (err) {
+    countEl.textContent = "";
+    emptyEl.hidden = false;
+    emptyEl.textContent = "The school list could not load right now. Please refresh, or submit an IIQ ticket for help.";
+    if (window.console) console.error("District Web Team Lead load error:", err);
+    postHeight();
+  });
+
+  window.addEventListener("load", postHeight);
+  window.addEventListener("resize", postHeight);
+  if (window.ResizeObserver) {
+    new ResizeObserver(postHeight).observe(document.body);
+  } else {
+    setInterval(postHeight, 500);
   }
 })();
 </script>
+
 </body>
 </html>
