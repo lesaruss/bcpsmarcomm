@@ -46,6 +46,13 @@ interface Req {
   completed_at: string | null
 }
 interface Note { id: string; request_id: string; body: string; author: string | null; created_at: string }
+interface Member { name: string; email: string | null; kind: 'person' | 'team' }
+
+// Lead holds one name; Support holds a comma-separated list. Rows imported from
+// the spreadsheet may still carry names that are not on the roster (former
+// staff), so splitting tolerates both separators.
+const namesIn = (r: Pick<Req, 'lead' | 'support'>) =>
+  `${r.lead ?? ''},${r.support ?? ''}`.split(/[\/,]/).map(s => s.trim()).filter(Boolean)
 
 const STATUSES: { id: string; label: string; cls: string }[] = [
   { id: 'new',         label: 'New',         cls: 'st-new' },
@@ -77,6 +84,8 @@ function todayIso(): string {
 export default function MarcommAssignmentsPage() {
   const [requests, setRequests] = useState<Req[]>([])
   const [notes, setNotes] = useState<Note[]>([])
+  const [team, setTeam] = useState<Member[]>([])
+  const [me, setMe] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<'active' | 'completed'>('active')
@@ -92,7 +101,7 @@ export default function MarcommAssignmentsPage() {
       const r = await fetch('/api/bcps/marcomm-requests', { headers: await authHeaders(), cache: 'no-store' })
       const j = await r.json()
       if (!r.ok) throw new Error(j.error || 'Could not load requests.')
-      setRequests(j.requests); setNotes(j.notes); setError('')
+      setRequests(j.requests); setNotes(j.notes); setTeam(j.team ?? []); setMe((j.me ?? '').toLowerCase()); setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load requests.')
     } finally {
@@ -119,15 +128,22 @@ export default function MarcommAssignmentsPage() {
   const overdue = active.filter(r => r.date_needed && r.date_needed < today).length
   const newCount = active.filter(r => r.status === 'new').length
 
-  // Leads are free text carried over from the spreadsheet ("SH/CG", "FW/ Graphics"),
-  // so the filter offers each individual name or team that appears in them.
-  const leadOptions = useMemo(() => {
+  // The viewer's own roster name, for "My items".
+  const myName = team.find(m => m.email && m.email.toLowerCase() === me)?.name ?? ''
+  // Filter options: roster people and teams, plus any older names still on
+  // imported rows, each with its count of active items.
+  const activeCount = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of active) for (const n of namesIn(r)) m.set(n, (m.get(n) ?? 0) + 1)
+    return m
+  }, [active])
+  const otherNames = useMemo(() => {
+    const roster = new Set(team.map(m => m.name))
     const set = new Set<string>()
-    for (const r of requests) for (const part of `${r.lead ?? ''}/${r.support ?? ''}`.split(/[\/,]/)) {
-      const p = part.trim(); if (p) set.add(p)
-    }
+    for (const r of requests) for (const n of namesIn(r)) if (!roster.has(n)) set.add(n)
     return Array.from(set).sort((a, b) => a.localeCompare(b))
-  }, [requests])
+  }, [requests, team])
+  const optLabel = (n: string) => `${n}${activeCount.get(n) ? ` (${activeCount.get(n)})` : ''}`
 
   const list = useMemo(() => {
     const base = tab === 'active' ? active : done
@@ -135,8 +151,7 @@ export default function MarcommAssignmentsPage() {
     const rows = base.filter(r => {
       if (tab === 'active' && statusFilter !== 'all' && r.status !== statusFilter) return false
       if (leadFilter !== 'all') {
-        const people = `${r.lead ?? ''}/${r.support ?? ''}`.split(/[\/,]/).map(s => s.trim().toLowerCase())
-        if (!people.includes(leadFilter.toLowerCase())) return false
+        if (!namesIn(r).some(n => n.toLowerCase() === leadFilter.toLowerCase())) return false
       }
       if (!q) return true
       return [r.title, r.requester_name, r.org_name, r.description, r.lead, String(r.job_number ?? '')]
@@ -203,10 +218,26 @@ export default function MarcommAssignmentsPage() {
           </div>
         )}
         <div className="mca-controls">
+          {myName && (
+            <button className={`chip mine ${leadFilter === myName ? 'on' : ''}`}
+              onClick={() => setLeadFilter(leadFilter === myName ? 'all' : myName)}>
+              My items <b>{activeCount.get(myName) ?? 0}</b>
+            </button>
+          )}
           <label><span className="fl">Person or team</span>
             <select value={leadFilter} onChange={e => setLeadFilter(e.target.value)}>
               <option value="all">Everyone</option>
-              {leadOptions.map(l => <option key={l} value={l}>{l}</option>)}
+              <optgroup label="People">
+                {team.filter(m => m.kind === 'person').map(m => <option key={m.name} value={m.name}>{optLabel(m.name)}</option>)}
+              </optgroup>
+              <optgroup label="Teams">
+                {team.filter(m => m.kind === 'team').map(m => <option key={m.name} value={m.name}>{optLabel(m.name)}</option>)}
+              </optgroup>
+              {otherNames.length > 0 && (
+                <optgroup label="Older entries">
+                  {otherNames.map(n => <option key={n} value={n}>{optLabel(n)}</option>)}
+                </optgroup>
+              )}
             </select>
           </label>
           {tab === 'active' && (
@@ -264,14 +295,42 @@ export default function MarcommAssignmentsPage() {
         </div>
       )}
 
-      {open && <Drawer req={open} notes={notesFor.get(open.id) ?? []} onClose={() => setOpenId(null)} post={post} />}
-      {adding && <AddItem onClose={() => setAdding(false)} post={post} />}
+      {open && <Drawer req={open} team={team} notes={notesFor.get(open.id) ?? []} onClose={() => setOpenId(null)} post={post} />}
+      {adding && <AddItem team={team} defaultLead={myName} onClose={() => setAdding(false)} post={post} />}
     </div>
   )
 }
 
-function Drawer({ req, notes, onClose, post }: {
-  req: Req; notes: Note[]; onClose: () => void; post: (p: Record<string, unknown>) => Promise<unknown>
+// Lead dropdown: roster people, then teams. A value not on the roster (an
+// older spreadsheet entry) stays selectable so opening a row never drops it.
+function LeadSelect({ team, value, onChange }: { team: Member[]; value: string; onChange: (v: string) => void }) {
+  const known = !value || team.some(m => m.name === value)
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)}>
+      <option value="">Unassigned</option>
+      <optgroup label="People">{team.filter(m => m.kind === 'person').map(m => <option key={m.name} value={m.name}>{m.name}</option>)}</optgroup>
+      <optgroup label="Teams">{team.filter(m => m.kind === 'team').map(m => <option key={m.name} value={m.name}>{m.name}</option>)}</optgroup>
+      {!known && <option value={value}>{value}</option>}
+    </select>
+  )
+}
+
+// Support picker: toggle chips for everyone on the roster except the lead.
+function SupportPicker({ team, lead, value, onChange }: { team: Member[]; lead: string; value: string; onChange: (v: string) => void }) {
+  const picked = value.split(',').map(s => s.trim()).filter(Boolean)
+  const toggle = (n: string) => onChange((picked.includes(n) ? picked.filter(p => p !== n) : [...picked, n]).join(', '))
+  const extra = picked.filter(p => !team.some(m => m.name === p))
+  return (
+    <div className="pick-chips">
+      {[...team.map(m => m.name), ...extra].filter(n => n !== lead).map(n => (
+        <button type="button" key={n} className={`chip ${picked.includes(n) ? 'on' : ''}`} aria-pressed={picked.includes(n)} onClick={() => toggle(n)}>{n}</button>
+      ))}
+    </div>
+  )
+}
+
+function Drawer({ req, team, notes, onClose, post }: {
+  req: Req; team: Member[]; notes: Note[]; onClose: () => void; post: (p: Record<string, unknown>) => Promise<unknown>
 }) {
   const [lead, setLead] = useState(req.lead ?? '')
   const [support, setSupport] = useState(req.support ?? '')
@@ -326,11 +385,16 @@ function Drawer({ req, notes, onClose, post }: {
             <input type="date" value={dateNeeded} onChange={e => setDateNeeded(e.target.value)} />
           </label>
           <label><span className="fl">Lead</span>
-            <input value={lead} onChange={e => setLead(e.target.value)} placeholder="Who owns it" />
+            <LeadSelect team={team} value={lead} onChange={v => {
+              setLead(v)
+              // The lead is never also listed as support.
+              setSupport(support.split(',').map(s => s.trim()).filter(s => s && s !== v).join(', '))
+            }} />
           </label>
-          <label><span className="fl">Support</span>
-            <input value={support} onChange={e => setSupport(e.target.value)} placeholder="Others or teams helping" />
-          </label>
+        </div>
+        <div className="d-support">
+          <span className="fl">Support</span>
+          <SupportPicker team={team} lead={lead} value={support} onChange={setSupport} />
         </div>
         {dirty && <button className="mca-btn small" disabled={busy}
           onClick={() => run({ action: 'update', id: req.id, lead, support, date_needed: dateNeeded || null }, 'Saved.')}>Save changes</button>}
@@ -391,10 +455,12 @@ function Drawer({ req, notes, onClose, post }: {
   )
 }
 
-function AddItem({ onClose, post }: { onClose: () => void; post: (p: Record<string, unknown>) => Promise<unknown> }) {
+function AddItem({ team, defaultLead, onClose, post }: {
+  team: Member[]; defaultLead: string; onClose: () => void; post: (p: Record<string, unknown>) => Promise<unknown>
+}) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [lead, setLead] = useState('')
+  const [lead, setLead] = useState(defaultLead)
   const [dateNeeded, setDateNeeded] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
@@ -409,7 +475,7 @@ function AddItem({ onClose, post }: { onClose: () => void; post: (p: Record<stri
         <div className="d-grid one">
           <label><span className="fl">Title</span><input value={title} onChange={e => setTitle(e.target.value)} /></label>
           <label><span className="fl">Details</span><textarea rows={4} value={description} onChange={e => setDescription(e.target.value)} /></label>
-          <label><span className="fl">Lead</span><input value={lead} onChange={e => setLead(e.target.value)} /></label>
+          <label><span className="fl">Lead</span><LeadSelect team={team} value={lead} onChange={setLead} /></label>
           <label><span className="fl">Date needed</span><input type="date" value={dateNeeded} onChange={e => setDateNeeded(e.target.value)} /></label>
         </div>
         <button className="mca-btn" disabled={busy || !title.trim()} onClick={async () => {
@@ -449,6 +515,11 @@ const CSS = `
 .chip b { margin-left: 4px; }
 .chip.on { background: #1672A7; border-color: #1672A7; color: #fff; }
 .mca-controls { display: flex; flex-wrap: wrap; gap: 12px; }
+.chip.mine { align-self: flex-end; padding: 10px 14px; font-size: 11px; }
+.d-support { margin-bottom: 12px; }
+.d-support .fl { display: block; margin-bottom: 6px; }
+.pick-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick-chips .chip { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; padding: 5px 10px; }
 .mca-controls label { display: flex; flex-direction: column; min-width: 180px; }
 .mca-controls label.grow { flex: 1; min-width: min(260px, 100%); }
 .mca select, .mca input, .mca textarea { font: inherit; font-size: 13px; padding: 9px 12px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; background-color: #fff; color: #1a1a1a; width: 100%; box-sizing: border-box; }

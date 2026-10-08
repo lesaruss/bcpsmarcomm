@@ -33,13 +33,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, url: data.signedUrl })
   }
 
-  const [{ data: requests, error }, { data: notes, error: notesError }] = await Promise.all([
+  // team: the roster from the weekly Marcomm Meeting (bcps_marcomm_team), used
+  // for the Lead and Support dropdowns and the "My items" view; me is the
+  // signed-in email so the page can find the viewer on that roster.
+  const [{ data: requests, error }, { data: notes, error: notesError }, { data: team, error: teamError }] = await Promise.all([
     supabase.from('bcps_marcomm_requests').select('*').order('submitted_at', { ascending: false }),
     supabase.from('bcps_marcomm_request_notes').select('id, request_id, body, author, created_at').order('created_at', { ascending: false }),
+    supabase.from('bcps_marcomm_team').select('name, email, kind').eq('active', true).order('sort_order').order('name'),
   ])
-  if (error || notesError) return NextResponse.json({ error: (error || notesError)!.message }, { status: 500 })
+  if (error || notesError || teamError) return NextResponse.json({ error: (error || notesError || teamError)!.message }, { status: 500 })
 
-  const res = NextResponse.json({ ok: true, requests: requests ?? [], notes: notes ?? [] })
+  const res = NextResponse.json({ ok: true, requests: requests ?? [], notes: notes ?? [], team: team ?? [], me: auth.user.email })
   res.headers.set('Cache-Control', 'no-store')
   return res
 }
