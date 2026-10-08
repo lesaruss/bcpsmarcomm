@@ -253,7 +253,7 @@ export default function MarcommAssignmentsPage() {
                 </div>
                 <div className="c-date" data-label={tab === 'active' ? 'Date Needed' : 'Closed'}>
                   {tab === 'active'
-                    ? <span className={`date ${late ? 'late' : ''} ${r.date_needed ? '' : 'none'}`}>{fmtDate(r.date_needed)}{late ? ' · past' : ''}</span>
+                    ? <span className={`date ${late ? 'late' : ''} ${r.date_needed ? '' : 'none'}`}>{fmtDate(r.date_needed)}{late ? ' · Overdue' : ''}</span>
                     : <span className="date none">{r.completed_at ? fmtStamp(r.completed_at) : 'Not recorded'}</span>}
                 </div>
                 <div className="c-status" data-label="Status"><span className={`badge ${st.cls}`}>{st.label}</span></div>
@@ -314,7 +314,11 @@ function Drawer({ req, notes, onClose, post }: {
 
         <div className="d-grid">
           <label><span className="fl">Status</span>
-            <select value={req.status} disabled={busy} onChange={e => run({ action: 'update', id: req.id, status: e.target.value }, 'Status updated.')}>
+            <select value={req.status} disabled={busy} onChange={e => {
+              const next = e.target.value
+              if ((next === 'completed' || next === 'declined') && !window.confirm(`Mark this request ${next === 'completed' ? 'Completed' : 'Declined'}? It moves to the Completed tab.`)) return
+              run({ action: 'update', id: req.id, status: next }, 'Status updated.')
+            }}>
               {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
           </label>

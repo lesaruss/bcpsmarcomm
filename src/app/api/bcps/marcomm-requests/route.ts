@@ -64,12 +64,22 @@ export async function POST(req: NextRequest) {
     if (lead !== undefined) patch.lead = (lead || '').trim() || null
     if (support !== undefined) patch.support = (support || '').trim() || null
     if (date_needed !== undefined) patch.date_needed = date_needed || null
+    // Every assignment and date change is written to the notes log, so the
+    // history the spreadsheet's Status column used to carry is kept.
+    const { data: before } = await supabase.from('bcps_marcomm_requests')
+      .select('status, lead, support, date_needed').eq('id', id).single()
     const { error } = await supabase.from('bcps_marcomm_requests').update(patch).eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    if (status !== undefined) {
-      await supabase.from('bcps_marcomm_request_notes').insert({
-        request_id: id, body: `Status changed to ${statusLabel(status as string)}.`, author: auth.user.email,
-      })
+    const changes: string[] = []
+    if (status !== undefined && status !== before?.status) changes.push(`Status changed to ${statusLabel(status as string)}.`)
+    for (const [key, label] of [['lead', 'Lead'], ['support', 'Support'], ['date_needed', 'Date needed']] as const) {
+      if (!(key in patch)) continue
+      const next = (patch[key] as string | null) ?? null
+      const prev = (before?.[key] as string | null) ?? null
+      if (next !== prev) changes.push(next ? `${label} set to ${next}${prev ? ` (was ${prev})` : ''}.` : `${label} cleared${prev ? ` (was ${prev})` : ''}.`)
+    }
+    if (changes.length) {
+      await supabase.from('bcps_marcomm_request_notes').insert({ request_id: id, body: changes.join(' '), author: auth.user.email })
     }
     return NextResponse.json({ ok: true })
   }

@@ -130,6 +130,7 @@ export default function MarcommRequestPage() {
           <form onSubmit={submit} noValidate={false}>
             <h1>MarComm Request</h1>
             <p className="lede">Request support from the Office of Communications: design, social media, ParentLink, press, video and BECON, web and more. Required fields are marked with an asterisk.</p>
+            <p className="mcr-urgent"><b>Urgent or emergency?</b> Do not use this form. Contact the Office of Communications directly so the team can respond right away.</p>
 
             <section className="mcr-card">
               <h2>1. About you</h2>
@@ -190,7 +191,7 @@ export default function MarcommRequestPage() {
             <section className="mcr-card">
               <h2>3. Timing and files</h2>
               <div className="grid">
-                <label>Date you need it by *<input type="date" required value={f.date_needed} onChange={set('date_needed')} /></label>
+                <label>Date you need it ready to use *<input type="date" required value={f.date_needed} onChange={set('date_needed')} /><span className="hint">The day it must be finished, not the event date. Campaigns, video and print need the most lead time, so submit as early as you can.</span></label>
                 <label>Event date, if there is one<input type="date" value={f.event_date} onChange={set('event_date')} /></label>
               </div>
               <fieldset>
@@ -235,6 +236,7 @@ const CSS = `
 .mcr input.ro { background: #f3f4f6; color: rgba(26,26,26,0.75); }
 .mcr fieldset { border: none; padding: 0; margin: 16px 0 0; }
 .mcr legend { font-size: 13px; font-weight: 700; margin-bottom: 8px; padding: 0; }
+.mcr-urgent { font-size: 14px; line-height: 1.6; background: #FFF4E5; border-left: 4px solid #C55326; border-radius: 4px; padding: 12px 16px; margin: 0 0 22px; }
 .hint { font-size: 12px; font-weight: 400; color: rgba(26,26,26,0.6); }
 .radios { display: flex; gap: 16px; flex-wrap: wrap; }
 .pick { flex-direction: row !important; align-items: center; gap: 8px !important; font-weight: 600 !important; cursor: pointer; }
