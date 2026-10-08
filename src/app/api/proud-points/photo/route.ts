@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
-import { svc, caller } from '@/lib/proudPointsApi'
+import { svc, requireProudPointsAccess } from '@/lib/proudPointsApi'
 import { analyzeBannerImage } from '@/lib/bannerVision'
 import {
   PHOTO_ALLOWED_MIME, PHOTO_MAX_BYTES, PHOTO_MIN_HEIGHT, PHOTO_MIN_WIDTH, proudPointUploadPrefix,
@@ -20,8 +20,8 @@ import {
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
-  const user = await caller(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { user, status } = await requireProudPointsAccess(req)
+  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
 
   const { file_path, mime_type } = (await req.json().catch(() => ({}))) as { file_path?: string; mime_type?: string }
   if (!file_path || !file_path.startsWith(proudPointUploadPrefix(user.id)) || file_path.includes('..')) {

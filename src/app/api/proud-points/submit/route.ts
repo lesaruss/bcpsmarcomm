@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { svc, caller, schoolByLoc } from '@/lib/proudPointsApi'
+import { svc, requireProudPointsAccess, schoolByLoc } from '@/lib/proudPointsApi'
 import { sendEmail } from '@/lib/resend'
 import {
   POINT_COUNT, cleanPoint, validatePoint, schoolState, isTestBuild, escapeHtml, type ProudPoint,
@@ -25,8 +25,8 @@ async function photoOk(path: string | null, userId: string): Promise<boolean> {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await caller(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { user, status } = await requireProudPointsAccess(req)
+  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
 
   const body = (await req.json().catch(() => ({}))) as {
     loc?: string; kind?: 'initial' | 'replace'

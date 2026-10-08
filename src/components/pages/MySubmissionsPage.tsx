@@ -70,7 +70,11 @@ export default function MySubmissionsPage() {
   return (
     <div style={{ padding: 32, width: '100%', boxSizing: 'border-box' }}>
       <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Your Submissions</h1>
-      <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 18px' }}>Everything you have sent to the District Web Team, where it stands, and the reason if something was not approved.</p>
+      <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 12px' }}>Everything you have sent to the District Web Team, where it stands, and the reason if something was not approved.</p>
+      <nav aria-label="Submit something new" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+        <a className="btn-primary" href="/?page=banner-submissions" style={{ fontSize: 12, padding: '6px 12px', textDecoration: 'none', borderRadius: 8 }}>Submit a banner</a>
+        <a className="btn-primary" href="/?page=proud-points" style={{ fontSize: 12, padding: '6px 12px', textDecoration: 'none', borderRadius: 8 }}>Submit Proud Points</a>
+      </nav>
       <div className="dash-panel">
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }} role="group" aria-label="Type">
           {(['All', 'Banner', 'Proud Points'] as const).map(t => (

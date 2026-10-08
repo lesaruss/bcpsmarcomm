@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { svc, caller } from '@/lib/proudPointsApi'
+import { svc, requireProudPointsAccess } from '@/lib/proudPointsApi'
 import { isReviewer } from '@/lib/proudPoints'
 
 // Ideas gallery: past Proud Points from the old form, grouped by theme and
@@ -10,8 +10,8 @@ import { isReviewer } from '@/lib/proudPoints'
 // POST { id, hidden }: reviewers only.
 
 export async function GET(req: NextRequest) {
-  const user = await caller(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { user, status } = await requireProudPointsAccess(req)
+  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
   const reviewer = !!(await isReviewer(svc, user))
   let q = svc.from('bcps_proud_point_ideas').select('id, theme, school_level, text, hidden').order('sort')
   if (!reviewer) q = q.eq('hidden', false)
@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await caller(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { user, status } = await requireProudPointsAccess(req)
+  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
   if (!(await isReviewer(svc, user))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id, hidden } = (await req.json().catch(() => ({}))) as { id?: string; hidden?: boolean }
   if (!id || typeof hidden !== 'boolean') return NextResponse.json({ error: 'id and hidden are required' }, { status: 400 })

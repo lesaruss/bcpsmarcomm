@@ -16,6 +16,12 @@ export default function ProudPointsPage() {
         The six highlights on your school homepage: a data point, a heading, a short caption and a background photo for each.
         Every submission goes to the District Web Team for review before it goes live.
       </p>
+      {/* Related pages, so this is never a dead end (Sean, 2026-10-08). The
+          topbar's Dashboard button is the way home. */}
+      <nav aria-label="Related" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '-8px 0 18px' }}>
+        <a className="btn-outline" href="/?page=my-submissions" style={{ fontSize: 12, padding: '6px 12px', textDecoration: 'none', borderRadius: 8 }}>Your Submissions</a>
+        <a className="btn-outline" href="/?page=banner-submissions" style={{ fontSize: 12, padding: '6px 12px', textDecoration: 'none', borderRadius: 8 }}>Banner Submissions</a>
+      </nav>
       <ProudPointsWidget />
     </div>
   )

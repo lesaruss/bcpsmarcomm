@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { MODULES, COURSE_ID } from '@/lib/cert-data'
 import {
-  loadAssignments, assignmentsFor, loadProgram, loadAda, loadBanners, loadWidgets, loadDecisions,
+  loadAssignments, assignmentsFor, loadProgram, loadAda, loadBanners, loadProudPoints, loadWidgets, loadDecisions,
   type TeamMemberWork,
 } from '@/lib/bcps-team-home'
 import { hasSeriesGrant } from '@/lib/bcps-doc-access'
@@ -275,10 +275,11 @@ export async function GET(req: NextRequest) {
 
   let teamHome: Record<string, unknown> | null = null
   if (isDwt) {
-    const [program, ada, banners, rows] = await Promise.all([
+    const [program, ada, banners, proudPoints, rows] = await Promise.all([
       loadProgram(svc, departments),
       loadAda(svc, departments),
       loadBanners(svc),
+      loadProudPoints(svc).catch((e) => { console.error('home: proud points failed', e); return { pending: 0, approved: 0, rejected: 0, ready: 0 } }),
       // Assignments are a bonus on the dashboard: if they cannot be read,
       // the rest of the dashboard still loads (2026-10-01 incident).
       loadAssignments(svc, req.nextUrl.origin).catch((e) => { console.error('home: assignments failed', e); return [] }),
@@ -291,6 +292,7 @@ export async function GET(req: NextRequest) {
       program,
       ada,
       banners,
+      proud_points: proudPoints,
       kb_articles: kb ?? [],
       my_assignments: assignmentsFor(rows, displayName.split(/\s+/)[0], displayName),
     }

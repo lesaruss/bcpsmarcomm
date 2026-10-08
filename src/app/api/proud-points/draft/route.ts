@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { svc, caller, schoolByLoc } from '@/lib/proudPointsApi'
+import { svc, requireProudPointsAccess, schoolByLoc } from '@/lib/proudPointsApi'
 import { POINT_COUNT, cleanPoint, validatePoint, isTestBuild, type ProudPoint } from '@/lib/proudPoints'
 
 // Saves a school's first set of six as a draft until all six are complete
@@ -8,8 +8,8 @@ import { POINT_COUNT, cleanPoint, validatePoint, isTestBuild, type ProudPoint } 
 // point is a single short form.
 
 export async function PUT(req: NextRequest) {
-  const user = await caller(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { user, status } = await requireProudPointsAccess(req)
+  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
 
   const { loc, points } = (await req.json().catch(() => ({}))) as { loc?: string; points?: Partial<ProudPoint>[] }
   const school = await schoolByLoc(loc)
@@ -43,8 +43,8 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const user = await caller(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { user, status } = await requireProudPointsAccess(req)
+  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
   const loc = req.nextUrl.searchParams.get('loc')
   if (!loc) return NextResponse.json({ error: 'loc is required' }, { status: 400 })
   const { error } = await svc.from('bcps_proud_point_submissions').delete()

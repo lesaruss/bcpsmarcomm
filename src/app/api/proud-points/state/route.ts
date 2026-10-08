@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { svc, caller, schoolByLoc } from '@/lib/proudPointsApi'
+import { svc, requireProudPointsAccess, schoolByLoc } from '@/lib/proudPointsApi'
 import { schoolState, mySchoolLocs, signPhoto, type ProudPoint } from '@/lib/proudPoints'
 
 // Everything the form needs for one school: whether it already has six (which
@@ -9,8 +9,8 @@ import { schoolState, mySchoolLocs, signPhoto, type ProudPoint } from '@/lib/pro
 // so the form can preselect one.
 
 export async function GET(req: NextRequest) {
-  const user = await caller(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { user, status } = await requireProudPointsAccess(req)
+  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
 
   const loc = req.nextUrl.searchParams.get('loc')
   if (!loc) return NextResponse.json({ my_schools: await mySchoolLocs(svc, user.email) })

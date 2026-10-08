@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { svc, caller } from '@/lib/proudPointsApi'
+import { svc, requireProudPointsAccess } from '@/lib/proudPointsApi'
 import { PHOTO_ALLOWED_MIME, PHOTO_MAX_BYTES, proudPointUploadPrefix } from '@/lib/proudPoints'
 
 // Step 1 of attaching a background photo: a one-time signed URL so the browser
@@ -8,8 +8,8 @@ import { PHOTO_ALLOWED_MIME, PHOTO_MAX_BYTES, proudPointUploadPrefix } from '@/l
 // is scoped to the caller; /api/proud-points/photo only checks paths under it.
 
 export async function POST(req: NextRequest) {
-  const user = await caller(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { user, status } = await requireProudPointsAccess(req)
+  if (!user) return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Proud Points is for school WCMs and the District Web Team.' }, { status })
 
   const { file_name, mime_type, size } = (await req.json().catch(() => ({}))) as { file_name?: string; mime_type?: string; size?: number }
   if (!file_name || !mime_type) return NextResponse.json({ error: 'file_name and mime_type are required' }, { status: 400 })

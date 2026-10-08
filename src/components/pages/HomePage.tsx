@@ -212,6 +212,7 @@ interface TeamHomeData {
   program: TeamProgram
   ada: TeamAda
   banners: TeamBanners
+  proud_points?: TeamBanners & { ready: number }
   my_assignments: Assignment[]
   decisions?: { roster_pending: { id: string; department_name: string | null; director_name: string | null; wcm_name: string | null; submitted_at: string | null }[] }
   team_members?: TeamMemberWork[]
@@ -1301,7 +1302,9 @@ function AdaPanel({ ada, onNavigate }: { ada: TeamAda; onNavigate: (page: PageId
   )
 }
 
-function BannersPanel({ b, onNavigate }: { b: TeamBanners; onNavigate: (page: PageId) => void }) {
+// The Banners tab covers every school homepage submission: banners and,
+// since 2026-10-08, Proud Points.
+function BannersPanel({ b, pp, onNavigate }: { b: TeamBanners; pp?: TeamBanners & { ready: number }; onNavigate: (page: PageId) => void }) {
   return (
     <>
       <p className="wcm-hub2-intro">Banner submissions from WCMs. Approving and rejecting happens in the Banner Submissions tool.</p>
@@ -1313,6 +1316,12 @@ function BannersPanel({ b, onNavigate }: { b: TeamBanners; onNavigate: (page: Pa
         <div className="home-dec">
           <div className="home-dec-what">{b.approved} approved, {b.rejected} rejected<small>The full history stays in the tool.</small></div>
         </div>
+        {pp && (
+          <div className="home-dec">
+            <div className="home-dec-what">Proud Points: {pp.pending} waiting for review, {pp.ready} approved and not posted<small>Post in Finalsite, then Mark posted to email the WCM.</small></div>
+            <button type="button" className="home-btn" onClick={() => onNavigate('proud-points')}>Open Proud Points</button>
+          </div>
+        )}
       </div>
     </>
   )
@@ -1590,6 +1599,10 @@ function DecisionsPanel({ th, team, onNavigate, onOpenOps, onOpenInbox }: { th: 
           {th.banners.pending ? <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('banner-submissions')}>{th.banners.pending} waiting</button> : <span className="home-hint">None waiting</span>}
         </div>
         <div className="home-dec">
+          <div className="home-dec-what">Proud Points<small>School homepage highlights waiting for review.</small></div>
+          {th.proud_points?.pending ? <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('proud-points')}>{th.proud_points.pending} waiting</button> : <span className="home-hint">None waiting</span>}
+        </div>
+        <div className="home-dec">
           <div className="home-dec-what">Access requests<small>Someone asking to help with a report.</small></div>
           {team?.access_requests ? <button type="button" className="wcm-hub2-card-btn" onClick={onOpenOps}>{team.access_requests} waiting</button> : <span className="home-hint">None waiting</span>}
         </div>
@@ -1817,7 +1830,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
   }
   const th = data.team_home!
   const p = th.program
-  const decisions = (th.decisions?.roster_pending.length ?? 0) + th.banners.pending + (data.team?.messages_unread ?? 0) + (data.team?.access_requests ?? 0)
+  const decisions = (th.decisions?.roster_pending.length ?? 0) + th.banners.pending + (th.proud_points?.pending ?? 0) + (data.team?.messages_unread ?? 0) + (data.team?.access_requests ?? 0)
   const w = currentWindow()
   const wStats = p.windows.find((x) => x.id === w.id)
   const name = firstName(data)
@@ -1936,13 +1949,14 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
           </>
         )}
         <StatTile label="Banners to review" value={th.banners.pending} note="Banner Submissions" tone={th.banners.pending ? 'warn' : undefined} />
+        <StatTile label="Proud Points to review" value={th.proud_points?.pending ?? 0} note={th.proud_points?.ready ? `${th.proud_points.ready} approved, not posted yet` : 'Proud Points'} tone={th.proud_points?.pending ? 'warn' : undefined} />
       </div>
       <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />
       </>}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
-      {tab === 'banners' && <BannersPanel b={th.banners} onNavigate={onNavigate} />}
+      {tab === 'banners' && <BannersPanel b={th.banners} pp={th.proud_points} onNavigate={onNavigate} />}
       {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'wcm' && <WcmCommunityHub />}

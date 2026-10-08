@@ -10,8 +10,13 @@
 // public page set (my-access answers it without a group lookup). It sits
 // below every group, so anyone granted View as may preview it.
 export const DIRECTOR_PREVIEW = 'Director'
+// 'School WCM' is not an acl group either: school WCMs are recognized by
+// bcps_schools.wcm_email. Their preview is the public pages plus
+// SCHOOL_WCM_PAGES (lib/school-wcm-pages.ts), what a real school WCM gets.
+export const SCHOOL_WCM_PREVIEW = 'School WCM'
 export const VIEW_AS_GROUP_TIER: Record<string, number> = {
   [DIRECTOR_PREVIEW]: 0,
+  [SCHOOL_WCM_PREVIEW]: 1,
   'Web Content Management': 1,
   'District Web Team': 2,
 }
