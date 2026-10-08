@@ -36,6 +36,13 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
     if (!user) redirect('/login')
   }
 
+  // MarComm Request Form (2026-10-08): signed-in District employees only (the
+  // auth check above still applies), but rendered on its own without the
+  // admin shell - most requesters have no other reason to use the portal.
+  if (pathname.startsWith('/marcomm-request')) {
+    return <>{children}</>
+  }
+
   // Login/set-password: render without BCPSShell wrapper
   if (isLoginPage || isSchoolRegistration) {
     return <>{children}</>
