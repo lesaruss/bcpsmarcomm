@@ -31,3 +31,20 @@ export async function signBannerFile(
   ])
   return { signed_url: preview.data?.signedUrl ?? null, download_url: download.data?.signedUrl ?? null }
 }
+
+// New Upload limits, shared by /api/banner/upload-url and /api/banner/submit.
+// Spec (Sean + Vanessa Deslandes): PNG/JPG, or MP4 up to 30 seconds, 1080p
+// recommended. 50 MB fits a 30-second 1080p MP4 and stays at Supabase's default
+// per-file upload limit.
+export const BANNER_MAX_BYTES = 50 * 1024 * 1024
+export const BANNER_ALLOWED_MIME: Record<string, { ext: string; kind: 'image' | 'video' }> = {
+  'image/png': { ext: 'png', kind: 'image' },
+  'image/jpeg': { ext: 'jpg', kind: 'image' },
+  'video/mp4': { ext: 'mp4', kind: 'video' },
+}
+
+// Every New Upload lives under its uploader's own folder; submit refuses a
+// path outside the caller's prefix.
+export function bannerUploadPrefix(userId: string): string {
+  return `banner-submissions/${userId}/`
+}

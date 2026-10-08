@@ -149,7 +149,7 @@ const VALIDATION_CHECKLIST = [
   // out because no school was picked, and nothing said why).
   { key: 'school', label: 'School selected' },
   { key: 'files', label: 'Up to three files' },
-  { key: 'dims', label: 'Media meets 1920 × 800 px minimum requirements' },
+  { key: 'dims', label: 'Media meets size requirements (photo 1920 × 800 px, video up to 30 seconds)' },
   { key: 'no_overlays', label: 'Image is free of graphics, borders, text overlays' },
   { key: 'nav_clearance', label: 'Homepage navigation face-clearance (flagged for manual review)' },
   { key: 'title', label: 'Banner title provided' },
@@ -212,6 +212,17 @@ const TITLE_MAX = 40
 const CAPTION_MAX = 115
 const MAX_FILES = 3
 
+// Video spec: MP4, up to 30 seconds (Sean + Vanessa Deslandes). Half a second
+// of slack so a clip exported at exactly 30s is not refused over rounding.
+// Byte ceiling matches BANNER_MAX_BYTES in lib/bannerFiles.ts.
+const VIDEO_MAX_SECONDS = 30
+const MAX_BYTES = 50 * 1024 * 1024
+// The pre-submit scan still posts the image through a Vercel function (4.5 MB
+// body cap, base64 adds a third), so a large photo is scanned as a smaller
+// copy. The full original is uploaded and re-scanned server-side at submit.
+const SCAN_MAX_BYTES = 2.5 * 1024 * 1024
+const SCAN_MAX_WIDTH = 2400
+
 interface ScanResult {
   no_overlays_pass: boolean
   nav_clearance_pass: boolean
@@ -228,6 +239,9 @@ interface BannerItem {
   kind: 'image' | 'video' | null
   // Natural pixel size, for the MIN_WIDTH x MIN_HEIGHT minimum row. Images only.
   dims: { width: number; height: number } | null
+  // Length in seconds, for the VIDEO_MAX_SECONDS limit. Videos only; null
+  // until the browser reads it (or if it cannot).
+  duration: number | null
   scanState: 'idle' | 'scanning' | 'done' | 'degraded' | 'error'
   scanResult: ScanResult | null
   scanError: string | null
@@ -244,7 +258,7 @@ interface BannerItem {
 function newBannerItem(): BannerItem {
   return {
     key: Math.random().toString(36).slice(2),
-    file: null, previewUrl: null, kind: null, dims: null,
+    file: null, previewUrl: null, kind: null, dims: null, duration: null,
     scanState: 'idle', scanResult: null, scanError: null,
     title: '', caption: '', alt: '', inSceneText: false, orientation: null,
   }
@@ -681,6 +695,26 @@ export default function BannerWidget() {
     })
   }
 
+  // A JPEG copy no wider than SCAN_MAX_WIDTH, for the pre-submit scan only.
+  // Small files pass through untouched; if the browser cannot draw it, the
+  // original is sent and the scan reports its own failure as before.
+  async function shrinkForScan(f: File): Promise<File> {
+    if (f.size <= SCAN_MAX_BYTES) return f
+    try {
+      const bmp = await createImageBitmap(f)
+      const scale = Math.min(1, SCAN_MAX_WIDTH / bmp.width)
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(bmp.width * scale)
+      canvas.height = Math.round(bmp.height * scale)
+      canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height)
+      bmp.close()
+      const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.85))
+      return blob ? new File([blob], 'scan.jpg', { type: 'image/jpeg' }) : f
+    } catch {
+      return f
+    }
+  }
+
   function patchItem(key: string, patch: Partial<BannerItem>) {
     setItems(prev => prev.map(i => i.key === key ? { ...i, ...patch } : i))
   }
@@ -694,18 +728,23 @@ export default function BannerWidget() {
     if (prevUrl) URL.revokeObjectURL(prevUrl)
     setActiveKey(key)
     if (!f) {
-      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false, orientation: null })
+      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, duration: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false, orientation: null })
       return
     }
     const url = URL.createObjectURL(f)
     const kind: 'image' | 'video' = f.type.startsWith('video') ? 'video' : 'image'
-    patchItem(key, { file: f, previewUrl: url, kind, dims: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false, orientation: null })
+    patchItem(key, { file: f, previewUrl: url, kind, dims: null, duration: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false, orientation: null })
 
     if (kind === 'image') {
       const img = new Image()
       img.onload = () => patchIfSameFile(key, f, { dims: { width: img.naturalWidth, height: img.naturalHeight } })
       img.src = url
       readJpegOrientation(f).then(o => patchIfSameFile(key, f, { orientation: o })).catch(() => {})
+    } else {
+      const v = document.createElement('video')
+      v.preload = 'metadata'
+      v.onloadedmetadata = () => { if (isFinite(v.duration)) patchIfSameFile(key, f, { duration: v.duration }) }
+      v.src = url
     }
 
     ;(async () => {
@@ -714,10 +753,11 @@ export default function BannerWidget() {
           patchIfSameFile(key, f, { scanResult: { no_overlays_pass: true, nav_clearance_pass: true, reasons: [] }, scanState: 'degraded' })
           return
         }
-        const b64 = await fileToBase64(f)
+        const scanFile = await shrinkForScan(f)
+        const b64 = await fileToBase64(scanFile)
         const res = await authedFetch('/api/banner/scan', {
           method: 'POST',
-          body: JSON.stringify({ file_base64: b64, mime_type: f.type }),
+          body: JSON.stringify({ file_base64: b64, mime_type: scanFile.type }),
         })
         const data = await res.json()
         if (!res.ok) {
@@ -768,7 +808,9 @@ export default function BannerWidget() {
   // extra "Add another banner" the WCM never used does not block submit.
   const filled = items.filter(i => i.file)
   const allChecked = CHECKLIST.every(c => checks[c.key])
-  const dimsOk = (i: BannerItem) => i.kind === 'video' ? true : !!(i.dims && i.dims.width >= MIN_WIDTH && i.dims.height >= MIN_HEIGHT)
+  const sizeOk = (i: BannerItem) => !i.file || i.file.size <= MAX_BYTES
+  const lengthOk = (i: BannerItem) => i.duration === null || i.duration <= VIDEO_MAX_SECONDS + 0.5
+  const dimsOk = (i: BannerItem) => sizeOk(i) && (i.kind === 'video' ? lengthOk(i) : !!(i.dims && i.dims.width >= MIN_WIDTH && i.dims.height >= MIN_HEIGHT))
   const overlaysOk = (i: BannerItem) => !!i.scanResult?.no_overlays_pass && (!i.scanResult?.text_detected || i.inSceneText)
   const needsConfirm = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult?.no_overlays_pass && !!i.scanResult?.text_detected && !i.inSceneText
   const scanFailed = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult && !i.scanResult.no_overlays_pass
@@ -797,9 +839,9 @@ export default function BannerWidget() {
   const validationState: Record<string, ValidationState> = {
     school: validationStatus.school ? 'pass' : 'pending',
     files: validationStatus.files ? 'pass' : 'pending',
-    // A video is exempt from the pixel minimum, so only a measured still
-    // image can fail this row.
-    dims: validationStatus.dims ? 'pass' : (filled.some(i => i.kind === 'image' && i.dims && !dimsOk(i)) ? 'fail' : 'pending'),
+    // A video is exempt from the pixel minimum but not the 30-second limit;
+    // a file over the byte ceiling fails either way.
+    dims: validationStatus.dims ? 'pass' : (filled.some(i => !sizeOk(i) || (i.kind === 'video' ? !lengthOk(i) : !!i.dims && !dimsOk(i))) ? 'fail' : 'pending'),
     no_overlays: validationStatus.no_overlays ? 'pass'
       : filled.some(scanFailed) ? 'fail'
       : filled.some(needsConfirm) ? 'confirm'
@@ -821,6 +863,8 @@ export default function BannerWidget() {
       const name = filled.length > 1 ? `Banner ${n + 1}: ` : ''
       if (!i.title.trim()) { setUploadNotice(`${name}Banner title is required.`); return }
       if (!i.alt.trim()) { setUploadNotice(`${name}Alternative text is required.`); return }
+      if (!sizeOk(i)) { setUploadNotice(`${name}This file is over ${MAX_BYTES / 1024 / 1024} MB. Export it at 1080p (not 4K) and try again.`); return }
+      if (i.kind === 'video' && !lengthOk(i)) { setUploadNotice(`${name}This video is ${Math.round(i.duration!)} seconds. Videos can be up to ${VIDEO_MAX_SECONDS} seconds.`); return }
       if (i.scanState === 'scanning') { setUploadNotice(`${name}Still running the automated content scan - one moment.`); return }
       if (i.scanState === 'error') { setUploadNotice(`${name}${i.scanError || 'The automated content scan failed - please try re-selecting the file.'}`); return }
       if (!i.scanResult?.no_overlays_pass || !i.scanResult?.nav_clearance_pass) { setUploadNotice(`${name}This image needs to pass the automated content scan before it can be submitted.`); return }
@@ -838,11 +882,21 @@ export default function BannerWidget() {
       const i = filled[n]
       const name = filled.length > 1 ? `Banner ${n + 1}` : 'Submission'
       try {
-        const base64 = await fileToBase64(i.file!)
+        // The file goes straight to storage on a one-time signed URL, then
+        // submit gets only its path (Vercel caps function bodies at 4.5 MB).
+        const urlRes = await authedFetch('/api/banner/upload-url', {
+          method: 'POST',
+          body: JSON.stringify({ file_name: i.file!.name, mime_type: i.file!.type, size: i.file!.size }),
+        })
+        const slot = await urlRes.json().catch(() => ({}))
+        if (!urlRes.ok) { failures.push(`${name}: ${slot.error || 'Upload could not start.'}`); continue }
+        const { error: upErr } = await createClient().storage.from('bcps-client')
+          .uploadToSignedUrl(slot.path, slot.token, i.file!, { contentType: i.file!.type })
+        if (upErr) { failures.push(`${name}: Upload failed - please try again.`); continue }
         const res = await authedFetch('/api/banner/submit', {
           method: 'POST',
           body: JSON.stringify({
-            file_base64: base64,
+            file_path: slot.path,
             file_name: i.file!.name,
             mime_type: i.file!.type,
             banner_title: i.title,
@@ -1205,6 +1259,17 @@ export default function BannerWidget() {
                     <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: dimsOk(it) ? '#1e6b3a' : '#a13a2f' }}>
                       Measured size: {it.dims.width} &times; {it.dims.height} px
                       {dimsOk(it) ? ' - meets the minimum.' : ` - below the ${MIN_WIDTH} \u00d7 ${MIN_HEIGHT} px minimum.`}
+                    </div>
+                  )}
+                  {it.kind === 'video' && it.duration !== null && (
+                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: lengthOk(it) ? '#1e6b3a' : '#a13a2f' }}>
+                      Video length: {Math.round(it.duration)} seconds
+                      {lengthOk(it) ? ` - within the ${VIDEO_MAX_SECONDS}-second limit.` : ` - over the ${VIDEO_MAX_SECONDS}-second limit.`}
+                    </div>
+                  )}
+                  {it.file && !sizeOk(it) && (
+                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: '#a13a2f' }}>
+                      File is {Math.round(it.file.size / 1024 / 1024)} MB - over the {MAX_BYTES / 1024 / 1024} MB limit. Export at 1080p (not 4K).
                     </div>
                   )}
                   {it.kind === 'image' && it.dims && (it.orientation ?? 1) >= 5 && (

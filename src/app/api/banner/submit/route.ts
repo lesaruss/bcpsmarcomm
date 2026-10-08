@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/resend'
 import { analyzeBannerImage } from '@/lib/bannerVision'
+import { BANNER_ALLOWED_MIME, BANNER_MAX_BYTES, bannerUploadPrefix } from '@/lib/bannerFiles'
 
 // WCM Banner Submission App - New Upload.
 // Mirrors the src/app/api/cert/upload/route.ts pattern: caller verified via
@@ -18,6 +19,9 @@ import { analyzeBannerImage } from '@/lib/bannerVision'
 //   recommended (not 4K) - dimensions/duration are checked client-side by the
 //   widget (it has the actual pixel data), this route re-checks byte size and
 //   MIME/extension only.
+// - the file itself is NOT in this request: the widget uploads it straight to
+//   storage first via /api/banner/upload-url and passes file_path here, since
+//   Vercel refuses any function request body over 4.5 MB (2026-10-08).
 // - up to 3 submissions per request (the widget calls this route up to 3x)
 // - each submission requires banner_title, alt_text; banner_caption optional
 // - checklist_ack: media_release and final_ack must be true or the
@@ -42,12 +46,6 @@ const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const svc = createServiceClient(URL, SERVICE)
 
-const MAX_BYTES = 60 * 1024 * 1024 // generous ceiling for a <=30s 1080p mp4
-const ALLOWED_MIME: Record<string, { ext: string; kind: 'image' | 'video' }> = {
-  'image/png': { ext: 'png', kind: 'image' },
-  'image/jpeg': { ext: 'jpg', kind: 'image' },
-  'video/mp4': { ext: 'mp4', kind: 'video' },
-}
 
 // Character limits (Vanessa Deslandes, 2026-10-02). Kept in sync with
 // BannerWidget.tsx's TITLE_MAX / CAPTION_MAX.
@@ -110,19 +108,22 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}))
   const {
-    file_base64, file_name, mime_type,
+    file_path, file_name, mime_type,
     banner_title, banner_caption, alt_text,
     checklist_ack,
     school_location_nbr,
   } = body as {
-    file_base64?: string; file_name?: string; mime_type?: string
+    file_path?: string; file_name?: string; mime_type?: string
     banner_title?: string; banner_caption?: string; alt_text?: string
     checklist_ack?: Record<string, boolean>
     school_location_nbr?: string
   }
 
-  if (!file_base64 || !file_name || !mime_type) {
-    return NextResponse.json({ error: 'file_base64, file_name, and mime_type are required' }, { status: 400 })
+  if (!file_path || !file_name || !mime_type) {
+    return NextResponse.json({ error: 'file_path, file_name, and mime_type are required' }, { status: 400 })
+  }
+  if (!file_path.startsWith(bannerUploadPrefix(user.id)) || file_path.includes('..')) {
+    return NextResponse.json({ error: 'Upload not recognized. Please choose the file again.' }, { status: 400 })
   }
   if (!school_location_nbr?.trim()) return NextResponse.json({ error: 'School is required' }, { status: 400 })
   if (!banner_title?.trim()) return NextResponse.json({ error: 'Banner title is required' }, { status: 400 })
@@ -145,18 +146,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'All requirement checkboxes must be acknowledged before submitting.', missing: missingAck }, { status: 400 })
   }
 
-  const spec = ALLOWED_MIME[mime_type]
+  const spec = BANNER_ALLOWED_MIME[mime_type]
   if (!spec) return NextResponse.json({ error: 'File must be PNG, JPG, or MP4.' }, { status: 400 })
 
-  const match = file_base64.match(/^data:([a-zA-Z0-9/.+-]+);base64,(.+)$/)
-  const raw = match ? match[2] : file_base64
-  const buffer = Buffer.from(raw, 'base64')
-  if (buffer.length > MAX_BYTES) {
-    return NextResponse.json({ error: `File too large (max ${Math.round(MAX_BYTES / 1024 / 1024)}MB).` }, { status: 400 })
+  const bucket = svc.storage.from('bcps-client')
+  const { data: blob, error: downloadErr } = await bucket.download(file_path)
+  if (downloadErr || !blob) {
+    return NextResponse.json({ error: 'The file did not finish uploading. Please try again.' }, { status: 400 })
+  }
+  // A refused submission removes its upload so the bucket only holds files
+  // that have a row in the queue.
+  const refuse = async (payload: Record<string, unknown>, status: number) => {
+    await bucket.remove([file_path]).catch(() => {})
+    return NextResponse.json(payload, { status })
+  }
+  if (blob.size > BANNER_MAX_BYTES) {
+    return refuse({ error: `File too large (max ${Math.round(BANNER_MAX_BYTES / 1024 / 1024)}MB).` }, 400)
   }
 
   let contentScan: Awaited<ReturnType<typeof analyzeBannerImage>> | null = null
   if (spec.kind === 'image') {
+    const raw = Buffer.from(await blob.arrayBuffer()).toString('base64')
     contentScan = await analyzeBannerImage({ base64: raw, mediaType: mime_type })
     if (contentScan.error) {
       // Fail OPEN, not closed: an infrastructure failure (API down, account
@@ -170,18 +180,18 @@ export async function POST(req: NextRequest) {
       // actually RAN and found a violation still hard-blocks below.
       contentScan = { no_overlays_pass: true, nav_clearance_pass: true, reasons: [], skipped: true, error: contentScan.error }
     } else if (!contentScan.no_overlays_pass || !contentScan.nav_clearance_pass) {
-      return NextResponse.json({
+      return refuse({
         error: 'This image did not pass the automated content scan.',
         reasons: contentScan.reasons,
-      }, { status: 400 })
+      }, 400)
     } else if (contentScan.text_detected && checklist_ack?.in_scene_text !== true) {
       // Text found, but OCR can't tell an in-scene sign from an overlay
       // (Vanessa Deslandes, 2026-09-29). The WCM must attest it's part of the
       // scene; the row then lands in the review queue flagged for the team.
-      return NextResponse.json({
+      return refuse({
         error: 'Text was detected in this image. Confirm it is part of the actual scene (a sign or banner in the photo), not added as a graphic.',
         reasons: contentScan.text_reason ? [contentScan.text_reason] : [],
-      }, { status: 400 })
+      }, 400)
     }
   } else {
     // Video: no frame-analysis pipeline yet, same exemption as the
@@ -190,13 +200,7 @@ export async function POST(req: NextRequest) {
   }
 
   const safeName = file_name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const path = `banner-submissions/${user.id}/${Date.now()}-${safeName}`
-
-  const { error: uploadErr } = await svc.storage.from('bcps-client').upload(path, buffer, {
-    contentType: mime_type,
-    upsert: false,
-  })
-  if (uploadErr) return NextResponse.json({ error: uploadErr.message }, { status: 500 })
+  const path = file_path
 
   const { data: row, error: insertErr } = await svc.from('bcps_banner_submissions').insert({
     wcm_user_id: user.id,
@@ -215,7 +219,7 @@ export async function POST(req: NextRequest) {
     school_name: schoolRow.school_name,
   }).select('id, banner_title, file_name, wcm_email, school_name').single()
 
-  if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
+  if (insertErr) return refuse({ error: insertErr.message }, 500)
 
   await notifySubmissionReceived(row).catch(() => {})
 
