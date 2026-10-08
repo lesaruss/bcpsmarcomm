@@ -29,16 +29,25 @@ async function roleFor(userId: string) {
 }
 
 // GET /api/bcps/widgets - the widget catalog, each entry annotated with
-// whether the calling user may edit it. Visibility of the catalog itself
-// (whether this route is worth calling at all) is enforced by the Widgets
-// page object in acl_objects + /api/bcps/my-access, same as every other
-// BCPS page - this route just needs the caller to be a known BCPS user.
+// whether the calling user may edit it (can_edit) and whether they may decide
+// who else can (can_manage). Visibility of the catalog itself (whether this
+// route is worth calling at all) is enforced by the Widgets page object in
+// acl_objects + /api/bcps/my-access, same as every other BCPS page - this
+// route just needs the caller to be a known BCPS user.
+//
+// can_manage: superadmins, plus anyone holding a 'manage' grant on that
+// widget's acl_objects row (directly or through a group). Per Sean
+// 2026-10-08, a widget owner such as Vanessa can add people to their own
+// widget without being a BCPS superadmin. Managers get that widget's current
+// grants and the people/group picker in this same response, so the Widgets
+// page no longer needs the superadmin-only /api/bcps/permissions for it.
 export async function GET(req: NextRequest) {
   const user = await authedUser(req)
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const role = await roleFor(user.id)
   const isAdmin = role === 'admin' || role === 'superadmin'
+  const isSuper = role === 'superadmin'
 
   const { data: widgets, error } = await svc.from('bcps_widgets').select('*').order('sort_order')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -48,47 +57,108 @@ export async function GET(req: NextRequest) {
     .select('id, slug').eq('brand', BRAND).eq('kind', 'page').in('slug', slugs.length ? slugs : ['__none__'])
   const objectBySlug = new Map((objects ?? []).map(o => [o.slug, o.id]))
 
-  let editableIds = new Set<string>()
-  if (!isAdmin) {
-    const objIds = Array.from(objectBySlug.values())
-    const { data: gm } = await svc.from('acl_group_members').select('group_id').eq('user_id', user.id)
-    const gids = (gm ?? []).map(g => g.group_id)
-    const { data: grants } = await svc.from('acl_grants')
-      .select('object_id, subject_type, subject_id, role').in('object_id', objIds.length ? objIds : ['__none__'])
-    editableIds = new Set((grants ?? []).filter(g =>
-      ['edit', 'manage'].includes(g.role) && (
-        (g.subject_type === 'user' && g.subject_id === user.id) ||
-        (g.subject_type === 'group' && gids.includes(g.subject_id))
-      )).map(g => g.object_id))
-  }
+  const objIds = Array.from(objectBySlug.values())
+  const { data: gm } = await svc.from('acl_group_members').select('group_id').eq('user_id', user.id)
+  const gids = (gm ?? []).map(g => g.group_id)
+  const { data: allGrants } = await svc.from('acl_grants')
+    .select('id, object_id, subject_type, subject_id, role').in('object_id', objIds.length ? objIds : ['__none__'])
+  const mine = (allGrants ?? []).filter(g =>
+    (g.subject_type === 'user' && g.subject_id === user.id) ||
+    (g.subject_type === 'group' && gids.includes(g.subject_id)))
+  const editableIds = new Set(mine.filter(g => ['edit', 'manage'].includes(g.role)).map(g => g.object_id))
+  const managedIds = new Set(mine.filter(g => g.role === 'manage').map(g => g.object_id))
 
   const result = (widgets ?? []).map(w => {
     const objectId = objectBySlug.get(w.slug) ?? null
+    const canManage = isSuper || (objectId ? managedIds.has(objectId) : false)
     return {
       ...w,
       object_id: objectId,
       can_edit: isAdmin || (objectId ? editableIds.has(objectId) : false),
+      can_manage: canManage,
+      grants: canManage && objectId ? (allGrants ?? []).filter(g => g.object_id === objectId) : [],
     }
   })
 
-  const res = NextResponse.json({ ok: true, role, widgets: result })
+  const body: Record<string, unknown> = { ok: true, role, widgets: result }
+  if (result.some(w => w.can_manage)) Object.assign(body, await peopleDirectory())
+
+  const res = NextResponse.json(body)
   res.headers.set('Cache-Control', 'no-store')
   return res
 }
 
-// POST /api/bcps/widgets - { action, ...fields }. Admin/superadmin only.
-// Registering a new widget (slug/title/preview_path/editor_component) is a
-// separate concern from assigning editors - that reuses the existing
-// grant_set action in /api/bcps/permissions against the widget's own
-// acl_objects row, so it isn't duplicated here.
+// Groups and BCPS members with display names, for the "Add group or person"
+// picker. Same name resolution as /api/bcps/permissions.
+async function peopleDirectory() {
+  const [groups, members] = await Promise.all([
+    svc.from('acl_groups').select('id, slug, name, description').eq('brand', BRAND).order('name'),
+    svc.from('acl_member_roles').select('user_id, role').eq('brand', BRAND),
+  ])
+  const { data: authUsers } = await svc.auth.admin.listUsers({ perPage: 1000 })
+  const byId = new Map((authUsers?.users ?? []).map(u => [u.id, u]))
+  const memberList = (members.data ?? []).map(m => {
+    const u = byId.get(m.user_id)
+    return {
+      user_id: m.user_id,
+      email: u?.email ?? '(unknown)',
+      name: (u?.user_metadata as any)?.name || (u?.user_metadata as any)?.full_name || u?.email?.split('@')[0] || '',
+      role: m.role,
+    }
+  }).sort((a, b) => a.name.localeCompare(b.name))
+  return { groups: groups.data ?? [], members: memberList }
+}
+
+// True when this user may change who can edit the widget behind objectId.
+async function canManageObject(userId: string, objectId: string) {
+  if ((await roleFor(userId)) === 'superadmin') return true
+  const { data: gm } = await svc.from('acl_group_members').select('group_id').eq('user_id', userId)
+  const gids = (gm ?? []).map(g => g.group_id)
+  const { data: grants } = await svc.from('acl_grants')
+    .select('subject_type, subject_id, role').eq('object_id', objectId).eq('role', 'manage')
+  return (grants ?? []).some(g =>
+    (g.subject_type === 'user' && g.subject_id === userId) ||
+    (g.subject_type === 'group' && gids.includes(g.subject_id)))
+}
+
+// POST /api/bcps/widgets - { action, ...fields }.
+// editor_set: superadmins and the widget's own managers (see can_manage
+// above) add, change or remove who can view, edit or manage that one widget.
+// widget_upsert / widget_delete: admin/superadmin only.
 export async function POST(req: NextRequest) {
   const user = await authedUser(req)
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const role = await roleFor(user.id)
-  if (role !== 'admin' && role !== 'superadmin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json().catch(() => ({}))
   const a = body.action as string
+
+  if (a === 'editor_set') {
+    const { object_id, subject_type, subject_id, grant } = body
+    const grantRole = body.role ?? 'edit'
+    if (!object_id || !subject_id || !['user', 'group'].includes(subject_type) || !['view', 'edit', 'manage'].includes(grantRole)) {
+      return NextResponse.json({ error: 'object_id, subject_type, subject_id and a role of view, edit or manage are required.' }, { status: 400 })
+    }
+    // Only widget objects are managed here, never other pages or documents.
+    const { data: obj } = await svc.from('acl_objects').select('id, slug').eq('id', object_id).eq('brand', BRAND).eq('kind', 'page').maybeSingle()
+    const { data: widget } = obj ? await svc.from('bcps_widgets').select('slug').eq('slug', obj.slug).maybeSingle() : { data: null }
+    if (!obj || !widget) return NextResponse.json({ error: 'Not a widget.' }, { status: 404 })
+    if (!(await canManageObject(user.id, object_id))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (grant) {
+      const { error } = await svc.from('acl_grants').upsert(
+        { object_id, subject_type, subject_id, role: grantRole },
+        { onConflict: 'object_id,subject_type,subject_id' })
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    } else {
+      const { error } = await svc.from('acl_grants').delete()
+        .eq('object_id', object_id).eq('subject_type', subject_type).eq('subject_id', subject_id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    await svc.from('acl_audit').insert({ brand: BRAND, actor_id: user.id, action: 'widget_editor_set', object_id, detail: { slug: obj.slug, subject_type, subject_id, role: grantRole, grant: !!grant } })
+    return NextResponse.json({ ok: true })
+  }
+
+  if (role !== 'admin' && role !== 'superadmin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
     switch (a) {
