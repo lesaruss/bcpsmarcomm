@@ -6,6 +6,7 @@ import FindItFastPage from './FindItFastPage'
 import CharterSchoolsPage from './CharterSchoolsPage'
 import IidlServicesPage from './IidlServicesPage'
 import DirectoryPage from './DirectoryPage'
+import SchoolSupportLeadPage from './SchoolSupportLeadPage'
 import { useEffectiveRole } from '@/components/BCPSShell'
 
 interface Widget {
@@ -17,6 +18,8 @@ interface Widget {
   editor_component: string | null
   object_id: string | null
   can_edit: boolean
+  can_manage: boolean
+  grants: Grant[]
 }
 
 type Group = { id: string; slug: string; name: string; description: string | null }
@@ -31,6 +34,7 @@ const EDITORS: Record<string, React.ComponentType> = {
   'charter-school-directory': CharterSchoolsPage,
   'iidl-services-directory': IidlServicesPage,
   'department-program-directory': DirectoryPage,
+  'school-support-lead': SchoolSupportLeadPage,
 }
 
 // Embeds with a microphone (voice search) button.
@@ -72,15 +76,10 @@ export default function WidgetsPage() {
     const j = await r.json()
     if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
     setWidgets(j.widgets); setRole(j.role)
-
-    // Editor-assignment data only matters (and is only readable) for admins.
-    if (j.role === 'admin' || j.role === 'superadmin') {
-      const pr = await fetch('/api/bcps/permissions', { headers: { Authorization: `Bearer ${t}` } })
-      if (pr.ok) {
-        const pj = await pr.json()
-        setGroups(pj.groups ?? []); setMembers(pj.members ?? []); setGrants(pj.grants ?? [])
-      }
-    }
+    // Editor-assignment data comes with the catalog for every widget this
+    // person can manage (superadmins, or a 'manage' grant on that widget).
+    setGroups(j.groups ?? []); setMembers(j.members ?? [])
+    setGrants((j.widgets as Widget[]).flatMap(w => w.grants ?? []))
     setLoading(false)
   }, [token])
 
@@ -91,11 +90,13 @@ export default function WidgetsPage() {
   // View-as aware, per Sean 2026-09-10: previewing a WCM must not leave
   // the real admin's controls on screen. Server-side access is unchanged.
   const effectiveRole = useEffectiveRole(role)
-  const isAdmin = effectiveRole === 'admin' || effectiveRole === 'superadmin'
+  // Previewing someone else hides the real person's management controls too.
+  const previewing = effectiveRole !== role
+  const canManage = (w: Widget) => w.can_manage && !previewing
 
   const act = useCallback(async (payload: any) => {
     setBusy(true); setErr('')
-    const r = await fetch('/api/bcps/permissions', {
+    const r = await fetch('/api/bcps/widgets', {
       method: 'POST',
       headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -168,7 +169,7 @@ export default function WidgetsPage() {
       <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Widgets</h1>
       <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 16px' }}>
         Every embeddable module in one place: preview it, grab the embed code, or edit it if you have access.
-        {isAdmin && ' As an admin, you can also assign who is allowed to edit each one.'}
+        {widgets.some(canManage) && ' Use Manage editors to choose who can view, edit, or manage a widget you manage.'}
       </p>
 
       {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '12px 0' }}>{err}</div>}
@@ -194,7 +195,7 @@ export default function WidgetsPage() {
                 {Editor && w.can_edit && (
                   <button style={C.btn} onClick={() => setEditingSlug(w.slug)}>Edit</button>
                 )}
-                {isAdmin && (
+                {canManage(w) && (
                   <button style={accessOpen ? C.btnPrimary : C.btn} onClick={() => toggleAccess(w.slug)}>
                     Manage editors
                   </button>
@@ -210,26 +211,27 @@ export default function WidgetsPage() {
               <iframe src={w.preview_path} title={`${w.title} preview`} style={{ width: '100%', height: 360, border: 0, display: 'block' }} />
             </div>
 
-            {accessOpen && isAdmin && (
+            {accessOpen && canManage(w) && (
               <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #f1f1f1' }}>
                 <div style={C.sublabel}>Who can edit {w.title}</div>
                 {!w.object_id && <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>Setting up access for this widget - try again in a moment.</div>}
                 {wgrants.length === 0 && w.object_id && <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>No one assigned yet. Admins and superadmins can always edit; add a person or group below to extend that to someone else.</div>}
+                <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8 }}>view: sees it. edit: changes its content. manage: edits it and can add or remove people here.</div>
                 {wgrants.map(g => (
                   <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                     <span style={{ fontSize: 12, fontWeight: 600 }}>{g.subject_type === 'group' ? groupName(g.subject_id) : memberName(g.subject_id)}</span>
                     <span style={{ fontSize: 10, color: '#9ca3af' }}>{g.subject_type}</span>
                     <select style={C.sel} value={g.role} disabled={busy}
-                      onChange={e => act({ action: 'grant_set', grant: true, object_id: w.object_id, subject_type: g.subject_type, subject_id: g.subject_id, role: e.target.value })}>
+                      onChange={e => act({ action: 'editor_set', grant: true, object_id: w.object_id, subject_type: g.subject_type, subject_id: g.subject_id, role: e.target.value })}>
                       {ROLE_OPTS.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                     <button style={{ ...C.btn, padding: '3px 8px', color: '#b91c1c', borderColor: '#fecaca' }} disabled={busy}
-                      onClick={() => act({ action: 'grant_set', grant: false, object_id: w.object_id, subject_type: g.subject_type, subject_id: g.subject_id })}>Remove</button>
+                      onClick={() => act({ action: 'editor_set', grant: false, object_id: w.object_id, subject_type: g.subject_type, subject_id: g.subject_id })}>Remove</button>
                   </div>
                 ))}
                 {w.object_id && (
                   <AddEditor groups={groups} members={members} disabled={busy}
-                    onAdd={(st, sid, role) => act({ action: 'grant_set', grant: true, object_id: w.object_id, subject_type: st, subject_id: sid, role })} />
+                    onAdd={(st, sid, role) => act({ action: 'editor_set', grant: true, object_id: w.object_id, subject_type: st, subject_id: sid, role })} />
                 )}
               </div>
             )}
