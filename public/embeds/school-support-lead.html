@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Find Your School Support Lead</title>
+<!--
+  Find Your School Support Lead (Vanessa + Sean, 2026-10-08). Embed for the
+  Finalsite school WCM page. A WCM types their school's name and sees their
+  District Web Team support lead for 2026-27: photo, short bio, a link to
+  request an IIQ ticket, and the Tuesday and Thursday Hot Labs.
+  Data: bcps_school_assignments, bcps_support_leads, bcps_support_settings
+  (public read, anon key, same as the other directory embeds). Change an
+  assignment, bio, photo or link in those tables; this page needs no edit.
+-->
+<style>
+  :root {
+    --navy: #0C2340; --accent: #1672A7; --accent-dark: #0E4E73; --text: #1a1a1a;
+    --text-mid: #555555; --muted: #767676; --border: #e2e6ea; --tint: #EBF1F8;
+    --font-head: "Century Gothic", "Apple Gothic", "URW Gothic", Futura, Arial, Helvetica, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: transparent; font-family: Arial, Helvetica, sans-serif; color: var(--text); font-size: 15px; line-height: 1.5; }
+  .ssl { max-width: 760px; margin: 0 auto; padding: 16px; }
+  .ssl-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+  .ssl h2 { font-family: var(--font-head); font-size: 26px; line-height: 1.2; margin: 4px 0 6px; color: var(--navy); }
+  .ssl-lede { color: var(--text-mid); margin: 0 0 14px; }
+  .ssl-search { position: relative; }
+  .ssl-search label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .ssl-search input { width: 100%; font: inherit; font-size: 16px; padding: 12px 14px; border: 2px solid var(--accent); border-radius: 10px; background: #fff; color: var(--text); }
+  .ssl-search input:focus { outline: 3px solid rgba(22,114,167,.3); outline-offset: 1px; }
+  .ssl-list { list-style: none; margin: 6px 0 0; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: #fff; max-height: 280px; overflow: auto; }
+  .ssl-list[hidden] { display: none; }
+  .ssl-list li { margin: 0; }
+  .ssl-list button { display: flex; justify-content: space-between; gap: 10px; width: 100%; text-align: left; font: inherit; background: #fff; border: 0; border-bottom: 1px solid var(--border); padding: 10px 14px; cursor: pointer; color: var(--text); }
+  .ssl-list li:last-child button { border-bottom: 0; }
+  .ssl-list button:hover, .ssl-list button:focus { background: var(--tint); outline: none; }
+  .ssl-list small { color: var(--muted); white-space: nowrap; }
+  .ssl-empty { color: var(--text-mid); font-size: 14px; margin: 8px 2px 0; }
+  .ssl-card { margin-top: 16px; border: 1px solid var(--border); border-radius: 14px; background: #fff; overflow: hidden; }
+  .ssl-card-top { background: var(--tint); padding: 10px 18px; font-size: 13px; color: var(--accent-dark); font-weight: 700; }
+  .ssl-card-body { display: flex; gap: 18px; padding: 18px; align-items: flex-start; }
+  .ssl-photo { flex-shrink: 0; width: 112px; height: 112px; border-radius: 50%; object-fit: cover; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-size: 36px; font-weight: 700; }
+  .ssl-who { min-width: 0; flex: 1; }
+  .ssl-role { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .ssl-name { font-family: var(--font-head); font-size: 22px; margin: 2px 0 2px; color: var(--navy); }
+  .ssl-title { color: var(--text-mid); font-size: 14px; margin: 0 0 8px; }
+  .ssl-bio { margin: 0 0 14px; }
+  .ssl-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .ssl-btn { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 8px; padding: 10px 16px; min-height: 44px; }
+  .ssl-btn.primary { background: var(--accent); color: #fff; }
+  .ssl-btn.primary:hover { background: var(--accent-dark); }
+  .ssl-btn.secondary { background: #fff; color: var(--accent-dark); border: 2px solid var(--accent); }
+  .ssl-btn.secondary:hover { background: var(--tint); }
+  .ssl-btn:focus-visible { outline: 3px solid rgba(22,114,167,.4); outline-offset: 2px; }
+  .ssl-hotlab { margin-top: 12px; font-size: 13.5px; color: var(--text-mid); }
+  .ssl-note { margin-top: 14px; font-size: 13px; color: var(--muted); }
+  @media (max-width: 560px) {
+    .ssl-card-body { flex-direction: column; align-items: center; text-align: center; }
+    .ssl-actions { justify-content: center; }
+    .ssl-btn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<div class="ssl">
+  <div class="ssl-eyebrow">School WCM Support</div>
+  <h2>Find your support lead</h2>
+  <p class="ssl-lede">Every school has a dedicated member of the District Web Team. Search for your school to see who supports you.</p>
+  <div class="ssl-search">
+    <label for="ssl-q">Your school</label>
+    <input id="ssl-q" type="search" autocomplete="off" placeholder="Start typing your school's name" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ssl-results">
+    <ul id="ssl-results" class="ssl-list" role="listbox" hidden></ul>
+  </div>
+  <p id="ssl-status" class="ssl-empty" role="status" aria-live="polite">Loading schools…</p>
+  <div id="ssl-card" aria-live="polite"></div>
+</div>
+<script>
+(function () {
+  var SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+  var ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+  var DEFAULT_IIQ = 'https://browardschools.incidentiq.com/';
+  var schools = [], leads = {}, settings = {};
+  var q = document.getElementById('ssl-q'), list = document.getElementById('ssl-results');
+  var statusEl = document.getElementById('ssl-status'), card = document.getElementById('ssl-card');
+
+  function get(path) {
+    return fetch(SUPABASE_URL + '/rest/v1/' + path, { headers: { apikey: ANON, Authorization: 'Bearer ' + ANON } })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+  }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function safeUrl(u) { return /^https:\/\//i.test(u || '') ? u : ''; }
+  function norm(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+  function initials(n) { return n.split(/\s+/).filter(Boolean).map(function (w) { return w[0]; }).filter(function (c) { return /[A-Z]/.test(c); }).slice(0, 2).join(''); }
+
+  Promise.all([
+    get('bcps_school_assignments?select=loc_no,display_name,school_level,region,lead_email&order=display_name'),
+    get('bcps_support_leads?select=email,full_name,title,bio,photo_url'),
+    get('bcps_support_settings?select=key,value')
+  ]).then(function (r) {
+    schools = r[0].map(function (s) { s.key = norm(s.display_name + ' ' + s.loc_no); return s; });
+    r[1].forEach(function (l) { leads[l.email] = l; });
+    r[2].forEach(function (s) { settings[s.key] = s.value; });
+    statusEl.textContent = '';
+    var pre = new URLSearchParams(location.search).get('school');
+    if (pre) { var hit = schools.find(function (s) { return s.loc_no === pre; }); if (hit) choose(hit); }
+  }).catch(function () {
+    statusEl.textContent = 'The school list could not load. Please refresh the page, or submit an IIQ ticket for help.';
+  });
+
+  function render(matches) {
+    list.innerHTML = '';
+    if (!matches.length) { list.hidden = true; q.setAttribute('aria-expanded', 'false'); return; }
+    matches.slice(0, 12).forEach(function (s, i) {
+      var li = document.createElement('li');
+      li.innerHTML = '<button type="button" role="option" id="ssl-opt-' + i + '">' + esc(s.display_name) + '<small>' + esc(s.region || '') + (s.region ? ' · ' : '') + '#' + esc(s.loc_no) + '</small></button>';
+      li.firstChild.addEventListener('click', function () { choose(s); });
+      list.appendChild(li);
+    });
+    list.hidden = false; q.setAttribute('aria-expanded', 'true');
+  }
+  q.addEventListener('input', function () {
+    var t = norm(q.value);
+    if (!t) { render([]); statusEl.textContent = ''; return; }
+    var words = t.split(' ');
+    var m = schools.filter(function (s) { return words.every(function (w) { return s.key.indexOf(w) !== -1; }); });
+    render(m);
+    statusEl.textContent = m.length ? '' : 'No school matches "' + q.value + '". Try a shorter name, or your school\'s location number.';
+  });
+  q.addEventListener('keydown', function (e) {
+    var opts = list.querySelectorAll('button');
+    if (e.key === 'ArrowDown' && opts.length) { e.preventDefault(); opts[0].focus(); }
+    if (e.key === 'Enter' && opts.length) { e.preventDefault(); opts[0].click(); }
+    if (e.key === 'Escape') render([]);
+  });
+  list.addEventListener('keydown', function (e) {
+    var opts = Array.prototype.slice.call(list.querySelectorAll('button'));
+    var i = opts.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' && i < opts.length - 1) { e.preventDefault(); opts[i + 1].focus(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); (i > 0 ? opts[i - 1] : q).focus(); }
+    if (e.key === 'Escape') { render([]); q.focus(); }
+  });
+
+  function choose(s) {
+    render([]);
+    q.value = s.display_name;
+    var l = leads[s.lead_email];
+    if (!l) { card.innerHTML = '<p class="ssl-empty">A support lead for ' + esc(s.display_name) + ' is being assigned. Submit an IIQ ticket and the District Web Team will help.</p>'; return; }
+    var first = l.full_name.split(' ')[0];
+    var iiq = safeUrl(settings.iiq_url) || DEFAULT_IIQ;
+    var tue = safeUrl(settings.hot_lab_tuesday_url), thu = safeUrl(settings.hot_lab_thursday_url);
+    var photo = safeUrl(l.photo_url)
+      ? '<img class="ssl-photo" src="' + esc(l.photo_url) + '" alt="Photo of ' + esc(l.full_name) + '">'
+      : '<div class="ssl-photo" aria-hidden="true">' + esc(initials(l.full_name)) + '</div>';
+    var bio = l.bio || (first + ' is the District Web Team member dedicated to your school this year. Reach out for help with your website, your WCM training, or anything on your school\'s site.');
+    var hot = '';
+    if (tue) hot += '<a class="ssl-btn secondary" href="' + esc(tue) + '" target="_blank" rel="noopener">Join Tuesday Hot Lab</a>';
+    if (thu) hot += '<a class="ssl-btn secondary" href="' + esc(thu) + '" target="_blank" rel="noopener">Join Thursday Hot Lab</a>';
+    card.innerHTML =
+      '<div class="ssl-card">' +
+        '<div class="ssl-card-top">' + esc(s.display_name) + (s.region ? ' · ' + esc(s.region) : '') + '</div>' +
+        '<div class="ssl-card-body">' + photo +
+          '<div class="ssl-who">' +
+            '<div class="ssl-role">Your support lead</div>' +
+            '<div class="ssl-name">' + esc(l.full_name) + '</div>' +
+            (l.title ? '<p class="ssl-title">' + esc(l.title) + '</p>' : '') +
+            '<p class="ssl-bio">' + esc(bio) + '</p>' +
+            '<div class="ssl-actions">' +
+              '<a class="ssl-btn primary" href="' + esc(iiq) + '" target="_blank" rel="noopener">Request an IIQ ticket</a>' + hot +
+            '</div>' +
+            '<p class="ssl-hotlab">' + esc(settings.hot_lab_text || 'Hot Labs are open drop-in support sessions every Tuesday and Thursday. Bring your questions and work on your site with the team.') + '</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<p class="ssl-note">Put your school\'s name in your IIQ ticket so it reaches ' + esc(first) + '.</p>';
+  }
+})();
+</script>
+</body>
+</html>
