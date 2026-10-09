@@ -7,6 +7,7 @@ import DepartmentsPage from './DepartmentsPage'
 import AnalyticsPage from './AnalyticsPage'
 import WidgetsPage from './WidgetsPage'
 import DashboardPage from './DashboardPage'
+import MarcommAssignmentsPage from './MarcommAssignmentsPage'
 import { WcmCommunityHub, WcmHubCards, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
 import SharedViewAsButton from '@/components/ViewAsButton'
@@ -1836,6 +1837,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
   const name = firstName(data)
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'marcomm', label: 'MarComm Assignments' },
     { id: 'program', label: 'Program' },
     ...((th.team_members?.length ?? 0) > 0 ? [{ id: 'team', label: 'Team' }] : []),
     { id: 'departments', label: 'Departments' },
@@ -1857,6 +1859,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
         <p>Everything waiting on you, how the whole program is moving, and what each person on the team is carrying. The District Web Team sees the same program numbers; decisions, admin consoles and the team view are yours alone.</p>
         <div className="home-actions">
           <button type="button" className="home-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => setTab('marcomm')}>Open MarComm Assignments</button>
           {!preview && <ViewAsButton />}
         </div>
       </div>
@@ -1869,6 +1872,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
       <DecisionsPanel th={th} team={data.team} onNavigate={onNavigate} onOpenOps={() => setTab('ops')} onOpenInbox={openInbox} />
       </>}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
+      {tab === 'marcomm' && <MarcommAssignmentsPage embedded />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'team' && <TeamPanel members={th.team_members ?? []} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
@@ -1903,6 +1907,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   const tabs = kind === 'comms'
     ? [
         { id: 'overview', label: 'Overview' },
+        { id: 'marcomm', label: 'MarComm Assignments' },
         { id: 'audits', label: 'Audits' },
         { id: 'program', label: 'Program' },
         { id: 'departments', label: 'Departments' },
@@ -1932,6 +1937,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
           : 'Your assignments, accessibility across our sites, the widgets, and every tool you use.'}</p>
         <div className="home-actions">
           <button type="button" className="home-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
+          {kind === 'comms' && <button type="button" className="wcm-hub2-card-btn" onClick={() => setTab('marcomm')}>Open MarComm Assignments</button>}
           {kind === 'appsvc' && <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('ada-scanner')}>Open ADA Scanner</button>}
         </div>
       </div>
@@ -1953,6 +1959,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       </div>
       <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />
       </>}
+      {tab === 'marcomm' && <MarcommAssignmentsPage embedded />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}

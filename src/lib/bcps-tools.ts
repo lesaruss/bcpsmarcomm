@@ -22,6 +22,8 @@ export interface Tool {
 
 export const TOOLS: Tool[] = [
   { label: 'Web Team Assignments', desc: 'Every project, who leads it, and its notes.', group: 'Daily work', page: 'bcps-assignments', gate: 'bcps-assignments' },
+  { label: 'MarComm Assignments', desc: 'Office of Communications requests, who owns them, and their notes.', group: 'Daily work', page: 'marcomm-assignments', gate: 'marcomm-assignments' },
+  { label: 'Request MarComm Support', desc: 'Ask the Office of Communications for design, social, video, press and more.', group: 'Daily work', href: '/marcomm-request', gate: 'profile', icon: 'marcomm' },
   { label: 'Queue', desc: 'Requests waiting on the team.', group: 'Daily work', page: 'queue', gate: 'queue' },
   { label: 'Task Tracker', desc: 'Community Relations tasks.', group: 'Daily work', page: 'community-relations', gate: 'community-relations' },
   { label: 'Banner Submissions', desc: 'Review WCM banners for school sites.', group: 'Daily work', page: 'banner-submissions', gate: 'banner-submissions' },
@@ -73,7 +75,7 @@ export const TOP_TOOLS: Record<'superadmin' | 'comms' | 'appsvc' | 'director' | 
   superadmin: ['Web Team Assignments', 'Banner Submissions', 'Proud Points', 'WCM Roster', 'Documents', 'Meeting Notes', 'Widgets', 'Permissions'],
   comms: ['Web Team Assignments', 'Banner Submissions', 'Proud Points', 'Departments', 'WCM Roster', 'Documents', 'Meeting Notes', 'Widgets'],
   appsvc: ['Web Team Assignments', 'ADA Scanner', 'ADA Manager', 'School Profiles', 'Banner Submissions', 'Proud Points', 'Documents', 'Widgets'],
-  director: ['Director Playbook', 'WCM Roster', 'Meeting Notes', 'Documents', 'Department Certification', 'My Profile'],
-  wcm: ['Department Certification', 'Department WCM Playbook', 'ADA Scanner', 'Documents', 'Meeting Notes', 'My Profile'],
+  director: ['Request MarComm Support', 'Director Playbook', 'WCM Roster', 'Meeting Notes', 'Documents', 'Department Certification', 'My Profile'],
+  wcm: ['Department Certification', 'Request MarComm Support', 'Department WCM Playbook', 'ADA Scanner', 'Documents', 'Meeting Notes', 'My Profile'],
   member: ['Department Certification', 'Registration: Getting Started', 'Director Playbook', 'Documents', 'WCM Roster', 'My Profile'],
 }

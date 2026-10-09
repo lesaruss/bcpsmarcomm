@@ -24,6 +24,7 @@ import GraphicsPage from '@/components/pages/GraphicsPage'
 import ReportsPage from '@/components/pages/ReportsPage'
 import MembersPage from '@/components/pages/MembersPage'
 import CommunityRelationsPage from '@/components/pages/CommunityRelationsPage'
+import MarcommAssignmentsPage from '@/components/pages/MarcommAssignmentsPage'
 import MinibsePage from '@/components/pages/MinibsePage'
 import NoteApprovalsPage from '@/components/pages/NoteApprovalsPage'
 import DepartmentAuditPage from '@/components/pages/DepartmentAuditPage'
@@ -128,6 +129,7 @@ function HomeInner() {
       {nav.page === 'bcps-certification'       && <CertificationPage />}
       {nav.page === 'members'                  && <MembersPage />}
       {nav.page === 'community-relations'      && <CommunityRelationsPage />}
+      {nav.page === 'marcomm-assignments'      && <MarcommAssignmentsPage />}
       {nav.page === 'minibase'                   && <MinibsePage />}
       {nav.page === 'pulse-approvals'          && effectiveRole === 'superadmin' && <NoteApprovalsPage />}
       {nav.page === 'department-audit'        && <DepartmentAuditPage />}

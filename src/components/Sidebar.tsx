@@ -209,6 +209,12 @@ export const Icons: Record<string, React.ReactNode> = {
       <polyline points="16 11 17 16 12 14 7 16 8 11"/>
     </svg>
   ),
+  'marcomm-assignments': (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 11l18-5v12L3 14v-3z"/>
+      <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+    </svg>
+  ),
   'community-relations': (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
@@ -328,6 +334,10 @@ const SECTIONS: NavSection[] = [
     { id: 'minibase', label: 'Minibase' },
   ] },
   { label: 'MarComm', items: [
+    // MarComm Assignments (Sean, 2026-10-08): the Office of Communications
+    // request tracker that replaces the MarComm Spreadsheet. Gated by its
+    // acl_objects page row (District Web Team + Office of Communications).
+    { id: 'marcomm-assignments', label: 'MarComm Assignments' },
     { id: 'marcomm', label: 'Newsroom' },
     { id: 'graphics', label: 'Graphics & Printing' },
     { id: 'widgets', label: 'Widgets' },
