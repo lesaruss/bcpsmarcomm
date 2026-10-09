@@ -61,6 +61,10 @@ export default function WidgetsPage() {
   const [err, setErr] = useState('')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [toast, setToast] = useState('')
+  // Embed code window: opens on Copy embed code so the code is always visible
+  // and selectable, even when the browser blocks automatic copying or the
+  // page is scrolled away from the toast (Vanessa, 2026-10-09).
+  const [embed, setEmbed] = useState<{ title: string; code: string; copied: boolean } | null>(null)
   // Which widget's editor is open in the modal (null = none). Editors used to
   // expand inline under the card, which pushed the rest of the page down and
   // meant scrolling to find them - per Sean 2026-08-21, they now open in an
@@ -116,11 +120,18 @@ export default function WidgetsPage() {
   // Lock page scroll while the editor modal is open so the backdrop reads as
   // a real overlay rather than a tall page the user can still scroll behind.
   useEffect(() => {
-    document.body.style.overflow = editingSlug ? 'hidden' : ''
+    document.body.style.overflow = editingSlug || embed ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
-  }, [editingSlug])
+  }, [editingSlug, embed])
 
   // Esc closes the modal, same as the Close button.
+  useEffect(() => {
+    if (!embed) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setEmbed(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [embed])
+
   useEffect(() => {
     if (!editingSlug) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setEditingSlug(null) }
@@ -154,12 +165,9 @@ export default function WidgetsPage() {
   });
 })();
 </script>`
-    try {
-      await navigator.clipboard.writeText(snippet)
-      showToast(`Embed code for ${w.title} copied`)
-    } catch {
-      showToast('Could not copy automatically - select and copy the snippet below')
-    }
+    let copied = false
+    try { await navigator.clipboard.writeText(snippet); copied = true } catch { copied = false }
+    setEmbed({ title: w.title, code: snippet, copied })
   }
 
   if (loading) return <div style={{ padding: 32 }}>Loading widgets...</div>
@@ -239,6 +247,38 @@ export default function WidgetsPage() {
         )
       })}
       </div>
+
+      {embed && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(17, 24, 39, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 1000 }}
+          onClick={() => setEmbed(null)}
+        >
+          <div role="dialog" aria-modal="true" aria-labelledby="embed-title"
+            style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 760, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: 20 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <div id="embed-title" style={{ fontSize: 15, fontWeight: 800 }}>Embed code: {embed.title}</div>
+              <button style={{ ...C.btn, padding: '6px 12px' }} onClick={() => setEmbed(null)} aria-label="Close embed code">Close ✕</button>
+            </div>
+            <p style={{ fontSize: 13, color: embed.copied ? '#166534' : '#6b7280', margin: '0 0 10px' }}>
+              {embed.copied
+                ? 'Copied to your clipboard. Paste it into an Embed element on the Finalsite page.'
+                : 'Select all of the code below and copy it, or use Copy code. Then paste it into an Embed element on the Finalsite page.'}
+            </p>
+            <textarea readOnly value={embed.code} onFocus={e => e.currentTarget.select()} aria-label={`Embed code for ${embed.title}`}
+              style={{ width: '100%', height: 220, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12, padding: 10, border: '1px solid #d1d5db', borderRadius: 8, resize: 'vertical' }} />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
+              <button style={C.btnPrimary} onClick={async () => {
+                let ok = false
+                try { await navigator.clipboard.writeText(embed.code); ok = true } catch { ok = false }
+                setEmbed({ ...embed, copied: ok })
+                if (ok) showToast(`Embed code for ${embed.title} copied`)
+              }}>Copy code</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingSlug && (() => {
         const w = widgets.find(x => x.slug === editingSlug)

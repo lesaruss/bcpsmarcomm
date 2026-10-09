@@ -9,7 +9,8 @@ const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const BRAND = 'bcps'
 const PAGE_SLUG = 'school-support-lead'
 const SUPERADMIN_EMAILS = new Set(['contact@lesaruss.com'])
-const SETTING_KEYS = new Set(['iiq_url', 'hot_lab_text'])
+const SETTING_KEYS = new Set(['iiq_url', 'hot_lab_url', 'hot_lab_text'])
+const LINK_SETTINGS = new Set(['iiq_url', 'hot_lab_url'])
 const LEVELS = new Set(['Elementary', 'Middle', 'High', 'Center', 'Combination', 'Community'])
 
 const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
@@ -153,7 +154,7 @@ export async function POST(req: NextRequest) {
       }
       case 'setting_update': {
         if (!SETTING_KEYS.has(body.key)) return NextResponse.json({ error: 'Unknown setting.' }, { status: 400 })
-        const value = body.key === 'iiq_url' ? httpsOrNull(body.value) : (String(body.value ?? '').trim() || null)
+        const value = LINK_SETTINGS.has(body.key) ? httpsOrNull(body.value) : (String(body.value ?? '').trim() || null)
         const { error } = await svc.from('bcps_support_settings')
           .upsert({ key: body.key, value, updated_at: now }, { onConflict: 'key' })
         if (error) throw error
