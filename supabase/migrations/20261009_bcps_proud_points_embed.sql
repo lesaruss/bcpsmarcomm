@@ -9,7 +9,9 @@
 
 -- Owned by email: the user id is kept when the submitter is signed in.
 alter table public.bcps_proud_point_submissions alter column wcm_user_id drop not null;
-drop index if exists public.bcps_pp_one_draft;
+-- One draft per email per school. The older per-account index
+-- (bcps_pp_one_draft) is left in place: it ignores rows with no account and
+-- matches this rule for signed-in members, so it is harmless.
 create unique index if not exists bcps_pp_one_draft_email
   on public.bcps_proud_point_submissions (lower(wcm_email), school_location_nbr) where status = 'draft';
 create index if not exists bcps_pp_sub_email_idx on public.bcps_proud_point_submissions (lower(wcm_email));
