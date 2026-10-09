@@ -81,7 +81,9 @@ function todayIso(): string {
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
 }
 
-export default function MarcommAssignmentsPage() {
+// embedded: shown as a dashboard tab (SuperAdmin and the Office of
+// Communications side of the web team), so the page drops its own frame.
+export default function MarcommAssignmentsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [requests, setRequests] = useState<Req[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [team, setTeam] = useState<Member[]>([])
@@ -181,7 +183,7 @@ export default function MarcommAssignmentsPage() {
   const open = requests.find(r => r.id === openId) ?? null
 
   return (
-    <div className="mca">
+    <div className={`mca${embedded ? ' embedded' : ''}`}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div className="mca-head">
         <div>
@@ -491,6 +493,7 @@ function AddItem({ team, defaultLead, onClose, post }: {
 
 const CSS = `
 .mca { padding: 28px 32px 60px; background: #f5f5f5; min-height: calc(100vh - 64px); font-family: 'Montserrat', -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; }
+.mca.embedded { padding: 8px 0 40px; background: transparent; min-height: 0; }
 .mca h1 { font-size: 30px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; margin: 0 0 6px; }
 .mca-sub { font-size: 13px; color: rgba(26,26,26,0.62); margin: 0; }
 .mca-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
