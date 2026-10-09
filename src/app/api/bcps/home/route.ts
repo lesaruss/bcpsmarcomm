@@ -130,21 +130,29 @@ export async function GET(req: NextRequest) {
     groups = (gRows ?? []).map((g) => g.name as string)
   }
 
-  const isDwt = role === 'admin' || role === 'superadmin' || groups.includes('District Web Team')
   const isSuperadmin = role === 'superadmin'
-  const teamKind: 'comms' | 'appsvc' | null = !isDwt ? null
-    : (role === 'admin' || isSuperadmin || groups.includes('Office of Communications')) ? 'comms' : 'appsvc'
 
   // Exact, case-insensitive email matches done here rather than with ilike,
   // where '_' in an address is a wildcard and could match another person.
   const [allDepts, allMembers] = await Promise.all([
-    fetchAll<{ id: string; director_email: string | null }>((a, b) => svc.from('bcps_departments').select('id, director_email').order('id').range(a, b)),
+    fetchAll<{ id: string; director_email: string | null; executive_emails: string[] | null }>((a, b) => svc.from('bcps_departments').select('id, director_email, executive_emails').order('id').range(a, b)),
     fetchAll<{ roster_id: string; wcm_email: string | null }>((a, b) => svc.from('bcps_wcm_roster_members').select('roster_id, wcm_email').order('id').range(a, b)),
   ])
+  // A department's director, or an executive the department reports to
+  // (executive_emails, e.g. the Executive Director, Communications over
+  // Marketing, Media Relations and BECON; Sean, 2026-10-09).
   const ledIds = allDepts
-    .filter((d) => (d.director_email || '').trim().toLowerCase() === email)
+    .filter((d) => (d.director_email || '').trim().toLowerCase() === email
+      || (d.executive_emails ?? []).some((e) => (e || '').trim().toLowerCase() === email))
     .map((d) => d.id as string)
   const isDirector = ledIds.length > 0
+
+  // Department leaders get the Director experience even when they are also
+  // in the District Web Team group (Sean, 2026-10-09: Farrah A. Wilson). Only
+  // an admin or SuperAdmin role keeps the team view over it.
+  const isDwt = role === 'admin' || isSuperadmin || (groups.includes('District Web Team') && !isDirector)
+  const teamKind: 'comms' | 'appsvc' | null = !isDwt ? null
+    : (role === 'admin' || isSuperadmin || groups.includes('Office of Communications')) ? 'comms' : 'appsvc'
 
   const myRosterRows = allMembers
     .filter((m) => (m.wcm_email || '').trim().toLowerCase() === email)
@@ -532,8 +540,13 @@ async function loadDirectorNotes(ledIds: string[], email: string): Promise<Direc
     .eq('tab', 'director_notes').eq('state', 'live')
     .order('created_at', { ascending: false })
   const rows = (data ?? []).filter((n) => !n.department_id || ledIds.includes(n.department_id))
+  // A note linking to a gated doc (old /briefs/ link or a /playbooks/ doc)
+  // shows only to that doc's recipients.
+  const docSlug = (href: string | null) => href
+    ? /^\/briefs\/([^/?#]+)/.exec(href)?.[1] ?? /^\/playbooks\/[^/?#]+\/([^/?#]+)/.exec(href)?.[1]
+    : undefined
   const briefSlugs = Array.from(new Set(rows
-    .map((n) => /^\/briefs\/([^/?#]+)/.exec(n.href)?.[1])
+    .map((n) => docSlug(n.href))
     .filter((s): s is string => !!s)))
   const recipientsBySlug = new Map<string, string[]>()
   if (briefSlugs.length) {
@@ -547,7 +560,7 @@ async function loadDirectorNotes(ledIds: string[], email: string): Promise<Direc
   }
   return rows
     .filter((n) => {
-      const slug = /^\/briefs\/([^/?#]+)/.exec(n.href)?.[1]
+      const slug = docSlug(n.href)
       if (!slug) return true
       const list = recipientsBySlug.get(slug)
       return !list || list.includes(email)

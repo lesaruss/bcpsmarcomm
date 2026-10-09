@@ -501,7 +501,7 @@ const SAMPLE_TEAM_ASSIGNMENTS: Assignment[] = [
 ]
 
 /* ─── DIRECTOR ─────────────────────────────────────────── */
-type DirectorTab = 'overview' | 'audit' | 'review' | 'analytics' | 'notes' | 'widgets' | 'wcm' | 'tools'
+type DirectorTab = 'overview' | 'marcomm' | 'audit' | 'review' | 'analytics' | 'notes' | 'widgets' | 'wcm' | 'tools'
 
 // The review window that matters most to this director: the open one, else
 // the next upcoming one, else the last one (their departments may span
@@ -514,6 +514,11 @@ function primaryWindow(depts: DepartmentSummary[]): ReviewWindow | null {
 
 function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
   const [tab, setTab] = useState<DirectorTab>('overview')
+  // Office of Communications leaders who direct a department (Sean,
+  // 2026-10-09) keep MarComm Assignments as a tab when they hold its grant.
+  const { pages } = useBCPSShell()
+  const canMarcomm = !preview && !!pages?.includes('marcomm-assignments')
+  const recentNotes = (data.director_notes ?? []).slice(0, 3)
   const led = data.departments.filter((d) => data.led_department_ids.includes(d.id))
   const totalWcms = led.reduce((n, d) => n + d.wcms.length, 0)
   const certified = led.reduce((n, d) => n + d.wcms.filter((w) => w.certified).length, 0)
@@ -527,6 +532,7 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
 
   const tabs: { id: DirectorTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
+    ...(canMarcomm ? [{ id: 'marcomm' as DirectorTab, label: 'MarComm Assignments' }] : []),
     { id: 'audit', label: 'Run Audit' },
     { id: 'review', label: 'Website Review' },
     { id: 'analytics', label: 'Analytics' },
@@ -583,8 +589,29 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
           <div className="home-actions">
             <a className="wcm-hub2-card-btn" href={ROSTER_SIGNUP_URL}>Change or add a WCM</a>
           </div>
+          {recentNotes.length > 0 && (
+            <div className="home-dept home-section">
+              <div className="home-dept-head"><h3>Recent documents</h3></div>
+              {recentNotes.map((n) => {
+                const d = new Date(n.posted_at)
+                return (
+                  <div key={n.id} className="home-note">
+                    <div className="home-note-date">{d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}<b>{d.getDate()}</b></div>
+                    <div className="home-note-body">
+                      <div className="home-note-title">{n.href ? <a href={n.href}>{n.title}</a> : n.title}</div>
+                      {n.description && <div className="home-note-text">{n.description}</div>}
+                    </div>
+                  </div>
+                )
+              })}
+              <div className="home-actions">
+                <button type="button" className="wcm-hub2-card-btn" onClick={() => setTab('notes')}>All meeting notes</button>
+              </div>
+            </div>
+          )}
         </>
       )}
+      {tab === 'marcomm' && <MarcommAssignmentsPage embedded />}
       {tab === 'audit' && <RunAuditTab depts={led} canRecheck={false} />}
       {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} />}
       {tab === 'analytics' && <AnalyticsTab led={led} />}
