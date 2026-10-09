@@ -24,10 +24,14 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
       {
         cookies: {
           getAll() { return cookieStore.getAll() },
+          // A server component cannot write cookies (Next.js throws); the
+          // session refresh is written by middleware.ts on the same request.
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch { /* read-only here */ }
           },
         },
       }
