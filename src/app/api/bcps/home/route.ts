@@ -141,8 +141,14 @@ export async function GET(req: NextRequest) {
   // A department's director, or an executive the department reports to
   // (executive_emails, e.g. the Executive Director, Communications over
   // Marketing, Media Relations and BECON; Sean, 2026-10-09).
+  // Department Oversight group (Sean, 2026-10-09: the Executive Director,
+  // Communications and the Director of Marketing & Strategic Communications
+  // oversee marketing for every department): the Director dashboard across
+  // all departments.
+  const oversight = groups.includes('Department Oversight')
   const ledIds = allDepts
-    .filter((d) => (d.director_email || '').trim().toLowerCase() === email
+    .filter((d) => oversight
+      || (d.director_email || '').trim().toLowerCase() === email
       || (d.executive_emails ?? []).some((e) => (e || '').trim().toLowerCase() === email))
     .map((d) => d.id as string)
   const isDirector = ledIds.length > 0
@@ -233,14 +239,16 @@ export async function GET(req: NextRequest) {
   // Web Review tab (Sean, 2026-10-07): each department's latest audit, so
   // directors and WCMs see their page and its checks without opening the
   // department profile. Only v3 audits carry checks and screenshots.
+  // One query for every department (a Department Oversight view covers all
+  // of them), newest first; the first row per department is its latest.
   if (!isDwt && departments.length) {
-    await Promise.all(departments.map(async (d) => {
-      const { data } = await svc.from('bcps_audit_results')
-        .select('id, department_id, audited_at, page_url, audit_version, overall_score, ada_score, checks_passed, checks_failed, checks_review')
-        .eq('department_id', d.id).gte('audit_version', 3)
-        .order('audited_at', { ascending: false }).limit(1).maybeSingle()
-      d.web_review = data ?? null
-    }))
+    const audits = await fetchAll<NonNullable<DepartmentSummary['web_review']> & { department_id: string }>((a, b) => svc.from('bcps_audit_results')
+      .select('id, department_id, audited_at, page_url, audit_version, overall_score, ada_score, checks_passed, checks_failed, checks_review')
+      .in('department_id', departments.map((d) => d.id)).gte('audit_version', 3)
+      .order('audited_at', { ascending: false }).order('id').range(a, b))
+    const latest = new Map<string, (typeof audits)[number]>()
+    for (const r of audits) if (!latest.has(r.department_id)) latest.set(r.department_id, r)
+    for (const d of departments) d.web_review = latest.get(d.id) ?? null
   }
 
   // The caller's own certification progress (WCM status strip). Only
@@ -332,6 +340,7 @@ export async function GET(req: NextRequest) {
     experience,
     is_dwt: isDwt,
     is_director: isDirector,
+    oversight: isDirector && oversight,
     is_superadmin: isSuperadmin,
     my_certified: !!certRes.data?.issued_at,
     my_cert: myCert,

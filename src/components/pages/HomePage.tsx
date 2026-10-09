@@ -233,6 +233,8 @@ interface HomeData {
   experience: 'superadmin' | 'dwt' | 'director' | 'school_wcm' | 'wcm' | 'member'
   is_dwt: boolean
   is_director: boolean
+  // Department Oversight: the Director dashboard across every department.
+  oversight?: boolean
   is_superadmin?: boolean
   my_certified?: boolean
   my_cert?: { certified: boolean; done: number; total: number; pct: number } | null
@@ -519,12 +521,23 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
   const { pages } = useBCPSShell()
   const canMarcomm = !preview && !!pages?.includes('marcomm-assignments')
   const recentNotes = (data.director_notes ?? []).slice(0, 3)
+  const oversight = !!data.oversight
+  const [deptQuery, setDeptQuery] = useState('')
+  const [showAllDepts, setShowAllDepts] = useState(false)
+  // Oversight covers every department, so the cards are searchable and the
+  // first twelve show until asked for the rest.
+  const q = deptQuery.trim().toLowerCase()
+  const sortedLed = oversight ? data.departments.filter((d) => data.led_department_ids.includes(d.id)).sort((a, b) => a.name.localeCompare(b.name)) : null
+  const filteredDepts = (sortedLed ?? data.departments.filter((d) => data.led_department_ids.includes(d.id)))
+    .filter((d) => !q || d.name.toLowerCase().includes(q) || (d.division || '').toLowerCase().includes(q) || d.wcms.some((w) => w.name.toLowerCase().includes(q)))
+  const shownDepts = oversight && !q && !showAllDepts ? filteredDepts.slice(0, 12) : filteredDepts
   const led = data.departments.filter((d) => data.led_department_ids.includes(d.id))
   const totalWcms = led.reduce((n, d) => n + d.wcms.length, 0)
   const certified = led.reduce((n, d) => n + d.wcms.filter((w) => w.certified).length, 0)
   const unconfirmed = led.filter((d) => d.wcms.length === 0).length
   const name = firstName(data)
-  const myWindow = primaryWindow(led)
+  // With oversight of every department there is no single review window.
+  const myWindow = oversight ? null : primaryWindow(led)
   const withAnalytics = led.filter((d) => d.analytics)
   const visitors = withAnalytics.reduce((n, d) => n + (d.analytics?.visitors ?? 0), 0)
   const period = withAnalytics[0]?.analytics?.period
@@ -550,9 +563,11 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
       {tab === 'overview' && <>
       <div className={`home-hero${WALKTHROUGH_VIDEO ? ' with-side' : ''}`}>
         <div>
-          <div className="home-hero-label">BCPS MarComm Director</div>
+          <div className="home-hero-label">{oversight ? 'BCPS MarComm Department Oversight' : 'BCPS MarComm Director'}</div>
           <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
-          <p>Your department&apos;s website at a glance: the people who keep it current, how many families and staff use it, when your website review is, and the support behind it. Everything here updates on its own.</p>
+          <p>{oversight
+            ? `Every department website at a glance: the people who keep each one current, how many families and staff use them, where each review stands, and the support behind it. ${led.length} departments, updated on their own.`
+            : 'Your department\u2019s website at a glance: the people who keep it current, how many families and staff use it, when your website review is, and the support behind it. Everything here updates on its own.'}</p>
           <div className="home-actions">
             <a className="home-btn" href={DIRECTOR_PLAYBOOK_URL}>Open the Director Playbook</a>
             <span className="home-hint">Every update for directors, in one place</span>
@@ -582,13 +597,6 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
 
       {tab === 'overview' && (
         <>
-          <p className="wcm-hub2-intro">Your Web Content Managers and where each one stands with the Department WCM Certification.</p>
-          <div className="home-dept-grid">
-            {led.map((d) => <DepartmentCard key={d.id} dept={d} showAudit={false} />)}
-          </div>
-          <div className="home-actions">
-            <a className="wcm-hub2-card-btn" href={ROSTER_SIGNUP_URL}>Change or add a WCM</a>
-          </div>
           {recentNotes.length > 0 && (
             <div className="home-dept home-section">
               <div className="home-dept-head"><h3>Recent documents</h3></div>
@@ -609,11 +617,32 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
               </div>
             </div>
           )}
+          <p className="wcm-hub2-intro">{oversight
+            ? 'Web Content Managers for every department and where each one stands with the Department WCM Certification.'
+            : 'Your Web Content Managers and where each one stands with the Department WCM Certification.'}</p>
+          {oversight && (
+            <div className="home-actions">
+              <input type="search" className="home-dept-search" value={deptQuery} onChange={(e) => setDeptQuery(e.target.value)}
+                placeholder={`Search ${led.length} departments`} aria-label="Search departments" />
+            </div>
+          )}
+          <div className="home-dept-grid">
+            {shownDepts.map((d) => <DepartmentCard key={d.id} dept={d} showAudit={false} />)}
+          </div>
+          {oversight && !deptQuery && !showAllDepts && filteredDepts.length > shownDepts.length && (
+            <div className="home-actions">
+              <button type="button" className="wcm-hub2-card-btn" onClick={() => setShowAllDepts(true)}>Show all {filteredDepts.length} departments</button>
+            </div>
+          )}
+          {oversight && filteredDepts.length === 0 && <div className="wcm-hub2-empty">No department matches that search.</div>}
+          <div className="home-actions">
+            <a className="wcm-hub2-card-btn" href={ROSTER_SIGNUP_URL}>Change or add a WCM</a>
+          </div>
         </>
       )}
       {tab === 'marcomm' && <MarcommAssignmentsPage embedded />}
       {tab === 'audit' && <RunAuditTab depts={led} canRecheck={false} />}
-      {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} />}
+      {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} oversight={oversight} />}
       {tab === 'analytics' && <AnalyticsTab led={led} />}
       {tab === 'notes' && <NotesTab notes={data.director_notes ?? []} led={led} />}
       {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
@@ -635,9 +664,10 @@ function meetingMessage(kind: 'book' | 'earlier', led: DepartmentSummary[], w: R
   return `I would like to request an earlier website review meeting for ${names}${w ? `. Our window is ${w.label} (${formatWindowRange(w)})` : ''}. Times that work for us: `
 }
 
-function ReviewTab({ led, myWindow }: { led: DepartmentSummary[]; myWindow: ReviewWindow | null }) {
+function ReviewTab({ led, myWindow, oversight = false }: { led: DepartmentSummary[]; myWindow: ReviewWindow | null; oversight?: boolean }) {
   const state = myWindow ? windowState(myWindow) : null
-  const myWindowIds = new Set(led.map((d) => windowForDivision(d.division)?.id).filter(Boolean))
+  // Oversight covers every division, so no window is singled out as "yours".
+  const myWindowIds = new Set(oversight ? [] : led.map((d) => windowForDivision(d.division)?.id).filter(Boolean))
   return (
     <>
       <p className="wcm-hub2-intro">
@@ -662,7 +692,9 @@ function ReviewTab({ led, myWindow }: { led: DepartmentSummary[]; myWindow: Revi
           <h3>Review windows, {REVIEW_CYCLE}</h3>
           <span className="home-chip">July 1 to June 30</span>
         </div>
-        <p className="home-card-text">When your division&apos;s window opens, book your meeting from this page. The first window covers the priority divisions.</p>
+        <p className="home-card-text">{oversight
+          ? 'Each division reviews its sites in its window; directors book their meetings from their own dashboards. The first window covers the priority divisions.'
+          : <>When your division&apos;s window opens, book your meeting from this page. The first window covers the priority divisions.</>}</p>
         <div className="home-windows">
           {REVIEW_WINDOWS.map((w) => {
             const s = windowState(w)
@@ -674,7 +706,7 @@ function ReviewTab({ led, myWindow }: { led: DepartmentSummary[]; myWindow: Revi
                 <div className="home-win-dates">{formatWindowRange(w)}</div>
                 <ul>
                   {w.divisions.map((dv) => (
-                    <li key={dv} className={led.some((d) => d.division === dv) ? 'mine' : undefined}>{dv}</li>
+                    <li key={dv} className={!oversight && led.some((d) => d.division === dv) ? 'mine' : undefined}>{dv}</li>
                   ))}
                 </ul>
               </div>
@@ -682,7 +714,7 @@ function ReviewTab({ led, myWindow }: { led: DepartmentSummary[]; myWindow: Revi
           })}
         </div>
         <p className="home-dept-sub home-gap">A new cycle starts {new Date(NEXT_CYCLE_START + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}, in the same order.</p>
-        <div className="home-actions">
+        {!oversight && <div className="home-actions">
           {state === 'open' && (
             <button type="button" className="home-btn" onClick={() => openFeedback(meetingMessage('book', led, myWindow))}>Book your meeting</button>
           )}
@@ -694,10 +726,10 @@ function ReviewTab({ led, myWindow }: { led: DepartmentSummary[]; myWindow: Revi
               {state === 'upcoming' ? 'Request an earlier meeting' : 'Request a meeting'}
             </button>
           )}
-        </div>
+        </div>}
       </div>
 
-      <p className="wcm-hub2-intro">Where each of your sites stands today:</p>
+      <p className="wcm-hub2-intro">{oversight ? 'Where every department site stands today:' : 'Where each of your sites stands today:'}</p>
       <div className="home-dept-grid">
         {led.map((d) => {
           const w = windowForDivision(d.division)
@@ -745,7 +777,17 @@ function AnalyticsTab({ led }: { led: DepartmentSummary[] }) {
   return (
     <>
       <p className="wcm-hub2-intro">{monthLabel(a.period)}, synced from Google Analytics.</p>
-      {withData.length > 1 && (
+      {withData.length > 8 && (
+        <div className="home-actions">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+            Department
+            <select value={current.id} onChange={(e) => setSelected(e.target.value)} style={{ font: 'inherit', padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,.15)', maxWidth: '100%' }}>
+              {withData.slice().sort((x, y) => x.name.localeCompare(y.name)).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
+      {withData.length > 1 && withData.length <= 8 && (
         <div className="home-chips" role="group" aria-label="Department">
           {withData.map((d) => (
             <button key={d.id} type="button" className={`home-chip-btn${d.id === current.id ? ' active' : ''}`} aria-pressed={d.id === current.id} onClick={() => setSelected(d.id)}>
