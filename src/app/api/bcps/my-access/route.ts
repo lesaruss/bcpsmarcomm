@@ -25,6 +25,20 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await asUser.auth.getUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
+  // Group access set up ahead of an account (Sean, 2026-10-09): rows in
+  // bcps_pending_group_members for this email become real memberships the
+  // first time the person signs in, before their pages are worked out below.
+  const myEmail = (user.email || '').trim().toLowerCase()
+  if (myEmail) {
+    const { data: pending } = await svc.from('bcps_pending_group_members')
+      .select('id, group_id').eq('email', myEmail)
+    if (pending?.length) {
+      const { error: claimError } = await svc.from('acl_group_members')
+        .upsert(pending.map(p => ({ group_id: p.group_id, user_id: user.id })), { onConflict: 'group_id,user_id', ignoreDuplicates: true })
+      if (!claimError) await svc.from('bcps_pending_group_members').delete().in('id', pending.map(p => p.id))
+    }
+  }
+
   const { data: roleRow } = await svc.from('acl_member_roles')
     .select('role').eq('user_id', user.id).eq('brand', BRAND).maybeSingle()
   const role = roleRow?.role || 'user'
