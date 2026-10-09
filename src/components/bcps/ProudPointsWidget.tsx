@@ -97,6 +97,7 @@ interface Submission {
   updated_at: string
   is_test: boolean
   wcm_email?: string | null
+  submitter_name?: string | null
   posted_by_email?: string | null
 }
 
@@ -241,6 +242,17 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
   const [one, setOne] = useState<FormPoint>(emptyPoint)
 
   const [checks, setChecks] = useState<Record<string, boolean>>({})
+  // Embed only: who to email about the submission (no sign-in), remembered in
+  // this browser for next time.
+  const [contact, setContact] = useState<{ name: string; email: string }>(() => {
+    if (!embed || typeof window === 'undefined') return { name: '', email: '' }
+    try { return JSON.parse(localStorage.getItem('bcps-proud-points-contact') || 'null') ?? { name: '', email: '' } } catch { return { name: '', email: '' } }
+  })
+  const updateContact = (patch: Partial<{ name: string; email: string }>) => setContact(c => {
+    const next = { ...c, ...patch }
+    try { localStorage.setItem('bcps-proud-points-contact', JSON.stringify(next)) } catch { /* not remembered */ }
+    return next
+  })
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [previewWidth, setPreviewWidth] = useState<number | null>(null)
@@ -381,6 +393,8 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
   async function send() {
     if (!st) return
     setNotice(null)
+    if (embed && !contact.name.trim()) { setNotice({ ok: false, text: 'Enter your name under Before you send.' }); return }
+    if (embed && !/^[^@\s]+@browardschools\.com$/i.test(contact.email.trim())) { setNotice({ ok: false, text: 'Enter your @browardschools.com email under Before you send.' }); return }
     if (!CHECKLIST.every(c => checks[c.key])) { setNotice({ ok: false, text: 'Check every box in the checklist first.' }); return }
     const strip = ({ photo_busy, photo_error, text_detected, photo_url, ...rest }: FormPoint) => rest
     let body: Record<string, unknown>
@@ -396,7 +410,7 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
     }
     setSending(true)
     try {
-      const r = await authedFetch('/api/proud-points/submit', { method: 'POST', body: JSON.stringify({ ...body, checklist_ack: checks }) })
+      const r = await authedFetch('/api/proud-points/submit', { method: 'POST', body: JSON.stringify({ ...body, checklist_ack: checks, contact: embed ? contact : undefined }) })
       const d = await r.json()
       if (!r.ok) { setNotice({ ok: false, text: d.error || 'Could not send.' }); return }
       setNotice({ ok: true, text: `Sent to the District Web Team. You'll get an email when it is reviewed, and another when it is live.${d.test ? ' (Test build: marked as a test.)' : ''}` })
@@ -601,6 +615,19 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
 
                   <fieldset style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '10px 14px', marginTop: 16 }}>
                     <legend style={{ fontSize: 12, fontWeight: 800, padding: '0 4px' }}>Before you send</legend>
+                    {embed && (
+                      <div className="ppw-field" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '0 12px', marginBottom: 6 }}>
+                        <div>
+                          <label htmlFor="ppw-contact-name">Your name</label>
+                          <input id="ppw-contact-name" className="form-input" autoComplete="name" value={contact.name} maxLength={120} onChange={e => updateContact({ name: e.target.value })} />
+                        </div>
+                        <div>
+                          <label htmlFor="ppw-contact-email">Your district email</label>
+                          <input id="ppw-contact-email" className="form-input" type="email" autoComplete="email" placeholder="name@browardschools.com" value={contact.email} onChange={e => updateContact({ email: e.target.value })} />
+                        </div>
+                        <div className="ppw-hint" style={{ gridColumn: '1 / -1' }}>The District Web Team emails you here when your Proud Points are reviewed and when they are live.</div>
+                      </div>
+                    )}
                     {CHECKLIST.map(c => (
                       <label key={c.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, margin: '6px 0' }}>
                         <input type="checkbox" checked={!!checks[c.key]} onChange={e => setChecks(x => ({ ...x, [c.key]: e.target.checked }))} style={{ marginTop: 2 }} />
@@ -840,7 +867,7 @@ function ReviewQueue() {
                     {r.school_name} · {r.kind === 'initial' ? 'Six Proud Points' : `Replace point${r.replace_slot ? ` ${r.replace_slot}` : ''}`}
                     {r.is_test && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, background: GOLD, color: GOLD_TEXT, padding: '2px 6px', borderRadius: 4 }}>TEST</span>}
                   </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{r.wcm_email} · sent {r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : ''}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{r.submitter_name ? `${r.submitter_name}, ` : ''}{r.wcm_email} · sent {r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : ''}</div>
                 </div>
                 <StatusTag s={r.status} posted={!!r.posted_at} />
               </div>

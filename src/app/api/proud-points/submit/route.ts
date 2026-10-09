@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { svc, requireProudPointsAccess, ACCESS_ERROR, schoolByLoc } from '@/lib/proudPointsApi'
+import { svc, requireProudPointsAccess, ACCESS_ERROR, schoolByLoc, isDistrictEmail, clientIp, rateLimited, LIMITS } from '@/lib/proudPointsApi'
 import { sendEmail } from '@/lib/resend'
 import {
   POINT_COUNT, cleanPoint, validatePoint, schoolState, isTestBuild, escapeHtml, type ProudPoint,
@@ -9,6 +9,8 @@ import {
 // body: { loc, kind: 'initial', points: [6] }                         first six
 //    or { loc, kind: 'replace', point, replace_slot?, replaced_text? } one swap
 //    plus checklist_ack { media_release, faces_visible, final_ack }
+//    and, from the embed (no sign-in), contact { name, email }: the district
+//    email gets the review and posted emails.
 //
 // The server decides which flow a school is in (schoolState), so a WCM cannot
 // send one point for a school that has none, or six for one that has six.
@@ -18,10 +20,10 @@ import {
 const REQUIRED_ACK_KEYS = ['media_release', 'faces_visible', 'final_ack'] as const
 const FOOTER = 'This is an automated message from the School Proud Points Submission Form.'
 
-async function photoOk(path: string | null, email: string): Promise<boolean> {
+async function photoOk(path: string | null, owner: string): Promise<boolean> {
   if (!path) return false
   const { data } = await svc.from('bcps_proud_point_photos').select('ok, owner_email').eq('path', path).maybeSingle()
-  return !!data && data.ok && data.owner_email === email
+  return !!data && data.ok && data.owner_email === owner
 }
 
 export async function POST(req: NextRequest) {
@@ -33,6 +35,19 @@ export async function POST(req: NextRequest) {
     points?: Partial<ProudPoint>[]; point?: Partial<ProudPoint>
     replace_slot?: number | null; replaced_text?: string
     checklist_ack?: Record<string, boolean>
+    contact?: { name?: string; email?: string }
+  }
+  // Who to email about this submission: the signed-in member, or the name
+  // and district email a guest typed in the embed.
+  const contactEmail = (me.email ?? body.contact?.email ?? '').trim().toLowerCase()
+  const contactName = (body.contact?.name ?? '').trim().slice(0, 120) || null
+  if (me.via === 'guest') {
+    if (!contactName) return NextResponse.json({ error: 'Enter your name.' }, { status: 400 })
+    if (!isDistrictEmail(contactEmail)) return NextResponse.json({ error: 'Enter your @browardschools.com email address.' }, { status: 400 })
+  }
+  const ip = clientIp(req)
+  if (me.via === 'guest' && await rateLimited('bcps_proud_point_submissions', ip, LIMITS.sends)) {
+    return NextResponse.json({ error: 'Too many submissions from this connection in the last hour. Please try again later.' }, { status: 429 })
   }
   const school = await schoolByLoc(body.loc)
   if (!school) return NextResponse.json({ error: 'Pick your school first.' }, { status: 400 })
@@ -77,7 +92,7 @@ export async function POST(req: NextRequest) {
   for (const p of points) {
     const err = validatePoint(p, { complete: true })
     if (err) return NextResponse.json({ error: err }, { status: 400 })
-    if (!(await photoOk(p.photo_path, me.email))) {
+    if (!(await photoOk(p.photo_path, me.owner))) {
       return NextResponse.json({ error: `The photo for point ${p.slot} was not accepted. Choose it again.` }, { status: 400 })
     }
   }
@@ -85,7 +100,7 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString()
   const test = isTestBuild()
   const row = {
-    wcm_user_id: me.userId, wcm_email: me.email, school_location_nbr: school.loc_no, school_name: school.school_name,
+    wcm_user_id: me.userId, wcm_email: contactEmail, owner_key: me.owner, submitter_name: contactName, client_ip: ip, school_location_nbr: school.loc_no, school_name: school.school_name,
     kind: expected, status: 'pending', points, replace_slot: replaceSlot, replaced_text: replacedText,
     checklist_ack: { ...Object.fromEntries(REQUIRED_ACK_KEYS.map(k => [k, true])), acked_at: now },
     submitted_at: now, updated_at: now, is_test: test,
@@ -93,24 +108,24 @@ export async function POST(req: NextRequest) {
   // The first-six flow turns the caller's draft into the submission, so the
   // draft does not linger after it is sent.
   const { data: draft } = await svc.from('bcps_proud_point_submissions').select('id')
-    .eq('wcm_email', me.email).eq('school_location_nbr', school.loc_no).eq('status', 'draft').maybeSingle()
+    .eq('owner_key', me.owner).eq('school_location_nbr', school.loc_no).eq('status', 'draft').maybeSingle()
   const write = draft && expected === 'initial'
     ? svc.from('bcps_proud_point_submissions').update(row).eq('id', draft.id).select('id').single()
     : svc.from('bcps_proud_point_submissions').insert(row).select('id').single()
   const { data: saved, error } = await write
   if (error || !saved) return NextResponse.json({ error: error?.message || 'Could not save the submission.' }, { status: 500 })
 
-  await notifyReviewers(saved.id, { school: school.school_name, kind: expected, wcm: me.email, test }).catch(() => {})
+  await notifyReviewers(saved.id, { school: school.school_name, kind: expected, wcm: contactName ? `${contactName} (${contactEmail})` : contactEmail, email: contactEmail, test }).catch(() => {})
   return NextResponse.json({ ok: true, id: saved.id, test })
 }
 
 // Mirrors the banner submit notification: the bcps_banner_admins rows with
 // notify_on_submit, best effort, outcome logged on the row. From the test
 // build it goes to the tester instead, so the team is not emailed by tests.
-async function notifyReviewers(id: string, s: { school: string; kind: string; wcm: string | null; test: boolean }) {
+async function notifyReviewers(id: string, s: { school: string; kind: string; wcm: string | null; email: string | null; test: boolean }) {
   let recipients: string[]
   if (s.test) {
-    recipients = s.wcm ? [s.wcm] : []
+    recipients = s.email ? [s.email] : []
   } else {
     const { data: admins } = await svc.from('bcps_banner_admins').select('email').eq('notify_on_submit', true)
     recipients = (admins ?? []).map(a => a.email).filter((e): e is string => !!e)
