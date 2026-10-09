@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
 // MarComm Assignments (Sean, 2026-10-08). The Office of Communications request
@@ -42,10 +42,25 @@ interface Req {
   lead: string | null
   support: string | null
   status: string
+  priority: Priority | null
+  start_date: string | null
+  is_ongoing: boolean
+  overdue_dismissed: boolean
+  link_url: string | null
   submitted_at: string
   completed_at: string | null
 }
-interface Note { id: string; request_id: string; body: string; author: string | null; created_at: string }
+type Priority = 'high' | 'medium' | 'low'
+interface Note {
+  id: string; request_id: string; body: string; author: string | null; created_at: string
+  source: 'typed' | 'dictated' | 'meeting' | 'system'; meeting_label: string | null
+}
+// A saved version of the tracker, taken after each Marcomm Meeting (from its
+// transcript when the meeting was recorded, or saved by hand when it was not).
+interface SnapshotMeta { id: string; meeting_date: string; label: string; summary: string | null; source: 'manual' | 'transcript' | 'import'; created_at: string }
+type SnapshotRow = Pick<Req, 'id' | 'job_number' | 'source' | 'title' | 'requester_name' | 'org_name' | 'services' | 'lead' | 'support' | 'status' | 'priority' | 'date_needed' | 'start_date' | 'is_ongoing' | 'submitted_at' | 'completed_at'> & { note_count: number }
+const PRIORITY_LABEL: Record<Priority, string> = { high: 'H', medium: 'M', low: 'L' }
+const PRIORITY_NAME: Record<Priority, string> = { high: 'High', medium: 'Medium', low: 'Low' }
 interface Member { name: string; email: string | null; kind: 'person' | 'team' }
 
 // Lead holds one name; Support holds a comma-separated list. Rows imported from
@@ -76,6 +91,11 @@ function fmtDate(d: string | null): string {
 function fmtStamp(d: string): string {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
+// Past its date needed, unless it is ongoing or the team cleared the flag.
+function isLate(r: Pick<Req, 'date_needed' | 'is_ongoing'> & { overdue_dismissed?: boolean }, today: string): boolean {
+  return !!r.date_needed && r.date_needed < today && !r.is_ongoing && !r.overdue_dismissed
+}
+
 function todayIso(): string {
   const t = new Date()
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
@@ -88,6 +108,10 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
   const [notes, setNotes] = useState<Note[]>([])
   const [team, setTeam] = useState<Member[]>([])
   const [me, setMe] = useState('')
+  const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([])
+  const [version, setVersion] = useState<string>('live')
+  const [versionRows, setVersionRows] = useState<SnapshotRow[] | null>(null)
+  const [savingSnapshot, setSavingSnapshot] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<'active' | 'completed'>('active')
@@ -103,7 +127,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
       const r = await fetch('/api/bcps/marcomm-requests', { headers: await authHeaders(), cache: 'no-store' })
       const j = await r.json()
       if (!r.ok) throw new Error(j.error || 'Could not load requests.')
-      setRequests(j.requests); setNotes(j.notes); setTeam(j.team ?? []); setMe((j.me ?? '').toLowerCase()); setError('')
+      setRequests(j.requests); setNotes(j.notes); setTeam(j.team ?? []); setSnapshots(j.snapshots ?? []); setMe((j.me ?? '').toLowerCase()); setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load requests.')
     } finally {
@@ -111,6 +135,18 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
     }
   }, [])
   useEffect(() => { load() }, [load])
+
+  // "View as of": load the chosen meeting's version of the tracker.
+  useEffect(() => {
+    if (version === 'live') { setVersionRows(null); return }
+    let cancelled = false
+    ;(async () => {
+      const r = await fetch(`/api/bcps/marcomm-requests?snapshot=${encodeURIComponent(version)}`, { headers: await authHeaders() })
+      const j = await r.json().catch(() => ({}))
+      if (!cancelled) setVersionRows(r.ok ? (j.snapshot?.data ?? []) : [])
+    })()
+    return () => { cancelled = true }
+  }, [version])
 
   // ?row=<id> opens a request directly, like Web Team Assignments.
   useEffect(() => {
@@ -124,10 +160,13 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
     return m
   }, [notes])
 
-  const active = requests.filter(r => !CLOSED.has(r.status))
-  const done = requests.filter(r => CLOSED.has(r.status))
-  const today = todayIso()
-  const overdue = active.filter(r => r.date_needed && r.date_needed < today).length
+  // In a past version the rows come from that meeting's snapshot, read only.
+  const viewing = version === 'live' ? null : snapshots.find(sn => sn.id === version) ?? null
+  const rowsSource: (Req | SnapshotRow)[] = viewing ? (versionRows ?? []) : requests
+  const active = rowsSource.filter(r => !CLOSED.has(r.status))
+  const done = rowsSource.filter(r => CLOSED.has(r.status))
+  const today = viewing ? viewing.meeting_date : todayIso()
+  const overdue = active.filter(r => isLate(r as Req, today)).length
   const newCount = active.filter(r => r.status === 'new').length
 
   // The viewer's own roster name, for "My items".
@@ -142,9 +181,9 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
   const otherNames = useMemo(() => {
     const roster = new Set(team.map(m => m.name))
     const set = new Set<string>()
-    for (const r of requests) for (const n of namesIn(r)) if (!roster.has(n)) set.add(n)
+    for (const r of rowsSource) for (const n of namesIn(r)) if (!roster.has(n)) set.add(n)
     return Array.from(set).sort((a, b) => a.localeCompare(b))
-  }, [requests, team])
+  }, [rowsSource, team])
   const optLabel = (n: string) => `${n}${activeCount.get(n) ? ` (${activeCount.get(n)})` : ''}`
 
   const list = useMemo(() => {
@@ -156,13 +195,15 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
         if (!namesIn(r).some(n => n.toLowerCase() === leadFilter.toLowerCase())) return false
       }
       if (!q) return true
-      return [r.title, r.requester_name, r.org_name, r.description, r.lead, String(r.job_number ?? '')]
+      return [r.title, r.requester_name, r.org_name, 'description' in r ? r.description : null, r.lead, String(r.job_number ?? '')]
         .some(v => (v ?? '').toLowerCase().includes(q))
     })
     return rows.sort((a, b) => {
       if (tab === 'completed' || sort === 'newest') return (b.completed_at ?? b.submitted_at).localeCompare(a.completed_at ?? a.submitted_at)
-      // Most urgent first: new requests waiting for triage, then nearest date needed, then undated.
+      // Most urgent first: new requests waiting for triage, then high priority,
+      // then nearest date needed, then undated.
       if ((a.status === 'new') !== (b.status === 'new')) return a.status === 'new' ? -1 : 1
+      if ((a.priority === 'high') !== (b.priority === 'high')) return a.priority === 'high' ? -1 : 1
       if (a.date_needed && b.date_needed) return a.date_needed.localeCompare(b.date_needed)
       if (a.date_needed) return -1
       if (b.date_needed) return 1
@@ -191,10 +232,32 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
           <p className="mca-sub">Office of Communications requests. Filter by status or person, click any row for the full request and notes.</p>
         </div>
         <div className="mca-head-actions">
-          <a className="mca-btn ghost" href="/marcomm-request" target="_blank" rel="noopener">Open request form</a>
-          <button className="mca-btn" onClick={() => setAdding(true)}>Add team item</button>
+          <label className="mca-asof"><span className="fl">View as of</span>
+            <select value={version} onChange={e => { setVersion(e.target.value); setOpenId(null) }} title="A new version is saved after each Marcomm Meeting">
+              <option value="live">Today (live)</option>
+              {snapshots.map(sn => <option key={sn.id} value={sn.id}>{sn.label}</option>)}
+            </select>
+          </label>
+          {!viewing && <>
+            <a className="mca-btn ghost" href="/marcomm-request" target="_blank" rel="noopener">Open request form</a>
+            <button className="mca-btn ghost" onClick={() => setSavingSnapshot(true)}>Save meeting snapshot</button>
+            <button className="mca-btn" onClick={() => setAdding(true)}>Add team item</button>
+          </>}
         </div>
       </div>
+
+      {viewing ? (
+        <div className="mca-banner past">
+          <b>Viewing {viewing.label}.</b> This is how the tracker stood after that meeting. It is read only.{' '}
+          <button className="link" onClick={() => setVersion('live')}>Back to today</button>
+          {viewing.summary && <p>{viewing.summary}</p>}
+        </div>
+      ) : snapshots[0] && (
+        <div className="mca-banner">
+          <b>Last updated from {snapshots[0].label}.</b>{snapshots[0].summary ? ` ${snapshots[0].summary}` : ''}{' '}
+          Click any row to view the full notes trail.
+        </div>
+      )}
 
       <div className="mca-meta">
         <div><span className="ml">Active</span><span className="mv">{active.length}</span></div>
@@ -267,18 +330,23 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
           {list.length === 0 && <p className="mca-empty">No requests match these filters.</p>}
           {list.map(r => {
             const st = statusOf(r.status)
-            const late = tab === 'active' && r.date_needed && r.date_needed < today
-            const n = notesFor.get(r.id)?.length ?? 0
+            const late = tab === 'active' && isLate(r as Req, today)
+            const n = 'note_count' in r ? r.note_count : notesFor.get(r.id)?.length ?? 0
+            const link = 'link_url' in r ? r.link_url : null
+            // Past versions are read only, so their rows do not open.
+            const openRow = viewing ? undefined : () => setOpenId(r.id)
             return (
-              <div key={r.id} className="mca-row" role="button" tabIndex={0} onClick={() => setOpenId(r.id)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenId(r.id) } }}>
+              <div key={r.id} className={`mca-row${viewing ? ' ro' : ''}`} role={viewing ? undefined : 'button'} tabIndex={viewing ? undefined : 0} onClick={openRow}
+                onKeyDown={e => { if (openRow && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openRow() } }}>
                 <div className="c-req">
                   <div className="r-top">
                     <span className="r-job">{r.job_number ? `#${r.job_number}` : 'Team item'}</span>
+                    {r.priority && <span className={`prio p-${r.priority}`} title={`${PRIORITY_NAME[r.priority]} priority`}>{PRIORITY_LABEL[r.priority]}</span>}
                     <span className="r-title">{r.title}</span>
                   </div>
                   <div className="r-who">{[r.requester_name, r.org_name].filter(Boolean).join(' · ') || 'Office of Communications'}</div>
                   {r.services.length > 0 && <div className="r-tags">{r.services.map(s => <span key={s}>{s}</span>)}</div>}
+                  {link && <a className="r-link" href={link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>Open link</a>}
                 </div>
                 <div className="c-lead" data-label="Lead / Support">
                   <div className="lead">{r.lead || <span className="none">Unassigned</span>}</div>
@@ -286,7 +354,9 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
                 </div>
                 <div className="c-date" data-label={tab === 'active' ? 'Date Needed' : 'Closed'}>
                   {tab === 'active'
-                    ? <span className={`date ${late ? 'late' : ''} ${r.date_needed ? '' : 'none'}`}>{fmtDate(r.date_needed)}{late ? ' · Overdue' : ''}</span>
+                    ? r.is_ongoing && !r.date_needed
+                      ? <span className="date none">Ongoing</span>
+                      : <span className={`date ${late ? 'late' : ''} ${r.date_needed ? '' : 'none'}`}>{fmtDate(r.date_needed)}{late ? ' · Overdue' : r.is_ongoing ? ' · Ongoing' : ''}</span>
                     : <span className="date none">{r.completed_at ? fmtStamp(r.completed_at) : 'Not recorded'}</span>}
                 </div>
                 <div className="c-status" data-label="Status"><span className={`badge ${st.cls}`}>{st.label}</span></div>
@@ -297,7 +367,8 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
         </div>
       )}
 
-      {open && <Drawer req={open} team={team} notes={notesFor.get(open.id) ?? []} onClose={() => setOpenId(null)} post={post} />}
+      {open && !viewing && <Drawer req={open} team={team} notes={notesFor.get(open.id) ?? []} onClose={() => setOpenId(null)} post={post} />}
+      {savingSnapshot && <SaveSnapshot onClose={() => setSavingSnapshot(false)} post={post} />}
       {adding && <AddItem team={team} defaultLead={myName} onClose={() => setAdding(false)} post={post} />}
     </div>
   )
@@ -331,19 +402,125 @@ function SupportPicker({ team, lead, value, onChange }: { team: Member[]; lead: 
   )
 }
 
+// Voice dictation for notes, the same recorder as Web Team Assignments
+// (public/bcps-web-team-assignments.html): Record starts the browser's speech
+// recognition, restarting between pauses until Stop; the cleaned transcript
+// is added to the note box to edit before Add note. Chrome and Edge only.
+type SpeechRec = {
+  continuous: boolean; interimResults: boolean; lang: string
+  onstart: (() => void) | null
+  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null
+  onerror: ((e: { error: string }) => void) | null
+  onend: (() => void) | null
+  start: () => void; stop: () => void
+}
+function useDictation(onText: (text: string) => void) {
+  const [recording, setRecording] = useState(false)
+  const [live, setLive] = useState('Press Record to transcribe speech into a note.')
+  const [active, setActive] = useState(false)
+  const st = useRef({ on: false, acc: '', committed: false, rec: null as SpeechRec | null })
+  const onTextRef = useRef(onText)
+  onTextRef.current = onText
+
+  const msg = (m: string, a: boolean) => { setLive(m); setActive(a) }
+  const clean = (t: string) => {
+    t = t.trim(); if (!t) return ''
+    t = t.charAt(0).toUpperCase() + t.slice(1)
+    if (t.length > 15 && !/[.!?]$/.test(t)) t += '.'
+    return t
+  }
+  const commit = useCallback(() => {
+    const s = st.current
+    if (s.committed) return
+    s.committed = true
+    const text = s.acc.trim(); s.acc = ''
+    if (!text) { msg('Nothing captured. Try speaking again.', false); return }
+    onTextRef.current(text)
+    msg('Transcript added. Edit below and click Add note.', false)
+  }, [])
+  const SR = (): (new () => SpeechRec) | null => {
+    if (typeof window === 'undefined') return null
+    const w = window as unknown as { SpeechRecognition?: new () => SpeechRec; webkitSpeechRecognition?: new () => SpeechRec }
+    return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
+  }
+  const runSession = useCallback(() => {
+    const Ctor = SR(); const s = st.current
+    if (!s.on || !Ctor) return
+    const rec = new Ctor(); s.rec = rec
+    rec.continuous = false; rec.interimResults = true; rec.lang = 'en-US'
+    rec.onstart = () => msg('Listening...', true)
+    rec.onresult = e => {
+      let interim = ''
+      for (let i = 0; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript
+        if (e.results[i].isFinal) { const c = clean(t); if (c) s.acc += (s.acc ? ' ' : '') + c } else interim += t
+      }
+      if (interim) msg(interim, true)
+      else if (s.acc) msg(s.acc.length > 60 ? '...' + s.acc.slice(-57) : s.acc, true)
+    }
+    rec.onerror = e => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        s.on = false; setRecording(false)
+        msg('Mic blocked. Click the lock icon in your browser address bar and allow the microphone.', false)
+      } else if (e.error === 'network') {
+        s.on = false; setRecording(false)
+        msg('Network error. The speech service is unavailable.', false)
+      }
+    }
+    rec.onend = () => { if (s.on) setTimeout(runSession, 100); else commit() }
+    try { rec.start() } catch { setTimeout(() => { if (s.on) runSession() }, 250) }
+  }, [commit])
+  const start = () => {
+    if (!SR()) { msg('Voice input requires Chrome or Edge.', false); return }
+    const s = st.current
+    s.acc = ''; s.committed = false; s.on = true
+    setRecording(true); msg('Starting...', true); runSession()
+  }
+  const stop = useCallback(() => {
+    const s = st.current
+    s.on = false; s.committed = false; setRecording(false)
+    try { s.rec?.stop() } catch { /* already stopped */ }
+    setTimeout(() => { if (!st.current.committed) commit() }, 500)
+  }, [commit])
+  // Stop listening when the drawer closes.
+  useEffect(() => () => { if (st.current.on) { st.current.on = false; try { st.current.rec?.stop() } catch { /* closed */ } } }, [])
+  return { recording, live, active, toggle: () => (recording ? stop() : start()) }
+}
+
 function Drawer({ req, team, notes, onClose, post }: {
   req: Req; team: Member[]; notes: Note[]; onClose: () => void; post: (p: Record<string, unknown>) => Promise<unknown>
 }) {
   const [lead, setLead] = useState(req.lead ?? '')
   const [support, setSupport] = useState(req.support ?? '')
   const [dateNeeded, setDateNeeded] = useState(req.date_needed ?? '')
+  const [startDate, setStartDate] = useState(req.start_date ?? '')
+  const [link, setLink] = useState(req.link_url ?? '')
+  const [title, setTitle] = useState(req.title)
+  const [editingTitle, setEditingTitle] = useState(false)
   const [note, setNote] = useState('')
+  const [dictated, setDictated] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const dictation = useDictation(text => {
+    setNote(prev => (prev.trimEnd() ? `${prev.trimEnd()} ${text}` : text))
+    setDictated(true)
+  })
 
   useEffect(() => {
-    setLead(req.lead ?? ''); setSupport(req.support ?? ''); setDateNeeded(req.date_needed ?? ''); setMsg('')
-  }, [req.id, req.lead, req.support, req.date_needed])
+    setLead(req.lead ?? ''); setSupport(req.support ?? ''); setDateNeeded(req.date_needed ?? '')
+    setStartDate(req.start_date ?? ''); setLink(req.link_url ?? ''); setTitle(req.title); setMsg('')
+  }, [req.id, req.lead, req.support, req.date_needed, req.start_date, req.link_url, req.title])
+
+  const nameOf = (author: string | null) => {
+    if (!author) return 'Team'
+    return team.find(m => m.email && m.email.toLowerCase() === author.toLowerCase())?.name ?? author
+  }
+  const addNote = async () => {
+    if (!note.trim() || busy) return
+    await run({ action: 'add_note', id: req.id, body: note, source: dictated ? 'dictated' : 'typed' }, 'Note added.')
+    setNote(''); setDictated(false)
+  }
+  const late = isLate(req, todayIso())
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -361,6 +538,7 @@ function Drawer({ req, team, notes, onClose, post }: {
     if (j.url) window.open(j.url, '_blank', 'noopener')
   }
   const dirty = lead !== (req.lead ?? '') || support !== (req.support ?? '') || dateNeeded !== (req.date_needed ?? '')
+    || startDate !== (req.start_date ?? '') || link !== (req.link_url ?? '')
 
   return (
     <div className="mca-overlay" onClick={onClose}>
@@ -368,7 +546,17 @@ function Drawer({ req, team, notes, onClose, post }: {
         <div className="d-head">
           <div>
             <div className="d-crumb">MarComm Assignments / {req.job_number ? `#${req.job_number}` : 'Team item'}</div>
-            <h2>{req.title}</h2>
+            {editingTitle ? (
+              <div className="d-title-edit">
+                <input value={title} onChange={e => setTitle(e.target.value)} autoFocus aria-label="Title"
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget.nextElementSibling as HTMLButtonElement)?.click() } }} />
+                <button className="mca-btn small" disabled={busy || !title.trim()}
+                  onClick={async () => { await run({ action: 'update', id: req.id, title }, 'Title saved.'); setEditingTitle(false) }}>Save</button>
+                <button className="mca-btn small ghost" onClick={() => { setTitle(req.title); setEditingTitle(false) }}>Cancel</button>
+              </div>
+            ) : (
+              <h2>{req.title} <button className="d-edit" onClick={() => setEditingTitle(true)} aria-label="Edit title" title="Edit title">&#9998;</button></h2>
+            )}
           </div>
           <button className="d-close" onClick={onClose} aria-label="Close">&times;</button>
         </div>
@@ -382,6 +570,18 @@ function Drawer({ req, team, notes, onClose, post }: {
             }}>
               {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
+          </label>
+          <div className="d-prio">
+            <span className="fl">Priority</span>
+            <div className="pick-chips">
+              {(['high', 'medium', 'low'] as Priority[]).map(pr => (
+                <button key={pr} type="button" className={`chip prio-chip p-${pr} ${req.priority === pr ? 'on' : ''}`} aria-pressed={req.priority === pr} disabled={busy}
+                  onClick={() => run({ action: 'update', id: req.id, priority: req.priority === pr ? null : pr }, 'Priority saved.')}>{PRIORITY_NAME[pr]}</button>
+              ))}
+            </div>
+          </div>
+          <label><span className="fl">Start date</span>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
           </label>
           <label><span className="fl">Date needed</span>
             <input type="date" value={dateNeeded} onChange={e => setDateNeeded(e.target.value)} />
@@ -398,8 +598,20 @@ function Drawer({ req, team, notes, onClose, post }: {
           <span className="fl">Support</span>
           <SupportPicker team={team} lead={lead} value={support} onChange={setSupport} />
         </div>
+        <div className="d-flags">
+          <label className="check"><input type="checkbox" checked={req.is_ongoing} disabled={busy}
+            onChange={e => run({ action: 'update', id: req.id, is_ongoing: e.target.checked }, 'Saved.')} /> Ongoing (no end date)</label>
+          {late && <button className="mca-btn small ghost" disabled={busy}
+            onClick={() => run({ action: 'update', id: req.id, overdue_dismissed: true }, 'Overdue flag cleared.')}>Clear overdue flag</button>}
+        </div>
+        <label className="d-link"><span className="fl">Link (proof, draft or final)</span>
+          <span className="d-link-row">
+            <input type="url" value={link} onChange={e => setLink(e.target.value)} placeholder="https://" />
+            {req.link_url && <a className="mca-btn small ghost" href={req.link_url} target="_blank" rel="noopener noreferrer">Open</a>}
+          </span>
+        </label>
         {dirty && <button className="mca-btn small" disabled={busy}
-          onClick={() => run({ action: 'update', id: req.id, lead, support, date_needed: dateNeeded || null }, 'Saved.')}>Save changes</button>}
+          onClick={() => run({ action: 'update', id: req.id, lead, support, date_needed: dateNeeded || null, start_date: startDate || null, link_url: link }, 'Saved.')}>Save changes</button>}
         {msg && <p className="d-msg">{msg}</p>}
 
         <section>
@@ -438,20 +650,63 @@ function Drawer({ req, team, notes, onClose, post }: {
         <section>
           <h3>Notes</h3>
           <div className="d-add">
-            <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder="Add an update (who, what, next step)" />
-            <button className="mca-btn small" disabled={busy || !note.trim()}
-              onClick={async () => { await run({ action: 'add_note', id: req.id, body: note }, 'Note added.'); setNote('') }}>Add note</button>
+            <div className="recorder-bar">
+              <button type="button" className={`mic-btn${dictation.recording ? ' recording' : ''}`} onClick={dictation.toggle}>
+                <span className="mic-dot" />{dictation.recording ? 'Stop' : 'Record'}
+              </button>
+              <span className={`live-transcript${dictation.active ? ' active' : ''}`} aria-live="polite">{dictation.live}</span>
+            </div>
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
+              placeholder="Type a note, or use Record above to speak it..."
+              onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); addNote() } }} />
+            <button className="mca-btn small" disabled={busy || !note.trim()} onClick={addNote}>Add note</button>
           </div>
-          {notes.length === 0 && <p className="muted">No notes yet.</p>}
+          {notes.length === 0 && <p className="muted">No notes yet. Add the first one above.</p>}
           <ul className="d-notes">
             {notes.map(n => (
-              <li key={n.id}>
-                <div className="n-meta">{fmtStamp(n.created_at)} · {n.author || 'Team'}</div>
+              <li key={n.id} className={`src-${n.source}`}>
+                <div className="n-meta">
+                  {fmtStamp(n.created_at)} · {n.source === 'meeting' ? (n.meeting_label ? `From the ${n.meeting_label}` : 'From a meeting') : nameOf(n.author)}
+                  {n.source === 'dictated' && <span className="n-tag">Dictated</span>}
+                  {n.source === 'meeting' && <span className="n-tag meeting">Meeting</span>}
+                </div>
                 <div className="n-body pre">{n.body}</div>
               </li>
             ))}
           </ul>
         </section>
+      </aside>
+    </div>
+  )
+}
+
+// For meetings that were not recorded: after the team updates the rows by
+// hand, this saves the tracker under the meeting date for "View as of".
+function SaveSnapshot({ onClose, post }: { onClose: () => void; post: (p: Record<string, unknown>) => Promise<unknown> }) {
+  const [date, setDate] = useState(todayIso())
+  const [label, setLabel] = useState('Marcomm Meeting')
+  const [summary, setSummary] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  return (
+    <div className="mca-overlay" onClick={onClose}>
+      <aside className="mca-drawer narrow" role="dialog" aria-modal="true" aria-label="Save meeting snapshot" onClick={e => e.stopPropagation()}>
+        <div className="d-head">
+          <div><div className="d-crumb">MarComm Assignments / Versions</div><h2>Save meeting snapshot</h2></div>
+          <button className="d-close" onClick={onClose} aria-label="Close">&times;</button>
+        </div>
+        <p className="muted">Saves every request as it stands right now under this meeting date, so anyone can view the tracker as of that meeting later. Recorded Marcomm Meetings are saved automatically when the transcript is applied; use this when a meeting was not recorded.</p>
+        <div className="d-grid one">
+          <label><span className="fl">Meeting date</span><input type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
+          <label><span className="fl">Meeting</span><input value={label} onChange={e => setLabel(e.target.value)} /></label>
+          <label><span className="fl">What changed (optional)</span><textarea rows={4} value={summary} onChange={e => setSummary(e.target.value)} placeholder="New requests, moved deadlines, reassignments" /></label>
+        </div>
+        <button className="mca-btn" disabled={busy || !date} onClick={async () => {
+          setBusy(true); setMsg('')
+          try { await post({ action: 'snapshot', meeting_date: date, label, summary }); onClose() }
+          catch (e) { setMsg(e instanceof Error ? e.message : 'Could not save.') } finally { setBusy(false) }
+        }}>Save snapshot</button>
+        {msg && <p className="d-msg">{msg}</p>}
       </aside>
     </div>
   )
@@ -553,6 +808,46 @@ const CSS = `
 .st-ongoing { background: rgba(22,114,167,0.06); border-color: rgba(22,114,167,0.18); color: #1672A7; }
 .st-hold { background: rgba(26,26,26,0.06); border-color: rgba(26,26,26,0.15); color: rgba(26,26,26,0.7); }
 .st-done { background: rgba(22,117,12,0.10); border-color: rgba(22,117,12,0.28); color: #16750C; }
+.mca-asof { display: flex; flex-direction: column; gap: 4px; }
+.mca-asof select { font: inherit; font-size: 12px; font-weight: 700; padding: 9px 10px; border: 1px solid rgba(22,114,167,0.35); border-radius: 6px; background: #fff; color: #0e4e73; max-width: 320px; }
+.mca-head-actions { align-items: flex-end; }
+.mca-banner { background: #fff; border: 1px solid rgba(0,0,0,0.08); border-left: 4px solid #1672A7; border-radius: 6px; padding: 12px 16px; font-size: 13px; line-height: 1.6; color: rgba(26,26,26,0.8); margin-bottom: 18px; }
+.mca-banner.past { border-left-color: #C55326; background: #FFF8F2; }
+.mca-banner p { margin: 6px 0 0; }
+.mca-banner .link { font: inherit; font-weight: 700; color: #1672A7; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.mca-row.ro { cursor: default; }
+.mca-row.ro:hover { background: transparent; }
+.prio { font-size: 9px; font-weight: 800; border-radius: 4px; padding: 2px 6px; flex-shrink: 0; }
+.prio.p-high, .prio-chip.p-high.on { background: #b91c1c; color: #fff; border-color: #b91c1c; }
+.prio.p-medium, .prio-chip.p-medium.on { background: #C55326; color: #fff; border-color: #C55326; }
+.prio.p-low, .prio-chip.p-low.on { background: #6b7280; color: #fff; border-color: #6b7280; }
+.r-link { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 700; color: #1672A7; }
+.d-edit { font: inherit; font-size: 14px; background: none; border: 0; color: rgba(26,26,26,0.4); cursor: pointer; padding: 0 4px; }
+.d-edit:hover { color: #1672A7; }
+.d-title-edit { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.d-title-edit input { flex: 1 1 220px; min-width: 0; font: inherit; font-size: 15px; font-weight: 700; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.15); border-radius: 6px; }
+.d-prio { grid-column: 1 / -1; }
+.d-prio .fl { display: block; margin-bottom: 6px; }
+.d-flags { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.mca .check, .mca-drawer .check { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; font-size: 13px; text-transform: none; letter-spacing: 0; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.check input { width: 16px; height: 16px; margin: 0; flex: none; }
+.d-link { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.d-link-row { display: flex; gap: 6px; }
+.d-link-row input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 9px 10px; border: 1px solid rgba(0,0,0,0.15); border-radius: 6px; }
+.recorder-bar { display: flex; align-items: center; gap: 10px; width: 100%; }
+.mic-btn { display: inline-flex; align-items: center; gap: 7px; font-family: inherit; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; padding: 8px 16px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.12); background: #fff; color: rgba(26,26,26,0.6); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.mic-btn:hover { border-color: #1672A7; color: #1672A7; }
+.mic-btn.recording { background: #fef2f2; border-color: #dc2626; color: #dc2626; animation: mca-pulse-border 1.2s ease-in-out infinite; }
+.mic-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.mic-btn.recording .mic-dot { animation: mca-pulse-dot 1.2s ease-in-out infinite; }
+@keyframes mca-pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+@keyframes mca-pulse-border { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.25)} 50%{box-shadow:0 0 0 4px rgba(220,38,38,0.10)} }
+.live-transcript { flex: 1; min-width: 0; font-size: 11px; color: rgba(26,26,26,0.5); font-style: italic; line-height: 1.5; }
+.live-transcript.active { color: #dc2626; font-style: normal; }
+.d-add textarea { width: 100%; }
+.n-tag { display: inline-block; margin-left: 8px; font-size: 9px; padding: 1px 6px; border-radius: 4px; background: rgba(22,114,167,0.1); color: #0e4e73; }
+.n-tag.meeting { background: rgba(197,83,38,0.12); color: #8a3a1a; }
+.d-notes li.src-system .n-body { color: rgba(26,26,26,0.6); font-size: 12px; }
 .notes-pill { font-size: 11px; font-weight: 700; color: #0e4e73; }
 .notes-pill b { font-size: 10px; background: #1672A7; color: #fff; border-radius: 99px; padding: 1px 7px; margin-left: 3px; }
 .mca-empty, .mca-error { padding: 20px; font-size: 13px; color: rgba(26,26,26,0.6); margin: 0; }
