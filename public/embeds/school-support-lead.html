@@ -292,13 +292,41 @@
     font-weight: 600;
   }
   #dwt-module .dwt-hotlab {
-    margin: 22px 0 0;
-    padding-top: 16px;
-    border-top: 1px solid var(--fif-border);
+    margin: -8px 0 20px;
+    padding: 14px 16px;
+    border: 1px solid var(--fif-border);
+    border-radius: 8px;
+    background: #ffffff;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+  }
+  #dwt-module .dwt-hotlab[hidden] { display: none; }
+  #dwt-module .dwt-hotlab-text {
+    flex: 1 1 260px;
+    margin: 0;
     font-size: 13.5px;
     color: var(--fif-secondary);
     line-height: 1.5;
   }
+  #dwt-module .dwt-hotlab-text strong { color: var(--fif-text); }
+  #dwt-module .dwt-hotlab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    min-height: 40px;
+    border-radius: 100px;
+    background: linear-gradient(135deg, var(--fif-navy), var(--fif-navy-2));
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  #dwt-module .dwt-hotlab-btn:hover { text-decoration: underline; }
+  #dwt-module .dwt-hotlab-btn svg { width: 14px; height: 14px; }
+  #dwt-module .dwt-card-links { margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px 16px; }
   #dwt-module .fif-sr-only {
     position: absolute;
     width: 1px; height: 1px;
@@ -325,6 +353,10 @@
   <h2 id="dwt-heading">Need website support? Know who to contact.</h2>
   <p class="fif-intro">Every school is now assigned a <strong>District Web Team Lead</strong> to provide consistent, dedicated support for WCMs. Use the directory below to find your school and identify your assigned <strong>District Web Team Lead</strong>.</p>
   <p class="dwt-process"><strong>The support process remains the same:</strong> Submit an <a id="dwt-iiq-link" href="https://browardschools.incidentiq.com/" target="_blank" rel="noopener noreferrer">Incident IQ (IIQ) ticket</a> when you need assistance. Your school's District Web Team Lead will help guide your request and provide support.</p>
+  <div class="dwt-hotlab" id="dwt-hotlab" hidden>
+    <p class="dwt-hotlab-text" id="dwt-hotlab-text"></p>
+    <a class="dwt-hotlab-btn" id="dwt-hotlab-link" href="#" target="_blank" rel="noopener noreferrer" hidden>See Hot Lab dates and links</a>
+  </div>
 
   <div class="fif-search-row">
     <div class="fif-search-wrap">
@@ -354,7 +386,6 @@
     </button>
   </nav>
 
-  <p class="dwt-hotlab" id="dwt-hotlab" hidden></p>
 </section>
 
 <script>
@@ -385,6 +416,8 @@
   var prevBtn = document.getElementById("dwt-prev");
   var nextBtn = document.getElementById("dwt-next");
   var hotlabEl = document.getElementById("dwt-hotlab");
+  var hotlabTextEl = document.getElementById("dwt-hotlab-text");
+  var hotlabLinkEl = document.getElementById("dwt-hotlab-link");
   var iiqLinkEl = document.getElementById("dwt-iiq-link");
 
   function supabaseGet(path) {
@@ -407,6 +440,7 @@
       .map(function (w) { return w[0]; }).filter(function (c, i, a) { return i === 0 || i === a.length - 1; }).join("");
   }
   function iiqUrl() { return safeUrl(SETTINGS.iiq_url) || DEFAULT_IIQ; }
+  function hotLabUrl() { return safeUrl(SETTINGS.hot_lab_url); }
 
   function loadContent() {
     return Promise.all([
@@ -488,7 +522,10 @@
       '<h3>' + esc(s.name) + '</h3>' +
       '<p class="dwt-loc">Location number ' + esc(s.loc) + '</p>' +
       lead +
-      '<a class="fif-visit" href="' + esc(iiqUrl()) + '" target="_blank" rel="noopener noreferrer">Submit an IIQ ticket' + EXT_ICON + '</a>' +
+      '<div class="dwt-card-links">' +
+        '<a class="fif-visit" href="' + esc(iiqUrl()) + '" target="_blank" rel="noopener noreferrer">Submit an IIQ ticket' + EXT_ICON + '</a>' +
+        (hotLabUrl() ? '<a class="fif-visit" href="' + esc(hotLabUrl()) + '" target="_blank" rel="noopener noreferrer">Join a Hot Lab' + EXT_ICON + '</a>' : '') +
+      '</div>' +
       '</article>';
   }
 
@@ -560,7 +597,13 @@
   countEl.textContent = "Loading schools...";
   loadContent().then(function () {
     iiqLinkEl.href = iiqUrl();
-    if (SETTINGS.hot_lab_text) { hotlabEl.textContent = SETTINGS.hot_lab_text; hotlabEl.hidden = false; }
+    // Hot Labs: the note plus a button to the calendar with each session's
+    // date and join link (hot_lab_url, set in the Widgets page editor).
+    if (SETTINGS.hot_lab_text || hotLabUrl()) {
+      hotlabTextEl.textContent = SETTINGS.hot_lab_text || "Hot Labs are drop-in support sessions with the District Web Team.";
+      if (hotLabUrl()) { hotlabLinkEl.href = hotLabUrl(); hotlabLinkEl.innerHTML = "See Hot Lab dates and links" + EXT_ICON; hotlabLinkEl.hidden = false; }
+      hotlabEl.hidden = false;
+    }
     // ?school=2551 (or a name) opens the widget already filtered to that school.
     var pre = new URLSearchParams(location.search).get("school");
     if (pre) { state.q = pre; searchEl.value = pre; }

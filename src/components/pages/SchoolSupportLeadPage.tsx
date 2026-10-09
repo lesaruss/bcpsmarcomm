@@ -115,7 +115,8 @@ export default function SchoolSupportLeadPage() {
       <div style={C.h2}>Support links</div>
       {[
         { key: 'iiq_url', label: 'IIQ ticket link', placeholder: 'https://browardschools.incidentiq.com/' },
-        { key: 'hot_lab_text', label: 'Hot Lab note (shown under the school list)', placeholder: 'Hot Labs are open drop-in support sessions...' },
+        { key: 'hot_lab_url', label: 'Hot Lab calendar link (dates and join links)', placeholder: 'https://www.browardschools.com/wcm-community/schools/calendar' },
+        { key: 'hot_lab_text', label: 'Hot Lab note (shown above the school list)', placeholder: 'Hot Labs are open drop-in support sessions...' },
       ].map(f => (
         <div key={f.key} style={C.card}>
           <div style={C.sublabel}>{f.label}</div>
