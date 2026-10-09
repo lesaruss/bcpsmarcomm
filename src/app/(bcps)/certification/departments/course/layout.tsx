@@ -12,10 +12,13 @@ export default async function CourseLayout({ children }: { children: React.React
     {
       cookies: {
         getAll() { return cookieStore.getAll() },
+        // Server components cannot write cookies; middleware.ts refreshes the session.
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch { /* read-only here */ }
         },
       },
     }
