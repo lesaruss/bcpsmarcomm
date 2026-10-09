@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   }
 
   const safeName = file_name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const path = `${ownerFolder(me.email)}${Date.now()}-${safeName}`
+  const path = `${ownerFolder(me.owner)}${Date.now()}-${safeName}`
   const { data, error } = await svc.storage.from('bcps-client').createSignedUploadUrl(path)
   if (error || !data) return NextResponse.json({ error: error?.message || 'Could not start the upload.' }, { status: 500 })
   return NextResponse.json({ path: data.path, token: data.token })

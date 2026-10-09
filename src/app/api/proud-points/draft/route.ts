@@ -22,20 +22,20 @@ export async function PUT(req: NextRequest) {
     if (err) return NextResponse.json({ error: err }, { status: 400 })
     if (p.photo_path) {
       const { data: photo } = await svc.from('bcps_proud_point_photos').select('ok, owner_email').eq('path', p.photo_path).maybeSingle()
-      if (!photo || photo.owner_email !== me.email || !photo.ok) return NextResponse.json({ error: `Photo for point ${p.slot} was not accepted. Choose it again.` }, { status: 400 })
+      if (!photo || photo.owner_email !== me.owner || !photo.ok) return NextResponse.json({ error: `Photo for point ${p.slot} was not accepted. Choose it again.` }, { status: 400 })
     }
   }
 
   const now = new Date().toISOString()
   const { data: existing } = await svc.from('bcps_proud_point_submissions').select('id')
-    .eq('wcm_email', me.email).eq('school_location_nbr', school.loc_no).eq('status', 'draft').maybeSingle()
+    .eq('owner_key', me.owner).eq('school_location_nbr', school.loc_no).eq('status', 'draft').maybeSingle()
   if (existing) {
     const { error } = await svc.from('bcps_proud_point_submissions').update({ points: cleaned, updated_at: now }).eq('id', existing.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ ok: true, id: existing.id, saved_at: now })
   }
   const { data, error } = await svc.from('bcps_proud_point_submissions').insert({
-    wcm_user_id: me.userId, wcm_email: me.email, school_location_nbr: school.loc_no, school_name: school.school_name,
+    wcm_user_id: me.userId, wcm_email: me.email, owner_key: me.owner, school_location_nbr: school.loc_no, school_name: school.school_name,
     kind: 'initial', status: 'draft', points: cleaned, is_test: isTestBuild(),
   }).select('id').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -48,7 +48,7 @@ export async function DELETE(req: NextRequest) {
   const loc = req.nextUrl.searchParams.get('loc')
   if (!loc) return NextResponse.json({ error: 'loc is required' }, { status: 400 })
   const { error } = await svc.from('bcps_proud_point_submissions').delete()
-    .eq('wcm_email', me.email).eq('school_location_nbr', loc).eq('status', 'draft')
+    .eq('owner_key', me.owner).eq('school_location_nbr', loc).eq('status', 'draft')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
