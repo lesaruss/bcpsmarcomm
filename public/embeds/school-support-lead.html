@@ -11,10 +11,12 @@
   pagination, auto height. A WCM types their school's name or location
   number and sees their District Web Team Lead for 2026-27 and how to get
   help. Copy is Vanessa's (Teams, Oct 8).
-  Data: bcps_school_assignments, bcps_support_leads, bcps_support_settings
-  (public read, anon key, same as the other directory embeds). The split
-  itself is the doc bcps-school-assignments-2026-27. Change an assignment,
-  photo, bio or link in those tables; this page needs no edit.
+  Data: the view bcps_school_assignments_public (each school with its lead's
+  name, title, bio and photo, never the lead's email) and
+  bcps_support_settings, both public read with the anon key. The base table
+  bcps_school_assignments is signed-in only since the 2026-10-09 security
+  review, so this page must not read it. Edit everything in the Widgets page
+  editor; this page needs no edit.
 -->
 <style>
   #dwt-module, #dwt-module * { box-sizing: border-box; }
@@ -366,7 +368,7 @@
   var SCHOOL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M10 21v-5h4v5"/></svg>';
   var EXT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>';
 
-  var LEADS = [];      // [{ id: email, name, title, bio, photo }]
+  var LEADS = [];      // [{ id, name, title, bio, photo }] built from the view rows
   var LEAD_BY = {};
   var SCHOOLS = [];    // [{ name, loc, level, region, lead, key }]
   var SETTINGS = {};
@@ -408,24 +410,25 @@
 
   function loadContent() {
     return Promise.all([
-      supabaseGet("bcps_school_assignments?select=loc_no,display_name,school_level,region,lead_email&order=display_name"),
-      supabaseGet("bcps_support_leads?select=email,full_name,title,bio,photo_url,sort_order&order=sort_order"),
+      supabaseGet("bcps_school_assignments_public?select=loc_no,display_name,school_level,region,lead_name,lead_title,lead_bio,lead_photo_url,lead_order&order=display_name"),
       supabaseGet("bcps_support_settings?select=key,value")
     ]).then(function (r) {
-      LEADS = r[1].map(function (l) {
-        return { id: l.email, name: l.full_name, title: l.title || "", bio: l.bio || "", photo: safeUrl(l.photo_url) };
+      r[0].forEach(function (s) {
+        if (!s.lead_name || LEAD_BY[s.lead_name]) return;
+        LEAD_BY[s.lead_name] = { id: s.lead_name, name: s.lead_name, title: s.lead_title || "", bio: s.lead_bio || "",
+          photo: safeUrl(s.lead_photo_url), order: s.lead_order == null ? 99 : s.lead_order };
       });
-      LEADS.forEach(function (l) { LEAD_BY[l.id] = l; });
+      LEADS = Object.keys(LEAD_BY).map(function (k) { return LEAD_BY[k]; })
+        .sort(function (a, b) { return a.order - b.order || a.name.localeCompare(b.name); });
       SCHOOLS = r[0].map(function (s) {
-        var lead = LEAD_BY[s.lead_email];
         var loc = String(s.loc_no || "");
         return {
-          name: s.display_name, loc: loc, level: s.school_level || "", region: s.region || "", lead: s.lead_email,
+          name: s.display_name, loc: loc, level: s.school_level || "", region: s.region || "", lead: s.lead_name || "",
           // Location numbers match with or without the leading zero (0131 or 131).
-          key: norm(s.display_name + " " + loc + " " + loc.replace(/^0+/, "") + " " + (lead ? lead.name : ""))
+          key: norm(s.display_name + " " + loc + " " + loc.replace(/^0+/, "") + " " + (s.lead_name || ""))
         };
       });
-      r[2].forEach(function (s) { SETTINGS[s.key] = s.value; });
+      r[1].forEach(function (s) { SETTINGS[s.key] = s.value; });
     });
   }
 
