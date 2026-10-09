@@ -196,6 +196,25 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   // verifying someone's access). The sample Superadmin identity previews the
   // admin tier and keeps the real superadmin page set.
   useEffect(() => {
+    // A specific person (View as person, 2026-10-09): their exact pages and groups.
+    if (viewAs?.asEmail) {
+      let cancelled = false
+      ;(async () => {
+        const token = tokenRef.current
+        if (!token) return
+        try {
+          const r = await fetch(`/api/bcps/my-access?as_email=${encodeURIComponent(viewAs.asEmail!)}`,
+            { headers: { Authorization: `Bearer ${token}` } })
+          if (!r.ok) return
+          const j = await r.json()
+          if (!cancelled) {
+            setPreviewPages(j.pages as string[])
+            setPreviewGroups(Array.isArray(j.groups) ? j.groups as string[] : [])
+          }
+        } catch { /* leave the preview on the real page set */ }
+      })()
+      return () => { cancelled = true }
+    }
     if (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID || !viewAs.previewGroup) {
       setPreviewPages(null)
       setPreviewGroups(null)

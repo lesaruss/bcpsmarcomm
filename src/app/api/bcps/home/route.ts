@@ -6,6 +6,7 @@ import {
   type TeamMemberWork,
 } from '@/lib/bcps-team-home'
 import { hasSeriesGrant } from '@/lib/bcps-doc-access'
+import { isSuperadmin as callerIsSuperadmin, resolvePerson } from '@/lib/bcps-view-as-person'
 
 export const dynamic = 'force-dynamic'
 
@@ -114,16 +115,34 @@ export async function GET(req: NextRequest) {
   })
   const { data: { user } } = await asUser.auth.getUser()
   if (!user || !user.email) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  const email = user.email.toLowerCase()
+
+  // ?as=<email>: "View as person" (Sean, 2026-10-09). SuperAdmin only. The
+  // dashboard is built for that person from their real data; someone with
+  // no account yet is built from their email plus the access queued for
+  // their first sign-in.
+  let subjectId = user.id
+  let email = user.email.toLowerCase()
+  let pendingGids: string[] = []
+  let viewingAs: { email: string; has_account: boolean } | null = null
+  const asEmail = req.nextUrl.searchParams.get('as')
+  if (asEmail) {
+    if (!(await callerIsSuperadmin(svc, user.id))) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    const person = await resolvePerson(svc, asEmail)
+    if (!person) return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
+    subjectId = person.userId
+    email = person.email
+    pendingGids = person.pendingGroupIds
+    viewingAs = { email: person.email, has_account: person.hasAccount }
+  }
 
   const [roleRes, gmRes, profileRes, certRes] = await Promise.all([
-    svc.from('acl_member_roles').select('role').eq('user_id', user.id).eq('brand', BRAND).maybeSingle(),
-    svc.from('acl_group_members').select('group_id').eq('user_id', user.id),
-    svc.from('wcm_cert_users').select('full_name').eq('user_id', user.id).maybeSingle(),
-    svc.from('wcm_certifications').select('issued_at').eq('user_id', user.id).eq('course_id', COURSE_ID).maybeSingle(),
+    svc.from('acl_member_roles').select('role').eq('user_id', subjectId).eq('brand', BRAND).maybeSingle(),
+    svc.from('acl_group_members').select('group_id').eq('user_id', subjectId),
+    svc.from('wcm_cert_users').select('full_name').eq('user_id', subjectId).maybeSingle(),
+    svc.from('wcm_certifications').select('issued_at').eq('user_id', subjectId).eq('course_id', COURSE_ID).maybeSingle(),
   ])
   const role = roleRes.data?.role || 'user'
-  const gids = (gmRes.data ?? []).map((g) => g.group_id)
+  const gids = Array.from(new Set([...(gmRes.data ?? []).map((g) => g.group_id as string), ...pendingGids]))
   let groups: string[] = []
   if (gids.length) {
     const { data: gRows } = await svc.from('acl_groups').select('name').eq('brand', BRAND).in('id', gids)
@@ -182,7 +201,7 @@ export async function GET(req: NextRequest) {
   let myBanners: { pending: number; ready: number; posted: number; rejected: number } | null = null
   if (isSchoolWcm) {
     const { data: subs } = await svc.from('bcps_banner_submissions')
-      .select('status, posted_at').eq('wcm_user_id', user.id).eq('type', 'upload')
+      .select('status, posted_at').eq('wcm_user_id', subjectId).eq('type', 'upload')
     const rows = subs ?? []
     myBanners = {
       pending: rows.filter((r) => r.status === 'pending').length,
@@ -196,7 +215,7 @@ export async function GET(req: NextRequest) {
   let myProudPoints: { pending: number; ready: number; posted: number; rejected: number; drafts: number } | null = null
   if (isSchoolWcm) {
     const { data: subs } = await svc.from('bcps_proud_point_submissions')
-      .select('status, posted_at').eq('wcm_user_id', user.id).is('archived_at', null)
+      .select('status, posted_at').eq('wcm_user_id', subjectId).is('archived_at', null)
     const rows = subs ?? []
     myProudPoints = {
       pending: rows.filter((r) => r.status === 'pending').length,
@@ -256,7 +275,7 @@ export async function GET(req: NextRequest) {
   let myCert: { certified: boolean; done: number; total: number; pct: number } | null = null
   if (isWcm || isDirector) {
     const prog = await fetchAll<{ module_id: string; page_id: string }>((a, b) => svc.from('wcm_cert_progress')
-      .select('module_id, page_id').eq('user_id', user.id).eq('course_id', COURSE_ID).eq('completed', true).order('id').range(a, b))
+      .select('module_id, page_id').eq('user_id', subjectId).eq('course_id', COURSE_ID).eq('completed', true).order('id').range(a, b))
     const done = new Set(prog.map((p) => `${p.module_id}::${p.page_id}`).filter((k) => COURSE_PAGE_KEYS.has(k))).size
     const certified = !!certRes.data?.issued_at
     myCert = { certified, done: certified ? TOTAL_PAGES : done, total: TOTAL_PAGES, pct: certified ? 100 : TOTAL_PAGES ? Math.min(99, Math.round((done / TOTAL_PAGES) * 100)) : 0 }
@@ -264,7 +283,7 @@ export async function GET(req: NextRequest) {
   // The widget catalog is the same for everyone. The team gets it with
   // their own edit rights (also used by the "View as" director preview).
   if (isDwt) {
-    widgets = await loadWidgets(svc, BRAND, user.id, gids, role === 'admin' || isSuperadmin)
+    widgets = await loadWidgets(svc, BRAND, subjectId, gids, role === 'admin' || isSuperadmin)
   } else if (isDirector || isWcm) {
     // Directors and WCMs see the catalog as a showroom: preview only, no
     // embed or edit (Sean, Oct 6 Hot Lab).
@@ -340,6 +359,7 @@ export async function GET(req: NextRequest) {
     experience,
     is_dwt: isDwt,
     is_director: isDirector,
+    viewing_as: viewingAs,
     oversight: isDirector && oversight,
     is_superadmin: isSuperadmin,
     my_certified: !!certRes.data?.issued_at,
