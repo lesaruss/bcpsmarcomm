@@ -235,6 +235,8 @@ interface HomeData {
   is_director: boolean
   // Department Oversight: the Director dashboard across every department.
   oversight?: boolean
+  // Set when the SuperAdmin is viewing as this person.
+  viewing_as?: { email: string; has_account: boolean } | null
   is_superadmin?: boolean
   my_certified?: boolean
   my_cert?: { certified: boolean; done: number; total: number; pct: number } | null
@@ -490,7 +492,7 @@ function PreviewBanner({ who, children }: { who?: string; children?: React.React
 // per group, never a real person's account (Sean, 2026-10-01).
 function ViewAsButton() {
   const { setViewAs } = useBCPSShell()
-  return <SharedViewAsButton onPick={setViewAs} />
+  return <SharedViewAsButton onPick={setViewAs} allowPerson />
 }
 
 // Fictitious rows for the web team samples, so a preview never shows a real
@@ -566,7 +568,7 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
           <div className="home-hero-label">{oversight ? 'BCPS MarComm Department Oversight' : 'BCPS MarComm Director'}</div>
           <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
           <p>{oversight
-            ? `Every department website at a glance: the people who keep each one current, how many families and staff use them, where each review stands, and the support behind it. ${led.length} departments, updated on their own.`
+            ? `Every department website at a glance: the people who keep each one current, how many families and staff use them, where each review stands, and the support behind it. ${led.length} department${led.length === 1 ? '' : 's'}, updated on their own.`
             : 'Your department\u2019s website at a glance: the people who keep it current, how many families and staff use it, when your website review is, and the support behind it. Everything here updates on its own.'}</p>
           <div className="home-actions">
             <a className="home-btn" href={DIRECTOR_PLAYBOOK_URL}>Open the Director Playbook</a>
@@ -623,7 +625,7 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
           {oversight && (
             <div className="home-actions">
               <input type="search" className="home-dept-search" value={deptQuery} onChange={(e) => setDeptQuery(e.target.value)}
-                placeholder={`Search ${led.length} departments`} aria-label="Search departments" />
+                placeholder={`Search ${led.length} department${led.length === 1 ? '' : 's'}`} aria-label="Search departments" />
             </div>
           )}
           <div className="home-dept-grid">
@@ -2060,11 +2062,59 @@ function HomeTabs({ tabs, active, onChange }: { tabs: { id: string; label: strin
   )
 }
 
+// "View as person" (Sean, 2026-10-09): the dashboard built from one real
+// person's data (/api/bcps/home?as=<email>, SuperAdmin only), shown the way
+// they will see it, under a banner naming who it is.
+function PersonPreview({ email, onNavigate, onShowToast }: { email: string; onNavigate: Navigate; onShowToast?: (msg: string) => void }) {
+  const { setViewAs } = useBCPSShell()
+  const [data, setData] = useState<HomeData | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/bcps/home?as=${encodeURIComponent(email)}`, { headers: await authHeaders(), cache: 'no-store' })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error((json as { error?: string }).error || 'Could not load this person.')
+        if (!cancelled) setData(json as HomeData)
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load this person.')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [email])
+
+  const label = { superadmin: 'SuperAdmin', dwt: 'District Web Team', director: data?.oversight ? 'Director (Department Oversight)' : 'Director', school_wcm: 'School WCM', wcm: 'Web Content Manager', member: 'Member' }
+  const banner = (
+    <div className="home-person-banner" role="status">
+      <div>
+        <b>Viewing as {data?.name || email}</b>
+        {data && <span> &middot; {label[data.experience]}{data.viewing_as && !data.viewing_as.has_account ? ' · No account yet: shown as it will look on their first sign-in' : ''}</span>}
+        <small>Their real dashboard and page access, read only. Anything you open still runs as you.</small>
+      </div>
+      <button type="button" className="wcm-hub2-card-btn" onClick={() => setViewAs(null)}>Return to my view</button>
+    </div>
+  )
+  if (error) return <>{banner}<div className="wcm-hub2-empty">{error}</div></>
+  if (!data) return <>{banner}<div className="wcm-hub2-empty">Loading {email}&apos;s dashboard...</div></>
+  let body: React.ReactNode
+  if (data.experience === 'superadmin' && data.team_home) body = <SuperAdminHome data={data} onNavigate={onNavigate} preview onShowToast={onShowToast} />
+  else if (data.experience === 'dwt' && data.team_home) body = <WebTeamHome data={data} kind={data.team_kind ?? 'comms'} onNavigate={onNavigate} assignments={data.team_home.my_assignments} who={data.name ?? undefined} onShowToast={onShowToast} />
+  else if (data.experience === 'director') body = <DirectorHome data={data} onNavigate={onNavigate} />
+  else if (data.experience === 'school_wcm') body = <SchoolWcmHome data={data} onNavigate={onNavigate} />
+  else if (data.experience === 'wcm') body = <WcmHome data={data} onNavigate={onNavigate} />
+  else body = <MemberHome data={data} onNavigate={onNavigate} />
+  return <>{banner}{body}</>
+}
+
 export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { onNavigate: Navigate; viewAsUserId?: string; onShowToast?: (msg: string) => void }) {
   const [data, setData] = useState<HomeData | null>(null)
   const [failed, setFailed] = useState(false)
 
+  const personMode = !!viewAsUserId?.startsWith('person:')
   useEffect(() => {
+    // View as person loads that person's data in PersonPreview instead.
+    if (personMode) return
     let cancelled = false
     ;(async () => {
       try {
@@ -2077,7 +2127,7 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { on
       }
     })()
     return () => { cancelled = true }
-  }, [])
+  }, [personMode])
 
   const directorSample = useMemo(
     () => (viewAsUserId === SAMPLE_DIRECTOR_ID && (data || failed) ? sampleDirectorData(data) : null),
@@ -2090,6 +2140,9 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { on
   // sample data. The web team previews (the two samples, or a real team
   // member chosen on the SuperAdmin's Team tab) and the SuperAdmin sample
   // use the team data the signed-in team member already receives.
+  if (viewAsUserId?.startsWith('person:')) {
+    return <PersonPreview key={viewAsUserId} email={viewAsUserId.slice('person:'.length)} onNavigate={onNavigate} onShowToast={onShowToast} />
+  }
   if (viewAsUserId === SAMPLE_DIRECTOR_ID) {
     if (!directorSample) return <div className="wcm-hub2-empty">Loading the preview...</div>
     return <DirectorHome key="preview-director" data={directorSample} preview onNavigate={onNavigate} />

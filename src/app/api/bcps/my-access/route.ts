@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { VIEW_AS_GROUP_TIER, DIRECTOR_PREVIEW, SCHOOL_WCM_PREVIEW, previewableGroups } from '@/lib/view-as'
+import { isSuperadmin, resolvePerson } from '@/lib/bcps-view-as-person'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,48 @@ export async function GET(req: NextRequest) {
   })
   const { data: { user } } = await asUser.auth.getUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  // ?as_email=<email>: "View as person" (Sean, 2026-10-09), SuperAdmin only.
+  // The exact pages and groups that person has, including access queued for
+  // their first sign-in. Read-only: nothing is claimed or written for them.
+  const asEmail = req.nextUrl.searchParams.get('as_email')
+  if (asEmail) {
+    if (!(await isSuperadmin(svc, user.id))) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    const person = await resolvePerson(svc, asEmail)
+    if (!person) return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
+    const [{ data: pRole }, { data: pGm }, { data: pPages }] = await Promise.all([
+      svc.from('acl_member_roles').select('role').eq('user_id', person.userId).eq('brand', BRAND).maybeSingle(),
+      svc.from('acl_group_members').select('group_id').eq('user_id', person.userId),
+      svc.from('acl_objects').select('id, slug, visibility').eq('brand', BRAND).eq('kind', 'page'),
+    ])
+    const pRoleName = pRole?.role || 'user'
+    const pGids = Array.from(new Set([...(pGm ?? []).map(g => g.group_id as string), ...person.pendingGroupIds]))
+    let pGroups: string[] = []
+    if (pGids.length) {
+      const { data: gRows } = await svc.from('acl_groups').select('name').eq('brand', BRAND).in('id', pGids)
+      pGroups = (gRows ?? []).map(g => g.name as string)
+    }
+    const allPages = pPages ?? []
+    let pAllowed: string[]
+    if (pRoleName === 'superadmin') pAllowed = allPages.map(p => p.slug)
+    else if (pRoleName === 'admin') pAllowed = allPages.filter(p => !SUPERADMIN_ONLY.includes(p.slug)).map(p => p.slug)
+    else {
+      const { data: grants } = await svc.from('acl_grants').select('object_id, subject_type, subject_id')
+      const ids = new Set((grants ?? []).filter(g =>
+        (g.subject_type === 'user' && g.subject_id === person.userId) ||
+        (g.subject_type === 'group' && pGids.includes(g.subject_id))).map(g => g.object_id))
+      pAllowed = allPages.filter(p => p.visibility === 'public' || ids.has(p.id)).map(p => p.slug)
+    }
+    const { data: schoolRows } = await svc.from('bcps_schools').select('wcm_email').not('wcm_email', 'is', null)
+    const pSchoolWcm = pRoleName === 'user' && !pGroups.includes('District Web Team')
+      && (schoolRows ?? []).some(r => (r.wcm_email || '').trim().toLowerCase() === person.email)
+    const personRes = NextResponse.json({
+      ok: true, role: pRoleName, pages: pAllowed, groups: pGroups, is_school_wcm: pSchoolWcm,
+      as_email: person.email, has_account: person.hasAccount,
+    })
+    personRes.headers.set('Cache-Control', 'no-store')
+    return personRes
+  }
 
   // Group access set up ahead of an account (Sean, 2026-10-09): rows in
   // bcps_pending_group_members for this email become real memberships the

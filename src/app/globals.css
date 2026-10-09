@@ -2498,3 +2498,14 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   color: var(--blue); font-size: 12px; font-weight: 700; padding: 4px 9px; cursor: pointer; font-family: inherit;
 }
 .topbar-viewas-btn { height: 36px; padding: 0 12px; border-radius: 8px; }
+
+/* View as person (2026-10-09) */
+.home-viewas-person { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; margin: 8px 0 14px; border: 1px solid rgba(22,114,167,0.25); border-radius: 10px; background: rgba(22,114,167,0.05); }
+.home-viewas-person label { display: flex; flex-direction: column; gap: 2px; }
+.home-viewas-person label small { font-size: 12px; color: rgba(26,26,26,0.6); }
+.home-viewas-person-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.home-viewas-person-row input { flex: 1 1 220px; min-width: 0; font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid rgba(0,0,0,0.15); border-radius: 8px; background: #fff; }
+.home-person-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: #FFF8F2; border: 1px solid rgba(197,83,38,0.35); border-left: 4px solid #C55326; border-radius: 10px; padding: 12px 16px; margin: 0 0 16px; }
+.home-person-banner b { color: #8a3a1a; }
+.home-person-banner span { font-size: 13px; color: rgba(26,26,26,0.75); }
+.home-person-banner small { display: block; font-size: 12px; color: rgba(26,26,26,0.6); margin-top: 2px; }

@@ -16,6 +16,9 @@ export interface TeamMember {
   // resolves against (2026-09-15). Without it a preview falls back to the
   // full user-tier menu, which is what made previews untrustworthy.
   previewGroup?: string
+  // "View as person" (Sean, 2026-10-09): a real person by email. Their own
+  // dashboard data and page access are loaded for the preview.
+  asEmail?: string
 }
 
 export const TEAM_MEMBERS: TeamMember[] = [
