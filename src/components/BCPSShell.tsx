@@ -92,6 +92,9 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'schools-ada':            { title: 'Schools ADA',           sub: 'Full-Site Accessibility Scores by School' },
   'schools':                { title: 'School ADA Accounts',   sub: 'School-Level WCM Portal Accounts' },
   'wcm-roster':             { title: 'WCM Roster',            sub: 'District Web Team' },
+  'banner-submissions':     { title: 'Banner Submissions',    sub: 'School Homepage Banners' },
+  'proud-points':           { title: 'Proud Points',          sub: 'School Homepage Highlights' },
+  'my-submissions':         { title: 'Your Submissions',      sub: 'Banners & Proud Points' },
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────

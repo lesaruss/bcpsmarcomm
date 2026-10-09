@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { VIEW_AS_GROUP_TIER, DIRECTOR_PREVIEW, previewableGroups } from '@/lib/view-as'
+import { VIEW_AS_GROUP_TIER, DIRECTOR_PREVIEW, SCHOOL_WCM_PREVIEW, previewableGroups } from '@/lib/view-as'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,6 +77,13 @@ export async function GET(req: NextRequest) {
       const directorRes = NextResponse.json({ ok: true, role: 'user', preview_group: previewGroup, pages: all.filter(p => p.visibility === 'public').map(p => p.slug), groups: [] })
       directorRes.headers.set('Cache-Control', 'no-store')
       return directorRes
+    }
+    if (previewGroup === SCHOOL_WCM_PREVIEW) {
+      // A school WCM holds no group: the public pages, like a director.
+      const schoolPages = all.filter(p => p.visibility === 'public').map(p => p.slug)
+      const schoolRes = NextResponse.json({ ok: true, role: 'user', preview_group: previewGroup, pages: schoolPages, groups: [] })
+      schoolRes.headers.set('Cache-Control', 'no-store')
+      return schoolRes
     }
     const { data: group } = await svc.from('acl_groups')
       .select('id').eq('brand', BRAND).eq('name', previewGroup).maybeSingle()

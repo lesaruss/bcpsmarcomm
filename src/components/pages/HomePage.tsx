@@ -213,6 +213,7 @@ interface TeamHomeData {
   program: TeamProgram
   ada: TeamAda
   banners: TeamBanners
+  proud_points?: TeamBanners & { ready: number }
   my_assignments: Assignment[]
   decisions?: { roster_pending: { id: string; department_name: string | null; director_name: string | null; wcm_name: string | null; submitted_at: string | null }[] }
   team_members?: TeamMemberWork[]
@@ -252,6 +253,7 @@ interface HomeData {
   // School WCMs (2026-10-05): their schools and their own banner requests.
   schools?: { name: string; loc_no: string | null }[]
   my_banners?: { pending: number; ready: number; posted: number; rejected: number } | null
+  my_proud_points?: { pending: number; ready: number; posted: number; rejected: number; drafts: number } | null
 }
 
 // Same labels the WCM Audit Portal uses (src/app/(bcps)/wcm-portal/page.tsx).
@@ -277,6 +279,7 @@ function sampleSchoolWcmData(): HomeData {
     led_department_ids: [], departments: [], team: null,
     schools: [{ name: 'Sample Elementary', loc_no: null }],
     my_banners: { pending: 1, ready: 1, posted: 2, rejected: 1 },
+    my_proud_points: { pending: 0, ready: 0, posted: 0, rejected: 0, drafts: 1 },
   }
 }
 
@@ -1084,6 +1087,7 @@ const BANNER_GUIDELINES_URL =
 // 2026-10-05). Links supplied by Sean the same day.
 const SCHOOL_QUICK_LINKS: { label: string; sub: string; href: string; ic: string }[] = [
   { label: 'Identity Banner Guidelines', sub: 'What makes a banner approvable', href: BANNER_GUIDELINES_URL, ic: 'IB' },
+  { label: 'Proud Points Guidelines', sub: 'How to write your six homepage highlights', href: 'https://www.browardschools.com/wcm-community/schools/standards-guidelines/website-guidelines/homepage/proud-points', ic: 'PP' },
   { label: 'WCM Community', sub: 'Details and support for Web Content Managers', href: 'https://www.browardschools.com/wcm-community', ic: 'WC' },
   { label: 'Submit a ticket (IIQ)', sub: 'Questions and help requests, IncidentIQ', href: 'https://browardschools.incidentiq.com/', ic: 'IQ' },
   { label: 'Finalsite dashboard', sub: 'Sign in to edit your school website', href: 'https://www.browardschools.com/fs/admin', ic: 'FS' },
@@ -1093,8 +1097,13 @@ function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?
   const name = firstName(data)
   const schools = (data.schools ?? []).map((x) => x.name)
   const schoolLabel = schools.length ? schools.join(', ') : 'your school'
-  const b = data.my_banners ?? { pending: 0, ready: 0, posted: 0, rejected: 0 }
+  // Counts cover every submission type (banners and Proud Points), the same
+  // way Your Submissions lists them together (Vanessa Deslandes, 2026-10-08).
+  const bn = data.my_banners ?? { pending: 0, ready: 0, posted: 0, rejected: 0 }
+  const pp = data.my_proud_points ?? { pending: 0, ready: 0, posted: 0, rejected: 0, drafts: 0 }
+  const b = { pending: bn.pending + pp.pending, ready: bn.ready + pp.ready, posted: bn.posted + pp.posted, rejected: bn.rejected + pp.rejected }
   const openBanners = () => onNavigate('banner-submissions')
+  const openProudPoints = () => onNavigate('proud-points')
   return (
     <div className="home">
       {preview && <PreviewBanner who="School WCM">
@@ -1103,15 +1112,16 @@ function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?
       <div className="home-hero">
         <div className="home-hero-label">BCPS MarComm School Web Content Manager</div>
         <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
-        <p>Homepage banners for {schoolLabel}. Submit new photos and videos, and follow each one through District Web Team review.</p>
+        <p>Homepage banners and Proud Points for {schoolLabel}. Submit them here and follow each one through District Web Team review.</p>
         <div className="home-actions">
           <button type="button" className="home-btn" onClick={openBanners}>Submit a banner</button>
+          <button type="button" className="home-btn" onClick={openProudPoints}>Submit Proud Points</button>
         </div>
       </div>
 
       <div className="home-strip">
         <StatTile label="Waiting for review" value={b.pending} note="The District Web Team checks each one by eye." />
-        <StatTile label="Approved" value={b.ready} note="Posted to your site within 24 to 48 hours." />
+        <StatTile label="Approved" value={b.ready} note="The web team posts it and emails you when it is live." />
         <StatTile label="Live on your site" value={b.posted} />
         <StatTile label="Not approved" value={b.rejected} note={b.rejected ? 'See the reason under Your Submissions.' : undefined} tone={b.rejected ? 'warn' : undefined} />
       </div>
@@ -1123,9 +1133,14 @@ function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?
           <button type="button" className="wcm-hub2-card-btn" onClick={openBanners}>Open Banner Submissions</button>
         </div>
         <div className="wcm-hub2-card">
+          <h3>Submit Proud Points</h3>
+          <p>{pp.drafts ? 'You have a draft in progress. ' : ''}The six highlights on your homepage: a data point, heading, caption and photo for each. Replace one at a time once your six are up.</p>
+          <button type="button" className="wcm-hub2-card-btn" onClick={openProudPoints}>{pp.drafts ? 'Continue your draft' : 'Open Proud Points'}</button>
+        </div>
+        <div className="wcm-hub2-card">
           <h3>Your Submissions</h3>
-          <p>Every banner you have sent, where it stands, and the reason if one was not approved. You can also request that a banner be taken down.</p>
-          <a className="wcm-hub2-card-btn" href="/?page=banner-submissions&tab=mine">View my submissions</a>
+          <p>Every banner and Proud Point you have sent, where it stands, and the reason if one was not approved.</p>
+          <a className="wcm-hub2-card-btn" href="/?page=my-submissions">View my submissions</a>
         </div>
         {/* Coming soon (Sean, 2026-10-05): the one deliberate exception to
             "a card only appears when its link works", so schools see what is
@@ -1288,7 +1303,9 @@ function AdaPanel({ ada, onNavigate }: { ada: TeamAda; onNavigate: (page: PageId
   )
 }
 
-function BannersPanel({ b, onNavigate }: { b: TeamBanners; onNavigate: (page: PageId) => void }) {
+// The Banners tab covers every school homepage submission: banners and,
+// since 2026-10-08, Proud Points.
+function BannersPanel({ b, pp, onNavigate }: { b: TeamBanners; pp?: TeamBanners & { ready: number }; onNavigate: (page: PageId) => void }) {
   return (
     <>
       <p className="wcm-hub2-intro">Banner submissions from WCMs. Approving and rejecting happens in the Banner Submissions tool.</p>
@@ -1300,6 +1317,12 @@ function BannersPanel({ b, onNavigate }: { b: TeamBanners; onNavigate: (page: Pa
         <div className="home-dec">
           <div className="home-dec-what">{b.approved} approved, {b.rejected} rejected<small>The full history stays in the tool.</small></div>
         </div>
+        {pp && (
+          <div className="home-dec">
+            <div className="home-dec-what">Proud Points: {pp.pending} waiting for review, {pp.ready} approved and not posted<small>Post in Finalsite, then Mark posted to email the WCM.</small></div>
+            <button type="button" className="home-btn" onClick={() => onNavigate('proud-points')}>Open Proud Points</button>
+          </div>
+        )}
       </div>
     </>
   )
@@ -1577,6 +1600,10 @@ function DecisionsPanel({ th, team, onNavigate, onOpenOps, onOpenInbox }: { th: 
           {th.banners.pending ? <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('banner-submissions')}>{th.banners.pending} waiting</button> : <span className="home-hint">None waiting</span>}
         </div>
         <div className="home-dec">
+          <div className="home-dec-what">Proud Points<small>School homepage highlights waiting for review.</small></div>
+          {th.proud_points?.pending ? <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('proud-points')}>{th.proud_points.pending} waiting</button> : <span className="home-hint">None waiting</span>}
+        </div>
+        <div className="home-dec">
           <div className="home-dec-what">Access requests<small>Someone asking to help with a report.</small></div>
           {team?.access_requests ? <button type="button" className="wcm-hub2-card-btn" onClick={onOpenOps}>{team.access_requests} waiting</button> : <span className="home-hint">None waiting</span>}
         </div>
@@ -1804,7 +1831,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
   }
   const th = data.team_home!
   const p = th.program
-  const decisions = (th.decisions?.roster_pending.length ?? 0) + th.banners.pending + (data.team?.messages_unread ?? 0) + (data.team?.access_requests ?? 0)
+  const decisions = (th.decisions?.roster_pending.length ?? 0) + th.banners.pending + (th.proud_points?.pending ?? 0) + (data.team?.messages_unread ?? 0) + (data.team?.access_requests ?? 0)
   const w = currentWindow()
   const wStats = p.windows.find((x) => x.id === w.id)
   const name = firstName(data)
@@ -1928,6 +1955,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
           </>
         )}
         <StatTile label="Banners to review" value={th.banners.pending} note="Banner Submissions" tone={th.banners.pending ? 'warn' : undefined} />
+        <StatTile label="Proud Points to review" value={th.proud_points?.pending ?? 0} note={th.proud_points?.ready ? `${th.proud_points.ready} approved, not posted yet` : 'Proud Points'} tone={th.proud_points?.pending ? 'warn' : undefined} />
       </div>
       <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />
       </>}
@@ -1935,7 +1963,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
-      {tab === 'banners' && <BannersPanel b={th.banners} onNavigate={onNavigate} />}
+      {tab === 'banners' && <BannersPanel b={th.banners} pp={th.proud_points} onNavigate={onNavigate} />}
       {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'wcm' && <WcmCommunityHub />}

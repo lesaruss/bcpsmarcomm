@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { MODULES, COURSE_ID } from '@/lib/cert-data'
 import {
-  loadAssignments, assignmentsFor, loadProgram, loadAda, loadBanners, loadWidgets, loadDecisions,
+  loadAssignments, assignmentsFor, loadProgram, loadAda, loadBanners, loadProudPoints, loadWidgets, loadDecisions,
   type TeamMemberWork,
 } from '@/lib/bcps-team-home'
 import { hasSeriesGrant } from '@/lib/bcps-doc-access'
@@ -177,6 +177,21 @@ export async function GET(req: NextRequest) {
       rejected: rows.filter((r) => r.status === 'rejected').length,
     }
   }
+  // Their Proud Points submissions (2026-10-08), same four counts; drafts are
+  // not counted because nothing has been sent yet.
+  let myProudPoints: { pending: number; ready: number; posted: number; rejected: number; drafts: number } | null = null
+  if (isSchoolWcm) {
+    const { data: subs } = await svc.from('bcps_proud_point_submissions')
+      .select('status, posted_at').eq('wcm_user_id', user.id).is('archived_at', null)
+    const rows = subs ?? []
+    myProudPoints = {
+      pending: rows.filter((r) => r.status === 'pending').length,
+      ready: rows.filter((r) => r.status === 'approved' && !r.posted_at).length,
+      posted: rows.filter((r) => r.status === 'approved' && !!r.posted_at).length,
+      rejected: rows.filter((r) => r.status === 'rejected').length,
+      drafts: rows.filter((r) => r.status === 'draft').length,
+    }
+  }
 
   // Departments shown: every department for the team, the led ones for a
   // director, the caller's own roster departments for a WCM.
@@ -260,10 +275,11 @@ export async function GET(req: NextRequest) {
 
   let teamHome: Record<string, unknown> | null = null
   if (isDwt) {
-    const [program, ada, banners, rows] = await Promise.all([
+    const [program, ada, banners, proudPoints, rows] = await Promise.all([
       loadProgram(svc, departments),
       loadAda(svc, departments),
       loadBanners(svc),
+      loadProudPoints(svc).catch((e) => { console.error('home: proud points failed', e); return { pending: 0, approved: 0, rejected: 0, ready: 0 } }),
       // Assignments are a bonus on the dashboard: if they cannot be read,
       // the rest of the dashboard still loads (2026-10-01 incident).
       loadAssignments(svc, req.nextUrl.origin).catch((e) => { console.error('home: assignments failed', e); return [] }),
@@ -276,6 +292,7 @@ export async function GET(req: NextRequest) {
       program,
       ada,
       banners,
+      proud_points: proudPoints,
       kb_articles: kb ?? [],
       my_assignments: assignmentsFor(rows, displayName.split(/\s+/)[0], displayName),
     }
@@ -314,6 +331,7 @@ export async function GET(req: NextRequest) {
     is_wcm: isWcm,
     schools: isSchoolWcm ? mySchools : [],
     my_banners: myBanners,
+    my_proud_points: myProudPoints,
     name: profileRes.data?.full_name ?? null,
     email,
     led_department_ids: ledIds,

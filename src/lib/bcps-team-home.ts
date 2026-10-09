@@ -246,6 +246,20 @@ export async function loadBanners(svc: SupabaseClient) {
   return { pending: count('pending'), approved: count('approved'), rejected: count('rejected') }
 }
 
+// ── Proud Points (2026-10-08) ─────────────────────────────────────────
+// Same counts as banners; drafts are the WCM's own work in progress and are
+// not the team's to review. ready = approved, not yet marked posted.
+export async function loadProudPoints(svc: SupabaseClient) {
+  const { data } = await svc.from('bcps_proud_point_submissions')
+    .select('status, posted_at, is_test, archived_at')
+  const live = (data ?? []).filter((b) => !b.is_test && !b.archived_at)
+  const count = (s: string) => live.filter((b) => b.status === s).length
+  return {
+    pending: count('pending'), approved: count('approved'), rejected: count('rejected'),
+    ready: live.filter((b) => b.status === 'approved' && !b.posted_at).length,
+  }
+}
+
 // ── Widgets ─────────────────────────────────────────────────────────────
 // Same edit rule as /api/bcps/widgets: admins edit everything; anyone else
 // edits a widget their user or group holds an edit/manage grant on.
