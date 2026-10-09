@@ -4,12 +4,13 @@
 Source: SharePoint eAppsHub, Shared Documents/School Proud Points for
 Website.xlsx (sheet Submissions), read through the Microsoft 365 connector.
 The connector stops xlsx reads at row 264 of 313, so the 2026-10-08 seed
-holds rows 1-264. To load the rest, save the sheet as CSV in the same folder
-(plain-text reads page fully), dump it, and re-run this with --min-id 265.
+holds rows 1-264. Sean exported the full sheet as CSV on 2026-10-09; rows 265
+onward were loaded from it with --min-id 265 --no-ideas.
 
 Usage:
-  python3 -I scripts/proud-points-seed.py DUMP.txt DIRECTORY.json > out.sql
-    DUMP.txt        connector read of the workbook (tab-separated rows)
+  python3 -I scripts/proud-points-seed.py DUMP DIRECTORY.json > out.sql
+    DUMP            the sheet saved as .csv, or a connector read of the
+                    workbook (tab-separated rows)
     DIRECTORY.json  [[loc_no, school_name, school_level], ...] from
                     bcps_school_directory where not is_archived
 
@@ -30,14 +31,25 @@ ap.add_argument('--min-id', type=int, default=1)
 ap.add_argument('--no-ideas', action='store_true')
 args = ap.parse_args()
 
-lines = open(args.dump, encoding='utf-8').read().split('\n')
 rows = []
-for line in lines:
-    if not re.match(r'^\d+\t\d+/', line):
-        continue
-    c = line.split('\t') + [''] * 18
-    if int(c[0]) >= args.min_id:
-        rows.append(c[:18])
+if args.dump.lower().endswith('.csv'):
+    # The sheet saved as CSV from Excel: Windows-1252, not UTF-8.
+    import csv
+    raw = open(args.dump, 'rb').read()
+    try:
+        text = raw.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        text = raw.decode('cp1252')
+    for c in list(csv.reader(text.splitlines(True)))[1:]:
+        if c and c[0].strip().isdigit() and int(c[0]) >= args.min_id:
+            rows.append((c + [''] * 18)[:18])
+else:
+    for line in open(args.dump, encoding='utf-8').read().split('\n'):
+        if not re.match(r'^\d+\t\d+/', line):
+            continue
+        c = line.split('\t') + [''] * 18
+        if int(c[0]) >= args.min_id:
+            rows.append(c[:18])
 
 directory = json.load(open(args.directory))
 by_loc = {d[0]: d for d in directory}
@@ -52,6 +64,7 @@ ALIASES = {
     'Coral Cove Elementary': '2011',
     'Silver Shores Elementary School': '3581',
     'Coconut Creek Elementary': '1421',
+    'Broward Estates Elementary': '0501',
 }
 LEVEL_WORDS = {'elementary': 'Elementary', 'middle': 'Middle', 'high': 'High', 'center': 'Center'}
 STOP = {'school', 'the', 'of', 'and', 'jr', 'dr', 'k', '8', 'pk', 'prek'}
