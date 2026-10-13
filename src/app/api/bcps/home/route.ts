@@ -414,7 +414,7 @@ async function loadHotLabs(email: string, admin: boolean): Promise<{ title: stri
 
 async function loadDepartments(ids: string[] | null): Promise<DepartmentSummary[]> {
   if (ids !== null && ids.length === 0) return []
-  let dq = svc.from('bcps_departments').select('id, name, division, website_url, audit_status, audit_date, ada_score').order('name')
+  let dq = svc.from('bcps_departments').select('id, name, division, website_url, audit_status, audit_date, ada_score, current_round').order('name')
   if (ids !== null) dq = dq.in('id', ids)
   const { data: depts } = await dq
   if (!depts?.length) return []
@@ -451,14 +451,18 @@ async function loadDepartments(ids: string[] | null): Promise<DepartmentSummary[
     }
   }
 
-  const findings = await fetchAll<{ department_id: string; wcm_fixed: boolean | null }>((a, b) => {
-    let q = svc.from('bcps_audit_findings').select('department_id, wcm_fixed').order('id').range(a, b)
+  // Only each department's current round counts, the round its WCM portal
+  // shows; earlier rounds and their carried-forward copies would double count.
+  const roundOf = new Map(depts.map((d) => [d.id as string, (d.current_round as number | null) ?? 1]))
+  const findings = await fetchAll<{ department_id: string; round_number: number; wcm_fixed: boolean | null }>((a, b) => {
+    let q = svc.from('bcps_audit_findings').select('department_id, round_number, wcm_fixed').order('id').range(a, b)
     if (ids !== null) q = q.in('department_id', ids)
     return q
   })
   const openByDept = new Map<string, number>()
   const fixedByDept = new Map<string, number>()
   for (const f of findings) {
+    if (f.round_number !== roundOf.get(f.department_id)) continue
     const m = f.wcm_fixed ? fixedByDept : openByDept
     m.set(f.department_id, (m.get(f.department_id) ?? 0) + 1)
   }

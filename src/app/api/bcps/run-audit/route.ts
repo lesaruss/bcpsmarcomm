@@ -18,8 +18,10 @@ const supabase = createClient(
 // 2026-10-06: a WCM re-checks a page after fixing it, the way they resubmit
 // a banner). Hot Lab 2026-07-28 found the button was only ever hidden in the
 // UI, so the gate lives here.
-// A WCM gets a few re-checks a day per department; admins are not limited.
-const WCM_RUNS_PER_DAY = 3
+// A WCM gets 15 page checks a day per department (raised from 3 on
+// 2026-10-13: each run is one page and a department averages 19, so 3 stopped
+// a WCM partway through their own site); admins are not limited.
+const WCM_RUNS_PER_DAY = 15
 
 // Department audit v3 (Sean, 2026-10-06): every check is a standard from the
 // WCM Department Certification course (lib/dept-standards.ts), green, red or
@@ -50,11 +52,14 @@ export async function POST(req: NextRequest) {
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
       const { count } = await supabase.from('bcps_audit_results').select('id', { count: 'exact', head: true })
         .eq('department_id', dept.id).eq('run_by', caller.email).gte('audited_at', since)
-      if ((count ?? 0) >= WCM_RUNS_PER_DAY) return NextResponse.json({ error: `You have run ${WCM_RUNS_PER_DAY} checks in the last 24 hours. Try again tomorrow, or ask the District Web Team.` }, { status: 429 })
+      if ((count ?? 0) >= WCM_RUNS_PER_DAY) return NextResponse.json({ error: `You have checked ${WCM_RUNS_PER_DAY} pages in the last 24 hours. Try again tomorrow, or ask the District Web Team.` }, { status: 429 })
     }
 
     if (!dept.website_url) return NextResponse.json({ error: 'This department has no website address on file to audit.' }, { status: 422 })
-    const round_number = triggered_by === 'admin_reaudit' ? (dept.current_round ?? 1) : 1
+    // Every run files its findings under the department's current round, the
+    // round the WCM portal shows. A WCM re-check after a send-back used to
+    // land in round 1, where nobody saw it.
+    const round_number = dept.current_round ?? 1
 
     // Which page: a listed page of this department's site, or the main page.
     let page: { id: string; url: string; title: string | null; is_main: boolean } | null = null
