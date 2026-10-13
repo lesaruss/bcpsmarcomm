@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { svc, requireProudPointsAccess, ACCESS_ERROR, schoolByLoc, isDistrictEmail, clientIp, rateLimited, LIMITS } from '@/lib/proudPointsApi'
 import { sendEmail } from '@/lib/resend'
 import {
-  POINT_COUNT, cleanPoint, validatePoint, schoolState, isTestBuild, escapeHtml, type ProudPoint,
+  POINT_COUNT, cleanPoint, cleanPhoto, validatePoint, schoolState, isTestBuild, escapeHtml, type ProudPoint, type BackgroundPhoto,
 } from '@/lib/proudPoints'
 
 // Sends Proud Points to the District Web Team review queue.
-// body: { loc, kind: 'initial', points: [6] }                         first six
-//    or { loc, kind: 'replace', point, replace_slot?, replaced_text? } one swap
+// body: { loc, kind: 'initial', points: [6], photo }                         first six
+//    or { loc, kind: 'replace', point, replace_slot?, replaced_text?, photo? } one swap
+//    photo { path, name, alt } is the one background photo behind all six
+//    points: required with the first six, optional with a replacement.
 //    plus checklist_ack { media_release, faces_visible, final_ack }
 //    and, from the embed (no sign-in), contact { name, email }: the district
 //    email gets the review and posted emails.
@@ -34,6 +36,7 @@ export async function POST(req: NextRequest) {
     loc?: string; kind?: 'initial' | 'replace'
     points?: Partial<ProudPoint>[]; point?: Partial<ProudPoint>
     replace_slot?: number | null; replaced_text?: string
+    photo?: Partial<BackgroundPhoto> | null
     checklist_ack?: Record<string, boolean>
     contact?: { name?: string; email?: string }
   }
@@ -92,16 +95,19 @@ export async function POST(req: NextRequest) {
   for (const p of points) {
     const err = validatePoint(p, { complete: true })
     if (err) return NextResponse.json({ error: err }, { status: 400 })
-    if (!(await photoOk(p.photo_path, me.owner))) {
-      return NextResponse.json({ error: `The photo for point ${p.slot} was not accepted. Choose it again.` }, { status: 400 })
-    }
+  }
+  const photo = cleanPhoto(body.photo)
+  if (expected === 'initial' && !photo.path) return NextResponse.json({ error: 'Add the background photo.' }, { status: 400 })
+  if (photo.path) {
+    if (!photo.alt) return NextResponse.json({ error: 'Add a description of the background photo (alt text).' }, { status: 400 })
+    if (!(await photoOk(photo.path, me.owner))) return NextResponse.json({ error: 'The background photo was not accepted. Choose it again.' }, { status: 400 })
   }
 
   const now = new Date().toISOString()
   const test = isTestBuild()
   const row = {
     wcm_user_id: me.userId, wcm_email: contactEmail, owner_key: me.owner, submitter_name: contactName, client_ip: ip, school_location_nbr: school.loc_no, school_name: school.school_name,
-    kind: expected, status: 'pending', points, replace_slot: replaceSlot, replaced_text: replacedText,
+    kind: expected, status: 'pending', points, photo_path: photo.path, photo_name: photo.name, photo_alt: photo.alt || null, replace_slot: replaceSlot, replaced_text: replacedText,
     checklist_ack: { ...Object.fromEntries(REQUIRED_ACK_KEYS.map(k => [k, true])), acked_at: now },
     submitted_at: now, updated_at: now, is_test: test,
   }

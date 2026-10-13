@@ -9,8 +9,10 @@
 //   draft as they go and sends only when all six are complete.
 // - A school with six picks the point to replace and fills in one. There is
 //   no separate remove step.
-// - Each point: data point, heading, caption, background photo + alt text,
-//   with character counts and a live homepage preview.
+// - Each point: data point, heading, caption, with character counts and a
+//   live homepage preview. The data point takes only the big number or grade.
+// - One background photo + alt text per school, behind all six points (the
+//   homepage section shows a single photo; Vanessa, 2026-10-12).
 // - Ideas: past points from the old form, by theme, labeled by school level.
 // Rules and limits live in lib/proudPoints.ts.
 
@@ -20,7 +22,7 @@ import { useBCPSShell } from '@/components/BCPSShell'
 import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
 import {
   STAT_MAX, HEADING_MAX, CAPTION_MAX, POINT_COUNT, PHOTO_MIN_WIDTH, PHOTO_MIN_HEIGHT, PHOTO_MAX_BYTES,
-  PHOTO_ALLOWED_MIME, PHOTO_RULES_PENDING, FIXED_REJECT_REASONS,
+  PHOTO_ALLOWED_MIME, PHOTO_RULES_PENDING, FIXED_REJECT_REASONS, STAT_RULE, cleanStatInput, statOk,
 } from '@/lib/proudPoints'
 
 const GUIDELINES_URL = 'https://www.browardschools.com/wcm-community/schools/standards-guidelines/website-guidelines/homepage/proud-points'
@@ -34,12 +36,16 @@ interface FormPoint {
   stat: string
   heading: string
   caption: string
-  alt_text: string
-  photo_path: string | null
-  photo_name: string | null
-  photo_url: string | null
-  photo_busy: boolean
-  photo_error: string | null
+}
+
+// The one background photo behind all six points.
+interface FormPhoto {
+  path: string | null
+  name: string | null
+  url: string | null
+  alt: string
+  busy: boolean
+  error: string | null
   text_detected: boolean
 }
 
@@ -50,7 +56,6 @@ interface CurrentPoint {
   heading?: string
   caption?: string
   text?: string
-  photo_url?: string | null
 }
 
 interface SchoolState {
@@ -58,11 +63,16 @@ interface SchoolState {
   mode: 'initial' | 'replace'
   has_six: boolean
   override: boolean | null
+  on_audit_list: boolean
   current: CurrentPoint[]
+  current_photo_url: string | null
   current_source: 'app' | 'legacy' | 'none'
   legacy_points: { text: string; submitted_at: string | null }[]
   legacy_count: number
-  draft: { id: string; points: (Partial<FormPoint> & { slot: number })[]; updated_at: string } | null
+  draft: {
+    id: string; points: (Partial<FormPoint> & { slot: number })[]; updated_at: string
+    photo: { path: string; name: string | null; alt: string; url: string | null } | null
+  } | null
   waiting: { id: string; kind: string; submitted_at: string; mine: boolean } | null
 }
 
@@ -71,14 +81,6 @@ interface SavedPoint {
   stat: string
   heading: string
   caption: string
-  alt_text: string
-  photo_path: string | null
-  photo_name: string | null
-  photo_url?: string | null
-  download_url?: string | null
-  width?: number | null
-  height?: number | null
-  text_detected?: boolean
 }
 
 interface Submission {
@@ -88,6 +90,14 @@ interface Submission {
   school_name: string | null
   school_location_nbr: string
   points: SavedPoint[]
+  photo_path: string | null
+  photo_name: string | null
+  photo_alt: string | null
+  photo_url?: string | null
+  download_url?: string | null
+  photo_width?: number | null
+  photo_height?: number | null
+  text_detected?: boolean
   replace_slot: number | null
   replaced_text: string | null
   rejection_reason: string | null
@@ -103,12 +113,12 @@ interface Submission {
 
 interface Idea { id: string; theme: string; school_level: string; text: string; hidden: boolean }
 
-const emptyPoint = (): FormPoint => ({
-  stat: '', heading: '', caption: '', alt_text: '', photo_path: null, photo_name: null, photo_url: null,
-  photo_busy: false, photo_error: null, text_detected: false,
-})
+const emptyPoint = (): FormPoint => ({ stat: '', heading: '', caption: '' })
+const emptyPhoto = (): FormPhoto => ({ path: null, name: null, url: null, alt: '', busy: false, error: null, text_detected: false })
 
-const pointDone = (p: FormPoint) => !!(p.stat.trim() && p.heading.trim() && p.caption.trim() && p.photo_path && p.alt_text.trim())
+const pointDone = (p: FormPoint) => !!(statOk(p.stat) && p.heading.trim() && p.caption.trim())
+const photoDone = (p: FormPhoto) => !!(p.path && !p.busy && p.alt.trim())
+const photoPayload = (p: FormPhoto) => (p.path ? { path: p.path, name: p.name, alt: p.alt } : null)
 
 const CHECKLIST = [
   { key: 'media_release', label: 'Every student pictured has a media release on file, and I have my administrator\'s approval to submit these photos.' },
@@ -133,26 +143,28 @@ function StatusTag({ s, posted }: { s: Status; posted?: boolean }) {
   return <span style={{ background: v.bg, color: v.fg, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>{v.label}</span>
 }
 
-// The homepage band, approximately: six photo tiles with the data point,
-// heading and caption over a darkened photo. The real layout is built by the
-// District Web Team in Finalsite; this lets a WCM see length and photo choice.
-type Tile = { slot: number; stat?: string; heading?: string; caption?: string; text?: string; photo_url?: string | null; highlight?: boolean }
+// The homepage band, approximately: one background photo behind six tiles,
+// each with the data point, heading and caption. The real layout is built by
+// the District Web Team in Finalsite; this lets a WCM see length and photo
+// choice.
+type Tile = { slot: number; stat?: string; heading?: string; caption?: string; text?: string; highlight?: boolean }
 
 // Styles are injected raw (dangerouslySetInnerHTML): React escapes quotes in
 // <style> text on the server, which breaks hydration for content: and [attr="x"].
-export function ProudPointsPreview({ tiles }: { tiles: Tile[] }) {
+export function ProudPointsPreview({ tiles, photoUrl }: { tiles: Tile[]; photoUrl?: string | null }) {
   return (
     <div className="ppw-frame">
       <style dangerouslySetInnerHTML={{ __html: `
         .ppw-frame { container-type: inline-size; container-name: ppw; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: #fff; }
         .ppw-head { background: #0a3764; color: #fff; padding: 10px 14px; font-weight: 800; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
-        .ppw-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 6px; background: #f3f5f8; }
+        .ppw-band { position: relative; background: #5b6b7d; }
+        .ppw-band > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .ppw-band::after { content: ''; position: absolute; inset: 0; background: rgba(10,25,45,.55); }
+        .ppw-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 10px; }
         @container ppw (max-width: 620px) { .ppw-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @container ppw (max-width: 240px) { .ppw-grid { grid-template-columns: minmax(0, 1fr); } }
-        .ppw-tile { position: relative; aspect-ratio: 4 / 3; min-width: 0; border-radius: 4px; overflow: hidden; background: #5b6b7d; color: #fff; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; text-align: center; }
-        .ppw-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-        .ppw-tile::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,25,45,.88), rgba(10,25,45,.35)); }
-        .ppw-tile > div { position: relative; z-index: 1; min-width: 0; overflow-wrap: anywhere; }
+        .ppw-tile { aspect-ratio: 4 / 3; min-width: 0; border-radius: 4px; overflow: hidden; background: rgba(10,25,45,.35); border: 1px solid rgba(255,255,255,.25); color: #fff; display: flex; flex-direction: column; justify-content: center; padding: 10px; text-align: center; }
+        .ppw-tile > div { min-width: 0; overflow-wrap: anywhere; }
         .ppw-stat { font-size: clamp(18px, 7cqw, 40px); font-weight: 900; line-height: 1; }
         .ppw-heading { font-size: clamp(11px, 2.3cqw, 15px); font-weight: 800; text-transform: uppercase; margin-top: 6px; line-height: 1.2; }
         .ppw-caption { font-size: clamp(10px, 1.9cqw, 13px); margin-top: 4px; line-height: 1.3; opacity: .95; }
@@ -161,12 +173,13 @@ export function ProudPointsPreview({ tiles }: { tiles: Tile[] }) {
         .ppw-empty { color: #dfe6ee; font-size: 12px; }
       ` }} />
       <div className="ppw-head">Proud Points</div>
+      <div className="ppw-band">
+      {photoUrl && <img src={photoUrl} alt="" />}
       <div className="ppw-grid">
         {tiles.map(t => {
           const empty = !t.stat && !t.heading && !t.caption && !t.text
           return (
             <div key={t.slot} className={`ppw-tile${t.highlight ? ' ppw-hl' : ''}`}>
-              {t.photo_url && <img src={t.photo_url} alt="" />}
               <div>
                 {empty ? <div className="ppw-empty">Point {t.slot}</div> : t.text ? (
                   <div className="ppw-legacy">{t.text}</div>
@@ -181,6 +194,7 @@ export function ProudPointsPreview({ tiles }: { tiles: Tile[] }) {
             </div>
           )
         })}
+      </div>
       </div>
     </div>
   )
@@ -241,6 +255,9 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
   const [replacedText, setReplacedText] = useState('')
   const [one, setOne] = useState<FormPoint>(emptyPoint)
 
+  // ---- The one background photo (both flows) ----
+  const [photo, setPhoto] = useState<FormPhoto>(emptyPhoto)
+
   const [checks, setChecks] = useState<Record<string, boolean>>({})
   // Embed only: who to email about the submission (no sign-in), remembered in
   // this browser for next time.
@@ -288,9 +305,11 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
         const fresh = Array.from({ length: POINT_COUNT }, emptyPoint)
         for (const p of d.draft?.points ?? []) {
           const i = (p.slot ?? 0) - 1
-          if (i >= 0 && i < POINT_COUNT) fresh[i] = { ...emptyPoint(), ...p, photo_busy: false, photo_error: null, text_detected: false } as FormPoint
+          if (i >= 0 && i < POINT_COUNT) fresh[i] = { stat: p.stat ?? '', heading: p.heading ?? '', caption: p.caption ?? '' }
         }
         setPoints(fresh)
+        const dp = d.draft?.photo
+        setPhoto(dp ? { ...emptyPhoto(), path: dp.path, name: dp.name, url: dp.url, alt: dp.alt } : emptyPhoto())
         setDraftSavedAt(d.draft?.updated_at ?? null)
         setDraftDirty(false)
         setOne(emptyPoint())
@@ -332,12 +351,13 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
   // ---- Draft autosave (first six only) ----
   const pointsRef = useRef(points)
   pointsRef.current = points
+  const photoRef = useRef(photo)
+  photoRef.current = photo
   const saveDraft = useCallback(async (quiet = false) => {
     if (!loc) return
     setDraftBusy(true)
     try {
-      const payload = pointsRef.current.map(({ photo_busy, photo_error, text_detected, photo_url, ...rest }) => rest)
-      const r = await authedFetch('/api/proud-points/draft', { method: 'PUT', body: JSON.stringify({ loc, points: payload }) })
+      const r = await authedFetch('/api/proud-points/draft', { method: 'PUT', body: JSON.stringify({ loc, points: pointsRef.current, photo: photoPayload(photoRef.current) }) })
       const d = await r.json()
       if (!r.ok) { if (!quiet) setNotice({ ok: false, text: d.error || 'Could not save the draft.' }); return }
       setDraftSavedAt(d.saved_at)
@@ -351,29 +371,34 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
   }, [loc])
 
   useEffect(() => {
-    if (!draftDirty || st?.mode !== 'initial' || points.some(p => p.photo_busy)) return
+    if (!draftDirty || st?.mode !== 'initial' || photo.busy) return
     const t = setTimeout(() => { saveDraft(true) }, 1500)
     return () => clearTimeout(t)
-  }, [draftDirty, points, st?.mode, saveDraft])
+  }, [draftDirty, points, photo, st?.mode, saveDraft])
 
   const updatePoint = (i: number, patch: Partial<FormPoint>) => {
     setPoints(ps => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)))
     setDraftDirty(true)
   }
+  const updatePhoto = (patch: Partial<FormPhoto>) => {
+    setPhoto(p => ({ ...p, ...patch }))
+    setDraftDirty(true)
+  }
 
   // ---- Photo attach: size check here for speed, then the server checks the
   // stored file (pixel size + content scan) and is the real gate. ----
-  async function attachPhoto(file: File, set: (patch: Partial<FormPoint>) => void) {
-    set({ photo_error: null })
-    if (!PHOTO_ALLOWED_MIME[file.type]) { set({ photo_error: 'Use a PNG or JPG photo.' }); return }
-    if (file.size > PHOTO_MAX_BYTES) { set({ photo_error: `Photo is over ${Math.round(PHOTO_MAX_BYTES / 1024 / 1024)}MB.` }); return }
+  async function attachPhoto(file: File) {
+    const set = updatePhoto
+    set({ error: null })
+    if (!PHOTO_ALLOWED_MIME[file.type]) { set({ error: 'Use a PNG or JPG photo.' }); return }
+    if (file.size > PHOTO_MAX_BYTES) { set({ error: `Photo is over ${Math.round(PHOTO_MAX_BYTES / 1024 / 1024)}MB.` }); return }
     const dims = await readDims(file)
     if (dims && (dims.w < PHOTO_MIN_WIDTH || dims.h < PHOTO_MIN_HEIGHT)) {
-      set({ photo_error: `This photo is ${dims.w} x ${dims.h}. It needs to be at least ${PHOTO_MIN_WIDTH} x ${PHOTO_MIN_HEIGHT} pixels.` })
+      set({ error: `This photo is ${dims.w} x ${dims.h}. It needs to be at least ${PHOTO_MIN_WIDTH} x ${PHOTO_MIN_HEIGHT} pixels.` })
       return
     }
     const localUrl = URL.createObjectURL(file)
-    set({ photo_busy: true, photo_url: localUrl, photo_name: file.name, photo_path: null })
+    set({ busy: true, url: localUrl, name: file.name, path: null, text_detected: false })
     try {
       const r1 = await authedFetch('/api/proud-points/upload-url', { method: 'POST', body: JSON.stringify({ file_name: file.name, mime_type: file.type, size: file.size }) })
       const slot = await r1.json()
@@ -383,9 +408,9 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
       const r2 = await authedFetch('/api/proud-points/photo', { method: 'POST', body: JSON.stringify({ file_path: slot.path, mime_type: file.type }) })
       const v = await r2.json()
       if (!r2.ok || !v.ok) throw new Error(v.error || 'This photo was not accepted.')
-      set({ photo_busy: false, photo_path: slot.path, text_detected: !!v.text_detected })
+      set({ busy: false, path: slot.path, text_detected: !!v.text_detected })
     } catch (e) {
-      set({ photo_busy: false, photo_path: null, photo_url: null, photo_error: (e as Error).message })
+      set({ busy: false, path: null, url: null, error: (e as Error).message })
     }
   }
 
@@ -396,17 +421,19 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
     if (embed && !contact.name.trim()) { setNotice({ ok: false, text: 'Enter your name under Before you send.' }); return }
     if (embed && !/^[^@\s]+@browardschools\.com$/i.test(contact.email.trim())) { setNotice({ ok: false, text: 'Enter your @browardschools.com email under Before you send.' }); return }
     if (!CHECKLIST.every(c => checks[c.key])) { setNotice({ ok: false, text: 'Check every box in the checklist first.' }); return }
-    const strip = ({ photo_busy, photo_error, text_detected, photo_url, ...rest }: FormPoint) => rest
+    if (photo.busy) { setNotice({ ok: false, text: 'Wait for the photo check to finish.' }); return }
+    if (photo.path && !photo.alt.trim()) { setNotice({ ok: false, text: 'Add a description of the background photo (alt text).' }); return }
     let body: Record<string, unknown>
     if (st.mode === 'initial') {
       const missing = points.findIndex(p => !pointDone(p))
       if (missing >= 0) { setActive(missing); setNotice({ ok: false, text: `Point ${missing + 1} is not finished yet. Your draft is saved.` }); return }
-      body = { loc, kind: 'initial', points: points.map(strip) }
+      if (!photoDone(photo)) { setNotice({ ok: false, text: 'Add the background photo and its description. Your draft is saved.' }); return }
+      body = { loc, kind: 'initial', points, photo: photoPayload(photo) }
     } else {
       if (!replaceSlot) { setNotice({ ok: false, text: 'Choose which Proud Point this replaces.' }); return }
       if (replaceSlot === 'other' && !replacedText.trim()) { setNotice({ ok: false, text: 'Type the heading of the Proud Point this replaces.' }); return }
-      if (!pointDone(one)) { setNotice({ ok: false, text: 'Fill in the data point, heading, caption, photo and photo description.' }); return }
-      body = { loc, kind: 'replace', point: strip(one), replace_slot: replaceSlot === 'other' ? null : replaceSlot, replaced_text: replaceSlot === 'other' ? replacedText : undefined }
+      if (!pointDone(one)) { setNotice({ ok: false, text: statOk(one.stat) ? 'Fill in the data point, heading and caption.' : `Data point: ${STAT_RULE}` }); return }
+      body = { loc, kind: 'replace', point: one, photo: photoPayload(photo), replace_slot: replaceSlot === 'other' ? null : replaceSlot, replaced_text: replaceSlot === 'other' ? replacedText : undefined }
     }
     setSending(true)
     try {
@@ -435,7 +462,8 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
     setTab('submit')
     setLoc(s.school_location_nbr)
     await loadState(s.school_location_nbr)
-    const fill = (p: SavedPoint): FormPoint => ({ ...emptyPoint(), stat: p.stat, heading: p.heading, caption: p.caption, alt_text: p.alt_text, photo_path: p.photo_path, photo_name: p.photo_name, photo_url: p.photo_url ?? null })
+    const fill = (p: SavedPoint): FormPoint => ({ stat: p.stat, heading: p.heading, caption: p.caption })
+    setPhoto(s.photo_path ? { ...emptyPhoto(), path: s.photo_path, name: s.photo_name, url: s.photo_url ?? null, alt: s.photo_alt || '' } : emptyPhoto())
     if (s.kind === 'initial') {
       const fresh = Array.from({ length: POINT_COUNT }, emptyPoint)
       for (const p of s.points) if (p.slot >= 1 && p.slot <= POINT_COUNT) fresh[p.slot - 1] = fill(p)
@@ -467,19 +495,21 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
   const tiles: Tile[] = useMemo(() => {
     if (!st) return []
     if (st.mode === 'initial') {
-      return points.map((p, i) => ({ slot: i + 1, stat: p.stat, heading: p.heading, caption: p.caption, photo_url: p.photo_url, highlight: i === active }))
+      return points.map((p, i) => ({ slot: i + 1, stat: p.stat, heading: p.heading, caption: p.caption, highlight: i === active }))
     }
     const base: Tile[] = Array.from({ length: POINT_COUNT }, (_, i) => {
       const c = st.current.find(x => x.slot === i + 1)
-      return c ? { slot: i + 1, stat: c.stat, heading: c.heading, caption: c.caption, text: c.text, photo_url: c.photo_url } : { slot: i + 1 }
+      return c ? { slot: i + 1, stat: c.stat, heading: c.heading, caption: c.caption, text: c.text } : { slot: i + 1 }
     })
     if (typeof replaceSlot === 'number') {
-      base[replaceSlot - 1] = { slot: replaceSlot, stat: one.stat, heading: one.heading, caption: one.caption, photo_url: one.photo_url, highlight: true }
+      base[replaceSlot - 1] = { slot: replaceSlot, stat: one.stat, heading: one.heading, caption: one.caption, highlight: true }
     }
     return base
   }, [st, points, active, one, replaceSlot])
 
   const doneCount = points.filter(pointDone).length
+  const previewPhoto = photo.url || (st?.mode === 'replace' ? st.current_photo_url : null)
+  const initialReady = doneCount === POINT_COUNT && photoDone(photo)
 
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: 'submit', label: st?.mode === 'replace' ? 'Replace a Point' : 'Submit Proud Points' },
@@ -549,7 +579,7 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
             <>
               <div style={{ margin: '14px 0', padding: '10px 14px', borderRadius: 6, background: '#f3f7fb', border: '1px solid #d6e4f0', fontSize: 13 }}>
                 {st.mode === 'initial' ? (
-                  <><strong>{st.school.name} needs all six Proud Points.</strong> Fill in each one; your work saves as a draft automatically, so you can come back and finish later. You can send once all six are complete.</>
+                  <><strong>{st.school.name} needs all six Proud Points.</strong>{st.on_audit_list ? ' Your school is on the 25/26 website audit list for Proud Points.' : ''} Fill in each one and add one background photo; your work saves as a draft automatically, so you can come back and finish later. You can send once all six and the photo are complete.</>
                 ) : (
                   <><strong>{st.school.name} already has six Proud Points.</strong> Choose the one you want to replace and fill in the new one. The web team swaps it on your homepage.</>
                 )}
@@ -577,13 +607,14 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
                         {doneCount} of {POINT_COUNT} complete
                         {draftBusy ? ' · Saving...' : draftSavedAt ? ` · Draft saved ${new Date(draftSavedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
                       </div>
-                      <PointFields n={active + 1} p={points[active]} set={patch => updatePoint(active, patch)} onPhoto={f => attachPhoto(f, patch => updatePoint(active, patch))} />
+                      <PointFields n={active + 1} p={points[active]} set={patch => updatePoint(active, patch)} />
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
                         {active > 0 && <button type="button" className="btn-outline" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => setActive(active - 1)}>Previous point</button>}
                         {active < POINT_COUNT - 1 && <button type="button" className="btn-outline" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => setActive(active + 1)}>Next point</button>}
                         <button type="button" className="btn-outline" style={{ fontSize: 12, padding: '6px 12px' }} disabled={draftBusy} onClick={() => saveDraft(false)}>Save draft</button>
                         {st.draft && <button type="button" className="btn-outline" onClick={discardDraft} style={{ fontSize: 12, padding: '6px 12px', color: '#a13a2f' }}>Discard draft</button>}
                       </div>
+                      <PhotoField p={photo} set={updatePhoto} onPhoto={attachPhoto} required />
                     </>
                   ) : (
                     <>
@@ -609,7 +640,8 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
                           <input id="ppw-replaced" className="form-input" value={replacedText} maxLength={200} onChange={e => setReplacedText(e.target.value)} placeholder="As it reads on your homepage" />
                         </div>
                       )}
-                      <PointFields n={typeof replaceSlot === 'number' ? replaceSlot : 0} p={one} set={patch => setOne(o => ({ ...o, ...patch }))} onPhoto={f => attachPhoto(f, patch => setOne(o => ({ ...o, ...patch })))} />
+                      <PointFields n={typeof replaceSlot === 'number' ? replaceSlot : 0} p={one} set={patch => setOne(o => ({ ...o, ...patch }))} />
+                      <PhotoField p={photo} set={updatePhoto} onPhoto={attachPhoto} required={false} />
                     </>
                   )}
 
@@ -635,8 +667,10 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
                       </label>
                     ))}
                   </fieldset>
-                  <button type="button" className="btn-primary" style={{ marginTop: 12 }} disabled={sending || !!st.waiting || (st.mode === 'initial' && doneCount < POINT_COUNT)} onClick={send}>
-                    {sending ? 'Sending...' : st.mode === 'initial' ? (doneCount < POINT_COUNT ? `Send (${doneCount} of ${POINT_COUNT} complete)` : 'Send all six for review') : 'Send for review'}
+                  <button type="button" className="btn-primary" style={{ marginTop: 12 }} disabled={sending || !!st.waiting || photo.busy || (st.mode === 'initial' && !initialReady)} onClick={send}>
+                    {sending ? 'Sending...' : st.mode === 'initial'
+                      ? (doneCount < POINT_COUNT ? `Send (${doneCount} of ${POINT_COUNT} complete)` : !photoDone(photo) ? 'Send (add the background photo)' : 'Send all six for review')
+                      : 'Send for review'}
                   </button>
 
                   {st.legacy_points.length > 0 && (
@@ -657,7 +691,7 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
                     ))}
                   </div>
                   <div style={{ width: previewWidth ? `min(${previewWidth}px, 100%)` : '100%' }}>
-                    <ProudPointsPreview tiles={tiles} />
+                    <ProudPointsPreview tiles={tiles} photoUrl={previewPhoto} />
                   </div>
                   <div className="ppw-hint" style={{ marginTop: 6 }}>An approximate look. The District Web Team builds the final version in Finalsite.</div>
                 </div>
@@ -684,7 +718,7 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
                     {m.is_test && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: GOLD_TEXT }}>TEST</span>}
                   </div>
                   <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
-                    {m.school_name} · {m.status === 'draft' ? `saved ${new Date(m.updated_at).toLocaleDateString()} (${m.points.filter(p => p.stat && p.heading && p.caption && p.photo_path).length} of ${POINT_COUNT} complete)` : `sent ${m.submitted_at ? new Date(m.submitted_at).toLocaleDateString() : ''}`}
+                    {m.school_name} · {m.status === 'draft' ? `saved ${new Date(m.updated_at).toLocaleDateString()} (${m.points.filter(p => p.stat && p.heading && p.caption).length} of ${POINT_COUNT} complete${m.photo_path ? ', photo added' : ''})` : `sent ${m.submitted_at ? new Date(m.submitted_at).toLocaleDateString() : ''}`}
                   </div>
                   {m.status === 'rejected' && m.rejection_reason && (
                     <div style={{ fontSize: 12, color: '#a13a2f', marginTop: 6, background: '#fbe9e7', padding: '6px 10px', borderRadius: 5 }}>{m.rejection_reason}</div>
@@ -704,14 +738,20 @@ export default function ProudPointsWidget({ embed = false }: { embed?: boolean }
   )
 }
 
-function PointFields({ n, p, set, onPhoto }: { n: number; p: FormPoint; set: (patch: Partial<FormPoint>) => void; onPhoto: (f: File) => void }) {
+function PointFields({ n, p, set }: { n: number; p: FormPoint; set: (patch: Partial<FormPoint>) => void }) {
   const id = `ppw-${n}`
+  // Words are refused as they are typed (cleanStatInput); a value that is
+  // still not a number or grade, like "AD", gets the rule shown under it.
+  const statBad = !!p.stat && !statOk(p.stat)
   return (
     <div className="ppw-field">
       <div style={{ fontSize: 13, fontWeight: 800, marginTop: 4 }}>{n ? `Point ${n}` : 'New Proud Point'}</div>
       <label htmlFor={`${id}-stat`}>Data point</label>
-      <input id={`${id}-stat`} className="form-input" value={p.stat} maxLength={STAT_MAX} placeholder="98%, #1, 20+, A" onChange={e => set({ stat: e.target.value })} />
-      <div className="ppw-hint">The big number or grade. Keep it short and something you can back up.</div>
+      <input id={`${id}-stat`} className="form-input" value={p.stat} maxLength={STAT_MAX} placeholder="98%, #1, 20+, A" inputMode="text" autoCapitalize="characters"
+        aria-invalid={statBad} aria-describedby={`${id}-stat-hint`} onChange={e => set({ stat: cleanStatInput(e.target.value) })} />
+      <div id={`${id}-stat-hint`} className="ppw-hint" style={statBad ? { color: '#a13a2f' } : undefined}>
+        {statBad ? STAT_RULE : 'Only the big number or grade, no words. Put the words in the heading.'}
+      </div>
       <CharCount value={p.stat} max={STAT_MAX} />
       <label htmlFor={`${id}-heading`}>Heading</label>
       <input id={`${id}-heading`} className="form-input" value={p.heading} maxLength={HEADING_MAX} placeholder="Graduation rate" onChange={e => set({ heading: e.target.value })} />
@@ -719,21 +759,45 @@ function PointFields({ n, p, set, onPhoto }: { n: number; p: FormPoint; set: (pa
       <label htmlFor={`${id}-caption`}>Caption</label>
       <textarea id={`${id}-caption`} className="form-input" rows={2} value={p.caption} maxLength={CAPTION_MAX} placeholder="One sentence on what it means for families." onChange={e => set({ caption: e.target.value })} />
       <CharCount value={p.caption} max={CAPTION_MAX} />
-      <label htmlFor={`${id}-photo`}>Background photo</label>
-      <input id={`${id}-photo`} type="file" accept="image/png,image/jpeg" disabled={p.photo_busy}
+    </div>
+  )
+}
+
+// The one background photo behind all six points. Required with the first
+// six; optional with a replacement (the school's current photo stays).
+function PhotoField({ p, set, onPhoto, required }: { p: FormPhoto; set: (patch: Partial<FormPhoto>) => void; onPhoto: (f: File) => void; required: boolean }) {
+  return (
+    <fieldset className="ppw-field" style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 14px 12px', marginTop: 16 }}>
+      <legend style={{ fontSize: 12, fontWeight: 800, padding: '0 4px' }}>{required ? 'Background photo' : 'New background photo (optional)'}</legend>
+      <div className="ppw-hint" style={{ marginTop: 0 }}>
+        {required
+          ? 'One photo for the whole Proud Points section. It sits behind all six points on your homepage.'
+          : 'Your homepage shows one photo behind all six points. Leave this empty to keep the current one.'}
+      </div>
+      <label htmlFor="ppw-photo">Photo</label>
+      <input id="ppw-photo" type="file" accept="image/png,image/jpeg" disabled={p.busy}
         onChange={e => { const f = e.target.files?.[0]; if (f) onPhoto(f); e.target.value = '' }} />
       <div className="ppw-hint">
         PNG or JPG, horizontal, at least {PHOTO_MIN_WIDTH} x {PHOTO_MIN_HEIGHT} pixels, no text or graphics on it.
         {PHOTO_RULES_PENDING && ' (Same rules as homepage banners until the District confirms the Proud Points size.)'}
       </div>
-      {p.photo_busy && <div style={{ fontSize: 12, marginTop: 4 }}>Checking the photo...</div>}
-      {p.photo_path && !p.photo_busy && <div style={{ fontSize: 12, marginTop: 4, color: '#1e6b3a' }}>✓ {p.photo_name || 'Photo'} accepted</div>}
+      {p.busy && <div style={{ fontSize: 12, marginTop: 4 }}>Checking the photo...</div>}
+      {p.path && !p.busy && (
+        <div style={{ fontSize: 12, marginTop: 4, color: '#1e6b3a', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span>✓ {p.name || 'Photo'} accepted</span>
+          {!required && <button type="button" className="btn-outline" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => set({ path: null, name: null, url: null, alt: '', text_detected: false })}>Remove</button>}
+        </div>
+      )}
       {p.text_detected && <div style={{ fontSize: 12, marginTop: 4, color: '#8a5a00' }}>Text was found in this photo. If it is a sign in the scene that is fine; the web team will check.</div>}
-      {p.photo_error && <div role="alert" style={{ fontSize: 12, marginTop: 4, color: '#a13a2f' }}>{p.photo_error}</div>}
-      <label htmlFor={`${id}-alt`}>Photo description (alt text)</label>
-      <input id={`${id}-alt`} className="form-input" value={p.alt_text} maxLength={250} placeholder="Students in lab coats testing a water sample" onChange={e => set({ alt_text: e.target.value })} />
-      <div className="ppw-hint">What the photo shows, for visitors who use a screen reader.</div>
-    </div>
+      {p.error && <div role="alert" style={{ fontSize: 12, marginTop: 4, color: '#a13a2f' }}>{p.error}</div>}
+      {(required || p.path) && (
+        <>
+          <label htmlFor="ppw-photo-alt">Photo description (alt text)</label>
+          <input id="ppw-photo-alt" className="form-input" value={p.alt} maxLength={250} placeholder="Students in lab coats testing a water sample" onChange={e => set({ alt: e.target.value })} />
+          <div className="ppw-hint">What the photo shows, for visitors who use a screen reader.</div>
+        </>
+      )}
+    </fieldset>
   )
 }
 
@@ -875,10 +939,21 @@ function ReviewQueue() {
                 <div style={{ fontSize: 12.5, marginTop: 8, background: '#f3f7fb', padding: '6px 10px', borderRadius: 5 }}><strong>Replaces:</strong> {r.replaced_text}</div>
               )}
               <div style={{ marginTop: 10, maxWidth: 760 }}>
-                <ProudPointsPreview tiles={r.points.map(p => ({ slot: p.slot, stat: p.stat, heading: p.heading, caption: p.caption, photo_url: p.photo_url }))} />
+                <ProudPointsPreview tiles={r.points.map(p => ({ slot: p.slot, stat: p.stat, heading: p.heading, caption: p.caption }))} photoUrl={r.photo_url} />
               </div>
               <details style={{ marginTop: 8 }}>
-                <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>Text, photo details and downloads</summary>
+                <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>Text, photo details and download</summary>
+                <div style={{ border: '1px solid var(--border)', borderRadius: 6, padding: 10, fontSize: 12, marginTop: 8, overflowWrap: 'anywhere' }}>
+                  <div style={{ fontWeight: 800 }}>Background photo{r.kind === 'replace' && !r.photo_path ? ': no new photo, keep the current one' : ''}</div>
+                  {r.photo_path && (
+                    <>
+                      <div><strong>Alt text:</strong> {r.photo_alt}</div>
+                      <div style={{ color: 'var(--text-muted)' }}>{r.photo_width && r.photo_height ? `${r.photo_width} x ${r.photo_height}` : ''}</div>
+                      {r.text_detected && <div style={{ color: '#8a5a00' }}>Text detected in the photo. Check it is part of the scene.</div>}
+                      {r.download_url && <a href={r.download_url} className="btn-outline" style={{ display: 'inline-flex', fontSize: 11.5, padding: '3px 8px', marginTop: 4, textDecoration: 'none', borderRadius: 6 }}>Download photo</a>}
+                    </>
+                  )}
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))', gap: 8, marginTop: 8 }}>
                   {r.points.map(p => (
                     <div key={p.slot} style={{ border: '1px solid var(--border)', borderRadius: 6, padding: 10, fontSize: 12, minWidth: 0, overflowWrap: 'anywhere' }}>
@@ -886,10 +961,6 @@ function ReviewQueue() {
                       <div><strong>Data point:</strong> {p.stat}</div>
                       <div><strong>Heading:</strong> {p.heading}</div>
                       <div><strong>Caption:</strong> {p.caption}</div>
-                      <div><strong>Alt text:</strong> {p.alt_text}</div>
-                      <div style={{ color: 'var(--text-muted)' }}>{p.width && p.height ? `${p.width} x ${p.height}` : ''}</div>
-                      {p.text_detected && <div style={{ color: '#8a5a00' }}>Text detected in the photo. Check it is part of the scene.</div>}
-                      {p.download_url && <a href={p.download_url} className="btn-outline" style={{ display: 'inline-flex', fontSize: 11.5, padding: '3px 8px', marginTop: 4, textDecoration: 'none', borderRadius: 6 }}>Download photo</a>}
                     </div>
                   ))}
                 </div>
@@ -940,7 +1011,7 @@ function ReviewQueue() {
 // never read, and some show six on their site with fewer on record.
 function SchoolsPanel({ schools }: { schools: Array<{ loc_no: string; school_name: string }> }) {
   const [loc, setLoc] = useState('')
-  const [info, setInfo] = useState<{ has_six: boolean; override: boolean | null; legacy_count: number; current_source: string } | null>(null)
+  const [info, setInfo] = useState<{ has_six: boolean; override: boolean | null; on_audit_list: boolean; legacy_count: number; current_source: string } | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
 
   async function load(l: string) {
@@ -948,7 +1019,7 @@ function SchoolsPanel({ schools }: { schools: Array<{ loc_no: string; school_nam
     if (!l) return
     const r = await authedFetch(`/api/proud-points/state?loc=${encodeURIComponent(l)}`)
     const d = await r.json()
-    if (r.ok) setInfo({ has_six: d.has_six, override: d.override, legacy_count: d.legacy_count, current_source: d.current_source })
+    if (r.ok) setInfo({ has_six: d.has_six, override: d.override, on_audit_list: d.on_audit_list, legacy_count: d.legacy_count, current_source: d.current_source })
   }
   async function set(has_six: boolean | null) {
     const r = await authedFetch('/api/proud-points/review', { method: 'POST', body: JSON.stringify({ action: 'set_school', loc, has_six }) })
@@ -960,8 +1031,9 @@ function SchoolsPanel({ schools }: { schools: Array<{ loc_no: string; school_nam
   return (
     <div style={{ maxWidth: 640 }}>
       <p style={{ fontSize: 13, marginTop: 0 }}>
-        Whether a school sends all six or replaces one comes from its record: approved submissions here, or the old form&apos;s spreadsheet.
-        If a school&apos;s homepage already shows six but the record says otherwise (or the reverse), set it here.
+        Whether a school sends all six or replaces one comes from the 25/26 website audit: the 27 schools on the
+        &ldquo;Incomplete Component: Proud Points&rdquo; list send all six (until a full set is approved here); every other school replaces one at a time.
+        If a school needs the other flow, set it here.
       </p>
       <select aria-label="School" className="form-select" value={loc} onChange={e => { setLoc(e.target.value); load(e.target.value) }} style={{ width: '100%' }}>
         <option value="">Choose a school...</option>
@@ -969,12 +1041,12 @@ function SchoolsPanel({ schools }: { schools: Array<{ loc_no: string; school_nam
       </select>
       {info && (
         <div style={{ marginTop: 12, fontSize: 13 }}>
-          <div>On record: {info.legacy_count} point{info.legacy_count === 1 ? '' : 's'} from the old form{info.current_source === 'app' ? ', plus approved submissions here' : ''}.</div>
-          <div style={{ marginTop: 4 }}><strong>{info.has_six ? 'Replaces one at a time' : 'Needs all six'}</strong>{info.override !== null ? ' (set by the web team)' : ' (from the record)'}</div>
+          <div>{info.on_audit_list ? 'On the 25/26 audit list.' : 'Not on the 25/26 audit list.'} On record: {info.legacy_count} point{info.legacy_count === 1 ? '' : 's'} from the old form{info.current_source === 'app' ? ', plus approved submissions here' : ''}.</div>
+          <div style={{ marginTop: 4 }}><strong>{info.has_six ? 'Replaces one at a time' : 'Needs all six'}</strong>{info.override !== null ? ' (set by the web team)' : ' (from the audit list)'}</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
             <button type="button" className="btn-outline" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => set(true)}>Has six: replace one at a time</button>
             <button type="button" className="btn-outline" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => set(false)}>Needs all six</button>
-            {info.override !== null && <button type="button" className="btn-outline" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => set(null)}>Use the record</button>}
+            {info.override !== null && <button type="button" className="btn-outline" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => set(null)}>Use the audit list</button>}
           </div>
           {msg && <div role="status" style={{ fontSize: 12, marginTop: 8 }}>{msg}</div>}
         </div>
