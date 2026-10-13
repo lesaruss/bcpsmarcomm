@@ -174,7 +174,10 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
   if (sum.pages.length === 0) return (
     <div className="sa"><style>{CSS}</style>
       {bar}{status}
-      <div className="sa-box"><p className="sa-muted">No pages audited yet.{isAdmin ? ' Use Audit full site to find this site’s pages and audit each one.' : ' The District Web Team runs the audit; results show here.'}</p></div>
+      <div className="sa-box">
+        <p className="sa-muted">No pages audited yet.{isAdmin ? ' Use Audit full site to find this site’s pages and audit each one.' : sum.can_run && owner.department_id ? ' Run your first audit to check your main page. It takes a minute or two.' : ' The District Web Team runs the audit; results show here.'}</p>
+        {sum.can_run && owner.department_id && !isAdmin && <button type="button" className="sa-btn" disabled={busy} onClick={recheck}>{busy ? 'Working…' : 'Run my first audit'}</button>}
+      </div>
     </div>
   )
 
@@ -190,7 +193,7 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
             const done = p.result && on.length === 0
             return (
               <li key={p.id}>
-                <button type="button" className="sa-check-row" onClick={() => openPage(p.id)} disabled={!p.result}>
+                <button type="button" className="sa-check-row" onClick={() => openPage(p.id)} disabled={!p.result && !sum.can_run}>
                   <span className={`sa-tick${done ? ' ok' : p.result ? ' bad' : ''}`} aria-hidden>{done ? '✓' : p.result ? on.length : '–'}</span>
                   <span className="sa-check-text">
                     <span className="sa-check-title">{pageLabel(p)}</span>
@@ -212,7 +215,7 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
   return (
     <div className="sa"><style>{CSS}</style>
       {status}
-      {page && !page.result && <>{bar}<div className="sa-box"><p className="sa-muted">This page has not been audited yet.</p></div></>}
+      {page && !page.result && <>{bar}<div className="sa-box"><p className="sa-muted">This page has not been audited yet.{sum.can_run && owner.department_id ? ' Use Run audit on this page to check it.' : ''}</p></div></>}
       {rid && !full[rid] && <>{bar}<div className="sa-box"><p className="sa-muted">Loading {page ? pageLabel(page) : 'this page'}…</p></div></>}
       {rid && full[rid] && <>
         <AuditViewer audit={full[rid]} showCourse={!adaOnly} toolbar={toolbar} focus={focus}

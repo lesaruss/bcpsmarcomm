@@ -555,7 +555,7 @@ function DepartmentContent() {
                 </button>
               )}
             </div>
-            {!isAdmin && <div style={{fontSize:11,color:'var(--lr-text-50)',marginTop:6,textAlign:'right'}}>{isDeptWcm ? 'Fixed something? Re-check up to 3 times a day. Full audit runs the 1st of each month.' : 'Scheduled: 1st of each month'}</div>}
+            {!isAdmin && <div style={{fontSize:11,color:'var(--lr-text-50)',marginTop:6,textAlign:'right'}}>{isDeptWcm ? 'Fixed something? Re-check up to 15 pages a day.' : 'The District Web Team runs the full audit.'}</div>}
             {auditRunning && auditStep && (
               <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8,padding:'8px 12px',background:'#EBF4FA',borderRadius:8,fontSize:11,fontWeight:700,color:'#1672A7'}}>
                 <span style={{width:11,height:11,border:'2px solid rgba(22,114,167,.3)',borderTopColor:'#1672A7',borderRadius:'50%',display:'inline-block',animation:'spin .7s linear infinite',flexShrink:0}} />

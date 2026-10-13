@@ -921,10 +921,14 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 // Oct 7 (Sean): Overview is the consolidated dashboard (My Department folded
 // in); Run Audit is only the audit and ADA results; Website Review is the
 // process, the windows and how to work through the audit.
-type WcmTab = 'overview' | 'audit' | 'review' | 'widgets' | 'tools'
+// Oct 13 (V): Website Review folds into Run Audit, opened from a button at the
+// top right of the tab, so the guide and the results are in one place.
+type WcmTab = 'overview' | 'audit' | 'widgets' | 'tools'
 
 function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
   const [tab, setTab] = useState<WcmTab>('overview')
+  const [guide, setGuide] = useState<boolean | null>(null)
+  const openGuide = () => { setGuide(true); setTab('audit') }
   const mine = data.departments
   const primary = mine[0]
   const cert = data.my_cert ?? { certified: !!data.my_certified, done: 0, total: 0, pct: data.my_certified ? 100 : 0 }
@@ -935,7 +939,6 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
   const tabs: { id: WcmTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
     ...(mine.length ? [{ id: 'audit' as WcmTab, label: 'Run Audit' }] : []),
-    ...(mine.length ? [{ id: 'review' as WcmTab, label: 'Website Review' }] : []),
     { id: 'widgets', label: 'Widgets' },
     { id: 'tools', label: 'Tools & Resources' },
   ]
@@ -966,7 +969,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
           link={cert.certified ? { label: 'Certificate and badge', href: '/certification/departments/complete' } : { label: cert.pct > 0 ? 'Continue certification' : 'Start certification', href: '/certification/departments/dashboard' }}
         />
         {w && <StatTile label="Your review window" value={formatWindowRange(w)} note={`${w.label}. Bring your director.`}
-          link={mine.length ? { label: 'How the review works', onClick: () => setTab('review') } : undefined} />}
+          link={mine.length ? { label: 'How the review works', onClick: openGuide } : undefined} />}
         {mine.length > 0 && (
           <StatTile
             label="Audit items to fix"
@@ -996,7 +999,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
               {mine.length > 0 && (
                 <li>
                   <b>Work through your audit</b>
-                  <span>Run Audit shows your page with every check pinned on it: green passes, red needs a fix, amber needs you to look. Website Review walks you through it.</span>
+                  <span>Run Audit shows your page with every check pinned on it: green passes, red needs a fix, amber needs you to look. Website Review, at the top of the same tab, walks you through it.</span>
                   <button type="button" className="home-link-btn" onClick={() => setTab('audit')}>Go to Run Audit</button>
                 </li>
               )}
@@ -1010,11 +1013,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
         </>
       )}
       {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
-      {tab === 'audit' && <RunAuditTab depts={mine} canRecheck />}
-      {tab === 'review' && <>
-        {mine.map((d) => <WcmAuditSteps key={d.id} dept={d} showName={mine.length > 1} onAudit={() => setTab('audit')} />)}
-        <ReviewTab led={mine} myWindow={primaryWindow(mine)} />
-      </>}
+      {tab === 'audit' && <RunAuditTab depts={mine} canRecheck guide={guide} onGuide={setGuide} wcm />}
       {tab === 'tools' && <ToolsPanel kind="wcm" onNavigate={onNavigate} kb={data.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
     </div>
   )
@@ -1025,23 +1024,40 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
 // and the ADA results from the same run (components/bcps/SiteAudit). The
 // department's WCM can run the audit again on a page; directors read only
 // (the API decides who may run).
-function RunAuditTab({ depts }: { depts: DepartmentSummary[]; canRecheck?: boolean }) {
+// For a WCM (wcm), the Website Review button at the top right opens the
+// step-by-step guide and their review window above the results (V, Oct 13).
+// It starts open until the department's first audit is in.
+function RunAuditTab({ depts, guide, onGuide, wcm = false }: { depts: DepartmentSummary[]; canRecheck?: boolean; guide?: boolean | null; onGuide?: (open: boolean) => void; wcm?: boolean }) {
   const [pick, setPick] = useState(depts[0]?.id ?? '')
+  const [localGuide, setLocalGuide] = useState<boolean | null>(null)
   const dept = depts.find((d) => d.id === pick) ?? depts[0]
   if (!dept) return null
+  const open = guide ?? localGuide ?? (wcm && !dept.web_review)
+  const setOpen = onGuide ?? setLocalGuide
+  // View As uses sample departments the audit service has never seen.
+  const sample = dept.id.startsWith('sample')
   return (
     <div className="home-section">
-      {depts.length > 1 && (
+      {(depts.length > 1 || wcm) && (
         <div className="home-dept home-section" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
-            Department
-            <select value={dept.id} onChange={(e) => setPick(e.target.value)} style={{ font: 'inherit', padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,.15)' }}>
-              {depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-          </label>
+          {depts.length > 1 ? (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+              Department
+              <select value={dept.id} onChange={(e) => setPick(e.target.value)} style={{ font: 'inherit', padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,.15)' }}>
+                {depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </label>
+          ) : <h3 style={{ margin: 0 }}>{dept.name}</h3>}
+          {wcm && <button type="button" className="wcm-hub2-card-btn" style={{ marginLeft: 'auto' }} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Hide Website Review' : 'Website Review'}</button>}
         </div>
       )}
-      <SiteAudit key={dept.id} owner={{ department_id: dept.id }} />
+      {wcm && open && <>
+        <WcmAuditSteps dept={dept} showName={false} />
+        <ReviewTab led={[dept]} myWindow={primaryWindow([dept])} />
+      </>}
+      {sample
+        ? <div className="home-dept home-section"><p className="home-card-text" style={{ margin: 0 }}>This preview uses a sample department, so there is no scan to show. A WCM sees their own department&apos;s audit here. To see a real one, use View a scan on your Run Audit tab, or View as a real WCM.</p></div>
+        : <SiteAudit key={dept.id} owner={{ department_id: dept.id }} />}
     </div>
   )
 }
@@ -1079,22 +1095,26 @@ function WcmDepartmentCards({ dept, showName, onAudit }: { dept: DepartmentSumma
   )
 }
 
-// Website Review: how to work through the audit, step by step.
-function WcmAuditSteps({ dept, showName, onAudit }: { dept: DepartmentSummary; showName: boolean; onAudit: () => void }) {
-  const s = dept.audit_status || 'not_started'
-  const w = windowForDivision(dept.division)
+// Website Review: how to work through the audit, step by step. Without a
+// department (the team's Run Audit tab) it is the same guide a WCM reads,
+// with no progress marked.
+function WcmAuditSteps({ dept, showName }: { dept?: DepartmentSummary; showName: boolean }) {
+  const s = dept?.audit_status || 'not_started'
+  const w = dept ? windowForDivision(dept.division) : null
+  const audited = !!dept?.web_review
+  const clear = audited && (dept!.web_review!.checks_failed ?? 1) === 0
   const steps: { title: string; body: string; done: boolean; action?: React.ReactNode }[] = [
-    { title: 'Run your audit', body: 'Open Run Audit. Your page appears with a numbered pin on every check: green passes, red needs a fix, amber needs you to look.', done: !!dept.web_review, action: <button type="button" className="wcm-hub2-card-btn" onClick={onAudit}>Open Run Audit</button> },
-    { title: 'Fix the red items', body: 'Click a red check to see where it is on your page, why it matters and the steps in Finalsite. Each one links to the course page that teaches it.', done: !!dept.web_review && (dept.web_review.checks_failed ?? 1) === 0 },
+    { title: 'Run your audit', body: 'On this tab, use Run my first audit, or Run audit on this page. Your page appears with a numbered pin on every check: green passes, red needs a fix, amber needs you to look.', done: audited },
+    { title: 'Fix the red items', body: 'Use Prev and Next to step through every item. Each one shows where it is on your page, why it matters and the steps in Finalsite, with a link to the course page that teaches it.', done: clear },
     { title: 'Look at the amber items', body: 'Amber items need a person to look, like whether an image is a flyer or a PDF is tagged. They never lower your score.', done: false },
-    { title: 'Run the audit again', body: 'After you fix something in Finalsite, run the audit again (up to 3 times a day) and watch the checks turn green.', done: !!dept.web_review && (dept.web_review.checks_failed ?? 1) === 0 },
-    { title: 'Submit for review', body: 'When every red item is fixed, submit your audit. The District Web Team checks the fixes.', done: ['wcm_submitted', 'admin_review', 'complete'].includes(s), action: <a className="wcm-hub2-card-btn" href="/wcm-portal">Submit in my audit</a> },
-    { title: 'Bring your director to the review', body: w ? `${dept.division} is in ${w.label}, ${formatWindowRange(w)}. Your director books the one-hour meeting.` : 'Your director books the one-hour review meeting with the District Web Team.', done: s === 'complete' },
+    { title: 'Run the audit again', body: 'After you fix something in Finalsite, run the audit on that page again (up to 15 pages a day) and watch the checks turn green. Stuck on an item? Use Ask a question on it.', done: clear },
+    { title: 'Submit for review', body: 'When every red item is fixed, submit your audit. The District Web Team checks the fixes.', done: ['wcm_submitted', 'admin_review', 'complete'].includes(s), action: dept ? <a className="wcm-hub2-card-btn" href="/wcm-portal">Submit in my audit</a> : undefined },
+    { title: 'Bring your director to the review', body: w ? `${dept!.division} is in ${w.label}, ${formatWindowRange(w)}. Your director books the one-hour meeting.` : 'Your director books the one-hour review meeting with the District Web Team.', done: s === 'complete' },
   ]
-  const current = steps.findIndex((x) => !x.done)
+  const current = dept ? steps.findIndex((x) => !x.done) : -1
   return (
     <div className="home-dept home-section">
-      <h3 className="home-card-title">{showName ? `${dept.name}: your audit, step by step` : 'Your audit, step by step'}</h3>
+      <h3 className="home-card-title">{showName && dept ? `${dept.name}: Website Review, step by step` : 'Website Review: your audit, step by step'}</h3>
       <ol className="home-wsteps">
         {steps.map((x, i) => (
           <li key={x.title} className={x.done ? 'done' : i === current ? 'now' : undefined}>
@@ -1451,10 +1471,12 @@ const AUDIT_GROUPS: { id: string; label: string; statuses: (string | null)[] }[]
 
 // View a scan (Sean, 2026-10-08): pull up any audited site's scan from the
 // Audits tab, the department sites and the school sites, to walk WCMs or a
-// school team through how a scan looks.
+// school team through how a scan looks. Website Review (V, Oct 13), at the
+// right of the row, opens the same step-by-step guide WCMs read.
 function ScanShowcase() {
   const [sites, setSites] = useState<{ kind: 'department' | 'school'; id: string; name: string; pages: number }[] | null>(null)
   const [pick, setPick] = useState('')
+  const [guide, setGuide] = useState(false)
   useEffect(() => {
     (async () => {
       const { data } = await createClient().auth.getSession()
@@ -1479,13 +1501,17 @@ function ScanShowcase() {
         </select>
         {site && <button type="button" className="home-link-btn" onClick={() => setPick('')}>Close</button>}
         <span className="home-card-text" style={{ margin: 0 }}>Shows the scan exactly as the WCM sees it.</span>
+        <button type="button" className="wcm-hub2-card-btn" style={{ marginLeft: 'auto' }} aria-expanded={guide} onClick={() => setGuide(!guide)}>{guide ? 'Hide Website Review' : 'Website Review'}</button>
       </div>
-      {site && <SiteAudit key={site.id} owner={site.kind === 'department' ? { department_id: site.id } : { school_id: site.id }} adaOnly={site.kind === 'school'} isAdmin />}
+      {guide && <WcmAuditSteps showName={false} />}
+      {site &&<SiteAudit key={site.id} owner={site.kind === 'department' ? { department_id: site.id } : { school_id: site.id }} adaOnly={site.kind === 'school'} isAdmin />}
     </div>
   )
 }
 
-function AuditsPanel({ depts, onNavigate }: { depts: DepartmentSummary[]; onNavigate: Navigate }) {
+// Run Audit (V, Oct 13; was Audits): the scan viewer, every department's
+// audit status, and the ADA results that used to be their own tab.
+function AuditsPanel({ depts, onNavigate, ada }: { depts: DepartmentSummary[]; onNavigate: Navigate; ada?: TeamAda }) {
   const [group, setGroup] = useState<string>('all')
   const [q, setQ] = useState('')
   const counts = AUDIT_GROUPS.map((g) => ({ ...g, n: depts.filter((d) => g.statuses.includes(d.audit_status ?? null)).length }))
@@ -1529,6 +1555,10 @@ function AuditsPanel({ depts, onNavigate }: { depts: DepartmentSummary[]; onNavi
         </div>
         {shown.length === 0 && <p className="home-card-text">No departments match.</p>}
       </div>
+      {ada && <div className="home-section">
+        <h3 className="home-grp">ADA</h3>
+        <AdaPanel ada={ada} onNavigate={onNavigate} />
+      </div>}
     </>
   )
 }
@@ -1912,9 +1942,8 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
     { id: 'program', label: 'Program' },
     ...((th.team_members?.length ?? 0) > 0 ? [{ id: 'team', label: 'Team' }] : []),
     { id: 'departments', label: 'Departments' },
-    { id: 'audits', label: 'Audits' },
+    { id: 'audits', label: 'Run Audit' },
     { id: 'analytics', label: 'Analytics' },
-    { id: 'ada', label: 'ADA' },
     { id: 'tools', label: 'Tools & Resources' },
     { id: 'admin', label: 'Admin' },
     { id: 'ops', label: 'Team Operations' },
@@ -1947,8 +1976,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'team' && <TeamPanel members={th.team_members ?? []} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
-      {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
-      {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} />}
+      {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
       {tab === 'admin' && <AdminPanel onNavigate={onNavigate} />}
       {tab === 'ops' && <DashboardPage onNavigate={onNavigate} viewAsUserId={viewAsUserId} />}
@@ -1979,7 +2007,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
     ? [
         { id: 'overview', label: 'Overview' },
         { id: 'marcomm', label: 'MarComm Assignments' },
-        { id: 'audits', label: 'Audits' },
+        { id: 'audits', label: 'Run Audit' },
         { id: 'program', label: 'Program' },
         { id: 'departments', label: 'Departments' },
         ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
@@ -2031,7 +2059,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />
       </>}
       {tab === 'marcomm' && <MarcommAssignmentsPage embedded />}
-      {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} />}
+      {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'banners' && <BannersPanel b={th.banners} pp={th.proud_points} onNavigate={onNavigate} />}

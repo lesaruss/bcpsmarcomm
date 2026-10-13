@@ -175,6 +175,21 @@ export async function runAndSavePageAudit(db: SupabaseClient, t: AuditTarget, op
       carry_forward:   false,
     }))
     findingsCount = findingRows.length
+    // A new scan of a page replaces that page's earlier open findings in this
+    // round, so a re-check never stacks a second copy of every item. Fixed
+    // ones stay as the record of what the WCM did. The main page also
+    // replaces findings from audits made before site runs (no site_page_id).
+    let prior = db.from('bcps_audit_results').select('id').eq('department_id', t.departmentId).neq('id', result.id)
+    prior = t.sitePageId
+      ? (t.mode === 'dept-main' ? prior.or(`site_page_id.eq.${t.sitePageId},site_page_id.is.null`) : prior.eq('site_page_id', t.sitePageId))
+      : prior.is('site_page_id', null)
+    const { data: priorRows } = await prior.limit(1000)
+    const priorIds = (priorRows ?? []).map((r) => r.id as string)
+    if (priorIds.length) {
+      const { error } = await db.from('bcps_audit_findings').delete()
+        .in('audit_result_id', priorIds).eq('round_number', opts.roundNumber).eq('wcm_fixed', false)
+      if (error) console.error('[audit] replacing earlier findings failed:', error)
+    }
     if (findingRows.length) {
       const { error } = await db.from('bcps_audit_findings').insert(findingRows)
       if (error) console.error('[audit] findings insert error:', error)
