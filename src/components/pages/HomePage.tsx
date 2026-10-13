@@ -15,7 +15,7 @@ import type { AuditV3 } from '@/components/bcps/AuditViewer'
 import SiteAudit from '@/components/bcps/SiteAudit'
 import { SAMPLE_SUPERADMIN_ID, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
-import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
+import { TOOLS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
 import {
   REVIEW_CYCLE, REVIEW_WINDOWS, NEXT_CYCLE_START, windowForDivision, windowState,
   formatWindowDate, formatWindowRange, type ReviewWindow,
@@ -1583,6 +1583,10 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
     : isSA || !SUPERADMIN_PAGES_SET.has(t.gate)
   const mine = TOOLS.filter(canOpen)
   const top = TOP_TOOLS[kind].map((l) => mine.find((t) => t.label === l)).filter((t): t is Tool => !!t)
+  // Every tool this person can open is a tile, nothing folded away (Sean,
+  // 2026-10-13: Members was hidden in the Browse dropdown). Their role's
+  // most-used tools lead, then the rest in menu order; search narrows it.
+  const allTiles = [...top, ...mine.filter((t) => !top.includes(t))]
   const open = (t: Tool) => { if (t.page) onNavigate(t.page); else if (t.href) window.location.href = t.href }
 
   type Item = { key: string; kind: string; title: string; desc: string; text: string; icon?: React.ReactNode; go: () => void }
@@ -1628,10 +1632,11 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
         </div>
       ) : (
         <>
-          {/* Sean, Oct 7: every tool as a large tile, four to a row. */}
+          {/* Sean, Oct 7: every tool as a large tile, four to a row. Oct 13:
+              all of them, not just the role's top picks. */}
           <h3 className="home-grp">Your tools</h3>
           <div className="home-tiles4">
-            {top.map((t) => tile({ key: `top:${t.label}`, kind: t.group, title: t.label, desc: t.desc, text: '', icon: Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0], go: () => open(t) }))}
+            {allTiles.map((t) => tile({ key: `top:${t.label}`, kind: t.group, title: t.label, desc: t.desc, text: '', icon: Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0], go: () => open(t) }))}
             {tile({ key: 'top:ask', kind: 'Ask', title: 'Ask a question', desc: 'Can\u2019t find it? Ask, and the answer can become the next article.', text: '', icon: '?', go: () => openFeedback('Question for the knowledge base: ') })}
             {tile({ key: 'top:topic', kind: 'Ask', title: 'Suggest a Hot Lab topic', desc: 'Something to walk through together.', text: '', icon: '+', go: () => openFeedback('Hot Lab topic suggestion: ') })}
           </div>
@@ -1644,21 +1649,6 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
         </>
       )}
 
-      <details className="home-browse">
-        <summary>Browse every tool ({mine.length})</summary>
-        {TOOL_GROUPS.map((g) => {
-          const list = mine.filter((t) => t.group === g)
-          if (!list.length) return null
-          return (
-            <div key={g} className="home-bgroup">
-              <h4>{g}</h4>
-              <p>{list.map((t, i) => (
-                <span key={t.label}>{i > 0 && ' · '}<button type="button" className="home-link-btn" onClick={() => open(t)}>{t.label}</button></span>
-              ))}</p>
-            </div>
-          )
-        })}
-      </details>
     </>
   )
 }

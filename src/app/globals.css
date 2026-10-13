@@ -1862,9 +1862,6 @@ td > .home-tag:first-child { margin-left: 0; }
 .home-tsearch label { display: block; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 6px; }
 .home-tsearch input { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 10px 12px; border: 1.5px solid rgba(22,114,167,0.35); border-radius: 8px; }
 .home-tresults { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 14px; }
-.home-browse summary { cursor: pointer; font-size: 13px; font-weight: 700; color: #0e4e73; padding: 6px 0; }
-.home-bgroup h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin: 14px 0 4px; }
-.home-bgroup p { font-size: 13.5px; line-height: 1.9; margin: 0; }
 @media (max-width: 760px) {
   .home-hero { padding: 20px; }
   .home-hero.with-side, .home-review-top.with-video { grid-template-columns: minmax(0, 1fr); }
