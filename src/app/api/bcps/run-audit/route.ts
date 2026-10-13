@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runAndSavePageAudit } from '@/lib/dept-audit-run'
-import { identifyCaller } from '@/lib/bcps-audit-auth'
+import { identifyCaller, isDeptWcm } from '@/lib/bcps-audit-auth'
 
 // This route now launches headless Chromium for a real axe scan, so it needs
 // the same budget its siblings already use (ada-scan, school-scan). Without
@@ -43,8 +43,9 @@ export async function POST(req: NextRequest) {
       .single()
     if (deptErr || !dept) return NextResponse.json({ error: 'Department not found' }, { status: 404 })
 
-    const isDeptWcm = !!dept.wcm_email && dept.wcm_email.trim().toLowerCase() === caller.email
-    if (!caller.admin && !isDeptWcm) return NextResponse.json({ error: 'Only this department’s WCM or the District Web Team can run this audit.' }, { status: 403 })
+    // A WCM is anyone on the department's WCM roster (lib/bcps-audit-auth isDeptWcm).
+    const deptWcm = await isDeptWcm(supabase, caller.email, dept)
+    if (!caller.admin && !deptWcm) return NextResponse.json({ error: 'Only this department’s WCM or the District Web Team can run this audit.' }, { status: 403 })
     if (!caller.admin) {
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
       const { count } = await supabase.from('bcps_audit_results').select('id', { count: 'exact', head: true })

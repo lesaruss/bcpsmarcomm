@@ -16,7 +16,7 @@ interface Department {
 
 interface Finding {
   id: string
-  category: 'layout' | 'content' | 'nav' | 'ada'
+  category: 'layout' | 'content' | 'nav' | 'ada' | 'standards'
   severity: 'critical' | 'serious' | 'moderate' | 'minor'
   finding_text: string
   recommendation: string | null
@@ -26,7 +26,7 @@ interface Finding {
 }
 
 const SEVERITY_ORDER: Record<string, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 }
-const CATEGORY_LABELS: Record<string, string> = { layout: 'Layout', content: 'Content', nav: 'Navigation', ada: 'Accessibility (ADA)' }
+const CATEGORY_LABELS: Record<string, string> = { layout: 'Layout', content: 'Content', nav: 'Navigation', ada: 'Accessibility (ADA)', standards: 'Certification Standards' }
 const SEVERITY_COLORS: Record<string, string> = {
   critical: '#DC2626',
   serious:  '#EA580C',
@@ -49,6 +49,7 @@ export default function WCMPortalPage() {
 
   const [loading, setLoading]       = useState(true)
   const [dept, setDept]             = useState<Department | null>(null)
+  const [myDepts, setMyDepts]       = useState<{ id: string; name: string }[]>([])
   const [findings, setFindings]     = useState<Finding[]>([])
   const [userEmail, setUserEmail]   = useState<string | null>(null)
   const [error, setError]           = useState<string | null>(null)
@@ -57,38 +58,39 @@ export default function WCMPortalPage() {
   const [fixingId, setFixingId]     = useState<string | null>(null)
   const [filterCategory, setFilterCategory] = useState<string>('all')
 
-  const loadPortal = useCallback(async () => {
+  // The WCM's departments and findings come from /api/bcps/wcm-portal, which
+  // matches them on the department's WCM roster (lib/bcps-audit-auth). A WCM
+  // of several departments picks one.
+  const authHeader = useCallback(async (): Promise<Record<string, string>> => {
+    const { data } = await supabase.auth.getSession()
+    return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {}
+  }, [supabase])
+
+  const loadPortal = useCallback(async (departmentId?: string) => {
     setLoading(true)
+    setSubmitDone(false)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.email) { setError('Not signed in.'); setLoading(false); return }
       setUserEmail(user.email)
 
-      // Find the department this WCM is assigned to
-      const { data: depts } = await supabase
-        .from('bcps_departments')
-        .select('id, name, wcm_name, wcm_email, audit_status, current_round, wcm_notified_at, wcm_submitted_at')
-        .ilike('wcm_email', user.email)
-        .limit(1)
+      const qs = departmentId ? `?department_id=${encodeURIComponent(departmentId)}` : ''
+      const res = await fetch(`/api/bcps/wcm-portal${qs}`, { headers: await authHeader() })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'load failed')
 
-      if (!depts || depts.length === 0) {
+      if (!json.department) {
         setError("We couldn't find a department assigned to your email address. Contact the District Web Team if this is a mistake.")
         setLoading(false)
         return
       }
 
-      const department = depts[0] as Department
+      const department = json.department as Department
       setDept(department)
+      setMyDepts(json.departments ?? [])
 
-      // Load findings for current round
-      const { data: rows } = await supabase
-        .from('bcps_audit_findings')
-        .select('id, category, severity, finding_text, recommendation, wcm_fixed, wcm_fixed_at, carry_forward')
-        .eq('department_id', department.id)
-        .eq('round_number', department.current_round)
-        .order('wcm_fixed', { ascending: true }) // unfixed first
-
-      setFindings((rows ?? []).sort((a, b) => {
+      const rows = (json.findings ?? []) as Finding[]
+      setFindings(rows.sort((a, b) => {
         if (a.wcm_fixed !== b.wcm_fixed) return a.wcm_fixed ? 1 : -1
         return SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]
       }) as Finding[])
@@ -103,7 +105,7 @@ export default function WCMPortalPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, authHeader])
 
   useEffect(() => { loadPortal() }, [loadPortal])
 
@@ -111,13 +113,14 @@ export default function WCMPortalPage() {
     if (!dept) return
     setFixingId(findingId)
     try {
-      const now = new Date().toISOString()
-      const { error } = await supabase
-        .from('bcps_audit_findings')
-        .update({ wcm_fixed: true, wcm_fixed_at: now })
-        .eq('id', findingId)
-
-      if (error) throw error
+      const res = await fetch('/api/bcps/wcm-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+        body: JSON.stringify({ finding_id: findingId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Could not mark fixed')
+      const now = json.wcm_fixed_at as string
 
       setFindings(prev => prev.map(f =>
         f.id === findingId ? { ...f, wcm_fixed: true, wcm_fixed_at: now } : f
@@ -228,6 +231,15 @@ export default function WCMPortalPage() {
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Website Audit</div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', margin: '0 0 8px' }}>{dept?.name}</h1>
+          {myDepts.length > 1 && (
+            <div style={{ margin: '0 0 12px' }}>
+              <label htmlFor="wcm-portal-dept" style={{ fontSize: 13, color: '#475569', marginRight: 8 }}>Department</label>
+              <select id="wcm-portal-dept" value={dept?.id ?? ''} onChange={(e) => loadPortal(e.target.value)}
+                style={{ fontSize: 14, padding: '6px 10px', borderRadius: 6, border: '1px solid #CBD5E1', maxWidth: '100%' }}>
+                {myDepts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             {statusCfg && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: statusCfg.bg, color: statusCfg.color, fontSize: 13, fontWeight: 600 }}>

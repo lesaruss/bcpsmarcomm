@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { deptAccess, identifyCaller } from '@/lib/bcps-audit-auth'
+import { deptAccessFor, identifyCaller } from '@/lib/bcps-audit-auth'
 
 // Full-site audit, read and queue (Sean, 2026-10-07).
 //   GET  ?department_id= | ?school_id=      the site's pages, each with its
@@ -9,6 +9,8 @@ import { deptAccess, identifyCaller } from '@/lib/bcps-audit-auth'
 //   GET  ...&result_id=                     one page's full audit (checks,
 //        screenshots, ADA results) for the viewer
 //   GET  ?list=1                            every audited site (admins)
+//   GET  ?department_id=&access=1           what the caller may do here
+//        ({ view, run, wcm }), for the department page's Run Audit button
 //   POST { department_id | school_id }      queue a full-site audit (admins)
 // Departments: admins, the department's WCM and its director may view.
 // Schools: admins only for now.
@@ -21,11 +23,11 @@ const SUMMARY = 'id, site_page_id, run_id, audited_at, page_url, overall_score, 
 async function access(req: NextRequest, owner: { department_id?: string | null; school_id?: string | null }) {
   const caller = await identifyCaller(req, supabase)
   if (!caller.ok) return { ok: false as const, status: caller.status }
-  if (owner.school_id) return caller.admin ? { ok: true as const, caller, run: true } : { ok: false as const, status: 403 }
+  if (owner.school_id) return caller.admin ? { ok: true as const, caller, run: true, wcm: false } : { ok: false as const, status: 403 }
   const { data: dept } = await supabase.from('bcps_departments').select('id, wcm_email, director_email').eq('id', owner.department_id).maybeSingle()
   if (!dept) return { ok: false as const, status: 404 }
-  const a = deptAccess(caller, dept)
-  return a.view ? { ok: true as const, caller, run: a.run } : { ok: false as const, status: 403 }
+  const a = await deptAccessFor(supabase, caller, dept)
+  return a.view ? { ok: true as const, caller, run: a.run, wcm: a.wcm } : { ok: false as const, status: 403 }
 }
 
 export async function GET(req: NextRequest) {
@@ -51,6 +53,7 @@ export async function GET(req: NextRequest) {
   const owner = { department_id: q.get('department_id'), school_id: q.get('school_id') }
   if (!owner.department_id && !owner.school_id) return NextResponse.json({ error: 'department_id or school_id required' }, { status: 400 })
   const ok = await access(req, owner)
+  if (q.get('access')) return NextResponse.json(ok.ok ? { view: true, run: ok.run, wcm: ok.wcm } : { view: false, run: false, wcm: false })
   if (!ok.ok) return NextResponse.json({ error: 'Not allowed' }, { status: ok.status })
   const col = owner.department_id ? 'department_id' : 'school_id'
   const id = (owner.department_id ?? owner.school_id) as string
