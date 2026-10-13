@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Find Your District Web Team Lead</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <!--
   Find Your District Web Team Lead (Vanessa + Sean, 2026-10-08). Embed for
   the Finalsite school WCM page, built on the Find It Fast frame
@@ -17,24 +20,32 @@
   bcps_school_assignments is signed-in only since the 2026-10-09 security
   review, so this page must not read it. Edit everything in the Widgets page
   editor; this page needs no edit.
+  Look and feel (Vanessa, 2026-10-12): Open Sans throughout, only the three
+  BCPS colors (Blue #167287, Green #16750C, Orange #C55326), school names in
+  BCPS Green, no lead avatar, and Hot Lab ahead of IIQ everywhere.
 -->
 <style>
   #dwt-module, #dwt-module * { box-sizing: border-box; }
   #dwt-module {
-    /* Same BCPS brand tokens as Find It Fast: BCPS Blue accent, navy/gold
-       pairing, Century Gothic headlines, Arial body. */
-    --fif-navy: #0C2340;
-    --fif-navy-2: #13315C;
-    --fif-accent: #1672A7;
-    --fif-accent-dark: #0E4E73;
-    --fif-gold: #C8A24A;
+    /* BCPS brand colors only (Vanessa, 2026-10-12): Blue, Green, Orange,
+       each with a dark shade for text and a light tint for panels. */
+    --bcps-blue: #167287;
+    --bcps-blue-dark: #0F5564;
+    --bcps-blue-tint: #E8F2F4;
+    --bcps-green: #16750C;
+    --bcps-green-dark: #105709;
+    --bcps-green-tint: #EAF3E8;
+    --bcps-orange: #C55326;
+    --fif-accent: var(--bcps-blue);
+    --fif-accent-dark: var(--bcps-blue-dark);
     --fif-text: #1a1a1a;
     --fif-secondary: #555555;
     --fif-muted: #767676;
+    --fif-link-grey: #3d3d3d;
     --fif-border: #e2e6ea;
-    --fif-bg-tint: #EBF1F8;
-    --fif-font-head: "Century Gothic", "Apple Gothic", Arial, Helvetica, sans-serif;
-    font-family: Arial, Helvetica, sans-serif;
+    --fif-bg-tint: var(--bcps-blue-tint);
+    --fif-font-head: "Open Sans", Arial, Helvetica, sans-serif;
+    font-family: "Open Sans", Arial, Helvetica, sans-serif;
     background: #ffffff;
     color: var(--fif-text);
     max-width: 960px;
@@ -67,17 +78,68 @@
     max-width: 680px;
   }
   #dwt-module .fif-intro strong { color: var(--fif-text); }
-  #dwt-module .dwt-process {
-    margin: 4px 0 20px;
-    padding: 12px 14px;
-    background: var(--fif-bg-tint);
-    border-left: 4px solid var(--fif-accent);
+  #dwt-module .dwt-process-head {
+    font-family: var(--fif-font-head);
+    margin: 14px 0 10px;
+    font-size: 17px;
+    line-height: 1.3;
+    color: var(--fif-text);
+  }
+  #dwt-module .dwt-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+    gap: 12px;
+    margin: 0 0 22px;
+  }
+  /* Two matching support boxes: light BCPS tint with a dark BCPS bar on the
+     left. Hot Lab (Blue) comes first, IIQ ticket (Green) second. */
+  #dwt-module .dwt-step {
+    --step: var(--bcps-blue);
+    --step-dark: var(--bcps-blue-dark);
+    --step-tint: var(--bcps-blue-tint);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    background: var(--step-tint);
+    border-left: 4px solid var(--step);
     border-radius: 6px;
+  }
+  #dwt-module .dwt-step[hidden] { display: none; }
+  #dwt-module .dwt-step-iiq {
+    --step: var(--bcps-green);
+    --step-dark: var(--bcps-green-dark);
+    --step-tint: var(--bcps-green-tint);
+  }
+  #dwt-module .dwt-step-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--step-dark);
+  }
+  #dwt-module .dwt-step-text {
+    margin: 0;
     font-size: 14px;
     line-height: 1.5;
     color: var(--fif-text);
   }
-  #dwt-module .dwt-process a { color: var(--fif-accent-dark); font-weight: 700; }
+  #dwt-module .dwt-step-btn {
+    margin-top: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    min-height: 40px;
+    border-radius: 100px;
+    background: var(--step);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  #dwt-module .dwt-step-btn:hover { background: var(--step-dark); text-decoration: underline; }
+  #dwt-module .dwt-step-btn svg { width: 14px; height: 14px; }
   #dwt-module .fif-search-row {
     display: flex;
     gap: 10px;
@@ -148,8 +210,8 @@
   }
   #dwt-module .fif-cat-btn:hover { background: rgba(220, 221, 224, 0.8); color: #232327; }
   #dwt-module .fif-cat-btn[aria-pressed="true"] {
-    background: linear-gradient(135deg, var(--fif-navy), var(--fif-navy-2));
-    border-color: var(--fif-navy);
+    background: var(--bcps-blue);
+    border-color: var(--bcps-blue);
     color: #ffffff;
   }
   #dwt-module .fif-count {
@@ -188,6 +250,7 @@
     margin: 0;
     font-size: 16px;
     line-height: 1.3;
+    color: var(--bcps-green);
   }
   #dwt-module .dwt-loc {
     margin: -6px 0 0;
@@ -195,28 +258,10 @@
     color: var(--fif-muted);
   }
   #dwt-module .dwt-lead {
-    display: flex;
-    align-items: center;
-    gap: 10px;
     padding-top: 10px;
     border-top: 1px solid var(--fif-border);
+    min-width: 0;
   }
-  #dwt-module .dwt-avatar {
-    flex-shrink: 0;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    object-fit: cover;
-    background: linear-gradient(135deg, var(--fif-navy), var(--fif-navy-2));
-    color: #ffffff;
-    font-family: var(--fif-font-head);
-    font-weight: 700;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  #dwt-module .dwt-lead-text { min-width: 0; }
   #dwt-module .dwt-lead-role {
     display: block;
     font-size: 11px;
@@ -231,11 +276,6 @@
     font-weight: 700;
     color: var(--fif-text);
   }
-  #dwt-module .dwt-lead-title {
-    display: block;
-    font-size: 12.5px;
-    color: var(--fif-secondary);
-  }
   #dwt-module .dwt-bio {
     margin: 0;
     font-size: 13.5px;
@@ -246,7 +286,7 @@
     margin-top: auto;
     font-size: 13px;
     font-weight: 700;
-    color: var(--fif-accent-dark);
+    color: var(--fif-link-grey);
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -291,41 +331,6 @@
     color: var(--fif-secondary);
     font-weight: 600;
   }
-  #dwt-module .dwt-hotlab {
-    margin: -8px 0 20px;
-    padding: 14px 16px;
-    border: 1px solid var(--fif-border);
-    border-radius: 8px;
-    background: #ffffff;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 16px;
-  }
-  #dwt-module .dwt-hotlab[hidden] { display: none; }
-  #dwt-module .dwt-hotlab-text {
-    flex: 1 1 260px;
-    margin: 0;
-    font-size: 13.5px;
-    color: var(--fif-secondary);
-    line-height: 1.5;
-  }
-  #dwt-module .dwt-hotlab-text strong { color: var(--fif-text); }
-  #dwt-module .dwt-hotlab-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 9px 16px;
-    min-height: 40px;
-    border-radius: 100px;
-    background: linear-gradient(135deg, var(--fif-navy), var(--fif-navy-2));
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 700;
-    text-decoration: none;
-  }
-  #dwt-module .dwt-hotlab-btn:hover { text-decoration: underline; }
-  #dwt-module .dwt-hotlab-btn svg { width: 14px; height: 14px; }
   #dwt-module .dwt-card-links { margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px 16px; }
   #dwt-module .fif-sr-only {
     position: absolute;
@@ -352,10 +357,18 @@
   <p class="fif-eyebrow">District Support Team</p>
   <h2 id="dwt-heading">Need website support? Know who to contact.</h2>
   <p class="fif-intro">Every school is now assigned a <strong>District Web Team Lead</strong> to provide consistent, dedicated support for WCMs. Use the directory below to find your school and identify your assigned <strong>District Web Team Lead</strong>.</p>
-  <p class="dwt-process"><strong>The support process remains the same:</strong> Submit an <a id="dwt-iiq-link" href="https://browardschools.incidentiq.com/" target="_blank" rel="noopener noreferrer">Incident IQ (IIQ) ticket</a> when you need assistance. Your school's District Web Team Lead will help guide your request and provide support.</p>
-  <div class="dwt-hotlab" id="dwt-hotlab" hidden>
-    <p class="dwt-hotlab-text" id="dwt-hotlab-text"></p>
-    <a class="dwt-hotlab-btn" id="dwt-hotlab-link" href="#" target="_blank" rel="noopener noreferrer" hidden>See Hot Lab dates and links</a>
+  <h3 class="dwt-process-head">The support process remains the same</h3>
+  <div class="dwt-steps">
+    <div class="dwt-step dwt-step-hotlab" id="dwt-hotlab" hidden>
+      <p class="dwt-step-title">Join a Hot Lab</p>
+      <p class="dwt-step-text" id="dwt-hotlab-text"></p>
+      <a class="dwt-step-btn" id="dwt-hotlab-link" href="#" target="_blank" rel="noopener noreferrer" hidden>See Hot Lab dates and links</a>
+    </div>
+    <div class="dwt-step dwt-step-iiq">
+      <p class="dwt-step-title">Submit an IIQ ticket</p>
+      <p class="dwt-step-text">Submit an Incident IQ (IIQ) ticket when you need assistance. Your school's District Web Team Lead will help guide your request and provide support.</p>
+      <a class="dwt-step-btn" id="dwt-iiq-link" href="https://browardschools.incidentiq.com/" target="_blank" rel="noopener noreferrer">Submit an IIQ ticket</a>
+    </div>
   </div>
 
   <div class="fif-search-row">
@@ -435,10 +448,6 @@
   }
   function safeUrl(u) { return /^https:\/\//i.test(u || "") ? u : ""; }
   function norm(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
-  function initials(n) {
-    return n.split(/\s+/).filter(function (w) { return /^[A-Z]/.test(w) && w.length > 1; })
-      .map(function (w) { return w[0]; }).filter(function (c, i, a) { return i === 0 || i === a.length - 1; }).join("");
-  }
   function iiqUrl() { return safeUrl(SETTINGS.iiq_url) || DEFAULT_IIQ; }
   function hotLabUrl() { return safeUrl(SETTINGS.hot_lab_url); }
 
@@ -501,20 +510,12 @@
     return q.split(" ").every(function (w) { return s.key.indexOf(w) !== -1; });
   }
 
-  function avatar(l) {
-    return l.photo
-      ? '<img class="dwt-avatar" src="' + esc(l.photo) + '" alt="">'
-      : '<span class="dwt-avatar" aria-hidden="true">' + esc(initials(l.name)) + '</span>';
-  }
-
   function card(s, single) {
     var l = LEAD_BY[s.lead];
     var tag = [s.level, s.region].filter(Boolean).join(" · ");
     var lead = l
-      ? '<div class="dwt-lead">' + avatar(l) +
-          '<span class="dwt-lead-text"><span class="dwt-lead-role">District Web Team Lead</span>' +
-          '<span class="dwt-lead-name">' + esc(l.name) + '</span>' +
-          (l.title ? '<span class="dwt-lead-title">' + esc(l.title) + '</span>' : '') + '</span></div>' +
+      ? '<div class="dwt-lead"><span class="dwt-lead-role">District Web Team Lead</span>' +
+          '<span class="dwt-lead-name">' + esc(l.name) + '</span></div>' +
           (single && l.bio ? '<p class="dwt-bio">' + esc(l.bio) + '</p>' : '')
       : '<p class="dwt-bio">A District Web Team Lead for this school is being assigned. Submit an IIQ ticket and the team will help.</p>';
     return '<article class="fif-card">' +
@@ -523,8 +524,8 @@
       '<p class="dwt-loc">Location number ' + esc(s.loc) + '</p>' +
       lead +
       '<div class="dwt-card-links">' +
-        '<a class="fif-visit" href="' + esc(iiqUrl()) + '" target="_blank" rel="noopener noreferrer">Submit an IIQ ticket' + EXT_ICON + '</a>' +
         (hotLabUrl() ? '<a class="fif-visit" href="' + esc(hotLabUrl()) + '" target="_blank" rel="noopener noreferrer">Join a Hot Lab' + EXT_ICON + '</a>' : '') +
+        '<a class="fif-visit" href="' + esc(iiqUrl()) + '" target="_blank" rel="noopener noreferrer">Submit an IIQ ticket' + EXT_ICON + '</a>' +
       '</div>' +
       '</article>';
   }
@@ -597,6 +598,7 @@
   countEl.textContent = "Loading schools...";
   loadContent().then(function () {
     iiqLinkEl.href = iiqUrl();
+    iiqLinkEl.innerHTML = "Submit an IIQ ticket" + EXT_ICON;
     // Hot Labs: the note plus a button to the calendar with each session's
     // date and join link (hot_lab_url, set in the Widgets page editor).
     if (SETTINGS.hot_lab_text || hotLabUrl()) {
