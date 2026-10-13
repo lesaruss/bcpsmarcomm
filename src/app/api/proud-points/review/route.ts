@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { svc, caller, schoolByLoc } from '@/lib/proudPointsApi'
 import { sendEmail } from '@/lib/resend'
-import { isReviewer, isValidRejectionReason, escapeHtml, signPhoto, schoolState, type ProudPoint } from '@/lib/proudPoints'
+import { isReviewer, isValidRejectionReason, escapeHtml, signPhoto, schoolState } from '@/lib/proudPoints'
 
 // District Web Team review queue for Proud Points: the same reviewers and the
 // same approve / reject / mark-posted flow as banners (/api/banner/review).
 // Mark posted is the step that tells the WCM it is live: the web team posts in
 // Finalsite, clicks Mark posted, and the WCM gets the email (Sean, 2026-10-08).
 //
-// GET: every submitted row (drafts excluded) with signed photo links.
+// GET: every submitted row (drafts excluded) with a signed link to its one
+// background photo.
 // POST: { id, action: approve | reject | mark_posted | unmark_posted, rejection_reason? }
 //    or { action: 'set_school', loc, has_six: true | false | null }  (override)
 
@@ -36,25 +37,22 @@ export async function GET(req: NextRequest) {
     .order('submitted_at', { ascending: false }).limit(200)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const paths = (data ?? []).flatMap(r => (r.points as ProudPoint[]).map(p => p.photo_path)).filter((p): p is string => !!p)
+  const paths = (data ?? []).map(r => r.photo_path as string | null).filter((p): p is string => !!p)
   const { data: photos } = paths.length
     ? await svc.from('bcps_proud_point_photos').select('path, width, height, content_scan').in('path', paths)
     : { data: [] as { path: string; width: number; height: number; content_scan: { text_detected?: boolean; text_reason?: string } | null }[] }
   const photoInfo = new Map((photos ?? []).map(p => [p.path, p]))
 
-  const rows = await Promise.all((data ?? []).map(async r => ({
-    ...r,
-    points: await Promise.all((r.points as ProudPoint[]).map(async p => {
-      const info = p.photo_path ? photoInfo.get(p.photo_path) : undefined
-      const ext = (p.photo_name?.match(/\.([a-zA-Z0-9]+)$/)?.[1] || 'jpg').toLowerCase()
-      const signed = await signPhoto(svc, p.photo_path, `${slug(r.school_name)}_proud-point-${p.slot}_${slug(p.heading)}.${ext}`)
-      return {
-        ...p, photo_url: signed.url, download_url: signed.download_url,
-        width: info?.width ?? null, height: info?.height ?? null,
-        text_detected: !!info?.content_scan?.text_detected,
-      }
-    })),
-  })))
+  const rows = await Promise.all((data ?? []).map(async r => {
+    const info = r.photo_path ? photoInfo.get(r.photo_path) : undefined
+    const ext = ((r.photo_name as string | null)?.match(/\.([a-zA-Z0-9]+)$/)?.[1] || 'jpg').toLowerCase()
+    const signed = await signPhoto(svc, r.photo_path, `${slug(r.school_name)}_proud-points-background.${ext}`)
+    return {
+      ...r, photo_url: signed.url, download_url: signed.download_url,
+      photo_width: info?.width ?? null, photo_height: info?.height ?? null,
+      text_detected: !!info?.content_scan?.text_detected,
+    }
+  }))
 
   const { data: overrides } = await svc.from('bcps_proud_point_schools').select('loc_no, has_six, set_by_email, updated_at')
   return NextResponse.json({ submissions: rows, overrides: overrides ?? [], my_role: auth.role })

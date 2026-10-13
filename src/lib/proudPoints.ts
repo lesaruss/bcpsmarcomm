@@ -7,7 +7,17 @@
 // - A school without six points on record sends all six; the form keeps a
 //   draft until all six are complete.
 // - A school with six replaces one at a time. Replacing is the removal.
-// - Each point: a data point, a heading, a caption, and a background photo.
+// - Each point: a data point, a heading and a caption.
+//
+// Round 2 (Vanessa, 2026-10-12):
+// - Who sends all six is the 25/26 website audit list (bcps_proud_point_audit,
+//   27 schools), not the old form's sheet. Everyone else replaces one.
+// - The data point is only the big number or grade ("98%", "#1", "20+", "A"),
+//   never words: "A rated" or "20+ scholars" is refused (STAT_PATTERN).
+// - One background photo per school: the homepage section shows a single
+//   photo behind all six points, so the photo belongs to the submission, not
+//   to each point. Sending all six needs it; a replacement may include a new
+//   one.
 //
 // Character limits are ours, set from the old form's 1,326 points (median
 // 95 characters in one free-text box, 90th percentile 215): the data point is
@@ -25,6 +35,26 @@ export const HEADING_MAX = 40
 export const CAPTION_MAX = 115
 export const POINT_COUNT = 6
 
+// The data point: a number (optional # or $, commas, decimals, then %, +, K,
+// M or B), a ratio like 1:1, or a letter grade A to F with + or -. Typing
+// keeps a character only while the value is still the start of one of those,
+// so words and spaces cannot be entered: "A rated" stays "A", "20+ scholars"
+// stays "20+".
+export const STAT_PATTERN = /^(?:[A-DF][+-]?|[#$]?\d[\d,]*(?:\.\d+)?(?:%|[KMB])?\+?|\d+:\d+)$/
+const STAT_PARTIAL = /^(?:[A-DF][+-]?|[#$]{0,2}|[#$]?\d[\d,]*(?:\.\d*)?(?:%|[KMB])?\+?|\d+:\d*)$/
+export const STAT_RULE = 'Only the big number or grade, like 98%, #1, 20+, 1:1 or A. Put the words in the heading.'
+export function cleanStatInput(v: string): string {
+  let out = ''
+  for (const c of v.toUpperCase()) {
+    if (out.length >= STAT_MAX) break
+    if (STAT_PARTIAL.test(out + c)) out += c
+  }
+  return out
+}
+export function statOk(v: string): boolean {
+  return STAT_PATTERN.test(v.trim())
+}
+
 // PENDING: Vanessa's Proud Points photo dimensions. Banner rules until then.
 export const PHOTO_MIN_WIDTH = 1920
 export const PHOTO_MIN_HEIGHT = 800
@@ -37,9 +67,13 @@ export interface ProudPoint {
   stat: string
   heading: string
   caption: string
-  photo_path: string | null
-  photo_name: string | null
-  alt_text: string
+}
+
+// The one background photo behind all six points.
+export interface BackgroundPhoto {
+  path: string | null
+  name: string | null
+  alt: string
 }
 
 export type SubmissionKind = 'initial' | 'replace'
@@ -53,7 +87,6 @@ export interface CurrentPoint {
   heading?: string
   caption?: string
   text?: string
-  photo_path?: string | null
 }
 
 // Fixed rejection reasons, kept in sync with ProudPointsWidget.
@@ -93,15 +126,18 @@ export function validatePoint(p: Partial<ProudPoint>, { complete }: { complete: 
   const heading = (p.heading || '').trim()
   const caption = (p.caption || '').trim()
   if (stat.length > STAT_MAX) return `Data point ${p.slot}: ${STAT_MAX} characters at most.`
+  if (complete && stat && !statOk(stat)) return `Data point ${p.slot}: ${STAT_RULE}`
   if (heading.length > HEADING_MAX) return `Heading ${p.slot}: ${HEADING_MAX} characters at most.`
   if (caption.length > CAPTION_MAX) return `Caption ${p.slot}: ${CAPTION_MAX} characters at most.`
   if (!complete) return null
   if (!stat) return `Point ${p.slot} needs a data point.`
   if (!heading) return `Point ${p.slot} needs a heading.`
   if (!caption) return `Point ${p.slot} needs a caption.`
-  if (!p.photo_path) return `Point ${p.slot} needs a background photo.`
-  if (!(p.alt_text || '').trim()) return `Point ${p.slot} needs a photo description (alt text).`
   return null
+}
+
+export function cleanPhoto(p: Partial<BackgroundPhoto> | null | undefined): BackgroundPhoto {
+  return { path: p?.path || null, name: (p?.name || '').slice(0, 200) || null, alt: (p?.alt || '').trim().slice(0, 250) }
 }
 
 export function cleanPoint(p: Partial<ProudPoint>, slot: number): ProudPoint {
@@ -110,29 +146,32 @@ export function cleanPoint(p: Partial<ProudPoint>, slot: number): ProudPoint {
     stat: (p.stat || '').trim().slice(0, STAT_MAX),
     heading: (p.heading || '').trim().slice(0, HEADING_MAX),
     caption: (p.caption || '').trim().slice(0, CAPTION_MAX),
-    photo_path: p.photo_path || null,
-    photo_name: p.photo_name || null,
-    alt_text: (p.alt_text || '').trim().slice(0, 250),
   }
 }
 
 // What a school shows today, and whether it already has six.
-// Order of truth: an approved app submission (initial, then replacements on
-// top), else the old form's last complete set of six. has_six can be forced
-// by the District Web Team (bcps_proud_point_schools) because the old sheet
-// is incomplete for some schools.
+// Points shown: an approved app submission (initial, then replacements on
+// top), else the old form's last complete set of six.
+// has_six, in order: the District Web Team's override for the school
+// (bcps_proud_point_schools); then the 25/26 audit list (a listed school
+// needs all six until a full set is approved here; any other school has
+// six); then, only if the audit table is empty, the record.
 export async function schoolState(svc: SupabaseClient, locNo: string): Promise<{
   has_six: boolean
   override: boolean | null
+  on_audit_list: boolean
   current: CurrentPoint[]
+  current_photo_path: string | null
   current_source: 'app' | 'legacy' | 'none'
   legacy_points: { text: string; submitted_at: string | null }[]
   legacy_count: number
 }> {
-  const [{ data: override }, { data: approved }, { data: legacy }] = await Promise.all([
+  const [{ data: override }, { data: audit }, { count: auditSize }, { data: approved }, { data: legacy }] = await Promise.all([
     svc.from('bcps_proud_point_schools').select('has_six').eq('loc_no', locNo).maybeSingle(),
+    svc.from('bcps_proud_point_audit').select('loc_no').eq('loc_no', locNo).maybeSingle(),
+    svc.from('bcps_proud_point_audit').select('loc_no', { count: 'exact', head: true }),
     svc.from('bcps_proud_point_submissions')
-      .select('kind, points, replace_slot, reviewed_at, submitted_at')
+      .select('kind, points, replace_slot, photo_path, reviewed_at, submitted_at')
       .eq('school_location_nbr', locNo).eq('status', 'approved').is('archived_at', null)
       .order('submitted_at', { ascending: true }),
     svc.from('bcps_proud_point_legacy')
@@ -160,17 +199,20 @@ export async function schoolState(svc: SupabaseClient, locNo: string): Promise<{
 
   let current: CurrentPoint[] = []
   let source: 'app' | 'legacy' | 'none' = 'none'
+  let photoPath: string | null = null
   const app = approved ?? []
   const lastInitial = app.map(a => a.kind).lastIndexOf('initial')
   if (lastInitial >= 0) {
     source = 'app'
-    current = (app[lastInitial].points as ProudPoint[]).map(p => ({ slot: p.slot, source: 'app' as const, stat: p.stat, heading: p.heading, caption: p.caption, photo_path: p.photo_path }))
+    photoPath = app[lastInitial].photo_path ?? null
+    current = (app[lastInitial].points as ProudPoint[]).map(p => ({ slot: p.slot, source: 'app' as const, stat: p.stat, heading: p.heading, caption: p.caption }))
     for (const a of app.slice(lastInitial + 1)) {
+      if (a.photo_path) photoPath = a.photo_path
       if (a.kind !== 'replace' || !a.replace_slot) continue
       const p = (a.points as ProudPoint[])[0]
       if (!p) continue
       current = current.filter(c => c.slot !== a.replace_slot)
-      current.push({ slot: a.replace_slot, source: 'app', stat: p.stat, heading: p.heading, caption: p.caption, photo_path: p.photo_path })
+      current.push({ slot: a.replace_slot, source: 'app', stat: p.stat, heading: p.heading, caption: p.caption })
     }
     current.sort((x, y) => x.slot - y.slot)
   } else {
@@ -183,12 +225,18 @@ export async function schoolState(svc: SupabaseClient, locNo: string): Promise<{
   }
 
   const legacyCount = legacyRows.length
-  const computed = source === 'app' ? current.length >= POINT_COUNT : legacyCount >= POINT_COUNT
+  const fullAppSet = source === 'app' && current.length >= POINT_COUNT
+  const onList = !!audit
+  const computed = (auditSize ?? 0) > 0
+    ? (fullAppSet || !onList)
+    : (source === 'app' ? fullAppSet : legacyCount >= POINT_COUNT)
   const ov = override ? !!override.has_six : null
   return {
     has_six: ov ?? computed,
     override: ov,
+    on_audit_list: onList,
     current,
+    current_photo_path: photoPath,
     current_source: source,
     legacy_points: legacyPoints.slice(0, 18),
     legacy_count: legacyCount,
