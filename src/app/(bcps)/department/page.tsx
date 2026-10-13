@@ -154,6 +154,23 @@ function DepartmentContent() {
   }, [supabase])
 
   const [dept, setDept] = useState<Dept | null>(null)
+
+  // Whether I am one of this department's WCMs: anyone on its WCM roster,
+  // decided server-side by lib/bcps-audit-auth isDeptWcm (the same check
+  // run-audit enforces). Real signed-in identity, like myEmail.
+  const [rosterWcm, setRosterWcm] = useState(false)
+  useEffect(() => {
+    if (!dept?.id) return
+    let cancelled = false
+    supabase.auth.getSession().then(async ({ data }) => {
+      const token = data.session?.access_token
+      if (!token) return
+      const res = await fetch(`/api/bcps/site-audit?department_id=${encodeURIComponent(dept.id)}&access=1`, { headers: { Authorization: `Bearer ${token}` } })
+      const json = await res.json().catch(() => ({}))
+      if (!cancelled) setRosterWcm(!!json.wcm)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [supabase, dept?.id])
   const [audit, setAudit] = useState<Audit | null>(null)
   const [history, setHistory] = useState<Audit[]>([])
   const [analytics, setAnalytics] = useState<AnalyticsRow[]>([])
@@ -309,7 +326,7 @@ function DepartmentContent() {
   const v3Checks = (isV3 && Array.isArray(a?.checks) ? a!.checks : []) as { area: string; status: string }[]
   const v3Std = (() => { const std = v3Checks.filter((c) => c.area !== 'Accessibility'); const p = std.filter((c) => c.status === 'pass').length, f = std.filter((c) => c.status === 'fail').length; return { score: p + f ? Math.round((p / (p + f)) * 100) : null, failed: f, review: std.filter((c) => c.status === 'review').length } })()
   const v3A11yFail = v3Checks.filter((c) => c.area === 'Accessibility' && c.status === 'fail').length
-  const isDeptWcm = !!dept.wcm_email && !!myEmail && dept.wcm_email.trim().toLowerCase() === myEmail
+  const isDeptWcm = rosterWcm || (!!dept.wcm_email && !!myEmail && dept.wcm_email.trim().toLowerCase() === myEmail)
   const canRun = isAdmin || isDeptWcm
   const wcmOwned = (v: AdaItem) => v.owner ? v.owner !== 'finalsite' : WCM_FIXABLE_IDS.has(v.id)
   const adaWcmItems = adaSorted.filter(wcmOwned)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireDistrictUser, isBcpsAdmin } from '@/lib/bcps-auth'
+import { isDeptWcm } from '@/lib/bcps-audit-auth'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -36,12 +37,12 @@ export async function POST(req: NextRequest) {
 
     if (!dept) return NextResponse.json({ error: 'Department not found' }, { status: 404 })
 
-    // Ownership: the signed-in caller must be the WCM of record for this
-    // department, or a BCPS admin. No branch here can be skipped by omitting a
-    // field - a department with no wcm_email on file is admin-only, not open.
+    // Ownership: the signed-in caller must be one of this department's WCMs
+    // (its WCM roster or wcm_email, lib/bcps-audit-auth isDeptWcm), or a BCPS
+    // admin. No branch here can be skipped by omitting a field - a department
+    // with no WCM on file is admin-only, not open.
     const callerEmail = auth.user.email
-    const onFileWcm = (dept.wcm_email || '').trim().toLowerCase()
-    const isOwner = !!onFileWcm && onFileWcm === callerEmail
+    const isOwner = await isDeptWcm(supabase, callerEmail, dept)
     if (!isOwner && !(await isBcpsAdmin(auth.user.userId))) {
       return NextResponse.json(
         { error: 'Only this department\'s Web Content Manager can submit its checklist.' },

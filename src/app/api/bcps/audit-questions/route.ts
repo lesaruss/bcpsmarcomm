@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { deptAccess, identifyCaller } from '@/lib/bcps-audit-auth'
+import { deptAccessFor, identifyCaller } from '@/lib/bcps-audit-auth'
 
 // Audit question bank (Sean, 2026-10-08). A WCM stuck on an audit or ADA item
 // asks from the item itself; the District Web Team answers; the answer then
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   if (!b.check_id || !b.check_title) return NextResponse.json({ error: 'check_id and check_title required' }, { status: 400 })
   if (b.department_id) {
     const { data: dept } = await supabase.from('bcps_departments').select('id, wcm_email, director_email').eq('id', b.department_id).maybeSingle()
-    if (!dept || !deptAccess(caller, dept).view) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+    if (!dept || !(await deptAccessFor(supabase, caller, dept)).view) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
   } else if (b.school_id) {
     if (!caller.admin) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
   } else return NextResponse.json({ error: 'department_id or school_id required' }, { status: 400 })
