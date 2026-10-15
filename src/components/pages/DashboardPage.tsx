@@ -8,6 +8,7 @@ import { MEMBERS } from '@/lib/data'
 import { useBCPSShell } from '@/components/BCPSShell'
 import { getTotalPages } from '@/lib/cert-data'
 import { SAMPLE_ROLE_MEMBERS, SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
+import { downloadSchoolsCsv, csvDateStamp } from '@/lib/school-list-csv'
 
 interface DashboardPageProps {
   onNavigate: (page: PageId) => void
@@ -176,6 +177,7 @@ interface DashLayoutItem { id: string; span: DashSpan }
 const DASH_LAYOUT_STORAGE_KEY = 'bcps-dashboard-layout-v1'
 const DEFAULT_DASH_LAYOUT: DashLayoutItem[] = [
   { id: 'cert', span: 2 },
+  { id: 'myschools', span: 1 },
   { id: 'wcmnotes', span: 1 },
   { id: 'wcmdocs', span: 1 },
   { id: 'wcmteam', span: 1 },
@@ -285,6 +287,11 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   const [openNote, setOpenNote] = useState<AssignmentNote | null>(null)
   const [teamMembers, setTeamMembers] = useState<Array<{ user_id: string; name: string; initials: string; color: string; role: string; department: { slug: string; name: string; division: string | null } | null }>>([])
   const [meId, setMeId] = useState<string | null>(null)
+  // My Schools (Vanessa, 2026-10-13): a District Web Team Lead's own school
+  // list from the Find Your District Web Team Lead assignments, with a CSV
+  // export. Null means the viewer is not a lead, so the tile stays hidden.
+  const [mySchools, setMySchools] = useState<{ loc_no: string; display_name: string; school_level: string | null; region: string | null; no_wcm: boolean }[] | null>(null)
+  const [mySchoolsLead, setMySchoolsLead] = useState('')
   const router = useRouter()
 
   const { canManageMessages } = useBCPSShell()
@@ -464,6 +471,23 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
           // Celia Jimenez): this exact case restarted her from scratch.
           setCertProgress({ pct, completed, total, allDone: completed >= total, hasAnyProgress: data.length > 0 })
         })
+    })
+  }, [viewAsUserId])
+
+  // Only for the signed-in lead's own login; a "view as" preview hides it.
+  useEffect(() => {
+    setMySchools(null)
+    if (viewAsUserId) return
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      const email = user?.email?.toLowerCase()
+      if (!email) return
+      const { data: lead } = await supabase.from('bcps_support_leads').select('full_name').eq('email', email).maybeSingle()
+      if (!lead) return
+      const { data } = await supabase.from('bcps_school_assignments')
+        .select('loc_no, display_name, school_level, region, no_wcm').eq('lead_email', email).order('display_name')
+      setMySchoolsLead(lead.full_name)
+      setMySchools(data ?? [])
     })
   }, [viewAsUserId])
 
@@ -811,6 +835,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   // before this became a reorderable grid.
   const dashWidgetVisible: Record<string, boolean> = {
     cert: certProgress !== null,
+    myschools: mySchools !== null,
     // Meaningless to a WCM/department viewer, per Sean 2026-09-10 ("24
     // active members, 142 notes published..." means nothing to them) -
     // admin/superadmin tiers still get it. Gated on the *effective* role so
@@ -1275,6 +1300,35 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                   <div style={{ marginTop: 14 }}>
                     <button className="btn-outline" onClick={() => onNavigate('documents')}>Browse all documents</button>
                   </div>
+                </div>
+              ))
+
+            // My Schools - a District Web Team Lead's assigned schools, with
+            // an export to CSV (Vanessa, 2026-10-13).
+            case 'myschools':
+              if (mySchools === null) return null
+              return dashCell('myschools', (
+                <div className="dash-panel">
+                  <div className="dash-panel-header">
+                    <h3>My Schools ({mySchools.length})</h3>
+                    <button className="link-btn" disabled={mySchools.length === 0}
+                      onClick={() => downloadSchoolsCsv(mySchools, `my-schools-${mySchoolsLead.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${csvDateStamp()}.csv`)}>
+                      Export to CSV &darr;
+                    </button>
+                  </div>
+                  {mySchools.length === 0 ? (
+                    <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: '13px' }}>No schools are assigned to you yet.</div>
+                  ) : (
+                    <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                      {mySchools.map(s => (
+                        <div key={s.loc_no} style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
+                          <span style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', minWidth: 36 }}>{s.loc_no}</span>
+                          <span style={{ fontWeight: 600, flex: 1 }}>{s.display_name}</span>
+                          {s.no_wcm && <span style={{ fontSize: 10, fontWeight: 800, color: '#C55326', textTransform: 'uppercase' }}>No WCM</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
 

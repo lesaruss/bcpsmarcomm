@@ -23,6 +23,9 @@
   Look and feel (Vanessa, 2026-10-12): Open Sans throughout, only the three
   BCPS colors (Blue #167287, Green #16750C, Orange #C55326), school names in
   BCPS Green, no lead avatar, and Hot Lab ahead of IIQ everywhere.
+  Round 2 (Vanessa, 2026-10-13): school cards no longer repeat the Hot Lab
+  and IIQ links (they sit once at the top), and browsing by a lead shows
+  that lead's name once above their schools instead of on every card.
 -->
 <style>
   #dwt-module, #dwt-module * { box-sizing: border-box; }
@@ -41,7 +44,6 @@
     --fif-text: #1a1a1a;
     --fif-secondary: #555555;
     --fif-muted: #767676;
-    --fif-link-grey: #3d3d3d;
     --fif-border: #e2e6ea;
     --fif-bg-tint: var(--bcps-blue-tint);
     --fif-font-head: "Open Sans", Arial, Helvetica, sans-serif;
@@ -282,18 +284,6 @@
     color: var(--fif-secondary);
     line-height: 1.45;
   }
-  #dwt-module .fif-card .fif-visit {
-    margin-top: auto;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--fif-link-grey);
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-  }
-  #dwt-module .fif-card .fif-visit:hover { text-decoration: underline; }
-  #dwt-module .fif-card .fif-visit svg { width: 13px; height: 13px; }
   #dwt-module .fif-empty {
     padding: 30px 10px;
     text-align: center;
@@ -331,7 +321,17 @@
     color: var(--fif-secondary);
     font-weight: 600;
   }
-  #dwt-module .dwt-card-links { margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  /* One lead banner over that lead's schools when browsing by lead. */
+  #dwt-module .dwt-lead-banner {
+    margin: 0 0 14px;
+    padding: 12px 16px;
+    background: var(--bcps-green-tint);
+    border-left: 4px solid var(--bcps-green);
+    border-radius: 6px;
+  }
+  #dwt-module .dwt-lead-banner[hidden] { display: none; }
+  #dwt-module .dwt-lead-banner .dwt-lead-name { font-size: 18px; }
+  #dwt-module .dwt-lead-banner .dwt-bio { margin-top: 4px; }
   #dwt-module .fif-sr-only {
     position: absolute;
     width: 1px; height: 1px;
@@ -383,6 +383,7 @@
   <p class="fif-cats-label" id="dwt-cats-label">Or browse by District Web Team Lead</p>
   <div class="fif-cats" role="group" aria-labelledby="dwt-cats-label" id="dwt-cats"></div>
 
+  <div class="dwt-lead-banner" id="dwt-lead-banner" hidden></div>
   <p class="fif-count" id="dwt-count" aria-live="polite"></p>
   <div class="fif-grid" id="dwt-grid"></div>
   <p class="fif-empty" id="dwt-empty" hidden>No school matches that search. Try part of the name, or your school's location number.</p>
@@ -432,6 +433,7 @@
   var hotlabTextEl = document.getElementById("dwt-hotlab-text");
   var hotlabLinkEl = document.getElementById("dwt-hotlab-link");
   var iiqLinkEl = document.getElementById("dwt-iiq-link");
+  var leadBannerEl = document.getElementById("dwt-lead-banner");
 
   function supabaseGet(path) {
     return fetch(SUPABASE_URL + "/rest/v1/" + path, {
@@ -510,23 +512,25 @@
     return q.split(" ").every(function (w) { return s.key.indexOf(w) !== -1; });
   }
 
-  function card(s, single) {
+  function leadBlock(l, withBio) {
+    return '<span class="dwt-lead-role">District Web Team Lead</span>' +
+      '<span class="dwt-lead-name">' + esc(l.name) + '</span>' +
+      (withBio && l.bio ? '<p class="dwt-bio">' + esc(l.bio) + '</p>' : '');
+  }
+
+  // Hot Lab and IIQ links live once at the top, not on every card. When the
+  // results all share one lead, that lead shows once in the banner instead.
+  function card(s, single, showLead) {
     var l = LEAD_BY[s.lead];
     var tag = [s.level, s.region].filter(Boolean).join(" · ");
-    var lead = l
-      ? '<div class="dwt-lead"><span class="dwt-lead-role">District Web Team Lead</span>' +
-          '<span class="dwt-lead-name">' + esc(l.name) + '</span></div>' +
-          (single && l.bio ? '<p class="dwt-bio">' + esc(l.bio) + '</p>' : '')
+    var lead = !showLead ? ''
+      : l ? '<div class="dwt-lead">' + leadBlock(l, single) + '</div>'
       : '<p class="dwt-bio">A District Web Team Lead for this school is being assigned. Submit an IIQ ticket and the team will help.</p>';
     return '<article class="fif-card">' +
       '<span class="fif-card-tag">' + SCHOOL_ICON + esc(tag) + '</span>' +
       '<h3>' + esc(s.name) + '</h3>' +
       '<p class="dwt-loc">Location number ' + esc(s.loc) + '</p>' +
       lead +
-      '<div class="dwt-card-links">' +
-        (hotLabUrl() ? '<a class="fif-visit" href="' + esc(hotLabUrl()) + '" target="_blank" rel="noopener noreferrer">Join a Hot Lab' + EXT_ICON + '</a>' : '') +
-        '<a class="fif-visit" href="' + esc(iiqUrl()) + '" target="_blank" rel="noopener noreferrer">Submit an IIQ ticket' + EXT_ICON + '</a>' +
-      '</div>' +
       '</article>';
   }
 
@@ -548,6 +552,13 @@
     });
     var results = SCHOOLS.filter(matches);
     var total = results.length;
+    // Browsing one lead (their chip, or a search for their name) shows the
+    // lead once above the schools; a single school keeps the lead on its card.
+    var oneLead = total > 1 && results.every(function (s) { return s.lead && s.lead === results[0].lead; });
+    var bannerLead = oneLead && (state.lead !== "all" || norm(state.q) && norm(results[0].lead).indexOf(norm(state.q)) !== -1)
+      ? LEAD_BY[results[0].lead] : null;
+    leadBannerEl.innerHTML = bannerLead ? leadBlock(bannerLead, true) : "";
+    leadBannerEl.hidden = !bannerLead;
     var totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     if (state.page > totalPages) state.page = totalPages;
     if (state.page < 1) state.page = 1;
@@ -565,7 +576,7 @@
     var pageResults = results.slice(startIdx, startIdx + PAGE_SIZE);
     countEl.textContent = total === 1 ? "1 school" :
       "Showing " + (startIdx + 1) + "-" + (startIdx + pageResults.length) + " of " + total + " schools";
-    gridEl.innerHTML = pageResults.map(function (s) { return card(s, total === 1); }).join("");
+    gridEl.innerHTML = pageResults.map(function (s) { return card(s, total === 1, !bannerLead); }).join("");
     renderPagination(totalPages);
     postHeight();
     if (scrollTop) {
