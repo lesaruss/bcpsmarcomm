@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
+import { downloadSchoolsCsv, csvDateStamp } from '@/lib/school-list-csv'
 
 interface School { loc_no: string; display_name: string; school_level: string | null; region: string | null; lead_email: string; no_wcm: boolean }
 interface Lead { email: string; full_name: string; title: string | null; bio: string | null; photo_url: string | null; active: boolean; sort_order: number }
@@ -165,6 +166,12 @@ export default function SchoolSupportLeadPage() {
           {leads.map(l => <option key={l.email} value={l.email}>{l.full_name} ({counts[l.email] || 0})</option>)}
         </select>
         <span style={{ fontSize: 12, color: '#9ca3af' }}>Showing {filtered.length} of {schools.length}</span>
+        <button style={{ ...C.btn, marginLeft: 'auto' }} disabled={filtered.length === 0}
+          onClick={() => {
+            const name = (email: string) => leads.find(l => l.email === email)?.full_name ?? ''
+            const who = leadFilter === 'all' ? 'all-leads' : name(leadFilter).toLowerCase().replace(/[^a-z0-9]+/g, '-')
+            downloadSchoolsCsv(filtered.map(s => ({ ...s, lead_name: name(s.lead_email) })), `district-web-team-schools-${who}-${csvDateStamp()}.csv`)
+          }}>Export {filtered.length} to CSV</button>
       </div>
 
       {filtered.map(s => (
