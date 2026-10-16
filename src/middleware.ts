@@ -112,6 +112,10 @@ export async function middleware(request: NextRequest) {
     // yet. Same reasoning as wcm-roster-signup above - must stay public or
     // anonymous visitors get bounced to /login before seeing it.
     pathname.startsWith('/wcm-registration') ||
+    // MarComm Meeting onboarding (2026-10-16): shared with meeting members who
+    // have no account yet. MarComm access is granted server-side only for
+    // emails on the bcps_marcomm_team roster.
+    pathname.startsWith('/marcomm-registration') ||
     // School WCM signup (2026-10-05): visitors have no account yet. Account
     // creation is gated server-side on bcps_schools.wcm_email.
     pathname.startsWith('/school-registration') ||
