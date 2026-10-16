@@ -230,7 +230,7 @@ interface DirectorNote {
 }
 
 interface HomeData {
-  experience: 'superadmin' | 'dwt' | 'director' | 'school_wcm' | 'wcm' | 'member'
+  experience: 'superadmin' | 'dwt' | 'director' | 'school_wcm' | 'wcm' | 'marcomm' | 'member'
   is_dwt: boolean
   is_director: boolean
   // Department Oversight: the Director dashboard across every department.
@@ -923,7 +923,7 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 // process, the windows and how to work through the audit.
 // Oct 13 (V): Website Review folds into Run Audit, opened from a button at the
 // top right of the tab, so the guide and the results are in one place.
-type WcmTab = 'overview' | 'audit' | 'widgets' | 'tools'
+type WcmTab = 'overview' | 'audit' | 'marcomm' | 'widgets' | 'tools'
 
 function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
   const [tab, setTab] = useState<WcmTab>('overview')
@@ -936,9 +936,13 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
   const open = mine.reduce((n, d) => n + d.findings_open, 0)
   const fixed = mine.reduce((n, d) => n + d.findings_fixed, 0)
   const name = firstName(data)
+  const { pages } = useBCPSShell()
+  const canMarcomm = !preview && !!pages?.includes('marcomm-assignments')
   const tabs: { id: WcmTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
     ...(mine.length ? [{ id: 'audit' as WcmTab, label: 'Run Audit' }] : []),
+    // A WCM who is also in the Marcomm Meeting (Sean, 2026-10-16).
+    ...(canMarcomm ? [{ id: 'marcomm' as WcmTab, label: 'MarComm Assignments' }] : []),
     { id: 'widgets', label: 'Widgets' },
     { id: 'tools', label: 'Tools & Resources' },
   ]
@@ -1013,6 +1017,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
         </>
       )}
       {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
+      {tab === 'marcomm' && <MarcommAssignmentsPage embedded />}
       {tab === 'audit' && <RunAuditTab depts={mine} canRecheck guide={guide} onGuide={setGuide} wcm />}
       {tab === 'tools' && <ToolsPanel kind="wcm" onNavigate={onNavigate} kb={data.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
     </div>
@@ -1160,6 +1165,24 @@ function MemberHome({ data, onNavigate }: { data: HomeData; onNavigate: Navigate
       </div>
       <h2 className="home-grp">Tools &amp; Resources</h2>
       <ToolsPanel kind="member" onNavigate={onNavigate} hotLabs={data.hot_labs ?? []} />
+    </div>
+  )
+}
+
+/* ─── MARCOMM MEETING ────────────────────────────────── */
+// Marcomm Meeting members whose only role here is MarComm Assignments (Sean,
+// 2026-10-16). Their job on the site is keeping their own items current, so
+// the home is the list itself with a short how-to above it.
+function MarcommHome({ data }: { data: HomeData }) {
+  const name = firstName(data)
+  return (
+    <div className="home">
+      <div className="home-hero">
+        <div className="home-hero-label">BCPS MarComm Meeting</div>
+        <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome to MarComm Assignments'}</h1>
+        <p>Keep your items current before each Marcomm Meeting: click <b>My items</b>, open a request, set its status and add a note. Everyone sees your updates right away.</p>
+      </div>
+      <MarcommAssignmentsPage embedded />
     </div>
   )
 }
@@ -1996,6 +2019,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   const [tab, setTab] = useState('overview')
   const { pages } = useBCPSShell()
   const canAnalytics = !pages || pages.includes('analytics')
+  const canMarcomm = !!pages?.includes('marcomm-assignments')
   const th = data.team_home!
   const p = th.program
   const w = currentWindow()
@@ -2017,6 +2041,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       ]
     : [
         { id: 'overview', label: 'Overview' },
+        ...(canMarcomm ? [{ id: 'marcomm', label: 'MarComm Assignments' }] : []),
         { id: 'ada', label: 'ADA' },
         { id: 'banners', label: 'Banners' },
         { id: 'program', label: 'Program' },
@@ -2112,7 +2137,7 @@ function PersonPreview({ email, onNavigate, onShowToast }: { email: string; onNa
     return () => { cancelled = true }
   }, [email])
 
-  const label = { superadmin: 'SuperAdmin', dwt: 'District Web Team', director: data?.oversight ? 'Director (Department Oversight)' : 'Director', school_wcm: 'School WCM', wcm: 'Web Content Manager', member: 'Member' }
+  const label = { superadmin: 'SuperAdmin', dwt: 'District Web Team', director: data?.oversight ? 'Director (Department Oversight)' : 'Director', school_wcm: 'School WCM', wcm: 'Web Content Manager', marcomm: 'MarComm Meeting', member: 'Member' }
   const banner = (
     <div className="home-person-banner" role="status">
       <div>
@@ -2131,6 +2156,7 @@ function PersonPreview({ email, onNavigate, onShowToast }: { email: string; onNa
   else if (data.experience === 'director') body = <DirectorHome data={data} onNavigate={onNavigate} />
   else if (data.experience === 'school_wcm') body = <SchoolWcmHome data={data} onNavigate={onNavigate} />
   else if (data.experience === 'wcm') body = <WcmHome data={data} onNavigate={onNavigate} />
+  else if (data.experience === 'marcomm') body = <MarcommHome data={data} />
   else body = <MemberHome data={data} onNavigate={onNavigate} />
   return <>{banner}{body}</>
 }
@@ -2213,5 +2239,6 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { on
   if (data.experience === 'director') return <DirectorHome data={data} onNavigate={onNavigate} />
   if (data.experience === 'school_wcm') return <SchoolWcmHome data={data} onNavigate={onNavigate} />
   if (data.experience === 'wcm') return <WcmHome data={data} onNavigate={onNavigate} />
+  if (data.experience === 'marcomm') return <MarcommHome data={data} />
   return <MemberHome data={data} onNavigate={onNavigate} />
 }
