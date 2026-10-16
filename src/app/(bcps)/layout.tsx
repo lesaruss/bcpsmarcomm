@@ -12,10 +12,13 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
   const isLoginPage    = pathname.startsWith('/login') || pathname.startsWith('/set-password')
   // School WCM signup (2026-10-05): public, standalone, like wcm-registration.
   const isSchoolRegistration = pathname.startsWith('/school-registration')
+  // MarComm Meeting onboarding (2026-10-16): public, standalone, like
+  // wcm-registration. Must match the public path in middleware.ts.
+  const isMarcommRegistration = pathname.startsWith('/marcomm-registration')
 
   // WCM Certification is gated the same as every other /bcps/* module now
   // (per V, 2026-07-28) - no more bespoke cert-only auth bypass here.
-  if (!isWcmPortal && !isWcmRosterForm && !isWcmRegistration && !isLoginPage && !isSchoolRegistration) {
+  if (!isWcmPortal && !isWcmRosterForm && !isWcmRegistration && !isLoginPage && !isSchoolRegistration && !isMarcommRegistration) {
     // BCPS portal auth: redirect to BCPS login if no session
     const cookieStore = cookies()
     const supabase = createServerClient(
@@ -47,8 +50,8 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
     return <>{children}</>
   }
 
-  // Login/set-password: render without BCPSShell wrapper
-  if (isLoginPage || isSchoolRegistration) {
+  // Login/set-password and the standalone signup pages: no BCPSShell wrapper
+  if (isLoginPage || isSchoolRegistration || isMarcommRegistration) {
     return <>{children}</>
   }
 
