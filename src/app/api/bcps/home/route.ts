@@ -195,7 +195,12 @@ export async function GET(req: NextRequest) {
     .map((r) => ({ name: r.name as string, loc_no: (r.school_location_nbr as string | null) ?? null }))
   const isSchoolWcm = mySchools.length > 0 && !isDwt && !isDirector
 
-  const experience = isSuperadmin ? 'superadmin' : isDwt ? 'dwt' : isDirector ? 'director' : isSchoolWcm ? 'school_wcm' : isWcm ? 'wcm' : 'member'
+  // MarComm Meeting members (Sean, 2026-10-16) whose only role here is
+  // updating their MarComm Assignments items get a home built around that list
+  // instead of the generic member page, which talks about departments and WCMs.
+  const isMarcomm = groups.includes('MarComm Meeting')
+
+  const experience = isSuperadmin ? 'superadmin' : isDwt ? 'dwt' : isDirector ? 'director' : isSchoolWcm ? 'school_wcm' : isWcm ? 'wcm' : isMarcomm ? 'marcomm' : 'member'
 
   // A school WCM's own banner requests, for their status strip.
   let myBanners: { pending: number; ready: number; posted: number; rejected: number } | null = null
