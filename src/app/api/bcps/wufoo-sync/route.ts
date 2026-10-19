@@ -26,8 +26,8 @@ type Field = { id: string; title: string; type: string; subfields: { id: string;
 type Entry = Record<string, string>
 // Tracker column -> the Wufoo field ids that fill it.
 type FieldMap = Partial<Record<
-  'requester_name' | 'requester_title' | 'requester_email' | 'requester_phone' | 'org_name' | 'description' | 'goal'
-  | 'date_needed' | 'event_date' | 'is_becon' | 'services' | 'audiences' | 'files', string[]
+  'requester_name' | 'requester_title' | 'requester_email' | 'requester_phone' | 'org_type' | 'org_name' | 'description' | 'goal'
+  | 'date_needed' | 'event_date' | 'is_becon' | 'calendar_needed' | 'services' | 'audiences' | 'files', string[]
 >>
 
 async function secret(key: string) {
@@ -105,11 +105,13 @@ function toRow(e: Entry, fields: Field[], map: FieldMap) {
   // Answers with no tracker column are kept in the request text, labelled.
   const extra = fields.filter(f => !used.has(f.id) && f.type !== 'file')
     .map(f => ({ f, v: answer(f, e).join(', ') })).filter(x => x.v)
-    .map(x => `${x.f.title}: ${x.v}`)
+    .map(x => `${x.f.title.trim() || 'Link'}: ${x.v}`)
   const description = [get('description', '\n'), extra.join('\n'), files.length ? `Files on Wufoo:\n${files.join('\n')}` : '']
     .filter(Boolean).join('\n\n') || null
   const firstLine = (get('description', ' ') ?? extra[0] ?? `Wufoo entry ${e.EntryId}`).replace(/\s+/g, ' ')
-  const becon = (get('is_becon') ?? '').toLowerCase()
+  // Yes/No checkboxes come back as the ticked label.
+  const yes = (col: keyof FieldMap) => /^(y|true)/i.test(get(col) ?? '')
+  const orgType = get('org_type')
 
   return {
     job_number: Number(e.EntryId),
@@ -119,6 +121,7 @@ function toRow(e: Entry, fields: Field[], map: FieldMap) {
     requester_title: get('requester_title'),
     requester_email: get('requester_email')?.toLowerCase() ?? null,
     requester_phone: get('requester_phone'),
+    org_type: orgType === 'School' || orgType === 'Department' ? orgType : null,
     org_name: get('org_name'),
     services: list('services'),
     audiences: list('audiences'),
@@ -126,7 +129,8 @@ function toRow(e: Entry, fields: Field[], map: FieldMap) {
     goal: get('goal', '\n'),
     date_needed: toDate(get('date_needed') ?? undefined),
     event_date: toDate(get('event_date') ?? undefined),
-    is_becon: becon.startsWith('y') || becon === 'true',
+    is_becon: yes('is_becon'),
+    calendar_needed: yes('calendar_needed'),
     status: 'new',
     // Wufoo reports times in the account's zone, Eastern for the District.
     submitted_at: e.DateCreated ? `${e.DateCreated} America/New_York` : new Date().toISOString(),
