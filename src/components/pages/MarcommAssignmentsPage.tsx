@@ -81,6 +81,12 @@ const STATUSES: { id: string; label: string; cls: string }[] = [
   { id: 'declined',    label: 'Declined',    cls: 'st-hold' },
 ]
 const CLOSED = new Set(['completed', 'declined'])
+// The team logs work by MarComm job number (Marcomm Meeting, Oct 14, 2026), so
+// it has its own column and sorts either way; team items have no number and
+// always sort last.
+type Sort = 'needed' | 'newest' | 'job_desc' | 'job_asc'
+const byJob = (a: { job_number: number | null }, b: { job_number: number | null }, dir: 1 | -1) =>
+  a.job_number == null ? (b.job_number == null ? 0 : 1) : b.job_number == null ? -1 : (a.job_number - b.job_number) * dir
 const statusOf = (id: string) => STATUSES.find(s => s.id === id) ?? STATUSES[0]
 
 function fmtDate(d: string | null): string {
@@ -118,7 +124,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [leadFilter, setLeadFilter] = useState<string>('all')
   const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<'needed' | 'newest'>('needed')
+  const [sort, setSort] = useState<Sort>('needed')
   const [openId, setOpenId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
 
@@ -199,6 +205,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
         .some(v => (v ?? '').toLowerCase().includes(q))
     })
     return rows.sort((a, b) => {
+      if (sort === 'job_desc' || sort === 'job_asc') return byJob(a, b, sort === 'job_asc' ? 1 : -1)
       if (tab === 'completed' || sort === 'newest') return (b.completed_at ?? b.submitted_at).localeCompare(a.completed_at ?? a.submitted_at)
       // Most urgent first: new requests waiting for triage, then high priority,
       // then nearest date needed, then undated.
@@ -305,14 +312,14 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
               )}
             </select>
           </label>
-          {tab === 'active' && (
-            <label><span className="fl">Sort</span>
-              <select value={sort} onChange={e => setSort(e.target.value as 'needed' | 'newest')}>
-                <option value="needed">Most urgent first</option>
-                <option value="newest">Newest first</option>
-              </select>
-            </label>
-          )}
+          <label><span className="fl">Sort</span>
+            <select value={tab === 'completed' && (sort === 'needed' || sort === 'newest') ? 'newest' : sort} onChange={e => setSort(e.target.value as Sort)}>
+              {tab === 'active' && <option value="needed">Most urgent first</option>}
+              <option value="newest">{tab === 'active' ? 'Newest first' : 'Recently closed'}</option>
+              <option value="job_desc">Job number, high to low</option>
+              <option value="job_asc">Job number, low to high</option>
+            </select>
+          </label>
           <label className="grow"><span className="fl">Search</span>
             <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Title, requester, department or job number" />
           </label>
@@ -325,6 +332,10 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
       {!loading && !error && (
         <div className="mca-table">
           <div className="mca-row mca-colhead">
+            <button type="button" className="col-sort" onClick={() => setSort(sort === 'job_desc' ? 'job_asc' : 'job_desc')}
+              title="Sort by job number" aria-label="Sort by job number">
+              Job #{sort === 'job_desc' ? ' \u2193' : sort === 'job_asc' ? ' \u2191' : ''}
+            </button>
             <span>Request</span><span>Lead / Support</span><span>{tab === 'active' ? 'Date Needed' : 'Closed'}</span><span>Status</span><span>Notes</span>
           </div>
           {list.length === 0 && <p className="mca-empty">No requests match these filters.</p>}
@@ -338,9 +349,11 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
             return (
               <div key={r.id} className={`mca-row${viewing ? ' ro' : ''}`} role={viewing ? undefined : 'button'} tabIndex={viewing ? undefined : 0} onClick={openRow}
                 onKeyDown={e => { if (openRow && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openRow() } }}>
+                <div className="c-job">
+                  {r.job_number ? <span className="r-job">{r.job_number}</span> : <span className="r-job team">Team item</span>}
+                </div>
                 <div className="c-req">
                   <div className="r-top">
-                    <span className="r-job">{r.job_number ? `#${r.job_number}` : 'Team item'}</span>
                     {r.priority && <span className={`prio p-${r.priority}`} title={`${PRIORITY_NAME[r.priority]} priority`}>{PRIORITY_LABEL[r.priority]}</span>}
                     <span className="r-title">{r.title}</span>
                   </div>
@@ -497,6 +510,10 @@ function Drawer({ req, team, notes, onClose, post }: {
   const [link, setLink] = useState(req.link_url ?? '')
   const [title, setTitle] = useState(req.title)
   const [editingTitle, setEditingTitle] = useState(false)
+  // Large view for presenting in the Marcomm Meeting: a wider drawer with
+  // bigger type. The choice is remembered on this browser.
+  const [large, setLarge] = useState(() => { try { return localStorage.getItem('mca-drawer-large') === '1' } catch { return false } })
+  const toggleLarge = () => setLarge(v => { try { localStorage.setItem('mca-drawer-large', v ? '0' : '1') } catch {} return !v })
   const [note, setNote] = useState('')
   const [dictated, setDictated] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -542,10 +559,11 @@ function Drawer({ req, team, notes, onClose, post }: {
 
   return (
     <div className="mca-overlay" onClick={onClose}>
-      <aside className="mca-drawer" role="dialog" aria-modal="true" aria-label={req.title} onClick={e => e.stopPropagation()}>
+      <aside className={`mca-drawer${large ? ' large' : ''}`} role="dialog" aria-modal="true" aria-label={req.title} onClick={e => e.stopPropagation()}>
         <div className="d-head">
           <div>
-            <div className="d-crumb">MarComm Assignments / {req.job_number ? `#${req.job_number}` : 'Team item'}</div>
+            <div className="d-crumb">MarComm Assignments</div>
+            <div className="d-job">{req.job_number ? <>Job <b>{req.job_number}</b></> : 'Team item'}</div>
             {editingTitle ? (
               <div className="d-title-edit">
                 <input value={title} onChange={e => setTitle(e.target.value)} autoFocus aria-label="Title"
@@ -558,7 +576,10 @@ function Drawer({ req, team, notes, onClose, post }: {
               <h2>{req.title} <button className="d-edit" onClick={() => setEditingTitle(true)} aria-label="Edit title" title="Edit title">&#9998;</button></h2>
             )}
           </div>
-          <button className="d-close" onClick={onClose} aria-label="Close">&times;</button>
+          <div className="d-head-actions">
+            <button className="mca-btn small ghost" onClick={toggleLarge} aria-pressed={large}>{large ? 'Smaller view' : 'Larger view'}</button>
+            <button className="d-close" onClick={onClose} aria-label="Close">&times;</button>
+          </div>
         </div>
 
         <div className="d-grid">
@@ -782,14 +803,17 @@ const CSS = `
 .mca-controls label.grow { flex: 1; min-width: min(260px, 100%); }
 .mca select, .mca input, .mca textarea { font: inherit; font-size: 13px; padding: 9px 12px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; background-color: #fff; color: #1a1a1a; width: 100%; box-sizing: border-box; }
 .mca-table { background: #fff; border: 1px solid rgba(0,0,0,0.09); border-radius: 8px; overflow: hidden; }
-.mca-row { display: grid; grid-template-columns: minmax(0,1fr) 170px 140px 120px 80px; gap: 12px; padding: 14px 20px; border-bottom: 1px solid rgba(0,0,0,0.07); align-items: start; cursor: pointer; }
+.mca-row { display: grid; grid-template-columns: 92px minmax(0,1fr) 170px 140px 120px 80px; gap: 12px; padding: 14px 20px; border-bottom: 1px solid rgba(0,0,0,0.07); align-items: start; cursor: pointer; }
 .mca-row:hover { background: rgba(22,114,167,0.04); }
 .mca-row:focus-visible { outline: 3px solid #1672A7; outline-offset: -3px; }
 .mca-colhead { background: #fafafa; cursor: default; padding-top: 10px; padding-bottom: 10px; }
 .mca-colhead:hover { background: #fafafa; }
 .mca-colhead span { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: rgba(26,26,26,0.5); }
 .r-top { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
-.r-job { font-size: 10px; font-weight: 800; color: #0e4e73; white-space: nowrap; }
+.r-job { font-size: 20px; font-weight: 900; color: #0e4e73; line-height: 1.1; letter-spacing: -0.01em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.r-job.team { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(26,26,26,0.5); white-space: normal; }
+.col-sort { font: inherit; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: #0e4e73; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
+.col-sort:hover { text-decoration: underline; }
 .r-title { font-size: 13px; font-weight: 700; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .r-who { font-size: 11px; color: rgba(26,26,26,0.6); margin-top: 3px; }
 .r-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
@@ -857,6 +881,16 @@ const CSS = `
 .mca-drawer.narrow { width: min(480px, 100%); }
 .d-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
 .d-crumb { font-size: 11px; font-weight: 700; color: #0e4e73; margin-bottom: 6px; }
+.d-job { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(26,26,26,0.55); margin-bottom: 6px; }
+.d-job b { font-size: 30px; font-weight: 900; color: #0e4e73; letter-spacing: -0.01em; margin-left: 4px; font-variant-numeric: tabular-nums; }
+.d-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.mca-drawer.large { width: min(1100px, 100%); padding: 30px 40px 48px; }
+.mca-drawer.large h2 { font-size: 26px; }
+.mca-drawer.large .d-job b { font-size: 44px; }
+.mca-drawer.large h3 { font-size: 12px; }
+.mca-drawer.large .d-text, .mca-drawer.large .n-body { font-size: 17px; }
+.mca-drawer.large .n-meta { font-size: 12px; }
+.mca-drawer.large select, .mca-drawer.large input, .mca-drawer.large textarea { font-size: 15px; }
 .mca-drawer h2 { font-size: 18px; font-weight: 800; margin: 0; line-height: 1.35; }
 .d-close { font-size: 26px; line-height: 1; background: none; border: none; cursor: pointer; color: rgba(26,26,26,0.6); }
 .d-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-bottom: 12px; }
@@ -881,7 +915,7 @@ const CSS = `
   .mca-meta { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .mca-colhead { display: none; }
   .mca-row { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
-  .mca-row .c-req { grid-column: 1 / -1; }
+  .mca-row .c-req, .mca-row .c-job { grid-column: 1 / -1; }
   .mca-row [data-label]::before { content: attr(data-label); display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; color: rgba(26,26,26,0.5); margin-bottom: 3px; }
   .mca-controls label { min-width: 0; flex: 1 1 100%; }
   .d-grid { grid-template-columns: minmax(0,1fr); }
