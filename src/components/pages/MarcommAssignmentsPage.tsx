@@ -245,7 +245,6 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
               {snapshots.map(sn => <option key={sn.id} value={sn.id}>{sn.label}</option>)}
             </select>
           </label>
-          {embedded && <a className="mca-btn ghost" href="/marcomm-assignments">Open full page</a>}
           {!viewing && <>
             <a className="mca-btn ghost" href="/marcomm-request" target="_blank" rel="noopener">Open request form</a>
             <button className="mca-btn ghost" onClick={() => setSavingSnapshot(true)}>Save meeting snapshot</button>

@@ -413,7 +413,6 @@ async function loadHotLabs(email: string, admin: boolean): Promise<{ title: stri
   }
   return docs
     .filter((d) => { const l = lists.get(d.slug as string); return !l || isAdmin || l.includes(email) })
-    .slice(0, 5)
     .map((d) => ({ title: `Hot Lab, ${d.doc_date}`, date: d.doc_date as string, url: d.doc_url as string }))
 }
 

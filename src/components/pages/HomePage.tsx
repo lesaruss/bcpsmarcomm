@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { MARCOMM_PATH, type PageId, type BreadcrumbItem } from '@/lib/types'
 import DepartmentsPage from './DepartmentsPage'
@@ -518,7 +518,9 @@ function primaryWindow(depts: DepartmentSummary[]): ReviewWindow | null {
 }
 
 function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
-  const [tab, setTab] = useState<DirectorTab>('overview')
+  const [tabId, setTabId] = useHomeTab()
+  const tab = tabId as DirectorTab
+  const setTab = (t: DirectorTab) => setTabId(t)
   // Office of Communications leaders who direct a department (Sean,
   // 2026-10-09) keep MarComm Assignments as a tab when they hold its grant.
   const { pages } = useBCPSShell()
@@ -927,7 +929,9 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 type WcmTab = 'overview' | 'audit' | 'marcomm' | 'widgets' | 'tools'
 
 function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
-  const [tab, setTab] = useState<WcmTab>('overview')
+  const [tabId, setTabId] = useHomeTab()
+  const tab = tabId as WcmTab
+  const setTab = (t: WcmTab) => setTabId(t)
   const [guide, setGuide] = useState<boolean | null>(null)
   const openGuide = () => { setGuide(true); setTab('audit') }
   const mine = data.departments
@@ -1353,7 +1357,6 @@ function BarRow({ label, value, total, tone }: { label: string; value: number; t
 function ProgramPanel({ p }: { p: TeamProgram }) {
   return (
     <>
-      <p className="wcm-hub2-intro">The whole program at a glance. Everyone on the District Web Team sees this tab.</p>
       <div className="home-dept-grid">
         <div className="home-dept">
           <h3 className="home-card-title">Certification by division</h3>
@@ -1596,9 +1599,10 @@ type HotLabLink = { title: string; date: string; url: string }
 // every tool, article and Hot Lab that matches, exact matches first, then
 // close ones. "Tools and apps" articles are covered by the tool tiles, so they
 // only show up in search.
-function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof typeof TOP_TOOLS; onNavigate: (page: PageId) => void; kb?: KbArticle[]; hotLabs?: HotLabLink[] }) {
+function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [], admin = [] }: { kind: keyof typeof TOP_TOOLS; onNavigate: (page: PageId) => void; kb?: KbArticle[]; hotLabs?: HotLabLink[]; admin?: [PageId, string, string][] }) {
   const { pages, role, viewAs } = useBCPSShell()
   const [q, setQ] = useState('')
+  const [showHotLabs, setShowHotLabs] = useState(false)
   const isSA = role === 'superadmin' && (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID)
   // Same rule as the left menu: the page set in force decides, and a
   // SuperAdmin always reaches the SuperAdmin-only consoles.
@@ -1637,7 +1641,16 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
         <input id={`tool-search-${kind}`} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a word, like banner, roster or Hot Lab" />
       </div>
 
-      {searching ? (
+      {showHotLabs && !searching ? (
+        <>
+          <p className="home-hint"><button type="button" className="home-link-btn" onClick={() => setShowHotLabs(false)}>Tools &amp; Resources</button> / Hot Labs</p>
+          <h3 className="home-grp">Hot Labs</h3>
+          {hotLabs.length === 0 && <p className="home-hint">No Hot Labs yet.</p>}
+          <div className="home-tiles4">
+            {hotLabs.map((h) => tile({ key: `hl:${h.url}`, kind: 'Hot Lab', title: h.date, desc: 'Notes and recording', text: '', icon: Icons['minutes'] ?? 'H', go: () => { window.location.href = h.url } }))}
+          </div>
+        </>
+      ) : searching ? (
         <div aria-live="polite">
           {exact.length > 0 && <div className="home-portfolio">{exact.map(tile)}</div>}
           {close.length > 0 && (
@@ -1659,10 +1672,17 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
             {tile({ key: 'top:ask', kind: 'Ask', title: 'Ask a question', desc: 'Can\u2019t find it? Ask, and the answer can become the next article.', text: '', icon: '?', go: () => openFeedback('Question for the knowledge base: ') })}
             {tile({ key: 'top:topic', kind: 'Ask', title: 'Suggest a Hot Lab topic', desc: 'Something to walk through together.', text: '', icon: '+', go: () => openFeedback('Hot Lab topic suggestion: ') })}
           </div>
+          {admin.length > 0 && (
+            <>
+              <h3 className="home-grp">Admin</h3>
+              <div className="home-tiles4">
+                {admin.map(([page, title, desc]) => tile({ key: `admin:${page}`, kind: 'Admin', title, desc, text: '', icon: Icons[page] ?? title[0], go: () => onNavigate(page) }))}
+              </div>
+            </>
+          )}
           <h3 className="home-grp">Hot Labs and guides</h3>
           <div className="home-tiles4">
-            {hotLabs.slice(0, 3).map((h) => tile({ key: `hl:${h.url}`, kind: 'Hot Lab', title: h.date, desc: 'Notes and recording', text: '', go: () => { window.location.href = h.url } }))}
-            {tile({ key: 'hl:all', kind: 'Hot Labs', title: 'See all Hot Labs', desc: 'Every session, with notes and the recording', text: '', go: () => { window.location.href = '/?page=notes' } })}
+            {tile({ key: 'hl:all', kind: 'Hot Labs', title: 'Hot Labs', desc: hotLabs.length ? `Every session, with notes and the recording. Latest: ${hotLabs[0].date}.` : 'Every session, with notes and the recording.', text: '', icon: Icons['minutes'] ?? 'H', go: () => setShowHotLabs(true) })}
             {kb.filter((a) => a.topic !== 'Tools and apps').map((a) => tile({ key: `kb:${a.id}`, kind: a.topic, title: a.title, desc: a.summary, text: '', go: () => { window.location.href = a.href } }))}
           </div>
         </>
@@ -1915,8 +1935,8 @@ function TeamPanel({ members }: { members: TeamMemberWork[] }) {
   )
 }
 
-function AdminPanel({ onNavigate }: { onNavigate: (page: PageId) => void }) {
-  const cards: [PageId, string, string][] = [
+// The SuperAdmin-only consoles, shown in Tools & Resources as tiles.
+const ADMIN_CONSOLES: [PageId, string, string][] = [
     ['superadmin', 'Platform Management', 'Accounts, View as access and platform settings.'],
     ['permissions', 'Permissions', 'Who can open which page and document.'],
     ['registrations', 'Registrations', 'New sign-ups waiting on approval.'],
@@ -1924,22 +1944,7 @@ function AdminPanel({ onNavigate }: { onNavigate: (page: PageId) => void }) {
     ['reports', 'Reports', 'Program reports and exports.'],
     ['marcomm', 'Newsroom', 'The MarComm console.'],
     ['graphics', 'Graphics & Printing', 'Graphics and print requests.'],
-  ]
-  return (
-    <>
-      <p className="wcm-hub2-intro">The consoles only a SuperAdmin can open, in one place.</p>
-      <div className="wcm-hub2-grid">
-        {cards.map(([page, title, desc]) => (
-          <div key={page} className="wcm-hub2-card">
-            <h3>{title}</h3>
-            <p>{desc}</p>
-            <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate(page)}>Open</button>
-          </div>
-        ))}
-      </div>
-    </>
-  )
-}
+]
 
 // The full Departments page (scores, traffic, audit), the same one the
 // menu opens, so the tab never shows less than the page (Sean, 2026-10-01).
@@ -1948,7 +1953,7 @@ function DepartmentsPanel({ onNavigate }: { onNavigate: Navigate }) {
 }
 
 function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }: { data: HomeData; onNavigate: Navigate; viewAsUserId?: string; preview?: boolean; onShowToast?: (msg: string) => void }) {
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab] = useHomeTab()
   // The full inbox lives in Team Operations (voice replies, account access).
   const openInbox = () => {
     setTab('ops')
@@ -1963,15 +1968,15 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'marcomm', label: 'MarComm Assignments' },
-    { id: 'program', label: 'Program' },
     ...((th.team_members?.length ?? 0) > 0 ? [{ id: 'team', label: 'Team' }] : []),
     { id: 'departments', label: 'Departments' },
     { id: 'audits', label: 'Run Audit' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'tools', label: 'Tools & Resources' },
-    { id: 'admin', label: 'Admin' },
-    { id: 'ops', label: 'Team Operations' },
   ]
+  // Off the tab bar (Sean, 2026-10-20): Program sits on Overview, the Admin
+  // consoles in Tools & Resources. Team Operations (the full inbox and
+  // account access requests) still opens from Overview's Decide and Inbox.
   return (
     <div className="home">
       {preview && <PreviewBanner><strong>Previewing the SuperAdmin dashboard.</strong> Numbers and lists are live.</PreviewBanner>}
@@ -1994,6 +1999,8 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
         <StatTile label={`${w.label} ${windowState(w) === 'open' ? 'open' : 'next'}`} value={`${wStats?.departments ?? 0} depts`} note={`${formatWindowRange(w)}. ${wStats?.signed_off ?? 0} signed off.`} />
       </div>
       <DecisionsPanel th={th} team={data.team} onNavigate={onNavigate} onOpenOps={() => setTab('ops')} onOpenInbox={openInbox} />
+      <h3 className="home-grp">Program</h3>
+      <ProgramPanel p={p} />
       </>}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'marcomm' && <MarcommAssignmentsPage embedded />}
@@ -2001,8 +2008,8 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
       {tab === 'team' && <TeamPanel members={th.team_members ?? []} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
-      {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
-      {tab === 'admin' && <AdminPanel onNavigate={onNavigate} />}
+      {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} admin={ADMIN_CONSOLES} />}
+      {tab === 'admin' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} admin={ADMIN_CONSOLES} />}
       {tab === 'ops' && <DashboardPage onNavigate={onNavigate} viewAsUserId={viewAsUserId} />}
     </div>
   )
@@ -2017,7 +2024,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   previewNote?: string
   onShowToast?: (msg: string) => void
 }) {
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab] = useHomeTab()
   const { pages } = useBCPSShell()
   const canAnalytics = !pages || pages.includes('analytics')
   const canMarcomm = !!pages?.includes('marcomm-assignments')
@@ -2033,7 +2040,6 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         { id: 'overview', label: 'Overview' },
         { id: 'marcomm', label: 'MarComm Assignments' },
         { id: 'audits', label: 'Run Audit' },
-        { id: 'program', label: 'Program' },
         { id: 'departments', label: 'Departments' },
         ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
         { id: 'banners', label: 'Banners' },
@@ -2045,7 +2051,6 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         ...(canMarcomm ? [{ id: 'marcomm', label: 'MarComm Assignments' }] : []),
         { id: 'ada', label: 'ADA' },
         { id: 'banners', label: 'Banners' },
-        { id: 'program', label: 'Program' },
         ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
         { id: 'tools', label: 'Tools & Resources' },
       ]
@@ -2083,6 +2088,8 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         <StatTile label="Proud Points to review" value={th.proud_points?.pending ?? 0} note={th.proud_points?.ready ? `${th.proud_points.ready} approved, not posted yet` : 'Proud Points'} tone={th.proud_points?.pending ? 'warn' : undefined} />
       </div>
       <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />
+      <h3 className="home-grp">Program</h3>
+      <ProgramPanel p={p} />
       </>}
       {tab === 'marcomm' && <MarcommAssignmentsPage embedded />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
@@ -2097,25 +2104,47 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   )
 }
 
-// The MarComm Assignments tab opens the page at its own address instead of
-// switching the dashboard in place (Sean, 2026-10-20).
-function HomeTabs({ tabs, active, onChange }: { tabs: { id: string; label: string }[]; active: string; onChange: (id: string) => void }) {
+// Dashboard tabs live in the address (Sean, 2026-10-20): ?tab=<id>, and
+// MarComm Assignments at /marcomm-assignments, so every section keeps the tab
+// bar and the Dashboard button, and back and shared links work.
+function useHomeTab(initial = 'overview'): [string, (id: string) => void] {
   const router = useRouter()
+  const pathname = usePathname()
+  const search = useSearchParams()
+  const tab = pathname === MARCOMM_PATH ? 'marcomm' : search.get('tab') || initial
+  const setTab = (id: string) => {
+    if (id === 'marcomm') router.push(MARCOMM_PATH, { scroll: false })
+    else router.push(id === initial ? '/?page=dashboard' : `/?page=dashboard&tab=${id}`, { scroll: false })
+  }
+  return [tab, setTab]
+}
+
+// A row of tabs on desktop, a dropdown on phones.
+function HomeTabs({ tabs, active, onChange }: { tabs: { id: string; label: string }[]; active: string; onChange: (id: string) => void }) {
   return (
-    <div className="wcm-hub2-tabs" role="tablist" aria-label="Dashboard sections" data-scroll-strip>
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          role="tab"
-          aria-selected={active === t.id}
-          className={`wcm-hub2-tab${active === t.id ? ' active' : ''}`}
-          onClick={() => t.id === 'marcomm' ? router.push(MARCOMM_PATH) : onChange(t.id)}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
+    <>
+      <label className="wcm-hub2-tabselect">
+        <span>Section</span>
+        <select value={tabs.some((t) => t.id === active) ? active : ''} onChange={(e) => onChange(e.target.value)}>
+          {!tabs.some((t) => t.id === active) && <option value="">Choose a section</option>}
+          {tabs.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+      </label>
+      <div className="wcm-hub2-tabs" role="tablist" aria-label="Dashboard sections" data-scroll-strip>
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={active === t.id}
+            className={`wcm-hub2-tab${active === t.id ? ' active' : ''}`}
+            onClick={() => onChange(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+    </>
   )
 }
 
