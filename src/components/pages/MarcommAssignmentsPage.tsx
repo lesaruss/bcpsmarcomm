@@ -245,6 +245,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
               {snapshots.map(sn => <option key={sn.id} value={sn.id}>{sn.label}</option>)}
             </select>
           </label>
+          {embedded && <a className="mca-btn ghost" href="/marcomm-assignments">Open full page</a>}
           {!viewing && <>
             <a className="mca-btn ghost" href="/marcomm-request" target="_blank" rel="noopener">Open request form</a>
             <button className="mca-btn ghost" onClick={() => setSavingSnapshot(true)}>Save meeting snapshot</button>
@@ -510,8 +511,9 @@ function Drawer({ req, team, notes, onClose, post }: {
   const [link, setLink] = useState(req.link_url ?? '')
   const [title, setTitle] = useState(req.title)
   const [editingTitle, setEditingTitle] = useState(false)
-  // Large view for presenting in the Marcomm Meeting: a wider drawer with
-  // bigger type. The choice is remembered on this browser.
+  // Full screen for presenting in the Marcomm Meeting: the request fills the
+  // window like a document, with bigger type. The choice is remembered on
+  // this browser.
   const [large, setLarge] = useState(() => { try { return localStorage.getItem('mca-drawer-large') === '1' } catch { return false } })
   const toggleLarge = () => setLarge(v => { try { localStorage.setItem('mca-drawer-large', v ? '0' : '1') } catch {} return !v })
   const [note, setNote] = useState('')
@@ -577,7 +579,7 @@ function Drawer({ req, team, notes, onClose, post }: {
             )}
           </div>
           <div className="d-head-actions">
-            <button className="mca-btn small ghost" onClick={toggleLarge} aria-pressed={large}>{large ? 'Smaller view' : 'Larger view'}</button>
+            <button className="mca-btn small ghost" onClick={toggleLarge} aria-pressed={large}>{large ? 'Exit full screen' : 'Full screen'}</button>
             <button className="d-close" onClick={onClose} aria-label="Close">&times;</button>
           </div>
         </div>
@@ -876,15 +878,17 @@ const CSS = `
 .notes-pill b { font-size: 10px; background: #1672A7; color: #fff; border-radius: 99px; padding: 1px 7px; margin-left: 3px; }
 .mca-empty, .mca-error { padding: 20px; font-size: 13px; color: rgba(26,26,26,0.6); margin: 0; }
 .mca-error { color: #b91c1c; }
-.mca-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.32); z-index: 300; display: flex; justify-content: flex-end; }
-.mca-drawer { width: min(640px, 100%); height: 100%; overflow-y: auto; background: #fff; padding: 22px 26px 40px; box-shadow: -8px 0 30px rgba(0,0,0,0.15); box-sizing: border-box; }
-.mca-drawer.narrow { width: min(480px, 100%); }
+/* Request window: a centered lightbox over a dark backdrop, the way Web Team
+   Assignments opens its notes (Sean, 2026-10-20); Full screen fills the window. */
+.mca-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; }
+.mca-drawer { width: min(760px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; background: #fff; padding: 24px 28px 36px; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); box-sizing: border-box; }
+.mca-drawer.narrow { width: min(520px, 100%); }
 .d-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
 .d-crumb { font-size: 11px; font-weight: 700; color: #0e4e73; margin-bottom: 6px; }
 .d-job { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(26,26,26,0.55); margin-bottom: 6px; }
 .d-job b { font-size: 30px; font-weight: 900; color: #0e4e73; letter-spacing: -0.01em; margin-left: 4px; font-variant-numeric: tabular-nums; }
 .d-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.mca-drawer.large { width: min(1100px, 100%); padding: 30px 40px 48px; }
+.mca-drawer.large { position: fixed; inset: 0; width: auto; max-height: none; border-radius: 0; padding: 32px max(40px, calc((100vw - 1100px) / 2)) 56px; }
 .mca-drawer.large h2 { font-size: 26px; }
 .mca-drawer.large .d-job b { font-size: 44px; }
 .mca-drawer.large h3 { font-size: 12px; }
@@ -919,5 +923,7 @@ const CSS = `
   .mca-row [data-label]::before { content: attr(data-label); display: block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; color: rgba(26,26,26,0.5); margin-bottom: 3px; }
   .mca-controls label { min-width: 0; flex: 1 1 100%; }
   .d-grid { grid-template-columns: minmax(0,1fr); }
+  .mca-overlay { padding: 0; }
+  .mca-drawer, .mca-drawer.narrow { width: 100%; max-height: none; height: 100%; border-radius: 0; }
 }
 `
