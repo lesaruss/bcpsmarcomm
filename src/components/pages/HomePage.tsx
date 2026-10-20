@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import type { PageId, BreadcrumbItem } from '@/lib/types'
+import { MARCOMM_PATH, type PageId, type BreadcrumbItem } from '@/lib/types'
 import DepartmentsPage from './DepartmentsPage'
 import AnalyticsPage from './AnalyticsPage'
 import WidgetsPage from './WidgetsPage'
@@ -1982,7 +1983,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
         <p>Everything waiting on you, how the whole program is moving, and what each person on the team is carrying. The District Web Team sees the same program numbers; decisions, admin consoles and the team view are yours alone.</p>
         <div className="home-actions">
           <button type="button" className="home-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
-          <button type="button" className="wcm-hub2-card-btn" onClick={() => setTab('marcomm')}>Open MarComm Assignments</button>
+          <a className="wcm-hub2-card-btn" href={MARCOMM_PATH}>Open MarComm Assignments</a>
           {!preview && <ViewAsButton />}
         </div>
       </div>
@@ -2061,7 +2062,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
           : 'Your assignments, accessibility across our sites, the widgets, and every tool you use.'}</p>
         <div className="home-actions">
           <button type="button" className="home-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
-          {kind === 'comms' && <button type="button" className="wcm-hub2-card-btn" onClick={() => setTab('marcomm')}>Open MarComm Assignments</button>}
+          {kind === 'comms' && <a className="wcm-hub2-card-btn" href={MARCOMM_PATH}>Open MarComm Assignments</a>}
           {kind === 'appsvc' && <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('ada-scanner')}>Open ADA Scanner</button>}
         </div>
       </div>
@@ -2096,7 +2097,10 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   )
 }
 
+// The MarComm Assignments tab opens the page at its own address instead of
+// switching the dashboard in place (Sean, 2026-10-20).
 function HomeTabs({ tabs, active, onChange }: { tabs: { id: string; label: string }[]; active: string; onChange: (id: string) => void }) {
+  const router = useRouter()
   return (
     <div className="wcm-hub2-tabs" role="tablist" aria-label="Dashboard sections" data-scroll-strip>
       {tabs.map((t) => (
@@ -2106,7 +2110,7 @@ function HomeTabs({ tabs, active, onChange }: { tabs: { id: string; label: strin
           role="tab"
           aria-selected={active === t.id}
           className={`wcm-hub2-tab${active === t.id ? ' active' : ''}`}
-          onClick={() => onChange(t.id)}
+          onClick={() => t.id === 'marcomm' ? router.push(MARCOMM_PATH) : onChange(t.id)}
         >
           {t.label}
         </button>

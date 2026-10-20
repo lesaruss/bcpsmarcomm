@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 // Shared header for the MarComm Meeting onboarding pages (welcome deck and
 // registration). Same logo-left treatment and menu as the WCM Department
 // Registration pages, whose stylesheet these pages reuse.
-export const MARCOMM_HOME = '/?page=marcomm-assignments'
+export const MARCOMM_HOME = '/marcomm-assignments'
 export const MARCOMM_LOGIN = `/login?next=${encodeURIComponent('/marcomm-registration/register')}`
 
 export default function MarcommHeader({ right }: { right?: ReactNode }) {

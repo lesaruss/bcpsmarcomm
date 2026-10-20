@@ -36,6 +36,10 @@ export type PageId =
   | 'wcm-roster'
   | 'marcomm-assignments'
 
+// MarComm Assignments' own address (Sean, 2026-10-20); every link to the page
+// goes here rather than to /?page=marcomm-assignments or a dashboard tab.
+export const MARCOMM_PATH = '/marcomm-assignments'
+
 export interface BreadcrumbItem {
   label: string
   pageId: PageId
