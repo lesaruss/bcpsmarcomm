@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireDistrictUser, isDistrictEmail, normalizeDistrictEmail } from '@/lib/bcps-auth'
+import { sendEmail } from '@/lib/resend'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,6 +24,19 @@ const supabase = createClient(
 // images never pass through this function's request body limit.
 
 const BUCKET = 'marcomm-attachments'
+// Who hears about each new request (Sean, 2026-10-20). Requests that still
+// come in through the old Wufoo form are not emailed here: Wufoo sends its own.
+const NOTIFY = [
+  'jennifer.hodder@browardschools.com',
+  'BCPS.PIO@browardschools.com',
+  'farrah.wilson@browardschools.com',
+  'iviani.figueroa@browardschools.com',
+  'chuck.griffin@browardschools.com',
+  'mkaye@browardschools.com',
+]
+const esc = (t: string | null | undefined) => (t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))
+const longDate = (d: string | null) => d ? new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : null
+
 const MAX_FILES = 5
 const RATE_LIMIT = 5
 const MAX_BYTES = 25 * 1024 * 1024
@@ -132,6 +146,35 @@ export async function POST(req: NextRequest) {
     created_by_email: sessionEmail,
   }).select('id, job_number').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // The request is saved either way; a failed email is kept in
+  // bcps_outbound_emails to resend.
+  const name = clean(body.requester_name, 120)
+  const row = (label: string, value: string | null) => value ? `<tr><td style="padding:4px 12px 4px 0;color:#555;vertical-align:top;white-space:nowrap">${label}</td><td style="padding:4px 0">${value}</td></tr>` : ''
+  await sendEmail({
+    to: NOTIFY,
+    replyTo: email,
+    subject: `New MarComm Request #${data.job_number}: ${title}`,
+    kind: 'marcomm-request-new',
+    context: { request_id: data.id, job_number: data.job_number },
+    html: `<p>A new MarComm Request came in through bcpsmarcomm.com.</p>
+<table style="border-collapse:collapse;font-size:14px">
+${row('Request', `#${data.job_number}: ${esc(title)}`)}
+${row('From', `${esc(name)}${clean(body.requester_title, 120) ? `, ${esc(clean(body.requester_title, 120))}` : ''} (<a href="mailto:${esc(email)}">${esc(email)}</a>${clean(body.requester_phone, 40) ? `, ${esc(clean(body.requester_phone, 40))}` : ''})${sessionEmail ? '' : ' (not signed in)'}`)}
+${row(orgType ?? 'School or department', esc(orgName))}
+${row('Needs', esc(services.join(', ')))}
+${row('Audience', esc(audiences.join(', ')))}
+${row('Needed by', esc(longDate(body.date_needed as string)))}
+${row('Event date', esc(longDate(isDate(body.event_date) ? body.event_date : null)))}
+${row('Calendar', body.calendar_needed === true ? 'Yes, District calendar requested' : null)}
+${row('Files', attachments.length ? esc(attachments.map(a => a.name).join(', ')) : null)}
+</table>
+<p style="margin:16px 0 4px"><strong>Description</strong></p>
+<p style="margin:0;white-space:pre-wrap">${esc(description)}</p>
+<p style="margin:16px 0 4px"><strong>Why it matters</strong></p>
+<p style="margin:0;white-space:pre-wrap">${esc(goal)}</p>
+<p style="margin:20px 0 0"><a href="https://bcpsmarcomm.com/marcomm-assignments">Open MarComm Assignments</a>. Reply to this email to reach the requester.</p>`,
+  })
 
   return NextResponse.json({ ok: true, id: data.id, job_number: data.job_number })
 }
