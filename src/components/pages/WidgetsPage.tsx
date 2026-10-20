@@ -49,7 +49,10 @@ const C = {
   sublabel: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 8 } as React.CSSProperties,
 }
 
-export default function WidgetsPage() {
+// embedded: the dashboard's Widgets tab (Sean, 2026-10-20). Everyone sees
+// every widget live and can open it full screen to try it; only the people
+// assigned to a widget get Copy embed code, Edit and Manage editors.
+export default function WidgetsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const supabase = createClient()
   const [widgets, setWidgets] = useState<Widget[]>([])
   const [role, setRole] = useState<string>('user')
@@ -97,6 +100,7 @@ export default function WidgetsPage() {
   // Previewing someone else hides the real person's management controls too.
   const previewing = effectiveRole !== role
   const canManage = (w: Widget) => w.can_manage && !previewing
+  const canEdit = (w: Widget) => w.can_edit && !previewing
 
   const act = useCallback(async (payload: any) => {
     setBusy(true); setErr('')
@@ -173,10 +177,12 @@ export default function WidgetsPage() {
   if (loading) return <div style={{ padding: 32 }}>Loading widgets...</div>
 
   return (
-    <div style={{ padding: 32, maxWidth: 1400, fontFamily: 'inherit' }}>
-      <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Widgets</h1>
+    <div style={{ padding: embedded ? 0 : 32, maxWidth: 1400, fontFamily: 'inherit' }}>
+      {!embedded && <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Widgets</h1>}
       <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 16px' }}>
-        Every embeddable module in one place: preview it, grab the embed code, or edit it if you have access.
+        {widgets.some(canEdit)
+          ? 'Every embeddable module in one place: try it here or full screen, and grab the embed code or edit the ones assigned to you.'
+          : 'Every embeddable module the District Web Team has built. Try each one here or open it full screen. Want one for your department? Ask at Hot Lab or send a message.'}
         {widgets.some(canManage) && ' Use Manage editors to choose who can view, edit, or manage a widget you manage.'}
       </p>
 
@@ -185,7 +191,7 @@ export default function WidgetsPage() {
 
       {widgets.length === 0 && <div style={{ ...C.card, color: '#6b7280' }}>No widgets registered yet.</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(360px, 100%), 1fr))', gap: 20, alignItems: 'start' }}>
       {widgets.map(w => {
         const Editor = w.editor_component ? EDITORS[w.editor_component] : null
         const accessOpen = !!expanded[w.slug]
@@ -198,9 +204,9 @@ export default function WidgetsPage() {
                 {w.description && <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2, maxWidth: 560 }}>{w.description}</div>}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                <button style={C.btn} onClick={() => copyEmbed(w)}>Copy embed code</button>
+                {canEdit(w) && <button style={C.btn} onClick={() => copyEmbed(w)}>Copy embed code</button>}
                 <a href={w.preview_path} target="_blank" rel="noopener noreferrer" style={{ ...C.btn, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Open full preview ↗</a>
-                {Editor && w.can_edit && (
+                {Editor && canEdit(w) && (
                   <button style={C.btn} onClick={() => setEditingSlug(w.slug)}>Edit</button>
                 )}
                 {canManage(w) && (
@@ -211,7 +217,7 @@ export default function WidgetsPage() {
               </div>
             </div>
 
-            {!Editor && (
+            {!Editor && canEdit(w) && (
               <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 12 }}>No in-app editor yet for this widget - content changes go through GitHub.</div>
             )}
 
