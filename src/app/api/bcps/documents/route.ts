@@ -126,11 +126,13 @@ export async function GET(req: NextRequest) {
     (g.subject_type === 'user' && g.subject_id === user.id) ||
     (g.subject_type === 'group' && gids.includes(g.subject_id)))
 
+  // Public means every signed-in BCPS MarComm account (Sean, 2026-10-20);
+  // restricted still needs a grant, private only the owner.
   const visible = all.filter(d => {
     const eff = effectiveOf(d)
     if (eff.ownerId === user.id) return true
     if (eff.visibility === 'private') return false
-    return isAdmin || !!myGrant(eff.objectId)
+    return isAdmin || eff.visibility === 'public' || !!myGrant(eff.objectId)
   })
 
   const result = visible.map(d => {

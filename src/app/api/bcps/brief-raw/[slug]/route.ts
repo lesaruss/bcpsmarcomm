@@ -72,8 +72,11 @@ export async function GET(
     .select('attendee_email')
     .eq('brief_slug', slug)
 
+  // Signed in to read any brief (Sean, 2026-10-20).
+  const sessionEmail = await getSessionEmail()
+  if (!sessionEmail) return new NextResponse('Unauthorized', { status: 401 })
+
   if (recipients && recipients.length > 0) {
-    const sessionEmail = await getSessionEmail()
     const allowed = recipients.map((r: { attendee_email: string }) => r.attendee_email.toLowerCase())
     const onList = !!sessionEmail && allowed.includes(sessionEmail.toLowerCase())
     if (!onList && !(await isAdminEmail(sessionEmail))) {

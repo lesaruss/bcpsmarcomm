@@ -84,9 +84,11 @@ export default async function BcpsPublicBriefPage({ params }: Props) {
     .eq('brief_slug', slug)
 
   const isRestricted = recipients && recipients.length > 0
+  // Signed in to read any brief (Sean, 2026-10-20).
+  const sessionEmail = await getSessionEmail()
+  if (!sessionEmail) redirect(`/login?next=/briefs/${slug}`)
 
   if (isRestricted) {
-    const sessionEmail = await getSessionEmail()
     const allowed = recipients.map((r: { attendee_email: string }) => r.attendee_email.toLowerCase())
     const onList = !!sessionEmail && allowed.includes(sessionEmail.toLowerCase())
     // Series notes (e.g. older Hot Labs) open for anyone with the series

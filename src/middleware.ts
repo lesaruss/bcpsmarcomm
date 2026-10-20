@@ -119,16 +119,10 @@ export async function middleware(request: NextRequest) {
     // School WCM signup (2026-10-05): visitors have no account yet. Account
     // creation is gated server-side on bcps_schools.wcm_email.
     pathname.startsWith('/school-registration') ||
-    pathname.startsWith('/briefs/') ||
+    // /briefs/ and /playbooks/ are no longer public (Sean, 2026-10-20): every
+    // BCPS document needs a BCPS MarComm sign-in, which any BCPS employee can
+    // create. Signed out, they land on /login and return after signing in.
     pathname.startsWith('/embeds/') ||
-    // BCPS Playbooks/Docs (canon-bcps-doc-url-standard, Sean 2026-09-03): per-slug
-    // access (public unless bcps_brief_recipients has rows) is enforced in
-    // checkDocAccess (src/lib/bcps-doc-access.ts). This entry only stops the
-    // middleware from bouncing every /playbooks/ request to /login before that
-    // check ever runs -- added 2026-09-08 after live verification showed every
-    // /playbooks/ URL, including intentionally public ones, hit the login wall
-    // unconditionally.
-    pathname.startsWith('/playbooks/') ||
     // Campaign reports (/campaigns/[slug]). Per-campaign: a campaign with
     // is_public = true is readable by anyone with the link, which is the whole
     // point of it (Sean, 2026-09-22: shared with the chief and others, no

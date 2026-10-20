@@ -91,8 +91,10 @@ export async function hasSeriesGrant(db: SupabaseClient, slug: string, email: st
 }
 
 /**
- * Public unless recipients exist; then the session email must be listed, an
- * admin, or hold a grant on the doc's series (see hasSeriesGrant).
+ * Every document needs a signed-in BCPS MarComm account (Sean, 2026-10-20:
+ * nobody outside BCPS needs to see anything). Beyond that, open to every
+ * account unless recipients exist; then the session email must be listed,
+ * an admin, or hold a grant on the doc's series (see hasSeriesGrant).
  */
 export async function checkDocAccess(db: SupabaseClient, slug: string): Promise<{ restricted: boolean; allowed: boolean }> {
   const { data: recipients } = await db
@@ -100,8 +102,9 @@ export async function checkDocAccess(db: SupabaseClient, slug: string): Promise<
     .select('attendee_email')
     .eq('brief_slug', slug)
   const restricted = !!recipients && recipients.length > 0
-  if (!restricted) return { restricted: false, allowed: true }
   const sessionEmail = await getSessionEmail()
+  if (!sessionEmail) return { restricted, allowed: false }
+  if (!restricted) return { restricted: false, allowed: true }
   const allowed = recipients!.map((r: { attendee_email: string }) => r.attendee_email.toLowerCase())
   const onList = !!sessionEmail && allowed.includes(sessionEmail.toLowerCase())
   if (onList) return { restricted: true, allowed: true }

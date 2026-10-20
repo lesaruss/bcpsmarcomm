@@ -65,6 +65,16 @@ const SECTIONS = [
   { key: 'documents', label: 'Playbooks', description: 'Main projects with multiple tasks. Plans, governance frameworks, implementation guides, and reference documents.' },
 ]
 
+// A document a dashboard always lists for its audience, whether or not a
+// catalog grant exists yet (a director has no group to grant to).
+export type PinnedDoc = { slug: string; title: string; description: string; doc_url: string }
+
+// Playbooks are served for framing by /api/bcps/doc-raw; their /playbooks/
+// address sends a signed-in reader into the dashboard instead.
+const isPlaybook = (url: string) => url.startsWith('/playbooks/')
+const previewSrc = (d: Doc) => isPlaybook(d.doc_url) ? `/api/bcps/doc-raw/${encodeURIComponent(d.slug)}` : d.doc_url
+const fullPageHref = (d: Doc) => isPlaybook(d.doc_url) ? `${d.doc_url}?standalone=1` : d.doc_url
+
 const ROLE_OPTS = ['view', 'comment', 'edit', 'manage']
 const BLUE = '#1672A7'
 const A = {
@@ -74,7 +84,16 @@ const A = {
   sublabel: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 8 } as React.CSSProperties,
 }
 
-export default function DocumentsPage() {
+// embedded: the dashboard's Documents tab (Sean, 2026-10-20), the one
+// Documents list, with search at the top. onOpen opens a Playbook in the
+// tab; extras (the trackers) sit above the list; pinned adds the
+// audience's own Playbooks.
+export default function DocumentsPage({ embedded = false, onOpen, extras, pinned = [] }: {
+  embedded?: boolean
+  onOpen?: (slug: string) => void
+  extras?: React.ReactNode
+  pinned?: PinnedDoc[]
+} = {}) {
   const supabase = createClient()
   const [preview, setPreview] = useState<Doc | null>(null)
   const [docs, setDocs] = useState<Doc[]>([])
@@ -92,6 +111,7 @@ export default function DocumentsPage() {
   const [requestDraft, setRequestDraft] = useState<Record<string, string>>({})
   const [activeTab, setActiveTab] = useState<string>('documents')
   const [sortMode, setSortMode] = useState<SortMode>('date_desc')
+  const [query, setQuery] = useState('')
 
   // View-as aware, per Sean 2026-09-10: previewing a WCM must not leave
   // the real admin's controls on screen. Server-side access is unchanged.
@@ -106,13 +126,26 @@ export default function DocumentsPage() {
     const r = await fetch('/api/bcps/documents', { headers: { Authorization: `Bearer ${t}` } })
     const j = await r.json()
     if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
-    setDocs((j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'documents'))
+    const listed: Doc[] = (j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'documents')
+    const extra: Doc[] = pinned.filter(p => !listed.some(d => d.slug === p.slug)).map(p => ({
+      id: `pinned:${p.slug}`, slug: p.slug, title: p.title, description: p.description, type: 'Playbook', date: null, date_sort: null,
+      icon: '\u{1F4D8}', section: 'documents', visibility: 'public', sensitive: false, doc_url: p.doc_url, is_dynamic: false,
+      can_edit: false, featured: true, series_id: null, series_title: null, effective_object_id: '',
+    }))
+    setDocs([...extra, ...listed])
     setRole(j.role)
     setGroups(j.groups ?? []); setMembers(j.members ?? []); setGrants(j.grants ?? [])
     setLoading(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   useEffect(() => { load() }, [load])
+
+  const openDoc = (d: Doc) => {
+    if (isExternal(d.doc_url)) window.open(d.doc_url, '_blank', 'noopener,noreferrer')
+    else if (onOpen && isPlaybook(d.doc_url)) onOpen(d.slug)
+    else setPreview(d)
+  }
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') setPreview(null) }
@@ -227,6 +260,9 @@ export default function DocumentsPage() {
     <div style={{ padding: '0' }}>
       <style>{`
         .docs-section { padding: 32px; background: #ffffff; }
+        .docs-section.embedded { padding: 0; background: transparent; }
+        .docs-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+        .docs-search { flex: 1; min-width: 220px; font: inherit; font-size: 14px; padding: 10px 14px; border: 1px solid rgba(0,0,0,0.15); border-radius: 8px; background: #fff; }
         .docs-header h1 { font-size: 32px; font-weight: 900; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: -0.02em; }
         .docs-header p { font-size: 14px; color: rgba(26,26,26,0.55); margin: 0 0 32px 0; line-height: 1.6; }
         .docs-tabbar { display: flex; gap: 4px; border-bottom: 2px solid rgba(0,0,0,0.08); margin-bottom: 24px; }
@@ -271,26 +307,34 @@ export default function DocumentsPage() {
         @media (max-width: 600px) { .docs-section { padding: 16px; } .docs-header h1 { font-size: 24px; } .docs-grid { grid-template-columns: 1fr; } .lightbox { padding: 12px; } .lightbox-content { max-width: 100%; } }
       `}</style>
 
-      <div className="docs-section">
+      <div className={embedded ? 'docs-section embedded' : 'docs-section'}>
         <div className="docs-header">
-          <h1>Documents</h1>
-          <p>BCPS marketing communications plans, governance documents, and implementation guides. Click any document to preview, or use Request an edit to ask for a change. Looking for meeting notes or records? Those live under their own nav items now.
+          {!embedded && <h1>Documents</h1>}
+          <p>{embedded
+            ? 'Every Playbook and plan you can open, kept current every Thursday. Click one to read it right here, or use Request an edit to ask for a change.'
+            : 'BCPS marketing communications plans, governance documents, and implementation guides. Click any document to preview, or use Request an edit to ask for a change. Looking for meeting notes or records? Those live under their own nav items now.'}
             {isAdmin && ' As an admin, each document also shows who has access and an Edit button to manage access or content directly here.'}
           </p>
         </div>
+
+        {extras}
 
         {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '0 0 20px' }}>{err}</div>}
         {toast && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '0 0 20px' }}>{toast}</div>}
 
         {SECTIONS.filter(section => section.key === activeTab).map(section => {
-          const sectionDocs = sortDocs(docs.filter(d => (d.section || 'documents') === section.key), sortMode)
+          const q = query.trim().toLowerCase()
+          const sectionDocs = sortDocs(docs.filter(d => (d.section || 'documents') === section.key)
+            .filter(d => !q || [d.title, d.description, d.type, d.date].some(v => (v || '').toLowerCase().includes(q))), sortMode)
 
           return (
             <div key={section.key} className="docs-section-group">
               <p className="docs-section-desc">{section.description}</p>
 
               {section.key === 'documents' && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+                <div className="docs-toolbar">
+                  <input type="search" className="docs-search" value={query} onChange={e => setQuery(e.target.value)}
+                    placeholder={`Search ${docs.length} document${docs.length === 1 ? '' : 's'}`} aria-label="Search documents" />
                   <select style={A.sel} value={sortMode} onChange={e => setSortMode(e.target.value as SortMode)}>
                     <option value="date_desc">Sort: Newest first</option>
                     <option value="date_asc">Sort: Oldest first</option>
@@ -303,7 +347,7 @@ export default function DocumentsPage() {
               <div className="docs-section-divider" />
 
               {sectionDocs.length === 0 ? (
-                <div style={{ fontSize: 13, color: '#9ca3af' }}>Nothing here yet.</div>
+                <div style={{ fontSize: 13, color: '#9ca3af' }}>{query.trim() ? 'No document matches that search.' : 'Nothing here yet.'}</div>
               ) : (
               <div className="docs-grid">
                 {sectionDocs.map(doc => {
@@ -331,7 +375,7 @@ export default function DocumentsPage() {
                       )}
 
                       <button
-                        onClick={() => isExternal(doc.doc_url) ? window.open(doc.doc_url, '_blank', 'noopener,noreferrer') : setPreview(doc)}
+                        onClick={() => openDoc(doc)}
                         style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', width: '100%', font: 'inherit', color: 'inherit' }}
                       >
                         <div className="doc-icon-row">
@@ -342,19 +386,19 @@ export default function DocumentsPage() {
                       </button>
 
                       <div className="doc-actions-row">
-                        {isAdmin && (
+                        {isAdmin && doc.effective_object_id && (
                           <button style={openPanel === 'access' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'access')}>
                             Access
                           </button>
                         )}
-                        {isAdmin && (
+                        {isAdmin && doc.effective_object_id && (
                           <button style={openPanel === 'content' ? A.btnPrimary : A.btn} onClick={() => openContent(doc)}>
                             Edit
                           </button>
                         )}
-                        <button style={openPanel === 'request' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'request')}>
+                        {doc.effective_object_id && <button style={openPanel === 'request' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'request')}>
                           Request an edit
-                        </button>
+                        </button>}
                       </div>
 
                       <div className="doc-meta">
@@ -459,11 +503,11 @@ export default function DocumentsPage() {
             <div className="lightbox-header">
               <span className="lightbox-title">{preview.title}</span>
               <div className="lightbox-actions">
-                <a href={preview.doc_url} target="_blank" rel="noopener noreferrer" className="lightbox-open-btn">Open full page ↗</a>
+                <a href={fullPageHref(preview)} target="_blank" rel="noopener noreferrer" className="lightbox-open-btn">Open full page ↗</a>
                 <button className="lightbox-close-btn" onClick={() => setPreview(null)} aria-label="Close preview">x</button>
               </div>
             </div>
-            <iframe className="lightbox-iframe" src={preview.doc_url} title={preview.title} />
+            <iframe className="lightbox-iframe" src={previewSrc(preview)} title={preview.title} />
           </div>
         </div>
       )}
