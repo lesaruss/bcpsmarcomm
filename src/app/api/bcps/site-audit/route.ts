@@ -16,6 +16,12 @@ import { deptAccessFor, identifyCaller } from '@/lib/bcps-audit-auth'
 //        Add a missing page (Sean, 2026-10-20): the department's WCM (or the
 //        District Web Team) adds a browardschools.com page the page finder
 //        missed; it joins the department's page list and is audited next.
+//   POST { action: 'mark', department_id, result_id, check_id, done, note? }
+//   POST { action: 'submit', department_id }
+//        WCMs report their fixes (Sean, 2026-10-20): each red or amber item
+//        on a page's latest audit is marked done; when all are, submit
+//        records it on the current round, sets WCM: Submitted and queues a
+//        full-site re-audit (migration 20261020_bcps_audit_check_marks).
 // Departments: admins, the department's WCM and its director may view.
 // Schools: admins only for now.
 export const dynamic = 'force-dynamic'
@@ -85,7 +91,7 @@ export async function GET(req: NextRequest) {
   // Every red and amber check on every page's latest audit, slimmed to what
   // the site-wide list shows. The full check loads with the page.
   const byResult = new Map(list.filter((p) => p.result).map((p) => [p.result!.id, p.id]))
-  const issues: { page_id: string; result_id: string; check_id: string; area: string; title: string; detail: string; status: string }[] = []
+  const issues: { page_id: string; result_id: string; check_id: string; area: string; title: string; detail: string; status: string; done?: { by: string; at: string; note: string | null } | null }[] = []
   if (byResult.size) {
     const { data: checkRows } = await supabase.from('bcps_audit_results').select('id, checks').in('id', Array.from(byResult.keys()))
     for (const r of checkRows ?? []) {
@@ -94,7 +100,18 @@ export async function GET(req: NextRequest) {
         issues.push({ page_id: byResult.get(r.id)!, result_id: r.id, check_id: c.id, area: c.area, title: c.title, detail: c.detail, status: c.status })
       }
     }
+    const { data: marks } = owner.department_id
+      ? await supabase.from('bcps_audit_check_marks').select('result_id, check_id, marked_by, marked_at, note').in('result_id', Array.from(byResult.keys()))
+      : { data: [] as { result_id: string; check_id: string; marked_by: string; marked_at: string; note: string | null }[] }
+    const markOf = new Map((marks ?? []).map((m) => [`${m.result_id}:${m.check_id}`, m]))
+    for (const i of issues) {
+      const m = markOf.get(`${i.result_id}:${i.check_id}`)
+      i.done = m ? { by: m.marked_by, at: m.marked_at, note: m.note } : null
+    }
   }
+  const { data: deptRow } = owner.department_id
+    ? await supabase.from('bcps_departments').select('audit_status, wcm_submitted_at').eq('id', owner.department_id).maybeSingle()
+    : { data: null }
   return NextResponse.json({
     pages: list,
     issues,
@@ -102,6 +119,8 @@ export async function GET(req: NextRequest) {
     in_progress: (queue ?? []).length,
     can_run: ok.run,
     can_add: !!owner.department_id && (ok.wcm || ok.caller.admin),
+    can_mark: !!owner.department_id && (ok.wcm || ok.caller.admin),
+    submitted: deptRow?.audit_status === 'wcm_submitted' ? deptRow.wcm_submitted_at : null,
   })
 }
 
@@ -160,9 +179,70 @@ async function addPage(req: NextRequest, body: { department_id?: string; url?: s
   return NextResponse.json({ ok: true, page: { id: pageId, url: landed, title } })
 }
 
+// The red and amber items on each page's latest audit, and how many are marked done.
+async function openItems(departmentId: string) {
+  const [{ data: pages }, { data: results }] = await Promise.all([
+    supabase.from('bcps_site_pages').select('id').eq('department_id', departmentId).eq('active', true),
+    supabase.from('bcps_audit_results').select('id, site_page_id, checks').eq('department_id', departmentId).gte('audit_version', 3).not('site_page_id', 'is', null).order('audited_at', { ascending: false }).limit(300),
+  ])
+  const live = new Set((pages ?? []).map((p) => p.id as string))
+  const latest = new Map<string, { id: string; checks: unknown }>()
+  for (const r of results ?? []) if (live.has(r.site_page_id as string) && !latest.has(r.site_page_id as string)) latest.set(r.site_page_id as string, r)
+  const items: { result_id: string; check_id: string }[] = []
+  for (const r of Array.from(latest.values())) {
+    for (const c of (Array.isArray(r.checks) ? r.checks : []) as { id: string; status: string }[]) if (c.status !== 'pass') items.push({ result_id: r.id, check_id: c.id })
+  }
+  const { data: marks } = items.length
+    ? await supabase.from('bcps_audit_check_marks').select('result_id, check_id').in('result_id', Array.from(new Set(items.map((i) => i.result_id))))
+    : { data: [] as { result_id: string; check_id: string }[] }
+  const done = new Set((marks ?? []).map((m) => `${m.result_id}:${m.check_id}`))
+  return { total: items.length, done: items.filter((i) => done.has(`${i.result_id}:${i.check_id}`)).length, items }
+}
+
+async function markItem(req: NextRequest, body: { department_id?: string; result_id?: string; check_id?: string; done?: boolean; note?: string }) {
+  if (!body.department_id || !body.result_id || !body.check_id) return NextResponse.json({ error: 'department_id, result_id and check_id required' }, { status: 400 })
+  const ok = await access(req, { department_id: body.department_id })
+  if (!ok.ok) return NextResponse.json({ error: 'Not allowed' }, { status: ok.status })
+  if (!ok.wcm && !ok.caller.admin) return NextResponse.json({ error: 'Only this department\u2019s WCM can mark items done.' }, { status: 403 })
+  const { data: result } = await supabase.from('bcps_audit_results').select('id, checks').eq('id', body.result_id).eq('department_id', body.department_id).maybeSingle()
+  const check = ((Array.isArray(result?.checks) ? result!.checks : []) as { id: string; status: string }[]).find((c) => c.id === body.check_id)
+  if (!result || !check || check.status === 'pass') return NextResponse.json({ error: 'That item is not open on this audit.' }, { status: 404 })
+  if (body.done === false) {
+    await supabase.from('bcps_audit_check_marks').delete().eq('result_id', body.result_id).eq('check_id', body.check_id)
+  } else {
+    const { error } = await supabase.from('bcps_audit_check_marks').upsert({
+      department_id: body.department_id, result_id: body.result_id, check_id: body.check_id,
+      note: (body.note ?? '').trim().slice(0, 1000) || null, marked_by: ok.caller.email, marked_at: new Date().toISOString(),
+    }, { onConflict: 'result_id,check_id' })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  const progress = await openItems(body.department_id)
+  return NextResponse.json({ ok: true, total: progress.total, done: progress.done })
+}
+
+async function submitFixes(req: NextRequest, body: { department_id?: string }) {
+  if (!body.department_id) return NextResponse.json({ error: 'department_id required' }, { status: 400 })
+  const ok = await access(req, { department_id: body.department_id })
+  if (!ok.ok) return NextResponse.json({ error: 'Not allowed' }, { status: ok.status })
+  if (!ok.wcm && !ok.caller.admin) return NextResponse.json({ error: 'Only this department\u2019s WCM can request a re-audit.' }, { status: 403 })
+  const progress = await openItems(body.department_id)
+  if (progress.done < progress.total) return NextResponse.json({ error: `Mark every item done first: ${progress.done} of ${progress.total} so far.` }, { status: 409 })
+  const now = new Date().toISOString()
+  // The submission goes on the department's latest round, the same fields
+  // the round-by-round review already reads.
+  const { data: round } = await supabase.from('bcps_audit_rounds').select('id').eq('department_id', body.department_id).order('created_at', { ascending: false }).limit(1).maybeSingle()
+  if (round) await supabase.from('bcps_audit_rounds').update({ wcm_submitted_at: now, wcm_submitted_by: ok.caller.email, findings_fixed: progress.done, findings_total: progress.total, updated_at: now }).eq('id', round.id)
+  await supabase.from('bcps_departments').update({ audit_status: 'wcm_submitted', wcm_submitted_at: now, updated_at: now }).eq('id', body.department_id)
+  const { data: busy } = await supabase.from('bcps_audit_queue').select('id').eq('department_id', body.department_id).in('status', ['queued', 'running']).limit(1).maybeSingle()
+  if (!busy) await supabase.from('bcps_audit_queue').insert({ department_id: body.department_id, kind: 'site', run_month: now.slice(0, 7) + '-01', requested_by: ok.caller.email })
+  return NextResponse.json({ ok: true, submitted: now })
+}
+
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({})) as { action?: string; department_id?: string; school_id?: string; url?: string }
+  const body = await req.json().catch(() => ({})) as { action?: string; department_id?: string; school_id?: string; url?: string; result_id?: string; check_id?: string; done?: boolean; note?: string }
   if (body.action === 'add_page') return addPage(req, body)
+  if (body.action === 'mark') return markItem(req, body)
+  if (body.action === 'submit') return submitFixes(req, body)
   const owner = { department_id: body.department_id ?? null, school_id: body.school_id ?? null }
   if (!owner.department_id && !owner.school_id) return NextResponse.json({ error: 'department_id or school_id required' }, { status: 400 })
   const ok = await access(req, owner)
