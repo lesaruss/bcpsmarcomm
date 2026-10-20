@@ -49,6 +49,7 @@ export default function MarcommRequestPage() {
   const [f, setF] = useState({
     requester_name: '', requester_title: '', requester_phone: '', org_type: '' as '' | 'School' | 'Department', org_name: '',
     title: '', description: '', goal: '', date_needed: '', event_date: '', calendar_needed: false,
+    calendar_form_submitted: null as boolean | null,
   })
   const [services, setServices] = useState<string[]>([])
   const [audiences, setAudiences] = useState<string[]>([])
@@ -80,6 +81,7 @@ export default function MarcommRequestPage() {
     setError('')
     if (!services.length) { setError('Choose at least one service.'); return }
     if (!audiences.length) { setError('Choose at least one audience.'); return }
+    if (f.calendar_needed && f.calendar_form_submitted === null) { setError('Tell us whether you submitted the Calendar Request Form.'); return }
     if (!signedIn && !/@browardschools\.com$/i.test(email.trim())) { setError('Please use your District email address (@browardschools.com).'); return }
     setBusy(true)
     try {
@@ -127,7 +129,7 @@ export default function MarcommRequestPage() {
           <div className="mcr-card mcr-done">
             <h1>Request received</h1>
             <p>Thank you. Your request number is <b>#{done}</b>. The Office of Communications reviews new requests at its weekly meeting and will follow up at <b>{email}</b> if anything else is needed.</p>
-            <button className="mcr-btn" onClick={() => { setDone(null); setServices([]); setAudiences([]); setFiles([]); setF(p => ({ ...p, title: '', description: '', goal: '', date_needed: '', event_date: '', calendar_needed: false })) }}>Submit another request</button>
+            <button className="mcr-btn" onClick={() => { setDone(null); setServices([]); setAudiences([]); setFiles([]); setF(p => ({ ...p, title: '', description: '', goal: '', date_needed: '', event_date: '', calendar_needed: false, calendar_form_submitted: null })) }}>Submit another request</button>
           </div>
         ) : (
           <form onSubmit={submit} noValidate={false}>
@@ -203,14 +205,25 @@ export default function MarcommRequestPage() {
                 <label>Date you need it ready to use *<input type="date" required value={f.date_needed} onChange={set('date_needed')} /><span className="hint">The day it must be finished, not the event date. Campaigns, video and print need the most lead time, so submit as early as you can.</span></label>
                 <label>Event date, if there is one<input type="date" value={f.event_date} onChange={set('event_date')} /></label>
               </div>
+              {/* Worded like the old form (Jennifer Hodder, 2026-10-20): the requester
+                  files the calendar request, not the Office of Communications. */}
               <fieldset>
-                <legend>Should this event go on the District&apos;s online calendar?</legend>
+                <legend>Does this event need to be posted on the District&apos;s Online Calendar? If so, please complete the <a href={CALENDAR_FORM} target="_blank" rel="noopener noreferrer">Calendar Request Form</a>.</legend>
                 <div className="radios">
                   <label className="pick"><input type="radio" name="cal" checked={f.calendar_needed} onChange={() => setF(p => ({ ...p, calendar_needed: true }))} /> Yes</label>
-                  <label className="pick"><input type="radio" name="cal" checked={!f.calendar_needed} onChange={() => setF(p => ({ ...p, calendar_needed: false }))} /> No</label>
+                  <label className="pick"><input type="radio" name="cal" checked={!f.calendar_needed} onChange={() => setF(p => ({ ...p, calendar_needed: false, calendar_form_submitted: null }))} /> No</label>
                 </div>
-                {f.calendar_needed && <p className="note">Please also complete the <a href={CALENDAR_FORM} target="_blank" rel="noopener noreferrer">Calendar Request Form</a>.</p>}
               </fieldset>
+              {f.calendar_needed && (
+                <fieldset>
+                  <legend>Did you submit a Calendar Request Form? *</legend>
+                  <div className="radios">
+                    <label className="pick"><input type="radio" name="calsub" required checked={f.calendar_form_submitted === true} onChange={() => setF(p => ({ ...p, calendar_form_submitted: true }))} /> Yes</label>
+                    <label className="pick"><input type="radio" name="calsub" required checked={f.calendar_form_submitted === false} onChange={() => setF(p => ({ ...p, calendar_form_submitted: false }))} /> No</label>
+                  </div>
+                  {f.calendar_form_submitted === false && <p className="note">Please complete the <a href={CALENDAR_FORM} target="_blank" rel="noopener noreferrer">Calendar Request Form</a> so your event can be posted.</p>}
+                </fieldset>
+              )}
               <label className="full">Attach files <span className="hint">Up to 5 files, 25 MB each: PDF, Word, Excel, PowerPoint, images or video</span>
                 <input type="file" multiple accept={ACCEPT} onChange={e => setFiles(Array.from(e.target.files ?? []).slice(0, 5))} />
               </label>
@@ -244,6 +257,7 @@ const CSS = `
 .mcr input:focus-visible, .mcr textarea:focus-visible { outline: 3px solid #1672A7; outline-offset: 1px; }
 .mcr input.ro { background: #f3f4f6; color: rgba(26,26,26,0.75); }
 .mcr fieldset { border: none; padding: 0; margin: 16px 0 0; }
+.mcr legend a { color: #0e4e73; font-weight: 800; }
 .mcr legend { font-size: 13px; font-weight: 700; margin-bottom: 8px; padding: 0; }
 .lede a { color: #0e4e73; font-weight: 700; }
 .hint { font-size: 12px; font-weight: 400; color: rgba(26,26,26,0.6); }

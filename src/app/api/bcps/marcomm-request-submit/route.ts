@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
   if (!description) missing.push('a description')
   if (!goal) missing.push('why it matters')
   if (!isDate(body.date_needed)) missing.push('the date you need it')
+  if (body.calendar_needed === true && typeof body.calendar_form_submitted !== 'boolean') missing.push('whether you submitted the Calendar Request Form')
   if (missing.length) return NextResponse.json({ error: `Please add ${missing.join(', ')}.` }, { status: 400 })
 
   const attachments = (Array.isArray(body.attachments) ? body.attachments : [])
@@ -141,6 +142,7 @@ export async function POST(req: NextRequest) {
     event_date: isDate(body.event_date) ? body.event_date : null,
     is_becon: services.includes('Video or BECON coverage'),
     calendar_needed: body.calendar_needed === true,
+    calendar_form_submitted: body.calendar_needed === true ? body.calendar_form_submitted === true : null,
     attachments,
     status: 'new',
     created_by_email: sessionEmail,
@@ -166,7 +168,7 @@ ${row('Needs', esc(services.join(', ')))}
 ${row('Audience', esc(audiences.join(', ')))}
 ${row('Needed by', esc(longDate(body.date_needed as string)))}
 ${row('Event date', esc(longDate(isDate(body.event_date) ? body.event_date : null)))}
-${row('Calendar', body.calendar_needed === true ? 'Yes, District calendar requested' : null)}
+${row('Calendar', body.calendar_needed === true ? (body.calendar_form_submitted === true ? 'Yes, and they submitted the Calendar Request Form' : 'Yes, but they have not submitted the Calendar Request Form yet') : null)}
 ${row('Files', attachments.length ? esc(attachments.map(a => a.name).join(', ')) : null)}
 </table>
 <p style="margin:16px 0 4px"><strong>Description</strong></p>
