@@ -9,6 +9,7 @@ import AnalyticsPage from './AnalyticsPage'
 import WidgetsPage from './WidgetsPage'
 import DashboardPage from './DashboardPage'
 import MarcommAssignmentsPage from './MarcommAssignmentsPage'
+import MembersPage from './MembersPage'
 import { WcmCommunityHub, WcmHubCards, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
 import SharedViewAsButton from '@/components/ViewAsButton'
@@ -2005,7 +2006,11 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'marcomm' && <MarcommAssignmentsPage embedded />}
       {tab === 'program' && <ProgramPanel p={p} />}
-      {tab === 'team' && <TeamPanel members={th.team_members ?? []} />}
+      {tab === 'team' && <>
+        <TeamPanel members={th.team_members ?? []} />
+        {/* Everyone, filterable by division and group (Sean, 2026-10-20). */}
+        <MembersPage />
+      </>}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} admin={ADMIN_CONSOLES} />}

@@ -69,6 +69,8 @@ export default function MembersPage() {
   // ── Directory view controls (search / division filter / sort / view toggle) ──
   const [search, setSearch] = useState('')
   const [divisionFilter, setDivisionFilter] = useState('')
+  // Group filter (Sean, 2026-10-20: "by division ... as well as the groups").
+  const [groupFilter, setGroupFilter] = useState('')
   const [sortCol, setSortCol] = useState<SortCol>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [view, setView] = useState<ViewMode>('tiles')
@@ -461,6 +463,7 @@ export default function MembersPage() {
 
   const filtered = members.filter(m => {
     if (divisionFilter && m.department?.division !== divisionFilter) return false
+    if (groupFilter && !m.groups.includes(groupFilter)) return false
     const q = search.trim().toLowerCase()
     if (!q) return true
     // Department and division match too, per Sean, Hot Lab 2026-09-22:
@@ -784,6 +787,10 @@ export default function MembersPage() {
         <select className="mp-select" value={divisionFilter} onChange={e => setDivisionFilter(e.target.value)} aria-label="Filter by division">
           <option value="">All Divisions</option>
           {divisions.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <select className="mp-select" value={groupFilter} onChange={e => setGroupFilter(e.target.value)} aria-label="Filter by group">
+          <option value="">All Groups</option>
+          {Array.from(new Set(members.flatMap(m => m.groups))).sort().map(g => <option key={g} value={g}>{g}</option>)}
         </select>
         <select
           className="mp-select"
