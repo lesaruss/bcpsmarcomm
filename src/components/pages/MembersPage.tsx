@@ -40,7 +40,10 @@ type SortCol = 'name' | 'department' | 'division' | 'groups' | 'login' | 'unsort
 type SortDir = 'asc' | 'desc'
 type ViewMode = 'tiles' | 'table'
 
-export default function MembersPage() {
+// defaultDivision: the division the directory opens on (the SuperAdmin's
+// Team tab opens on Chief of Staff, the Office of Communications; Sean,
+// 2026-10-20). Everyone else opens on All Divisions.
+export default function MembersPage({ defaultDivision = '' }: { defaultDivision?: string } = {}) {
   const router = useRouter()
   const params = useSearchParams()
   const memberId = params.get('member')
@@ -68,7 +71,7 @@ export default function MembersPage() {
 
   // ── Directory view controls (search / division filter / sort / view toggle) ──
   const [search, setSearch] = useState('')
-  const [divisionFilter, setDivisionFilter] = useState('')
+  const [divisionFilter, setDivisionFilter] = useState(defaultDivision)
   // Group filter (Sean, 2026-10-20: "by division ... as well as the groups").
   const [groupFilter, setGroupFilter] = useState('')
   const [sortCol, setSortCol] = useState<SortCol>('name')

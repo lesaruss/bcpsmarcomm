@@ -1896,46 +1896,6 @@ function InboxSection({ onOpenOps, onOpenInbox }: { onOpenOps: () => void; onOpe
   )
 }
 
-function TeamPanel({ members }: { members: TeamMemberWork[] }) {
-  const groups: [TeamKind, string][] = [['comms', 'Office of Communications: departments'], ['appsvc', 'Application Services: ADA, schools and tools']]
-  return (
-    <>
-      <p className="wcm-hub2-intro">What each person on the District Web Team is carrying, from the Web Team Assignments page. Only you see this tab.</p>
-      {groups.map(([kind, label]) => {
-        const list = members.filter((m) => m.team === kind)
-        if (!list.length) return null
-        return (
-          <div key={kind}>
-            <h3 className="home-grp">{label}</h3>
-            <div className="home-dept-grid">
-              {list.map((m) => {
-                const past = m.assignments.filter((a) => a.past_date).length
-                return (
-                  <div key={m.email} className="home-dept">
-                    <div className="home-person">
-                      <div className="avatar" style={{ background: avatarColor(m.user_id) }} aria-hidden="true">{initialsOf(m.name)}</div>
-                      <div className="home-person-info">
-                        <h3>{m.name}</h3>
-                        {m.title && <span>{m.title}</span>}
-                        {m.department && <span>{m.department}</span>}
-                      </div>
-                      <span className="home-chip">{m.assignments.length} open</span>
-                    </div>
-                    {past > 0 && <div className="home-dept-sub">{past} past their date</div>}
-                    <ul className="home-mini">
-                      {m.assignments.slice(0, 3).map((a) => <li key={a.slug}><span>{a.title}</span>{a.date_label && <b>{a.date_label}</b>}</li>)}
-                    </ul>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )
-      })}
-    </>
-  )
-}
-
 // The SuperAdmin-only consoles, shown in Tools & Resources as tiles.
 const ADMIN_CONSOLES: [PageId, string, string][] = [
     ['superadmin', 'Platform Management', 'Accounts, View as access and platform settings.'],
@@ -2006,11 +1966,10 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'marcomm' && <MarcommAssignmentsPage embedded />}
       {tab === 'program' && <ProgramPanel p={p} />}
-      {tab === 'team' && <>
-        <TeamPanel members={th.team_members ?? []} />
-        {/* Everyone, filterable by division and group (Sean, 2026-10-20). */}
-        <MembersPage />
-      </>}
+      {/* Team is the Members directory, opening on Chief of Staff (the Office
+          of Communications); Application Services and everyone else are a
+          division or group away (Sean, 2026-10-20). */}
+      {tab === 'team' && <MembersPage defaultDivision="Chief of Staff" />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} admin={ADMIN_CONSOLES} />}
