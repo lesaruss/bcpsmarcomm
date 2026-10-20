@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireDistrictUser, isDistrictEmail, normalizeDistrictEmail } from '@/lib/bcps-auth'
 import { sendEmail } from '@/lib/resend'
+import { OOC_NOTIFY, calendarRow, calendarEmailRows } from '@/lib/calendar-request'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,16 +25,10 @@ const supabase = createClient(
 // images never pass through this function's request body limit.
 
 const BUCKET = 'marcomm-attachments'
-// Who hears about each new request (Sean, 2026-10-20). Requests that still
-// come in through the old Wufoo form are not emailed here: Wufoo sends its own.
-const NOTIFY = [
-  'jennifer.hodder@browardschools.com',
-  'BCPS.PIO@browardschools.com',
-  'farrah.wilson@browardschools.com',
-  'iviani.figueroa@browardschools.com',
-  'chuck.griffin@browardschools.com',
-  'mkaye@browardschools.com',
-]
+// Who hears about each new request: OOC_NOTIFY (lib/calendar-request).
+// Requests that still come in through the old Wufoo form are not emailed
+// here: Wufoo sends its own.
+const NOTIFY = OOC_NOTIFY
 const esc = (t: string | null | undefined) => (t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))
 const longDate = (d: string | null) => d ? new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : null
 
@@ -107,8 +102,11 @@ export async function POST(req: NextRequest) {
   if (!description) missing.push('a description')
   if (!goal) missing.push('why it matters')
   if (!isDate(body.date_needed)) missing.push('the date you need it')
-  if (body.calendar_needed === true && typeof body.calendar_form_submitted !== 'boolean') missing.push('whether you submitted the Calendar Request Form')
   if (missing.length) return NextResponse.json({ error: `Please add ${missing.join(', ')}.` }, { status: 400 })
+  // Going on the District calendar: the Calendar Post Request is filled in
+  // here too (Sean, 2026-10-20), saved to bcps_calendar_requests and linked.
+  const calendar = body.calendar_needed === true ? calendarRow(body.calendar as Record<string, unknown>) : null
+  if (calendar && 'error' in calendar) return NextResponse.json({ error: calendar.error }, { status: 400 })
 
   const attachments = (Array.isArray(body.attachments) ? body.attachments : [])
     .filter((a): a is { name: string; path: string } => !!a && typeof a === 'object' && typeof (a as { path?: unknown }).path === 'string'
@@ -142,12 +140,21 @@ export async function POST(req: NextRequest) {
     event_date: isDate(body.event_date) ? body.event_date : null,
     is_becon: services.includes('Video or BECON coverage'),
     calendar_needed: body.calendar_needed === true,
-    calendar_form_submitted: body.calendar_needed === true ? body.calendar_form_submitted === true : null,
+    calendar_form_submitted: calendar ? true : null,
     attachments,
     status: 'new',
     created_by_email: sessionEmail,
   }).select('id, job_number').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  let calendarNumber: number | null = null
+  if (calendar && 'row' in calendar) {
+    const { data: cal, error: calError } = await supabase.from('bcps_calendar_requests')
+      .insert({ ...calendar.row, requester_email: email, created_by_email: sessionEmail, marcomm_request_id: data.id })
+      .select('request_number').single()
+    if (calError) return NextResponse.json({ error: `Your MarComm request #${data.job_number} was saved, but the calendar post was not: ${calError.message}` }, { status: 500 })
+    calendarNumber = cal.request_number
+  }
 
   // The request is saved either way; a failed email is kept in
   // bcps_outbound_emails to resend.
@@ -168,15 +175,19 @@ ${row('Needs', esc(services.join(', ')))}
 ${row('Audience', esc(audiences.join(', ')))}
 ${row('Needed by', esc(longDate(body.date_needed as string)))}
 ${row('Event date', esc(longDate(isDate(body.event_date) ? body.event_date : null)))}
-${row('Calendar', body.calendar_needed === true ? (body.calendar_form_submitted === true ? 'Yes, and they submitted the Calendar Request Form' : 'Yes, but they have not submitted the Calendar Request Form yet') : null)}
+${row('Calendar', calendar ? 'Yes, the calendar post details are below' : null)}
 ${row('Files', attachments.length ? esc(attachments.map(a => a.name).join(', ')) : null)}
 </table>
 <p style="margin:16px 0 4px"><strong>Description</strong></p>
 <p style="margin:0;white-space:pre-wrap">${esc(description)}</p>
 <p style="margin:16px 0 4px"><strong>Why it matters</strong></p>
 <p style="margin:0;white-space:pre-wrap">${esc(goal)}</p>
+${calendar && 'row' in calendar ? `<p style="margin:20px 0 4px"><strong>Calendar post</strong></p>
+<table style="border-collapse:collapse;font-size:14px">
+${calendarEmailRows(calendar.row)}
+</table>` : ''}
 <p style="margin:20px 0 0"><a href="https://bcpsmarcomm.com/marcomm-assignments">Open MarComm Assignments</a>. Reply to this email to reach the requester.</p>`,
   })
 
-  return NextResponse.json({ ok: true, id: data.id, job_number: data.job_number })
+  return NextResponse.json({ ok: true, id: data.id, job_number: data.job_number, calendar_number: calendarNumber })
 }

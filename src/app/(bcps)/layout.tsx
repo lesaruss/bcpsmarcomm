@@ -15,9 +15,10 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
   // MarComm Meeting onboarding (2026-10-16): public, standalone, like
   // wcm-registration. Must match the public path in middleware.ts.
   const isMarcommRegistration = pathname.startsWith('/marcomm-registration')
-  // MarComm Request Form: public since 2026-10-20 (Sean). Must match the
+  // MarComm Request Form and Calendar Post Request Form: public since
+  // 2026-10-20 (Sean). Must match the
   // public path in middleware.ts.
-  const isMarcommRequest = pathname.startsWith('/marcomm-request')
+  const isMarcommRequest = pathname.startsWith('/marcomm-request') || pathname.startsWith('/calendar-request')
 
   // WCM Certification is gated the same as every other /bcps/* module now
   // (per V, 2026-07-28) - no more bespoke cert-only auth bypass here.

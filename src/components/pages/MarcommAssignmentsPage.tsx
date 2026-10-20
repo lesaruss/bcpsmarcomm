@@ -123,7 +123,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
   const [savingSnapshot, setSavingSnapshot] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [tab, setTab] = useState<'active' | 'completed'>('active')
+  const [tab, setTab] = useState<'active' | 'completed' | 'calendar'>('active')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [leadFilter, setLeadFilter] = useState<string>('all')
   const [query, setQuery] = useState('')
@@ -282,7 +282,10 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
       <div className="mca-tabs" role="tablist">
         <button role="tab" aria-selected={tab === 'active'} onClick={() => setTab('active')}>Active <span>{active.length}</span></button>
         <button role="tab" aria-selected={tab === 'completed'} onClick={() => setTab('completed')}>Completed <span>{done.length}</span></button>
+        {!viewing && <button role="tab" aria-selected={tab === 'calendar'} onClick={() => { setTab('calendar'); setOpenId(null) }}>Calendar posts</button>}
       </div>
+
+      {tab === 'calendar' && !viewing ? <CalendarPosts /> : <>
 
       <div className="mca-filters">
         {tab === 'active' && (
@@ -385,6 +388,8 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
           })}
         </div>
       )}
+
+      </>}
 
       {open && !viewing && <Drawer req={open} team={team} notes={notesFor.get(open.id) ?? []} onClose={() => setOpenId(null)} post={post}
         others={liveRows.filter(r => r.id !== open.id)} combined={requests.filter(r => r.merged_into === open.id)} />}
@@ -666,7 +671,7 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
             {req.audiences.length > 0 && <p className="d-text"><b>Audience:</b> {req.audiences.join(', ')}</p>}
             {req.event_date && <p className="d-text"><b>Event date:</b> {fmtDate(req.event_date)}</p>}
             {req.is_becon && <p className="d-text"><b>BECON:</b> Yes</p>}
-            {req.calendar_needed && <p className="d-text"><b>District calendar:</b> Requested{req.calendar_form_submitted === true ? ', Calendar Request Form submitted' : req.calendar_form_submitted === false ? ', Calendar Request Form not submitted yet' : ''}</p>}
+            {req.calendar_needed && <p className="d-text"><b>District calendar:</b> Requested{req.calendar_form_submitted === true ? ', details in Calendar posts' : req.calendar_form_submitted === false ? ', Calendar Request Form not submitted yet' : ''}</p>}
           </section>
         )}
 
@@ -746,6 +751,109 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
           </ul>
         </section>
       </aside>
+    </div>
+  )
+}
+
+// Calendar posts (Sean, 2026-10-20): Calendar Post Requests from
+// /calendar-request and from MarComm requests whose event goes on the
+// District calendar. The team posts each one and marks it Posted (with the
+// calendar link) or Declined. Data: /api/bcps/calendar-requests.
+interface CalReq {
+  id: string; request_number: number; created_at: string; kind: string; event_name: string; event_date: string; start_time: string; end_time: string
+  virtual_link: string | null; virtual_phone: string | null; virtual_conference_id: string | null; additional_info: string | null
+  location: string | null; address_street: string | null; address_line2: string | null; city: string | null; state: string | null; zip: string | null
+  website_link: string | null; contact_name: string; contact_email: string | null; contact_phone: string | null; school_department: string | null
+  submitter_name: string; submitter_department: string; submitter_phone: string; requester_email: string
+  status: 'new' | 'posted' | 'declined'; posted_url: string | null; status_note: string | null; status_by: string | null; status_at: string | null
+  bcps_marcomm_requests: { job_number: number | null; title: string } | null
+}
+const CAL_KIND: Record<string, string> = { meeting: 'Meeting', special_event: 'Special Event', virtual_meeting: 'Virtual Meeting' }
+const CAL_STATUS: Record<CalReq['status'], { label: string; cls: string }> = {
+  new: { label: 'New', cls: 'st-new' }, posted: { label: 'Posted', cls: 'st-done' }, declined: { label: 'Declined', cls: 'st-hold' },
+}
+const time12 = (t: string) => { const [h, m] = t.split(':').map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` }
+
+function CalendarPosts() {
+  const [rows, setRows] = useState<CalReq[] | null>(null)
+  const [error, setError] = useState('')
+  const [filter, setFilter] = useState<'new' | 'posted' | 'declined' | 'all'>('new')
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [url, setUrl] = useState('')
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const load = useCallback(async () => {
+    const r = await fetch('/api/bcps/calendar-requests', { headers: await authHeaders(), cache: 'no-store' })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) { setError(j.error || 'Could not load calendar posts.'); return }
+    setRows(j.requests); setError('')
+  }, [])
+  useEffect(() => { load() }, [load])
+  const save = async (id: string, status: CalReq['status']) => {
+    setBusy(true)
+    try {
+      const r = await fetch('/api/bcps/calendar-requests', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify({ id, status, posted_url: url, note }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j.error || 'Could not save.')
+      await load(); setOpenId(null)
+    } catch (e) { setError(e instanceof Error ? e.message : 'Could not save.') } finally { setBusy(false) }
+  }
+  if (error && !rows) return <p className="mca-error">{error}</p>
+  if (!rows) return <p className="muted">Loading calendar posts...</p>
+  const count = (st: string) => rows.filter(r => st === 'all' || r.status === st).length
+  const list = rows.filter(r => filter === 'all' || r.status === filter)
+  return (
+    <div className="cal-posts">
+      <div className="mca-filters">
+        <div className="mca-chips">
+          <span className="fl">Status</span>
+          {(['new', 'posted', 'declined', 'all'] as const).map(st => (
+            <button key={st} className={`chip ${filter === st ? 'on' : ''}`} onClick={() => setFilter(st)}>{st === 'all' ? 'All' : CAL_STATUS[st].label} <b>{count(st)}</b></button>
+          ))}
+        </div>
+        <a className="mca-btn ghost small" href="/calendar-request" target="_blank" rel="noopener">Open calendar request form</a>
+      </div>
+      {error && <p className="mca-error">{error}</p>}
+      <div className="mca-table">
+        {list.length === 0 && <p className="mca-empty">No calendar posts here.</p>}
+        {list.map(r => {
+          const isOpen = openId === r.id
+          const where = r.kind === 'virtual_meeting' ? 'Virtual' : [r.location, r.city].filter(Boolean).join(', ')
+          return (
+            <div key={r.id} className={`cal-row${r.status === 'new' ? ' is-new' : ''}`}>
+              <button type="button" className="cal-row-head" aria-expanded={isOpen} onClick={() => { setOpenId(isOpen ? null : r.id); setUrl(r.posted_url ?? ''); setNote(r.status_note ?? '') }}>
+                <span className="r-job">{fmtDate(r.event_date)}</span>
+                <span className="cal-main">
+                  <span className="r-title">{r.event_name}</span>
+                  <span className="r-who">{CAL_KIND[r.kind] ?? r.kind} · {time12(r.start_time)} to {time12(r.end_time)}{where ? ` · ${where}` : ''}</span>
+                  <span className="r-who">{r.school_department || r.submitter_department} · {r.contact_name}{r.bcps_marcomm_requests ? ` · with MarComm request #${r.bcps_marcomm_requests.job_number ?? ''}` : ''}</span>
+                </span>
+                <span className={`badge ${CAL_STATUS[r.status].cls}`}>{CAL_STATUS[r.status].label}</span>
+              </button>
+              {isOpen && (
+                <div className="cal-detail">
+                  <p className="d-text"><b>Calendar post #{r.request_number}</b>, sent {fmtStamp(r.created_at)} by <a href={`mailto:${r.requester_email}`}>{r.requester_email}</a></p>
+                  {r.kind !== 'virtual_meeting' && <p className="d-text"><b>Address:</b> {[r.address_street, r.address_line2, [r.city, r.state, r.zip].filter(Boolean).join(', ')].filter(Boolean).join(', ')}</p>}
+                  {r.virtual_link && <p className="d-text"><b>Virtual link:</b> <a href={r.virtual_link} target="_blank" rel="noopener noreferrer">{r.virtual_link}</a></p>}
+                  {(r.virtual_phone || r.virtual_conference_id) && <p className="d-text"><b>Dial in:</b> {[r.virtual_phone, r.virtual_conference_id && `ID ${r.virtual_conference_id}`].filter(Boolean).join(', ')}</p>}
+                  {r.website_link && <p className="d-text"><b>Website:</b> <a href={r.website_link} target="_blank" rel="noopener noreferrer">{r.website_link}</a></p>}
+                  <p className="d-text"><b>Contact:</b> {[r.contact_name, r.contact_email, r.contact_phone].filter(Boolean).join(', ')}</p>
+                  {r.additional_info && <p className="d-text pre"><b>Additional information:</b> {r.additional_info}</p>}
+                  <p className="d-text"><b>Submitted by:</b> {[r.submitter_name, r.submitter_department, r.submitter_phone].filter(Boolean).join(', ')}</p>
+                  {r.status !== 'new' && <p className="d-text muted">{CAL_STATUS[r.status].label} {r.status_at ? fmtStamp(r.status_at) : ''}{r.status_by ? ` by ${r.status_by}` : ''}{r.status_note ? `: ${r.status_note}` : ''}{r.posted_url ? <> · <a href={r.posted_url} target="_blank" rel="noopener noreferrer">View on the calendar</a></> : null}</p>}
+                  <div className="cal-actions">
+                    <input type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="Calendar link, once posted (https://)" aria-label="Calendar link" />
+                    <input value={note} onChange={e => setNote(e.target.value)} placeholder="Note (optional, required to decline)" aria-label="Note" />
+                    <button className="mca-btn small" disabled={busy} onClick={() => save(r.id, 'posted')}>Mark posted</button>
+                    <button className="mca-btn small ghost" disabled={busy || !note.trim()} onClick={() => save(r.id, 'declined')}>Decline</button>
+                    {r.status !== 'new' && <button className="mca-btn small ghost" disabled={busy} onClick={() => save(r.id, 'new')}>Reopen</button>}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -959,6 +1067,17 @@ const CSS = `
 .d-files { list-style: none; padding: 0; margin: 0; }
 .d-files button { font: inherit; font-size: 13px; font-weight: 700; color: #0e4e73; background: none; border: none; text-decoration: underline; cursor: pointer; padding: 3px 0; }
 .d-add { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; margin-bottom: 14px; }
+.cal-posts .mca-filters { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cal-row { border-bottom: 1px solid rgba(0,0,0,0.07); }
+.cal-row-head { display: grid; grid-template-columns: 130px minmax(0,1fr) auto; gap: 14px; align-items: start; width: 100%; text-align: left; font: inherit; background: none; border: 0; padding: 14px 20px; cursor: pointer; }
+.cal-row-head:hover { background: rgba(22,114,167,0.04); }
+.cal-row-head .r-job { font-size: 15px; }
+.cal-main { display: flex; flex-direction: column; min-width: 0; }
+.cal-row.is-new .r-title { font-weight: 800; }
+.cal-detail { padding: 4px 20px 16px 164px; }
+.cal-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.cal-actions input { flex: 1 1 220px; min-width: 0; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; }
+@media (max-width: 640px) { .cal-row-head { grid-template-columns: minmax(0,1fr) auto; } .cal-row-head .r-job { grid-column: 1 / -1; } .cal-detail { padding: 4px 16px 16px; } }
 .d-combine { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .d-combine select { flex: 1 1 260px; min-width: 0; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; background: #fff; }
 .n-edit-btn { font: inherit; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #0e4e73; background: none; border: 0; padding: 0; margin-left: 8px; cursor: pointer; text-decoration: underline; }
