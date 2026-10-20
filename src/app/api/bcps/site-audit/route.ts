@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { deptAccessFor, identifyCaller } from '@/lib/bcps-audit-auth'
+import { sendEmail } from '@/lib/resend'
 
 // Full-site audit, read and queue (Sean, 2026-10-07).
 //   GET  ?department_id= | ?school_id=      the site's pages, each with its
@@ -22,6 +23,14 @@ import { deptAccessFor, identifyCaller } from '@/lib/bcps-audit-auth'
 //        on a page's latest audit is marked done; when all are, submit
 //        records it on the current round, sets WCM: Submitted and queues a
 //        full-site re-audit (migration 20261020_bcps_audit_check_marks).
+//   POST { action: 'reclass', department_id, page_ids, note? }
+//   POST { action: 'reclass_withdraw', department_id, request_id }
+//   POST { action: 'reclass_resolve', request_id, outcome: keep | move | remove, to_department_id? }
+//   GET  ?reclass=1                         open requests everywhere (admins)
+//        Pages the WCM does not manage (Sean, 2026-10-20, Patricia Sapp's
+//        EEO/ADA pages): the WCM marks them for reclassification; until the
+//        District Web Team decides, their items leave the WCM's walk and do
+//        not count toward the re-audit (migration 20261020_bcps_page_reclass).
 // Departments: admins, the department's WCM and its director may view.
 // Schools: admins only for now.
 export const dynamic = 'force-dynamic'
@@ -59,6 +68,22 @@ export async function GET(req: NextRequest) {
       s.pages++; sites.set(id, s)
     }
     return NextResponse.json({ sites: Array.from(sites.values()).sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)) })
+  }
+  if (q.get('reclass')) {
+    const caller = await identifyCaller(req, supabase)
+    if (!caller.ok) return NextResponse.json({ error: 'Not signed in' }, { status: caller.status })
+    if (!caller.admin) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+    const [{ data: reqs }, { data: depts }] = await Promise.all([
+      supabase.from('bcps_page_reclass_requests').select('id, department_id, note, requested_by, requested_at, bcps_departments!bcps_page_reclass_requests_department_id_fkey(name), bcps_site_pages(url, title)').eq('status', 'open').order('requested_at'),
+      supabase.from('bcps_departments').select('id, name').order('name'),
+    ])
+    return NextResponse.json({
+      requests: (reqs ?? []).map((r) => {
+        const page = r.bcps_site_pages as unknown as { url: string; title: string | null } | null
+        return { id: r.id, department_id: r.department_id, department: (r.bcps_departments as unknown as { name: string } | null)?.name ?? '', url: page?.url ?? '', title: page?.title ?? null, note: r.note, by: r.requested_by, at: r.requested_at }
+      }),
+      departments: depts ?? [],
+    })
   }
   const owner = { department_id: q.get('department_id'), school_id: q.get('school_id') }
   if (!owner.department_id && !owner.school_id) return NextResponse.json({ error: 'department_id or school_id required' }, { status: 400 })
@@ -109,9 +134,13 @@ export async function GET(req: NextRequest) {
       i.done = m ? { by: m.marked_by, at: m.marked_at, note: m.note } : null
     }
   }
-  const { data: deptRow } = owner.department_id
-    ? await supabase.from('bcps_departments').select('audit_status, wcm_submitted_at').eq('id', owner.department_id).maybeSingle()
-    : { data: null }
+  const [{ data: deptRow }, { data: reclass }, { data: departments }] = owner.department_id
+    ? await Promise.all([
+        supabase.from('bcps_departments').select('audit_status, wcm_submitted_at').eq('id', owner.department_id).maybeSingle(),
+        supabase.from('bcps_page_reclass_requests').select('id, site_page_id, note, requested_by, requested_at').eq('department_id', owner.department_id).eq('status', 'open'),
+        ok.caller.admin ? supabase.from('bcps_departments').select('id, name').order('name') : Promise.resolve({ data: null }),
+      ])
+    : [{ data: null }, { data: null }, { data: null }]
   return NextResponse.json({
     pages: list,
     issues,
@@ -121,6 +150,9 @@ export async function GET(req: NextRequest) {
     can_add: !!owner.department_id && (ok.wcm || ok.caller.admin),
     can_mark: !!owner.department_id && (ok.wcm || ok.caller.admin),
     submitted: deptRow?.audit_status === 'wcm_submitted' ? deptRow.wcm_submitted_at : null,
+    reclass: (reclass ?? []).map((r) => ({ id: r.id, page_id: r.site_page_id, note: r.note, by: r.requested_by, at: r.requested_at })),
+    can_resolve: !!owner.department_id && ok.caller.admin,
+    departments: departments ?? undefined,
   })
 }
 
@@ -179,13 +211,92 @@ async function addPage(req: NextRequest, body: { department_id?: string; url?: s
   return NextResponse.json({ ok: true, page: { id: pageId, url: landed, title } })
 }
 
+// Mark pages for reclassification: the WCM (or the District Web Team) flags
+// pages another office manages. The main page cannot be flagged.
+const WEB_TEAM_NOTIFY = ['sean.russell@browardschools.com']
+const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))
+
+async function reclassPages(req: NextRequest, body: { department_id?: string; page_ids?: unknown; note?: string }) {
+  if (!body.department_id || !Array.isArray(body.page_ids) || !body.page_ids.length) return NextResponse.json({ error: 'Pick at least one page.' }, { status: 400 })
+  const ok = await access(req, { department_id: body.department_id })
+  if (!ok.ok) return NextResponse.json({ error: 'Not allowed' }, { status: ok.status })
+  if (!ok.wcm && !ok.caller.admin) return NextResponse.json({ error: 'Only this department\u2019s WCM can mark pages for reclassification.' }, { status: 403 })
+  const ids = (body.page_ids as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 100)
+  const [{ data: pages }, { data: open }, { data: dept }] = await Promise.all([
+    supabase.from('bcps_site_pages').select('id, url, title, is_main').eq('department_id', body.department_id).eq('active', true).in('id', ids),
+    supabase.from('bcps_page_reclass_requests').select('site_page_id').eq('department_id', body.department_id).eq('status', 'open'),
+    supabase.from('bcps_departments').select('name').eq('id', body.department_id).maybeSingle(),
+  ])
+  const already = new Set((open ?? []).map((o) => o.site_page_id as string))
+  const pick = (pages ?? []).filter((p) => !p.is_main && !already.has(p.id))
+  if (!pick.length) return NextResponse.json({ error: 'Those pages are already marked, or one is your main page, which stays with your department.' }, { status: 409 })
+  const note = (body.note ?? '').trim().slice(0, 1000) || null
+  const { error } = await supabase.from('bcps_page_reclass_requests').insert(pick.map((p) => ({ department_id: body.department_id, site_page_id: p.id, note, requested_by: ok.caller.email })))
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const name = dept?.name ?? 'A department'
+  await sendEmail({
+    to: WEB_TEAM_NOTIFY,
+    subject: `${name}: ${pick.length} page${pick.length === 1 ? '' : 's'} marked for reclassification`,
+    kind: 'bcps-page-reclass',
+    context: { department_id: body.department_id, page_ids: pick.map((p) => p.id) },
+    html: `<p>${esc(ok.caller.email ?? 'The WCM')} marked ${pick.length === 1 ? 'this page' : 'these pages'} on the ${esc(name)} audit as not theirs to manage:</p><ul>${pick.map((p) => `<li><a href="${esc(p.url)}">${esc(p.title || p.url)}</a></li>`).join('')}</ul>${note ? `<p>Their note: ${esc(note)}</p>` : ''}<p>Decide each one in Run Audit &gt; View a scan &gt; Reclassification requests on bcpsmarcomm.com: keep it there, move it to another department, or take it off the audit.</p>`,
+  })
+  return NextResponse.json({ ok: true, marked: pick.length })
+}
+
+async function withdrawReclass(req: NextRequest, body: { department_id?: string; request_id?: string }) {
+  if (!body.department_id || !body.request_id) return NextResponse.json({ error: 'department_id and request_id required' }, { status: 400 })
+  const ok = await access(req, { department_id: body.department_id })
+  if (!ok.ok) return NextResponse.json({ error: 'Not allowed' }, { status: ok.status })
+  if (!ok.wcm && !ok.caller.admin) return NextResponse.json({ error: 'Only this department\u2019s WCM can change this.' }, { status: 403 })
+  await supabase.from('bcps_page_reclass_requests').update({ status: 'withdrawn', resolved_by: ok.caller.email, resolved_at: new Date().toISOString() })
+    .eq('id', body.request_id).eq('department_id', body.department_id).eq('status', 'open')
+  return NextResponse.json({ ok: true })
+}
+
+// The District Web Team decides: keep it here, move it (retired here, added to
+// the other department's site and audited there next), or take it off.
+async function resolveReclass(req: NextRequest, body: { request_id?: string; outcome?: string; to_department_id?: string }) {
+  const caller = await identifyCaller(req, supabase)
+  if (!caller.ok) return NextResponse.json({ error: 'Not signed in' }, { status: caller.status })
+  if (!caller.admin) return NextResponse.json({ error: 'Only the District Web Team can decide this.' }, { status: 403 })
+  if (!body.request_id || !['keep', 'move', 'remove'].includes(body.outcome ?? '')) return NextResponse.json({ error: 'request_id and outcome required' }, { status: 400 })
+  const { data: r } = await supabase.from('bcps_page_reclass_requests').select('id, department_id, site_page_id, status, bcps_site_pages(url, title)').eq('id', body.request_id).maybeSingle()
+  if (!r || r.status !== 'open') return NextResponse.json({ error: 'That request is already settled.' }, { status: 409 })
+  const page = r.bcps_site_pages as unknown as { url: string; title: string | null } | null
+  const now = new Date().toISOString()
+  if (body.outcome === 'move') {
+    if (!body.to_department_id || body.to_department_id === r.department_id) return NextResponse.json({ error: 'Pick the department it belongs to.' }, { status: 400 })
+    const { data: to } = await supabase.from('bcps_departments').select('id').eq('id', body.to_department_id).maybeSingle()
+    if (!to || !page) return NextResponse.json({ error: 'Department not found.' }, { status: 404 })
+    const { data: there } = await supabase.from('bcps_site_pages').select('id, active').eq('department_id', to.id).eq('url', page.url).maybeSingle()
+    let pageId = there?.id as string | undefined
+    if (there) { if (!there.active) await supabase.from('bcps_site_pages').update({ active: true, last_seen_at: now }).eq('id', there.id) }
+    else {
+      const { data: ins, error } = await supabase.from('bcps_site_pages').insert({ department_id: to.id, url: page.url, title: page.title, is_main: false, source: 'manual', added_by: caller.email }).select('id').single()
+      if (error || !ins) return NextResponse.json({ error: error?.message || 'Could not move the page.' }, { status: 500 })
+      pageId = ins.id
+    }
+    if (!there?.active) await supabase.from('bcps_audit_queue').insert({ department_id: to.id, site_page_id: pageId, kind: 'page', run_month: now.slice(0, 7) + '-01', requested_by: caller.email })
+  }
+  if (body.outcome !== 'keep') await supabase.from('bcps_site_pages').update({ active: false }).eq('id', r.site_page_id)
+  await supabase.from('bcps_page_reclass_requests').update({
+    status: body.outcome === 'keep' ? 'kept' : body.outcome === 'move' ? 'moved' : 'removed',
+    moved_to: body.outcome === 'move' ? body.to_department_id : null, resolved_by: caller.email, resolved_at: now,
+  }).eq('id', r.id)
+  return NextResponse.json({ ok: true })
+}
+
 // The red and amber items on each page's latest audit, and how many are marked done.
 async function openItems(departmentId: string) {
-  const [{ data: pages }, { data: results }] = await Promise.all([
+  const [{ data: pages }, { data: results }, { data: flagged }] = await Promise.all([
     supabase.from('bcps_site_pages').select('id').eq('department_id', departmentId).eq('active', true),
     supabase.from('bcps_audit_results').select('id, site_page_id, checks').eq('department_id', departmentId).gte('audit_version', 3).not('site_page_id', 'is', null).order('audited_at', { ascending: false }).limit(300),
+    supabase.from('bcps_page_reclass_requests').select('site_page_id').eq('department_id', departmentId).eq('status', 'open'),
   ])
-  const live = new Set((pages ?? []).map((p) => p.id as string))
+  // A page waiting on reclassification is not the WCM's to fix.
+  const away = new Set((flagged ?? []).map((f) => f.site_page_id as string))
+  const live = new Set((pages ?? []).map((p) => p.id as string).filter((id) => !away.has(id)))
   const latest = new Map<string, { id: string; checks: unknown }>()
   for (const r of results ?? []) if (live.has(r.site_page_id as string) && !latest.has(r.site_page_id as string)) latest.set(r.site_page_id as string, r)
   const items: { result_id: string; check_id: string }[] = []
@@ -239,8 +350,11 @@ async function submitFixes(req: NextRequest, body: { department_id?: string }) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({})) as { action?: string; department_id?: string; school_id?: string; url?: string; result_id?: string; check_id?: string; done?: boolean; note?: string }
+  const body = await req.json().catch(() => ({})) as { action?: string; department_id?: string; school_id?: string; url?: string; result_id?: string; check_id?: string; done?: boolean; note?: string; page_ids?: unknown; request_id?: string; outcome?: string; to_department_id?: string }
   if (body.action === 'add_page') return addPage(req, body)
+  if (body.action === 'reclass') return reclassPages(req, body)
+  if (body.action === 'reclass_withdraw') return withdrawReclass(req, body)
+  if (body.action === 'reclass_resolve') return resolveReclass(req, body)
   if (body.action === 'mark') return markItem(req, body)
   if (body.action === 'submit') return submitFixes(req, body)
   const owner = { department_id: body.department_id ?? null, school_id: body.school_id ?? null }

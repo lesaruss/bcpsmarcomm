@@ -75,6 +75,11 @@ async function runSiteJob(job: Job): Promise<string> {
     }
     if (pageId) queued.push({ ...owner, site_page_id: pageId, run_id: runId, run_month: job.run_month, kind: 'page', requested_by: job.requested_by ?? 'monthly' })
   }
+  // Pages the finder cannot see, added by the WCM or moved here from another
+  // department's audit, are part of the site too (Sean, 2026-10-20).
+  const found = new Set(queued.map((q) => q.site_page_id as string))
+  const { data: added } = await supabase.from('bcps_site_pages').select('id').match(owner).eq('active', true).in('source', ['manual', 'wcm_added'])
+  for (const a of added ?? []) if (!found.has(a.id)) queued.push({ ...owner, site_page_id: a.id, run_id: runId, run_month: job.run_month, kind: 'page', requested_by: job.requested_by ?? 'monthly' })
   if (queued.length) await supabase.from('bcps_audit_queue').insert(queued)
   await finish(job.id, { status: 'done', run_id: runId, last_error: null })
   return `site: ${queued.length} pages queued`

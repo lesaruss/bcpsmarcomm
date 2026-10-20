@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { MARCOMM_PATH, type PageId, type BreadcrumbItem } from '@/lib/types'
@@ -1534,11 +1534,37 @@ function ScanShowcase() {
     })()
   }, [])
   const site = sites?.find((x) => x.id === pick) ?? null
+  // Pages WCMs marked for reclassification (Sean, 2026-10-20): opening one
+  // shows that site's All pages, where each is kept, moved or taken off.
+  const [reclass, setReclass] = useState<{ id: string; department_id: string; department: string; url: string; title: string | null; note: string | null; by: string; at: string }[]>([])
+  const [fromReclass, setFromReclass] = useState(false)
+  const loadReclass = useCallback(async () => {
+    const { data } = await createClient().auth.getSession()
+    const t = data.session?.access_token
+    const res = await fetch('/api/bcps/site-audit?reclass=1', { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+    const json = await res.json().catch(() => ({}))
+    setReclass(res.ok ? json.requests ?? [] : [])
+  }, [])
+  useEffect(() => { loadReclass() }, [loadReclass, pick])
+  const byDept = reclass.reduce<Record<string, { name: string; pages: typeof reclass }>>((m, r) => { (m[r.department_id] ??= { name: r.department, pages: [] }).pages.push(r); return m }, {})
   return (
     <div className="home-section">
+      {Object.keys(byDept).length > 0 && (
+        <div className="home-dept home-section">
+          <h3 style={{ margin: '0 0 6px' }}>Reclassification requests</h3>
+          <p className="home-card-text" style={{ margin: '0 0 10px' }}>Pages a WCM says their team does not manage. Open a site to keep each page there, move it to the department it belongs to, or take it off the audit.</p>
+          {Object.entries(byDept).map(([id, d]) => (
+            <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '8px 0', borderTop: '1px solid rgba(0,0,0,.08)' }}>
+              <b style={{ fontSize: 13.5 }}>{d.name}</b>
+              <span className="home-card-text" style={{ margin: 0 }}>{d.pages.length} page{d.pages.length === 1 ? '' : 's'}: {d.pages.slice(0, 3).map((p) => p.title || p.url.replace(/^https?:\/\/[^/]+/, '')).join(', ')}{d.pages.length > 3 ? ', …' : ''}</span>
+              <button type="button" className="wcm-hub2-card-btn" style={{ marginLeft: 'auto' }} onClick={() => { setFromReclass(true); setPick(id) }}>Open</button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="home-dept home-section" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0 }}>View a scan</h3>
-        <select aria-label="Pick a site" value={pick} onChange={(e) => setPick(e.target.value)} style={{ font: 'inherit', padding: '7px 10px', borderRadius: 8, border: '1px solid #1672A7', minWidth: 260, maxWidth: '100%' }}>
+        <select aria-label="Pick a site" value={pick} onChange={(e) => { setFromReclass(false); setPick(e.target.value) }} style={{ font: 'inherit', padding: '7px 10px', borderRadius: 8, border: '1px solid #1672A7', minWidth: 260, maxWidth: '100%' }}>
           <option value="">{sites ? (sites.length ? 'Pick a department or school…' : 'No sites audited yet') : 'Loading…'}</option>
           {(['department', 'school'] as const).map((k) => sites?.some((x) => x.kind === k) ? (
             <optgroup key={k} label={k === 'department' ? 'Department sites' : 'School sites (ADA only)'}>
@@ -1551,7 +1577,7 @@ function ScanShowcase() {
         <button type="button" className="wcm-hub2-card-btn" style={{ marginLeft: 'auto' }} aria-expanded={guide} onClick={() => setGuide(!guide)}>{guide ? 'Hide Website Review' : 'Website Review'}</button>
       </div>
       {guide && <WcmAuditSteps showName={false} />}
-      {site &&<SiteAudit key={site.id} owner={site.kind === 'department' ? { department_id: site.id } : { school_id: site.id }} adaOnly={site.kind === 'school'} isAdmin />}
+      {site &&<SiteAudit key={`${site.id}-${fromReclass}`} owner={site.kind === 'department' ? { department_id: site.id } : { school_id: site.id }} adaOnly={site.kind === 'school'} isAdmin startOnPages={fromReclass} />}
     </div>
   )
 }
