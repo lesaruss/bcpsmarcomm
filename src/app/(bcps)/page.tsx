@@ -113,11 +113,9 @@ function HomeInner() {
     setTimeout(() => setToast(null), 3000)
   }, [])
 
-  return (
-    <div className="page-content">
-      {/* MarComm Assignments is a dashboard tab at its own address, so the
-          tab bar stays on screen (Sean, 2026-10-20). */}
-      {(nav.page === 'dashboard' || nav.page === 'marcomm-assignments') && <HomePage onNavigate={navigate} viewAsUserId={viewAs?.id} onShowToast={showToast} />}
+  const isDashboard = nav.page === 'dashboard' || nav.page === 'marcomm-assignments'
+  const pageEl = isDashboard ? null : (
+    <>
       {nav.page === 'notes'                  && <NotesPage />}
       {nav.page === 'profile'                && <ProfilePage subPage={nav.subPage} onNavigate={navigate} />}
       {nav.page === 'departments'            && <DepartmentsPage subPage={nav.subPage} onNavigate={navigate} />}
@@ -154,6 +152,15 @@ function HomeInner() {
       {nav.page === 'proud-points'             && <ProudPointsPage />}
       {nav.page === 'my-submissions'           && <MySubmissionsPage />}
       {nav.page === 'school-profiles'          && <SchoolProfilesPage />}
+    </>
+  )
+
+  return (
+    <div className="page-content">
+      {/* Every page opens under the dashboard tab bar, so the menu is always
+          on screen (Sean, 2026-10-20). One HomePage instance either way, so
+          moving between a page and a tab does not reload the dashboard. */}
+      <HomePage onNavigate={navigate} viewAsUserId={viewAs?.id} onShowToast={showToast} page={pageEl} />
 
       {toast && <div className="toast toast-show">{toast}</div>}
     </div>

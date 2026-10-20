@@ -519,7 +519,7 @@ function primaryWindow(depts: DepartmentSummary[]): ReviewWindow | null {
   return ws.find((w) => windowState(w) === 'open') ?? ws.find((w) => windowState(w) === 'upcoming') ?? ws[ws.length - 1] ?? null
 }
 
-function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
+function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; preview?: boolean; onNavigate: Navigate; page?: React.ReactNode }) {
   const router = useRouter()
   const [tabId, setTabId] = useHomeTab()
   const tab = tabId as DirectorTab
@@ -563,6 +563,7 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
     ...(data.is_wcm ? [{ id: 'wcm' as DirectorTab, label: 'My WCM Work' }] : []),
     { id: 'tools', label: 'Tools & Resources' },
   ]
+  if (page) return <PageUnderTabs tabs={tabs} onChange={(t) => setTab(t as DirectorTab)}>{page}</PageUnderTabs>
 
   return (
     <div className="home">
@@ -654,7 +655,7 @@ function DirectorHome({ data, preview, onNavigate }: { data: HomeData; preview?:
       {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} oversight={oversight} />}
       {tab === 'analytics' && <AnalyticsTab led={led} />}
       {tab === 'notes' && <NotesTab notes={data.director_notes ?? []} led={led} />}
-      {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
+      {tab === 'widgets' && <WidgetsPage embedded />}
       {tab === 'wcm' && <WcmCommunityHub />}
       {tab === 'tools' && <>
         {/* Ask & Guide folded in here (Sean, Oct 5 OOC Web Huddle). */}
@@ -863,28 +864,6 @@ function NotesTab({ notes, led }: { notes: DirectorNote[]; led: DepartmentSummar
             </div>
           )
         })}
-      </div>
-    </>
-  )
-}
-
-function WidgetsTab({ widgets }: { widgets: WidgetItem[] }) {
-  return (
-    <>
-      <p className="wcm-hub2-intro">Embeddable directories and tools the District Web Team builds for departments. Each one can go on any page and is kept up to date in one place.</p>
-      <div className="wcm-hub2-grid">
-        {widgets.map((w) => (
-          <div key={w.slug} className="wcm-hub2-card">
-            <h3>{w.title}</h3>
-            {w.description && <p>{w.description}</p>}
-            <a className="wcm-hub2-card-btn" href={w.preview_path!} target="_blank" rel="noopener noreferrer">Preview</a>
-          </div>
-        ))}
-        <div className="wcm-hub2-card">
-          <h3>Want one for your department?</h3>
-          <p>Tell us what you want listed. The District Web Team builds a first version and refines it with you.</p>
-          <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback('We would like a widget for our department. What we want listed: ')}>Request a widget</button>
-        </div>
       </div>
     </>
   )
@@ -1122,7 +1101,7 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 // top right of the tab, so the guide and the results are in one place.
 type WcmTab = 'overview' | 'documents' | 'audit' | 'marcomm' | 'widgets' | 'tools'
 
-function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: boolean; onNavigate: Navigate }) {
+function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?: boolean; onNavigate: Navigate; page?: React.ReactNode }) {
   const router = useRouter()
   const [tabId, setTabId] = useHomeTab()
   const tab = tabId as WcmTab
@@ -1147,6 +1126,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
     { id: 'widgets', label: 'Widgets' },
     { id: 'tools', label: 'Tools & Resources' },
   ]
+  if (page) return <PageUnderTabs tabs={tabs} onChange={(x) => setTab(x as WcmTab)}>{page}</PageUnderTabs>
   return (
     <div className="home">
       {preview && <PreviewBanner who="WCM" />}
@@ -1234,7 +1214,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
           {mine.map((d) => <WcmDepartmentCards key={d.id} dept={d} showName={mine.length > 1} onAudit={() => setTab('audit')} />)}
         </>
       )}
-      {tab === 'widgets' && <WidgetsTab widgets={data.widgets ?? []} />}
+      {tab === 'widgets' && <WidgetsPage embedded />}
       {tab === 'documents' && <DocumentsTab kind="wcm" canMarcomm={canMarcomm} onNavigate={onNavigate} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audit' && <RunAuditTab depts={mine} canRecheck guide={guide} onGuide={setGuide} wcm />}
@@ -2135,7 +2115,7 @@ function DepartmentsPanel({ onNavigate }: { onNavigate: Navigate }) {
   return <DepartmentsPage onNavigate={onNavigate} />
 }
 
-function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }: { data: HomeData; onNavigate: Navigate; viewAsUserId?: string; preview?: boolean; onShowToast?: (msg: string) => void }) {
+function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, page }: { data: HomeData; onNavigate: Navigate; viewAsUserId?: string; preview?: boolean; onShowToast?: (msg: string) => void; page?: React.ReactNode }) {
   const router = useRouter()
   const [tab, setTab] = useHomeTab()
   // The full inbox lives in Team Operations (voice replies, account access).
@@ -2163,6 +2143,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
   // Off the tab bar (Sean, 2026-10-20): Program sits on Overview, the Admin
   // consoles in Tools & Resources. Team Operations (the full inbox and
   // account access requests) still opens from Overview's Decide and Inbox.
+  if (page) return <PageUnderTabs tabs={tabs} onChange={setTab}>{page}</PageUnderTabs>
   return (
     <div className="home">
       {preview && <PreviewBanner><strong>Previewing the SuperAdmin dashboard.</strong> Numbers and lists are live.</PreviewBanner>}
@@ -2205,7 +2186,8 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
   )
 }
 
-function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, onShowToast }: {
+function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, onShowToast, page }: {
+  page?: React.ReactNode
   data: HomeData
   kind: TeamKind
   onNavigate: Navigate
@@ -2245,6 +2227,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
         { id: 'tools', label: 'Tools & Resources' },
       ]
+  if (page) return <PageUnderTabs tabs={tabs} onChange={setTab}>{page}</PageUnderTabs>
   return (
     <div className="home">
       {previewNote && <PreviewBanner>{previewNote}</PreviewBanner>}
@@ -2340,6 +2323,17 @@ function HomeTabs({ tabs, active, onChange }: { tabs: { id: string; label: strin
   )
 }
 
+// A page opened from the dashboard, under the tab bar. Most open from Tools
+// & Resources, so that tab reads as the active one.
+function PageUnderTabs({ tabs, onChange, children }: { tabs: { id: string; label: string }[]; onChange: (id: string) => void; children: React.ReactNode }) {
+  return (
+    <>
+      <div className="home home-tabs-only"><HomeTabs tabs={tabs} active="tools" onChange={onChange} /></div>
+      {children}
+    </>
+  )
+}
+
 // "View as person" (Sean, 2026-10-09): the dashboard built from one real
 // person's data (/api/bcps/home?as=<email>, SuperAdmin only), shown the way
 // they will see it, under a banner naming who it is.
@@ -2386,7 +2380,7 @@ function PersonPreview({ email, onNavigate, onShowToast }: { email: string; onNa
   return <>{banner}{body}</>
 }
 
-export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { onNavigate: Navigate; viewAsUserId?: string; onShowToast?: (msg: string) => void }) {
+export default function HomePage({ onNavigate, viewAsUserId, onShowToast, page }: { onNavigate: Navigate; viewAsUserId?: string; onShowToast?: (msg: string) => void; page?: React.ReactNode }) {
   const [data, setData] = useState<HomeData | null>(null)
   const [failed, setFailed] = useState(false)
   const [docParam] = useDocParam()
@@ -2415,6 +2409,18 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast }: { on
   )
   const wcmSample = useMemo(() => (viewAsUserId === SAMPLE_WCM_ID ? sampleWcmData() : null), [viewAsUserId])
   const schoolWcmSample = useMemo(() => (viewAsUserId === SAMPLE_SCHOOL_WCM_ID ? sampleSchoolWcmData() : null), [viewAsUserId])
+
+  // A page opened from the dashboard (Widgets, Documents, a tool) shows under
+  // the person's own tab bar. Previews, a failed load and the dashboards with
+  // no tab bar show the page on its own.
+  if (page) {
+    if (viewAsUserId || failed || !data) return <>{page}</>
+    if (data.experience === 'superadmin' && data.team_home) return <SuperAdminHome data={data} onNavigate={onNavigate} onShowToast={onShowToast} page={page} />
+    if (data.experience === 'dwt' && data.team_home) return <WebTeamHome data={data} kind={data.team_kind ?? 'comms'} onNavigate={onNavigate} assignments={data.team_home.my_assignments} onShowToast={onShowToast} page={page} />
+    if (data.experience === 'director') return <DirectorHome data={data} onNavigate={onNavigate} page={page} />
+    if (data.experience === 'wcm') return <WcmHome data={data} onNavigate={onNavigate} page={page} />
+    return <>{page}</>
+  }
 
   // "View as" previews: the Director and WCM samples get their own home with
   // sample data. The web team previews (the two samples, or a real team
