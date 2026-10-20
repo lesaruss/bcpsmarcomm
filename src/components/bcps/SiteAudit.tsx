@@ -6,9 +6,13 @@
 // across the site, loading its page with the item open on the screenshot and
 // the steps on the right. Audit items (course standards) come first, then
 // ADA items (the WCAG scan), each tagged, in one list (Sean, 2026-10-08).
-// The dropdown jumps straight to any issue (only pages with issues appear).
-// Checklist shows every page, passing ones too. Each item has Ask a
-// question, which goes to the team's question bank.
+// All pages lists every page, passing ones too; opening one starts the walk
+// there. (The jump-to-an-issue dropdown was a third way to do the same thing
+// and came out on 2026-10-20, Sean: "three ways of slicing a piece of pie".)
+// From All pages the WCM marks pages their team does not manage for
+// reclassification; those pages leave the walk until the District Web Team
+// decides. Each item has Ask a question, which goes to the team's question
+// bank.
 // Used on the department profile (Web Review), the WCM and director
 // dashboards (Run Audit) and the school audit page.
 
@@ -24,7 +28,11 @@ type PageRow = {
 }
 type Done = { by: string; at: string; note: string | null }
 type Issue = { page_id: string; result_id: string; check_id: string; area: string; title: string; detail: string; status: 'fail' | 'review'; done?: Done | null }
-type Summary = { pages: PageRow[]; issues: Issue[]; site_score: number | null; in_progress: number; can_run: boolean; can_add?: boolean; can_mark?: boolean; submitted?: string | null }
+type Reclass = { id: string; page_id: string; note: string | null; by: string; at: string }
+type Summary = {
+  pages: PageRow[]; issues: Issue[]; site_score: number | null; in_progress: number; can_run: boolean; can_add?: boolean; can_mark?: boolean; submitted?: string | null
+  reclass?: Reclass[]; can_resolve?: boolean; departments?: { id: string; name: string }[]
+}
 const SOURCE_TAG: Partial<Record<NonNullable<PageRow['source']>, string>> = { quick_link: 'Quick link', manual: 'Quick link', wcm_added: 'Added by WCM' }
 
 const CHECKLIST = '__checklist'
@@ -45,7 +53,7 @@ const checkedAt = (iso: string | null | undefined) => iso
 const isAda = (i: { area: string }) => i.area === 'Accessibility'
 const kindOf = (i: { area: string }) => isAda(i) ? 'ADA' : 'Audit'
 
-export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: { owner: { department_id?: string; school_id?: string }; adaOnly?: boolean; isAdmin?: boolean }) {
+export default function SiteAudit({ owner, adaOnly = false, isAdmin = false, startOnPages = false }: { owner: { department_id?: string; school_id?: string }; adaOnly?: boolean; isAdmin?: boolean; startOnPages?: boolean }) {
   const qs = owner.department_id ? `department_id=${owner.department_id}` : `school_id=${owner.school_id}`
   const [sum, setSum] = useState<Summary | null>(null)
   const [err, setErr] = useState('')
@@ -54,18 +62,24 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
   const [full, setFull] = useState<Record<string, AuditV3>>({})
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null)
+  const [choosing, setChoosing] = useState(false)
+  const [chosen, setChosen] = useState<Set<string>>(new Set())
+  const [reclassNote, setReclassNote] = useState('')
 
   // Issues in walk order: every audit item first, then every ADA item; within
   // each, pages as listed (main first), fixes before reviews, in the order
   // the checks ran.
+  // Pages waiting on reclassification are left out: not the WCM's to fix.
+  const away = useMemo(() => new Set((sum?.reclass ?? []).map((r) => r.page_id)), [sum])
   const issues = useMemo(() => {
     if (!sum) return [] as Issue[]
     const order = new Map(sum.pages.map((p, i) => [p.id, i]))
     return (sum.issues ?? [])
+      .filter((x) => !away.has(x.page_id))
       .map((x, i) => ({ x, i }))
       .sort((a, b) => Number(isAda(a.x)) - Number(isAda(b.x)) || (order.get(a.x.page_id) ?? 999) - (order.get(b.x.page_id) ?? 999) || (a.x.status === b.x.status ? 0 : a.x.status === 'fail' ? -1 : 1) || a.i - b.i)
       .map(({ x }) => x)
-  }, [sum])
+  }, [sum, away])
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/bcps/site-audit?${qs}`, { headers: await auth() })
@@ -75,12 +89,14 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
   }, [qs])
   useEffect(() => { load() }, [load])
 
-  // First visit: open the first issue; a site with none opens the checklist.
+  // First visit: open the first issue; a site with none (or a visit to settle
+// reclassification requests) opens All pages.
   useEffect(() => {
     if (!sum || pick) return
-    if (issues.length) { setPick(issues[0].page_id); setFocus(issues[0].check_id) }
+    if (startOnPages) setPick(CHECKLIST)
+    else if (issues.length) { setPick(issues[0].page_id); setFocus(issues[0].check_id) }
     else setPick(sum.pages.length > 1 ? CHECKLIST : sum.pages[0]?.id || CHECKLIST)
-  }, [sum, issues, pick])
+  }, [sum, issues, pick, startOnPages])
 
   const page = pick === CHECKLIST ? null : sum?.pages.find((p) => p.id === pick) ?? null
   const rid = page?.result?.id
@@ -147,8 +163,6 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
           ? `Checked ${checkedAt(dates[dates.length - 1])}`
           : `Pages checked ${checkedAt(dates[0])} to ${checkedAt(dates[dates.length - 1])}`)
       : null
-  const issuePages = sum.pages.filter((p) => issues.some((i) => i.page_id === p.id))
-  const countOn = (id: string) => issues.filter((i) => i.page_id === id)
   // Fixes reported back (Sean, 2026-10-20): every open item marked done
   // unlocks Request re-audit.
   const doneCount = issues.filter((i) => i.done).length
@@ -165,6 +179,19 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
     } catch (e) { setMsg({ text: e instanceof Error ? e.message : 'Could not request the re-audit.', bad: true }) }
     finally { setBusy(false) }
   }
+  const sendReclass = async () => {
+    if (!owner.department_id || !chosen.size) return
+    setBusy(true); setMsg(null)
+    try {
+      const res = await fetch('/api/bcps/site-audit', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await auth()) }, body: JSON.stringify({ action: 'reclass', department_id: owner.department_id, page_ids: Array.from(chosen), note: reclassNote }) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Could not send.')
+      setMsg({ text: `Sent. ${json.marked} page${json.marked === 1 ? ' is' : 's are'} with the District Web Team, and ${json.marked === 1 ? 'its' : 'their'} items are out of your list for now.` })
+      setChoosing(false); setChosen(new Set()); setReclassNote('')
+      await load()
+    } catch (e) { setMsg({ text: e instanceof Error ? e.message : 'Could not send.', bad: true }) }
+    finally { setBusy(false) }
+  }
   const setDone = (resultId: string, checkId: string, done: Done | null) =>
     setSum((s) => s && { ...s, issues: s.issues.map((i) => i.result_id === resultId && i.check_id === checkId ? { ...i, done } : i) })
 
@@ -178,22 +205,12 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
       {issues.length > 0 && (
         <div className="sa-step" role="group" aria-label="Step through issues">
           <button type="button" onClick={() => step(-1)} disabled={cur === 0} aria-label="Previous issue">&lsaquo; Prev</button>
-          <span>{cur >= 0 ? <>Issue <b>{cur + 1}</b> of {issues.length} · {kindOf(issues[cur])}</> : <>{issues.length} issues</>}</span>
+          <span>{cur >= 0 ? <>Issue <b>{cur + 1}</b> of {issues.length} · {kindOf(issues[cur])}</> : <>{issues.length} issue{issues.length === 1 ? '' : 's'}</>}</span>
           <button type="button" onClick={() => step(1)} disabled={cur === issues.length - 1} aria-label="Next issue">Next &rsaquo;</button>
         </div>
       )}
-      {issues.length > 0 && (
-        <select className="sa-jump" aria-label="Jump to an issue" value={cur >= 0 ? String(cur) : ''} onChange={(e) => { const i = issues[Number(e.target.value)]; if (i) go(i) }}>
-          {cur < 0 && <option value="">Jump to an issue…</option>}
-          {(['Audit', 'ADA'] as const).flatMap((k) => issuePages.filter((p) => issues.some((i) => i.page_id === p.id && kindOf(i) === k)).map((p) => (
-            <optgroup key={`${k}-${p.id}`} label={`${k} · ${pageLabel(p)} (${p.result?.overall_score ?? '–'})`}>
-              {issues.map((i, n) => i.page_id === p.id && kindOf(i) === k ? <option key={n} value={n}>{i.status === 'fail' ? 'Fix' : 'Review'}: {i.title}</option> : null)}
-            </optgroup>
-          )))}
-        </select>
-      )}
       <button type="button" className={`sa-link${pick === CHECKLIST ? ' on' : ''}`} onClick={() => { setPick(CHECKLIST); setFocus(null); setMsg(null) }}>
-        Checklist ({sum.pages.length} page{sum.pages.length === 1 ? '' : 's'})
+        All pages ({sum.pages.length})
       </button>
       {sum.can_mark && owner.department_id && issues.length > 0 && (
         <div className="sa-progress-done" title="Mark each item done after you fix it in Finalsite (or check it, for a review item)">
@@ -230,31 +247,56 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
     <div className="sa"><style>{CSS}</style>
       {bar}{status}
       <div className="sa-box">
-        <span className="sa-h">Every page on the site</span>
+        <div className="sa-list-head">
+          <span className="sa-h">Every page on the site</span>
+          {sum.can_mark && owner.department_id && !choosing && sum.pages.length > 1 && (
+            <button type="button" className="sa-btn sa-btn-alt" onClick={() => { setChoosing(true); setChosen(new Set()); setMsg(null) }}>Mark pages for reclassification</button>
+          )}
+        </div>
+        {choosing && <p className="sa-muted sa-choose-note">Pick the pages your team does not manage, like pages another office keeps up. The District Web Team moves them to the right department. Until they do, those pages&rsquo; items are left out of your list and do not count toward your re-audit.</p>}
         <ul className="sa-check">
           {sum.pages.map((p) => {
-            const on = countOn(p.id)
+            const on = (sum.issues ?? []).filter((i) => i.page_id === p.id)
             const fix = on.filter((i) => i.status === 'fail').length
             const done = p.result && on.length === 0
-            return (
-              <li key={p.id}>
-                <button type="button" className="sa-check-row" onClick={() => openPage(p.id)} disabled={!p.result && !sum.can_run}>
-                  <span className={`sa-tick${done ? ' ok' : p.result ? ' bad' : ''}`} aria-hidden>{done ? '✓' : p.result ? on.length : '–'}</span>
+            const req = (sum.reclass ?? []).find((r) => r.page_id === p.id)
+            const can = choosing && !p.is_main && !req
+            const row = (
+                  <>
+                  {choosing
+                    ? <span className={`sa-pick${chosen.has(p.id) ? ' on' : ''}${can ? '' : ' off'}`} aria-hidden>{chosen.has(p.id) ? '✓' : ''}</span>
+                    : <span className={`sa-tick${req ? ' away' : done ? ' ok' : p.result ? ' bad' : ''}`} aria-hidden>{req ? '↗' : done ? '✓' : p.result ? on.length : '–'}</span>}
                   <span className="sa-check-text">
                     <span className="sa-check-title">{pageLabel(p)}</span>
-                    <span className="sa-check-path">{pagePath(p)}{p.source && SOURCE_TAG[p.source] && <span className="sa-src">{SOURCE_TAG[p.source]}</span>}</span>
+                    <span className="sa-check-path">{pagePath(p)}{p.source && SOURCE_TAG[p.source] && <span className="sa-src">{SOURCE_TAG[p.source]}</span>}{req && <span className="sa-src sa-src-away">Reclassification requested</span>}</span>
                   </span>
                   <span className="sa-check-meta">
-                    {!p.result ? 'Not audited yet' : done ? 'All clear' : `${fix} to fix · ${on.length - fix} to review${on.some((i) => i.done) ? ` · ${on.filter((i) => i.done).length} done` : ''}`}
-                    {p.result && <small className="sa-check-when">Checked {checkedAt(p.result.audited_at)}</small>}
+                    {choosing && p.is_main ? 'Your main page stays with you' : req ? `Sent ${checkedAt(req.at)}` : !p.result ? 'Not audited yet' : done ? 'All clear' : `${fix} to fix · ${on.length - fix} to review${on.some((i) => i.done) ? ` · ${on.filter((i) => i.done).length} done` : ''}`}
+                    {p.result && !req && <small className="sa-check-when">Checked {checkedAt(p.result.audited_at)}</small>}
                   </span>
                   <span className="sa-check-score" style={{ color: scoreColor(p.result?.overall_score) }}>{p.result?.overall_score ?? '–'}</span>
-                </button>
+                  </>
+            )
+            return (
+              <li key={p.id}>
+                {choosing
+                  ? <button type="button" className="sa-check-row" role="checkbox" aria-checked={chosen.has(p.id)} disabled={!can} onClick={() => setChosen((c) => { const n = new Set(c); if (n.has(p.id)) n.delete(p.id); else n.add(p.id); return n })}>{row}</button>
+                  : <button type="button" className="sa-check-row" onClick={() => openPage(p.id)} disabled={!p.result && !sum.can_run}>{row}</button>}
+                {req && !choosing && owner.department_id && (sum.can_resolve || sum.can_mark) && (
+                  <ReclassRow req={req} departmentId={owner.department_id} admin={!!sum.can_resolve} departments={sum.departments ?? []} onDone={load} />
+                )}
               </li>
             )
           })}
         </ul>
-        {sum.can_add && owner.department_id && <AddPage departmentId={owner.department_id} onAdded={load} />}
+        {choosing && owner.department_id && (
+          <div className="sa-choose">
+            <input value={reclassNote} onChange={(e) => setReclassNote(e.target.value)} placeholder="Who manages these pages, if you know (optional)" aria-label="Who manages these pages" />
+            <button type="button" className="sa-btn" disabled={busy || !chosen.size} onClick={sendReclass}>{chosen.size ? `Send ${chosen.size} page${chosen.size === 1 ? '' : 's'} for reclassification` : 'Pick pages above'}</button>
+            <button type="button" className="sa-link" onClick={() => { setChoosing(false); setChosen(new Set()) }}>Cancel</button>
+          </div>
+        )}
+        {sum.can_add && owner.department_id && !choosing && <AddPage departmentId={owner.department_id} onAdded={load} />}
       </div>
     </div>
   )
@@ -273,6 +315,40 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
           </>}
           note={adaOnly ? <>Accessibility only (WCAG 2.1 AA). Green passes, red needs a fix. Only your page content counts; the district header, menus and footer are left out.</> : undefined} />
       </>}
+    </div>
+  )
+}
+
+// A page waiting on reclassification: the WCM can take the request back; the
+// District Web Team keeps it here, moves it to the department it belongs to,
+// or takes it off the audit.
+function ReclassRow({ req, departmentId, admin, departments, onDone }: { req: Reclass; departmentId: string; admin: boolean; departments: { id: string; name: string }[]; onDone: () => void }) {
+  const [to, setTo] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const post = async (payload: Record<string, unknown>) => {
+    setBusy(true); setErr('')
+    try {
+      const res = await fetch('/api/bcps/site-audit', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await auth()) }, body: JSON.stringify(payload) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Could not save.')
+      onDone()
+    } catch (e) { setErr(e instanceof Error ? e.message : 'Could not save.') }
+    finally { setBusy(false) }
+  }
+  return (
+    <div className="sa-reclass">
+      <span>Marked by {req.by}{req.note ? `: ${req.note}` : ''}</span>
+      {admin ? <>
+        <button type="button" className="sa-link" disabled={busy} onClick={() => post({ action: 'reclass_resolve', request_id: req.id, outcome: 'keep' })}>Keep it here</button>
+        <select aria-label="Move it to" value={to} onChange={(e) => setTo(e.target.value)}>
+          <option value="">Move it to…</option>
+          {departments.filter((d) => d.id !== departmentId).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+        <button type="button" className="sa-btn" disabled={busy || !to} onClick={() => post({ action: 'reclass_resolve', request_id: req.id, outcome: 'move', to_department_id: to })}>Move</button>
+        <button type="button" className="sa-link" disabled={busy} onClick={() => post({ action: 'reclass_resolve', request_id: req.id, outcome: 'remove' })}>Take it off the audit</button>
+      </> : <button type="button" className="sa-link" disabled={busy} onClick={() => post({ action: 'reclass_withdraw', department_id: departmentId, request_id: req.id })}>Undo</button>}
+      {err && <span className="sa-err">{err}</span>}
     </div>
   )
 }
@@ -400,7 +476,6 @@ const CSS = `
 .sa-step button{font:inherit;font-size:12.5px;font-weight:800;border:0;background:#1672A7;color:#fff;padding:8px 12px;cursor:pointer}
 .sa-step button:disabled{background:#e8eff4;color:#8aa4b5;cursor:default}
 .sa-step span{font-size:12.5px;padding:0 12px;white-space:nowrap;color:var(--lr-text,#1a1a1a)}
-.sa-jump{font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--lr-border,rgba(0,0,0,.18));border-radius:8px;padding:7px 8px;background:#fff;color:var(--lr-text,#1a1a1a);max-width:320px;min-width:180px}
 .sa-link{font:inherit;font-size:12.5px;font-weight:800;color:#1672A7;background:none;border:0;padding:4px 2px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .sa-link.on{color:#0e4e73;text-decoration-thickness:2px}
 .sa-h{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:#1672A7}
@@ -432,6 +507,16 @@ const CSS = `
 .sa-add{margin-top:16px;padding-top:14px;border-top:1px solid var(--lr-border,rgba(0,0,0,.1))}
 .sa-add-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .sa-add-row input{flex:1 1 320px;min-width:0;font:inherit;font-size:13px;padding:9px 12px;border:1px solid var(--lr-border,rgba(0,0,0,.18));border-radius:6px}
+.sa-list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.sa-choose-note{margin:8px 0 0}
+.sa-pick{flex-shrink:0;width:22px;height:22px;border-radius:50%;border:2px solid #1672A7;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;background:#fff}
+.sa-pick.on{background:#1672A7}.sa-pick.off{border-color:#c9d3da;background:#f1f3f5}
+.sa-tick.away{background:#fdf3e0;color:#8a5a00}
+.sa-src-away{background:#fdf3e0;color:#8a5a00}
+.sa-choose{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;padding:10px 12px;border-radius:8px;background:rgba(22,114,167,.05);border:1px solid rgba(22,114,167,.15)}
+.sa-choose input{flex:1 1 280px;min-width:0;font:inherit;font-size:12.5px;padding:8px 10px;border:1px solid rgba(0,0,0,.15);border-radius:6px}
+.sa-reclass{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#8a5a00;padding:6px 12px 2px 48px}
+.sa-reclass select{font:inherit;font-size:12px;padding:6px 8px;border:1px solid rgba(0,0,0,.18);border-radius:6px;max-width:260px}
 .sa-check-meta{font-size:11.5px;color:var(--lr-text-50,#555);white-space:nowrap}
 .sa-check-score{font-size:17px;font-weight:900;min-width:30px;text-align:right}
 .sa-ask{margin-top:12px;padding-top:10px;border-top:1px dashed var(--lr-border,rgba(0,0,0,.12))}
@@ -441,5 +526,5 @@ const CSS = `
 .sa-ask-btn{font:inherit;font-size:12.5px;font-weight:800;color:#0e4e73;background:#fff;border:1px dashed #1672A7;border-radius:8px;padding:7px 12px;cursor:pointer}
 .sa-ask-form textarea{width:100%;box-sizing:border-box;font:inherit;font-size:13px;border:1px solid var(--lr-border,rgba(0,0,0,.18));border-radius:8px;padding:8px 10px;resize:vertical}
 .sa-ask-row{display:flex;gap:10px;align-items:center;margin-top:6px}
-@media (max-width:640px){.sa-jump{flex:1 1 100%;max-width:100%}.sa-actions{margin-left:0}.sa-check-meta{display:none}}
+@media (max-width:640px){.sa-reclass{padding-left:12px}.sa-actions{margin-left:0}.sa-check-meta{display:none}}
 `
