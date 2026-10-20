@@ -1600,10 +1600,22 @@ type HotLabLink = { title: string; date: string; url: string }
 // every tool, article and Hot Lab that matches, exact matches first, then
 // close ones. "Tools and apps" articles are covered by the tool tiles, so they
 // only show up in search.
-function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [], admin = [] }: { kind: keyof typeof TOP_TOOLS; onNavigate: (page: PageId) => void; kb?: KbArticle[]; hotLabs?: HotLabLink[]; admin?: [PageId, string, string][] }) {
+// Tools & Resources (Sean, 2026-10-20): every tool, Hot Labs, guide and ask
+// as one grid of tiles, nothing folded away. Chips at the top sort them by
+// group, search narrows them, and a star pins a tile to the top. Stars are
+// kept in this browser; until someone stars anything, their role's usual
+// tools (TOP_TOOLS) start out starred. Admin consoles only appear for people
+// who can open them.
+const STAR_KEY = 'bcps-tool-stars'
+function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof typeof TOP_TOOLS; onNavigate: (page: PageId) => void; kb?: KbArticle[]; hotLabs?: HotLabLink[] }) {
   const { pages, role, viewAs } = useBCPSShell()
   const [q, setQ] = useState('')
+  const [group, setGroup] = useState('All')
   const [showHotLabs, setShowHotLabs] = useState(false)
+  const [stars, setStars] = useState<string[] | null>(null)
+  useEffect(() => {
+    try { const v = localStorage.getItem(STAR_KEY); setStars(v ? JSON.parse(v) : null) } catch { setStars(null) }
+  }, [])
   const isSA = role === 'superadmin' && (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID)
   // Same rule as the left menu: the page set in force decides, and a
   // SuperAdmin always reaches the SuperAdmin-only consoles.
@@ -1611,29 +1623,63 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [], admin = [] }: { k
     ? pages.includes(t.gate) || (isSA && SUPERADMIN_PAGES_SET.has(t.gate))
     : isSA || !SUPERADMIN_PAGES_SET.has(t.gate)
   const mine = TOOLS.filter(canOpen)
-  const top = TOP_TOOLS[kind].map((l) => mine.find((t) => t.label === l)).filter((t): t is Tool => !!t)
   const open = (t: Tool) => { if (t.page) onNavigate(t.page); else if (t.href) window.location.href = t.href }
 
-  type Item = { key: string; kind: string; title: string; desc: string; text: string; icon?: React.ReactNode; go: () => void }
+  type Item = { key: string; group: string; title: string; desc: string; text: string; icon?: React.ReactNode; go: () => void }
   const items: Item[] = [
-    ...mine.map((t) => ({ key: `t:${t.label}`, kind: 'Tool', title: t.label, desc: t.desc, text: `${t.label} ${t.desc} ${t.group}`, icon: Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0], go: () => open(t) })),
-    ...kb.map((a) => ({ key: `a:${a.id}`, kind: a.topic, title: a.title, desc: a.summary, text: `${a.title} ${a.summary} ${a.topic}`, go: () => { window.location.href = a.href } })),
-    ...hotLabs.map((h) => ({ key: `h:${h.url}`, kind: 'Hot Lab', title: h.title, desc: 'Notes and recording', text: `hot lab ${h.title} ${h.date} notes recording`, go: () => { window.location.href = h.url } })),
-    { key: 'x:ask', kind: 'Ask', title: 'Ask a question', desc: 'Can\u2019t find it? Ask, and the answer can become the next article.', text: 'ask a question help support', go: () => openFeedback('Question for the knowledge base: ') },
-    { key: 'x:topic', kind: 'Ask', title: 'Suggest a Hot Lab topic', desc: 'Something to walk through together.', text: 'suggest a hot lab topic idea', go: () => openFeedback('Hot Lab topic suggestion: ') },
+    ...mine.map((t) => ({ key: `t:${t.label}`, group: t.group === 'SuperAdmin' ? 'Admin' : t.group, title: t.label, desc: t.desc, text: `${t.label} ${t.desc} ${t.group}`, icon: Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0], go: () => open(t) })),
+    { key: 'x:hotlabs', group: 'Hot Labs & guides', title: 'Hot Labs', desc: hotLabs.length ? `Every session, with notes and the recording. Latest: ${hotLabs[0].date}.` : 'Every session, with notes and the recording.', text: 'hot lab hot labs sessions recordings notes', icon: Icons['minutes'] ?? 'H', go: () => setShowHotLabs(true) },
+    ...kb.filter((a) => a.topic !== 'Tools and apps').map((a) => ({ key: `a:${a.id}`, group: 'Hot Labs & guides', title: a.title, desc: a.summary, text: `${a.title} ${a.summary} ${a.topic} guide`, icon: Icons['documents'] ?? 'G', go: () => { window.location.href = a.href } })),
+    { key: 'x:ask', group: 'Ask', title: 'Ask a question', desc: 'Can’t find it? Ask, and the answer can become the next article.', text: 'ask a question help support', icon: '?', go: () => openFeedback('Question for the knowledge base: ') },
+    { key: 'x:topic', group: 'Ask', title: 'Suggest a Hot Lab topic', desc: 'Something to walk through together.', text: 'suggest a hot lab topic idea', icon: '+', go: () => openFeedback('Hot Lab topic suggestion: ') },
   ]
+  const starred = new Set(stars ?? TOP_TOOLS[kind].map((l) => `t:${l}`))
+  const toggleStar = (key: string) => {
+    const next = starred.has(key) ? Array.from(starred).filter((k) => k !== key) : [...Array.from(starred), key]
+    setStars(next)
+    try { localStorage.setItem(STAR_KEY, JSON.stringify(next)) } catch { /* stars just will not persist */ }
+  }
+  const groups = ['All', 'Starred', ...[...TOOL_GROUPS.map((g) => (g === 'SuperAdmin' ? 'Admin' : g)), 'Hot Labs & guides', 'Ask'].filter((g) => items.some((i) => i.group === g))]
+
   const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
-  const searching = words.length > 0
-  const exact = searching ? items.filter((i) => words.every((w) => i.text.toLowerCase().includes(w))) : []
-  // Close matches: any word of 3+ letters, or its first 4 letters, appears.
-  const close = searching ? items.filter((i) => !exact.includes(i) && words.some((w) => w.length >= 3 && (i.text.toLowerCase().includes(w) || (w.length > 4 && i.text.toLowerCase().includes(w.slice(0, 4)))))) : []
+  const matches = (i: Item) => words.every((w) => i.text.toLowerCase().includes(w))
+  const shown = items
+    .filter((i) => group === 'All' || (group === 'Starred' ? starred.has(i.key) : i.group === group))
+    .filter((i) => !words.length || matches(i))
+    // Starred first, then the catalog's own order.
+    .sort((a, b) => Number(starred.has(b.key)) - Number(starred.has(a.key)))
 
   const tile = (i: Item) => (
-    <button key={i.key} type="button" className="home-ptile" onClick={i.go}>
-      {i.icon && <span className="home-tool-ic" aria-hidden="true">{i.icon}</span>}
-      <span><small className="home-ptile-kind">{i.kind}</small><b>{i.title}</b><small>{i.desc}</small></span>
-    </button>
+    <div key={i.key} className="home-ptile-wrap">
+      <button type="button" className="home-ptile" onClick={i.go}>
+        {i.icon && <span className="home-tool-ic" aria-hidden="true">{i.icon}</span>}
+        <span><small className="home-ptile-kind">{i.group}</small><b>{i.title}</b><small>{i.desc}</small></span>
+      </button>
+      {i.key !== 'x:ask' && i.key !== 'x:topic' && (
+        <button type="button" className={`home-star${starred.has(i.key) ? ' on' : ''}`} aria-pressed={starred.has(i.key)}
+          aria-label={starred.has(i.key) ? `Unstar ${i.title}` : `Star ${i.title}`} title={starred.has(i.key) ? 'Starred: pinned to the top' : 'Star to pin to the top'}
+          onClick={() => toggleStar(i.key)}>{starred.has(i.key) ? '★' : '☆'}</button>
+      )}
+    </div>
   )
+
+  if (showHotLabs) {
+    return (
+      <>
+        <p className="home-hint"><button type="button" className="home-link-btn" onClick={() => setShowHotLabs(false)}>Tools &amp; Resources</button> / Hot Labs</p>
+        <h3 className="home-grp">Hot Labs</h3>
+        {hotLabs.length === 0 && <p className="home-hint">No Hot Labs yet.</p>}
+        <div className="home-tiles4">
+          {hotLabs.map((h) => (
+            <button key={h.url} type="button" className="home-ptile" onClick={() => { window.location.href = h.url }}>
+              <span className="home-tool-ic" aria-hidden="true">{Icons['minutes'] ?? 'H'}</span>
+              <span><small className="home-ptile-kind">Hot Lab</small><b>{h.date}</b><small>Notes and recording</small></span>
+            </button>
+          ))}
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
@@ -1641,69 +1687,16 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [], admin = [] }: { k
         <label htmlFor={`tool-search-${kind}`}>Find a tool or article</label>
         <input id={`tool-search-${kind}`} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a word, like banner, roster or Hot Lab" />
       </div>
-
-      {showHotLabs && !searching ? (
-        <>
-          <p className="home-hint"><button type="button" className="home-link-btn" onClick={() => setShowHotLabs(false)}>Tools &amp; Resources</button> / Hot Labs</p>
-          <h3 className="home-grp">Hot Labs</h3>
-          {hotLabs.length === 0 && <p className="home-hint">No Hot Labs yet.</p>}
-          <div className="home-tiles4">
-            {hotLabs.map((h) => tile({ key: `hl:${h.url}`, kind: 'Hot Lab', title: h.date, desc: 'Notes and recording', text: '', icon: Icons['minutes'] ?? 'H', go: () => { window.location.href = h.url } }))}
-          </div>
-        </>
-      ) : searching ? (
-        <div aria-live="polite">
-          {exact.length > 0 && <div className="home-portfolio">{exact.map(tile)}</div>}
-          {close.length > 0 && (
-            <>
-              <h3 className="home-grp">{exact.length ? 'Close matches' : 'Nothing exact. Close matches'}</h3>
-              <div className="home-portfolio">{close.map(tile)}</div>
-            </>
-          )}
-          {!exact.length && !close.length && (
-            <p className="home-hint">Nothing by that name. Try another word, or <button type="button" className="home-link-btn" onClick={() => openFeedback(`Looking for: ${q.trim()}. `)}>ask us</button>.</p>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Sean, Oct 7: every tool as a large tile, four to a row. */}
-          <h3 className="home-grp">Your tools</h3>
-          <div className="home-tiles4">
-            {top.map((t) => tile({ key: `top:${t.label}`, kind: t.group, title: t.label, desc: t.desc, text: '', icon: Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0], go: () => open(t) }))}
-            {tile({ key: 'top:ask', kind: 'Ask', title: 'Ask a question', desc: 'Can\u2019t find it? Ask, and the answer can become the next article.', text: '', icon: '?', go: () => openFeedback('Question for the knowledge base: ') })}
-            {tile({ key: 'top:topic', kind: 'Ask', title: 'Suggest a Hot Lab topic', desc: 'Something to walk through together.', text: '', icon: '+', go: () => openFeedback('Hot Lab topic suggestion: ') })}
-          </div>
-          {admin.length > 0 && (
-            <>
-              <h3 className="home-grp">Admin</h3>
-              <div className="home-tiles4">
-                {admin.map(([page, title, desc]) => tile({ key: `admin:${page}`, kind: 'Admin', title, desc, text: '', icon: Icons[page] ?? title[0], go: () => onNavigate(page) }))}
-              </div>
-            </>
-          )}
-          <h3 className="home-grp">Hot Labs and guides</h3>
-          <div className="home-tiles4">
-            {tile({ key: 'hl:all', kind: 'Hot Labs', title: 'Hot Labs', desc: hotLabs.length ? `Every session, with notes and the recording. Latest: ${hotLabs[0].date}.` : 'Every session, with notes and the recording.', text: '', icon: Icons['minutes'] ?? 'H', go: () => setShowHotLabs(true) })}
-            {kb.filter((a) => a.topic !== 'Tools and apps').map((a) => tile({ key: `kb:${a.id}`, kind: a.topic, title: a.title, desc: a.summary, text: '', go: () => { window.location.href = a.href } }))}
-          </div>
-        </>
-      )}
-
-      <details className="home-browse">
-        <summary>Browse every tool ({mine.length})</summary>
-        {TOOL_GROUPS.map((g) => {
-          const list = mine.filter((t) => t.group === g)
-          if (!list.length) return null
-          return (
-            <div key={g} className="home-bgroup">
-              <h4>{g}</h4>
-              <p>{list.map((t, i) => (
-                <span key={t.label}>{i > 0 && ' · '}<button type="button" className="home-link-btn" onClick={() => open(t)}>{t.label}</button></span>
-              ))}</p>
-            </div>
-          )
+      <div className="home-tgroups" role="group" aria-label="Sort by group">
+        {groups.map((g) => {
+          const n = g === 'All' ? items.length : g === 'Starred' ? items.filter((i) => starred.has(i.key)).length : items.filter((i) => i.group === g).length
+          return <button key={g} type="button" className={`home-tgroup${group === g ? ' on' : ''}`} aria-pressed={group === g} onClick={() => setGroup(g)}>{g === 'Starred' ? '★ Starred' : g} <b>{n}</b></button>
         })}
-      </details>
+      </div>
+      <div className="home-tiles4" aria-live="polite">{shown.map(tile)}</div>
+      {shown.length === 0 && (
+        <p className="home-hint">{group === 'Starred' && !words.length ? 'Nothing starred yet. Tap the star on any tile to pin it here.' : <>Nothing by that name. Try another word, or <button type="button" className="home-link-btn" onClick={() => openFeedback(`Looking for: ${q.trim()}. `)}>ask us</button>.</>}</p>
+      )}
     </>
   )
 }
@@ -1896,16 +1889,6 @@ function InboxSection({ onOpenOps, onOpenInbox }: { onOpenOps: () => void; onOpe
   )
 }
 
-// The SuperAdmin-only consoles, shown in Tools & Resources as tiles.
-const ADMIN_CONSOLES: [PageId, string, string][] = [
-    ['superadmin', 'Platform Management', 'Accounts, View as access and platform settings.'],
-    ['permissions', 'Permissions', 'Who can open which page and document.'],
-    ['registrations', 'Registrations', 'New sign-ups waiting on approval.'],
-    ['pulse-approvals', 'Note Approvals', 'Notes waiting to publish.'],
-    ['reports', 'Reports', 'Program reports and exports.'],
-    ['marcomm', 'Newsroom', 'The MarComm console.'],
-    ['graphics', 'Graphics & Printing', 'Graphics and print requests.'],
-]
 
 // The full Departments page (scores, traffic, audit), the same one the
 // menu opens, so the tab never shows less than the page (Sean, 2026-10-01).
@@ -1972,8 +1955,8 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast }
       {tab === 'team' && <MembersPage defaultDivision="Chief of Staff" />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
-      {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} admin={ADMIN_CONSOLES} />}
-      {tab === 'admin' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} admin={ADMIN_CONSOLES} />}
+      {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
+      {tab === 'admin' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
       {tab === 'ops' && <DashboardPage onNavigate={onNavigate} viewAsUserId={viewAsUserId} />}
     </div>
   )
