@@ -33,6 +33,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 308)
   }
 
+  // ── Short address for MarComm Assignments (Sean, 2026-10-20): its own page,
+  // with the Dashboard button and title in the topbar like Web Team
+  // Assignments. ?row=<id> still opens one request. ───────────────────────
+  if (pathname === '/marcomm-assignments') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    url.searchParams.set('page', 'marcomm-assignments')
+    return NextResponse.redirect(url)
+  }
+
   // ── Sensitive document gate (runs before everything else) ────────────────
   if (SENSITIVE_DOC.test(pathname)) {
     const supabase = readOnlyClient(request)
