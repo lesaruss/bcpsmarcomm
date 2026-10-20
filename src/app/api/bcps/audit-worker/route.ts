@@ -39,7 +39,7 @@ const finish = (id: string, fields: Record<string, unknown>) =>
 
 async function runSiteJob(job: Job): Promise<string> {
   const runId = randomUUID()
-  let pages: { url: string; title: string; isMain: boolean }[] = []
+  let pages: { url: string; title: string; isMain: boolean; source?: 'left_nav' | 'quick_link' }[] = []
   if (job.department_id) {
     const { data: dept } = await supabase.from('bcps_departments').select('id, name, website_url').eq('id', job.department_id).maybeSingle()
     if (!dept?.website_url) { await finish(job.id, { status: 'skipped', last_error: 'no website address on file' }); return 'skipped: no url' }
@@ -69,7 +69,7 @@ async function runSiteJob(job: Job): Promise<string> {
       if (!existing.active) continue
     } else {
       const { data: ins } = await supabase.from('bcps_site_pages')
-        .insert({ ...owner, url: p.url, title: p.title || null, is_main: p.isMain, source: p.isMain ? 'main' : 'left_nav' })
+        .insert({ ...owner, url: p.url, title: p.title || null, is_main: p.isMain, source: p.isMain ? 'main' : p.source ?? 'left_nav' })
         .select('id').single()
       pageId = ins?.id
     }
