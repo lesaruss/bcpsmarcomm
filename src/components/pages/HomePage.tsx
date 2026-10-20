@@ -1603,9 +1603,10 @@ type HotLabLink = { title: string; date: string; url: string }
 // Tools & Resources (Sean, 2026-10-20): every tool, Hot Labs, guide and ask
 // as one grid of tiles, nothing folded away. Chips at the top sort them by
 // group, search narrows them, and a star pins a tile to the top. Stars are
-// kept in this browser; until someone stars anything, their role's usual
-// tools (TOP_TOOLS) start out starred. Admin consoles only appear for people
-// who can open them.
+// saved to the person's account (/api/bcps/tool-stars, bcps_member_prefs),
+// with this browser's copy as the fallback; until someone stars anything,
+// their role's usual tools (TOP_TOOLS) start out starred. Admin consoles only
+// appear for people who can open them.
 const STAR_KEY = 'bcps-tool-stars'
 function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof typeof TOP_TOOLS; onNavigate: (page: PageId) => void; kb?: KbArticle[]; hotLabs?: HotLabLink[] }) {
   const { pages, role, viewAs } = useBCPSShell()
@@ -1613,8 +1614,31 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
   const [group, setGroup] = useState('All')
   const [showHotLabs, setShowHotLabs] = useState(false)
   const [stars, setStars] = useState<string[] | null>(null)
+  const saveStars = async (next: string[]) => {
+    try { localStorage.setItem(STAR_KEY, JSON.stringify(next)) } catch { /* the account copy still saves */ }
+    try {
+      await fetch('/api/bcps/tool-stars', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify({ stars: next }) })
+    } catch { /* kept in this browser until the next save */ }
+  }
   useEffect(() => {
-    try { const v = localStorage.getItem(STAR_KEY); setStars(v ? JSON.parse(v) : null) } catch { setStars(null) }
+    let local: string[] | null = null
+    try { const v = localStorage.getItem(STAR_KEY); local = v ? JSON.parse(v) : null } catch { local = null }
+    setStars(local)
+    let cancelled = false
+    ;(async () => {
+      try {
+        const r = await fetch('/api/bcps/tool-stars', { headers: await authHeaders(), cache: 'no-store' })
+        if (!r.ok) return
+        const j = (await r.json()) as { stars: string[] | null }
+        if (cancelled) return
+        // Stars starred in this browser before they were saved to the
+        // account move up the first time.
+        if (j.stars === null && local) saveStars(local)
+        else { setStars(j.stars); try { localStorage.setItem(STAR_KEY, JSON.stringify(j.stars)) } catch { /* fine */ } }
+      } catch { /* keep this browser's stars */ }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const isSA = role === 'superadmin' && (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID)
   // Same rule as the left menu: the page set in force decides, and a
@@ -1637,7 +1661,7 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
   const toggleStar = (key: string) => {
     const next = starred.has(key) ? Array.from(starred).filter((k) => k !== key) : [...Array.from(starred), key]
     setStars(next)
-    try { localStorage.setItem(STAR_KEY, JSON.stringify(next)) } catch { /* stars just will not persist */ }
+    saveStars(next)
   }
   const groups = ['All', 'Starred', ...[...TOOL_GROUPS.map((g) => (g === 'SuperAdmin' ? 'Admin' : g)), 'Hot Labs & guides', 'Ask'].filter((g) => items.some((i) => i.group === g))]
 
