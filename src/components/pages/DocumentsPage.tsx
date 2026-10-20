@@ -84,14 +84,21 @@ const A = {
   sublabel: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 8 } as React.CSSProperties,
 }
 
+// The live trackers, listed as documents so they look like the rest and can
+// be featured (Sean, 2026-10-20). Each shows only where the page passes a
+// way to open it in trackers; elsewhere (the standalone /documents page,
+// people without the tracker) it is left out.
+const APP_TRACKERS = ['bcps-web-team-assignments', 'bcps-marcomm-assignments']
+
 // embedded: the dashboard's Documents tab (Sean, 2026-10-20), the one
 // Documents list, with search at the top. onOpen opens a Playbook in the
-// tab; extras (the trackers) sit above the list; pinned adds the
-// audience's own Playbooks.
-export default function DocumentsPage({ embedded = false, onOpen, extras, pinned = [] }: {
+// tab; extras sit above the list; trackers opens the live trackers; pinned
+// adds the audience's own Playbooks.
+export default function DocumentsPage({ embedded = false, onOpen, extras, trackers = {}, pinned = [] }: {
   embedded?: boolean
   onOpen?: (slug: string) => void
   extras?: React.ReactNode
+  trackers?: Record<string, () => void>
   pinned?: PinnedDoc[]
 } = {}) {
   const supabase = createClient()
@@ -142,7 +149,8 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, pinned
   useEffect(() => { load() }, [load])
 
   const openDoc = (d: Doc) => {
-    if (isExternal(d.doc_url)) window.open(d.doc_url, '_blank', 'noopener,noreferrer')
+    if (trackers[d.slug]) trackers[d.slug]()
+    else if (isExternal(d.doc_url)) window.open(d.doc_url, '_blank', 'noopener,noreferrer')
     else if (onOpen && isPlaybook(d.doc_url)) onOpen(d.slug)
     else setPreview(d)
   }
@@ -324,7 +332,7 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, pinned
 
         {SECTIONS.filter(section => section.key === activeTab).map(section => {
           const q = query.trim().toLowerCase()
-          const sectionDocs = sortDocs(docs.filter(d => (d.section || 'documents') === section.key)
+          const sectionDocs = sortDocs(docs.filter(d => (d.section || 'documents') === section.key && (!APP_TRACKERS.includes(d.slug) || !!trackers[d.slug]))
             .filter(d => !q || [d.title, d.description, d.type, d.date].some(v => (v || '').toLowerCase().includes(q))), sortMode)
 
           return (
@@ -370,7 +378,7 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, pinned
                               {doc.featured ? '\u2605' : '\u2606'}
                             </button>
                           )}
-                          {!isAdmin && doc.featured && <span className="doc-featured-badge">\u2605 Featured</span>}
+                          {!isAdmin && doc.featured && <span className="doc-featured-badge">{'\u2605'} Featured</span>}
                         </div>
                       )}
 
@@ -391,12 +399,12 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, pinned
                             Access
                           </button>
                         )}
-                        {isAdmin && doc.effective_object_id && (
+                        {isAdmin && doc.effective_object_id && !APP_TRACKERS.includes(doc.slug) && (
                           <button style={openPanel === 'content' ? A.btnPrimary : A.btn} onClick={() => openContent(doc)}>
                             Edit
                           </button>
                         )}
-                        {doc.effective_object_id && <button style={openPanel === 'request' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'request')}>
+                        {doc.effective_object_id && !APP_TRACKERS.includes(doc.slug) && <button style={openPanel === 'request' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'request')}>
                           Request an edit
                         </button>}
                       </div>

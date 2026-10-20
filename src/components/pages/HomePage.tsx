@@ -950,26 +950,13 @@ function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'super
   }
 
   // The one Documents list (Sean, 2026-10-20): the same page Tools &
-  // Resources opened, with the trackers above it for the people who have them.
-  const trackers = (team || canMarcomm) ? (
-    <div className="wcm-hub2-grid home-section">
-      {team && (
-        <div className="wcm-hub2-card">
-          <h3>Web Team Assignments</h3>
-          <p>What the District Web Team is carrying, who leads it and where it stands.</p>
-          <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc('web-team-assignments')}>Open</button>
-        </div>
-      )}
-      {canMarcomm && (
-        <div className="wcm-hub2-card">
-          <h3>MarComm Assignments</h3>
-          <p>Every Marcomm Meeting request, its lead and its status.</p>
-          <a className="wcm-hub2-card-btn" href={MARCOMM_PATH}>Open</a>
-        </div>
-      )}
-    </div>
-  ) : null
-  return <DocumentsPage embedded onOpen={(s) => openDoc(s)} extras={trackers} pinned={kind === 'director' || kind === 'wcm' ? PINNED_DOCS[kind] : []} />
+  // Resources opened. The trackers are document cards like the rest (so they
+  // can be featured), for the people who have them.
+  const trackers: Record<string, () => void> = {
+    ...(team ? { 'bcps-web-team-assignments': () => openDoc('web-team-assignments') } : {}),
+    ...(canMarcomm ? { 'bcps-marcomm-assignments': () => window.location.assign(MARCOMM_PATH) } : {}),
+  }
+  return <DocumentsPage embedded onOpen={(s) => openDoc(s)} trackers={trackers} pinned={kind === 'director' || kind === 'wcm' ? PINNED_DOCS[kind] : []} />
 }
 
 // MarComm Assignments keeps its own address (/marcomm-assignments); for the
