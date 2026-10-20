@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { requireDistrictUser } from '@/lib/bcps-auth'
+import { requireDistrictUser, isDistrictEmail, normalizeDistrictEmail } from '@/lib/bcps-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,10 +8,15 @@ const supabase = createClient(
 )
 
 // MarComm Request Form (Sean, 2026-10-08): replaces the Wufoo MarComm Request
-// Form. Any signed-in District employee may submit (requireDistrictUser), and
-// the signed-in address is recorded as the requester email - it is never
-// typed, so it cannot be spoofed. Submissions land in bcps_marcomm_requests
-// with the next job number, continuing the Wufoo numbering.
+// Form. Submissions land in bcps_marcomm_requests with the next job number,
+// continuing the Wufoo numbering.
+//
+// Open to anyone since 2026-10-20 (Sean: "make this open for the public").
+// Signed in, the session address is the requester email and created_by_email.
+// Signed out, the requester types a District (@browardschools.com) address:
+// it is self-declared, so created_by_email stays empty to mark it unverified.
+// A hidden field catches bots, and one address can send RATE_LIMIT requests
+// an hour.
 //
 // Files go straight from the browser to the private marcomm-attachments
 // bucket through signed upload URLs (action 'upload_urls'), so large PDFs and
@@ -19,6 +24,7 @@ const supabase = createClient(
 
 const BUCKET = 'marcomm-attachments'
 const MAX_FILES = 5
+const RATE_LIMIT = 5
 const MAX_BYTES = 25 * 1024 * 1024
 const ALLOWED = /\.(pdf|docx?|xlsx?|pptx?|jpe?g|png|gif|webp|heic|mp4|mov|txt)$/i
 
@@ -40,11 +46,18 @@ function isDate(v: unknown): v is string {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireDistrictUser(req)
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const signedIn = req.headers.get('authorization') ? await requireDistrictUser(req) : null
+  if (signedIn && !signedIn.ok) return NextResponse.json({ error: signedIn.error }, { status: signedIn.status })
+  const sessionEmail = signedIn?.ok ? signedIn.user.email : null
 
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid request.' }, { status: 400 }) }
+  // The hidden "website" field is empty for people; bots fill it in.
+  if (clean(body.website)) return NextResponse.json({ ok: true, job_number: 0 })
+
+  const typedEmail = normalizeDistrictEmail(clean(body.requester_email, 200))
+  const email = sessionEmail ?? typedEmail
+  if (!email || !isDistrictEmail(email)) return NextResponse.json({ error: 'Please use your District email address (@browardschools.com).' }, { status: 400 })
 
   if (body.action === 'upload_urls') {
     const files = Array.isArray(body.files) ? body.files as { name?: string; size?: number }[] : []
@@ -88,6 +101,11 @@ export async function POST(req: NextRequest) {
     .slice(0, MAX_FILES)
     .map(a => ({ name: String(a.name || a.path.split('/').pop()).slice(0, 120), path: a.path }))
 
+  const since = new Date(Date.now() - 3600_000).toISOString()
+  const { count } = await supabase.from('bcps_marcomm_requests').select('id', { count: 'exact', head: true })
+    .ilike('requester_email', email).gte('created_at', since)
+  if ((count ?? 0) >= RATE_LIMIT) return NextResponse.json({ error: 'Too many requests from this address in the last hour. Please try again later.' }, { status: 429 })
+
   const { data: job, error: jobError } = await supabase.rpc('bcps_marcomm_next_job')
   if (jobError) return NextResponse.json({ error: 'Could not assign a job number.' }, { status: 500 })
 
@@ -97,7 +115,7 @@ export async function POST(req: NextRequest) {
     title,
     requester_name: clean(body.requester_name, 120),
     requester_title: clean(body.requester_title, 120),
-    requester_email: auth.user.email,
+    requester_email: email,
     requester_phone: clean(body.requester_phone, 40),
     org_type: orgType,
     org_name: orgName,
@@ -111,7 +129,7 @@ export async function POST(req: NextRequest) {
     calendar_needed: body.calendar_needed === true,
     attachments,
     status: 'new',
-    created_by_email: auth.user.email,
+    created_by_email: sessionEmail,
   }).select('id, job_number').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

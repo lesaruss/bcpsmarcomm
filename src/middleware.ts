@@ -116,6 +116,11 @@ export async function middleware(request: NextRequest) {
     // have no account yet. MarComm access is granted server-side only for
     // emails on the bcps_marcomm_team roster.
     pathname.startsWith('/marcomm-registration') ||
+    // MarComm Request Form (Sean, 2026-10-20: "make this open for the public"):
+    // anyone with the link can submit without an account. A signed-out
+    // requester types a District (@browardschools.com) address; the request
+    // only lands in MarComm Assignments for the team to review.
+    pathname.startsWith('/marcomm-request') ||
     // School WCM signup (2026-10-05): visitors have no account yet. Account
     // creation is gated server-side on bcps_schools.wcm_email.
     pathname.startsWith('/school-registration') ||
