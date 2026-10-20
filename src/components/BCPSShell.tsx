@@ -7,7 +7,7 @@ import Sidebar, { SAMPLE_SUPERADMIN_ID, type UserRole, type TeamMember } from '@
 import PulseWidget from '@/components/PulseWidget'
 import ViewAsButton from '@/components/ViewAsButton'
 import { TOOLS } from '@/lib/bcps-tools'
-import type { PageId } from '@/lib/types'
+import { MARCOMM_PATH, type PageId } from '@/lib/types'
 import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
 
 // The left menu is retired (Sean, 2026-10-02): every tool it listed is on the
@@ -270,6 +270,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const activePage = useMemo<PageId>(() => {
     if (pathname.startsWith('/certification')) return 'bcps-certification'
     if (pathname.startsWith('/department')) return 'department'
+    if (pathname === MARCOMM_PATH) return 'marcomm-assignments'
     return (searchParams.get('page') as PageId) || 'dashboard'
   }, [pathname, searchParams])
 
@@ -319,7 +320,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
       router.push('/certification/departments')
       return
     }
-    router.push(`/?page=${page}`, { scroll: false })
+    router.push(page === 'marcomm-assignments' ? MARCOMM_PATH : `/?page=${page}`, { scroll: false })
   }, [router])
 
   const handleViewAs = useCallback((member: TeamMember | null) => {

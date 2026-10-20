@@ -80,6 +80,12 @@ const nextConfig = {
         source: "/:page(dashboard|notes|profile|departments|analytics|superadmin|marcomm|minutes|wcm|queue)",
         destination: "/",
       },
+      // MarComm Assignments' own address (Sean, 2026-10-20). The address bar
+      // keeps /marcomm-assignments; the app reads the page from the path.
+      {
+        source: "/marcomm-assignments",
+        destination: "/",
+      },
     ]
   },
 }

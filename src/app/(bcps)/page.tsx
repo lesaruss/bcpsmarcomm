@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import type { PageId, NavState, BreadcrumbItem } from '@/lib/types'
 import { useBCPSShell } from '@/components/BCPSShell'
 import NotesPage from '@/components/pages/NotesPage'
@@ -40,16 +40,19 @@ import MySubmissionsPage from '@/components/pages/MySubmissionsPage'
 import SchoolProfilesPage from '@/components/pages/SchoolProfilesPage'
 import { SAMPLE_SUPERADMIN_ID, type UserRole } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
+import { MARCOMM_PATH } from '@/lib/types'
 
 function HomeInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   const { role, viewAs, canManageMessages, isSchoolWcm } = useBCPSShell()
   // The fictitious Superadmin sample identity previews the real superadmin
   // experience instead of collapsing to 'user' like every other viewAs pick.
   const effectiveRole: UserRole = viewAs ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? 'superadmin' : 'user') : role
 
-  const urlPage = (searchParams.get('page') as PageId) || 'dashboard'
+  // MarComm Assignments lives at its own address, /marcomm-assignments.
+  const urlPage = pathname === MARCOMM_PATH ? 'marcomm-assignments' : (searchParams.get('page') as PageId) || 'dashboard'
   const urlSub = searchParams.get('dept') || undefined
 
   const [nav, setNav] = useState<NavState>({ page: urlPage, subPage: urlSub })
@@ -75,7 +78,7 @@ function HomeInner() {
     window.scrollTo(0, 0)
     // Keep URL in sync so BCPSShell Topbar title stays current
     if (!breadcrumb) {
-      router.push(`/?page=${page}`, { scroll: false })
+      router.push(page === 'marcomm-assignments' ? MARCOMM_PATH : `/?page=${page}`, { scroll: false })
     }
   }, [effectiveRole, router])
 
@@ -93,10 +96,10 @@ function HomeInner() {
   // (sign-in, signup, a typed address) is sent there; the Dashboard button
   // goes to ?page=dashboard, so their school home stays one click away.
   useEffect(() => {
-    if (isSchoolWcm && !viewAs && !searchParams.get('page')) {
+    if (isSchoolWcm && !viewAs && !searchParams.get('page') && pathname === '/') {
       router.replace('/?page=banner-submissions', { scroll: false })
     }
-  }, [isSchoolWcm, viewAs, searchParams, router])
+  }, [isSchoolWcm, viewAs, searchParams, pathname, router])
 
   const showToast = useCallback((msg: string) => {
     setToast(msg)
