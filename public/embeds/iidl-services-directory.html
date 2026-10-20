@@ -227,6 +227,12 @@
     color: var(--blue-dark);
     border: 1px solid rgba(22,114,167,0.2);
   }
+  .badge-aud {
+    background: var(--bg);
+    color: var(--text-mid);
+    border: 1px solid var(--border);
+  }
+  .chip-filters[hidden] { display: none; }
   .badge-book {
     background: var(--teal-light);
     color: var(--teal-dark);
@@ -392,6 +398,8 @@
     <button type="button" class="chip-btn" data-bookable="all" aria-pressed="true">All services</button>
     <button type="button" class="chip-btn" data-bookable="yes" aria-pressed="false">Bookable sessions</button>
   </div>
+  <!-- Built from the audiences present in the data (see renderAudienceChips). -->
+  <div class="chip-filters" id="audienceChips" role="group" aria-label="Filter by audience" hidden></div>
 </div>
 
 <div class="unit-intro" id="unitIntro" hidden>
@@ -421,6 +429,7 @@ const unitFilter = document.getElementById('unitFilter');
 // State
 let activeUnit = '';
 let activeBookable = 'all';
+let activeAudience = '';
 let activeSearch = '';
 let currentPage = 1;
 const PAGE_SIZE = 12; // fills 1-, 2- and 3-column grids evenly
@@ -445,6 +454,36 @@ function safeUrl(u) {
 
 function unitBySlug(slug) { return UNITS.find(u => u.slug === slug); }
 
+// audience is school, family, district, or all. An 'all' service shows under
+// every audience filter.
+const AUDIENCE_LABELS = { school: 'Schools', district: 'District staff', family: 'Families', all: 'All audiences' };
+
+// Contacts can list more than one email or phone ("a; b", "754-..., 754-...").
+function splitList(v) {
+  return String(v || '').split(/[;,]|\band\b/).map(x => x.trim()).filter(Boolean);
+}
+
+function renderAudienceChips() {
+  const wrap = document.getElementById('audienceChips');
+  const present = Object.keys(AUDIENCE_LABELS).filter(k => k !== 'all' && SERVICES.some(s => s.audience === k));
+  if (activeAudience && !present.includes(activeAudience)) activeAudience = '';
+  // One audience alone filters nothing useful, so the row only appears with two or more.
+  wrap.hidden = present.length < 2;
+  wrap.innerHTML = '<span class="chip-label" aria-hidden="true">For:</span>' +
+    [['', 'Everyone'], ...present.map(k => [k, AUDIENCE_LABELS[k]])].map(([k, label]) =>
+      `<button type="button" class="chip-btn" data-audience="${k}" aria-pressed="${k === activeAudience}">${label}</button>`).join('');
+  wrap.querySelectorAll('[data-audience]').forEach(btn => btn.addEventListener('click', () => {
+    setAudience(btn.dataset.audience);
+    currentPage = 1;
+    render();
+  }));
+}
+
+function setAudience(value) {
+  activeAudience = value;
+  document.querySelectorAll('[data-audience]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.audience === value)));
+}
+
 function populateUnitFilter() {
   unitFilter.innerHTML = '<option value="">All Units</option>';
   UNITS.forEach(u => {
@@ -460,10 +499,11 @@ function getFiltered() {
   return SERVICES.filter(s => {
     const matchUnit = !activeUnit || s.unit_slug === activeUnit;
     const matchBook = activeBookable === 'all' || !!s.booking_url;
+    const matchAud = !activeAudience || s.audience === activeAudience || s.audience === 'all';
     const unitName = unitBySlug(s.unit_slug)?.name || '';
     const matchSearch = !q || [s.name, s.description, s.booking_note, s.contact_name, unitName]
       .some(v => (v || '').toLowerCase().includes(q));
-    return matchUnit && matchBook && matchSearch;
+    return matchUnit && matchBook && matchAud && matchSearch;
   });
 }
 
@@ -537,8 +577,9 @@ function cardHtml(s, q) {
   const unit = unitBySlug(s.unit_slug);
   const book = safeUrl(s.booking_url);
   const unitPage = safeUrl(unit?.page_url);
-  const email = s.contact_email ? safeUrl('mailto:' + s.contact_email) : '';
-  const tel = (s.contact_phone || '').replace(/[^0-9+]/g, '');
+  const servicePage = safeUrl(s.service_url);
+  const ICON_MAIL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>';
+  const ICON_PHONE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.64 19.79 19.79 0 01.22 1.05 2 2 0 012.22 3h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 10.91a16 16 0 006.18 6.18l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>';
 
   const meta = [];
   if (s.contact_name) {
@@ -547,16 +588,18 @@ function cardHtml(s, q) {
       <span>${highlight(s.contact_name, q)}${s.contact_title ? ', ' + escapeHtml(s.contact_title) : ''}</span>
     </div>`);
   }
-  if (email) {
-    meta.push(`<div class="meta-row meta-link">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
-      <a href="${escapeHtml(email)}">${escapeHtml(s.contact_email)}</a>
-    </div>`);
-  }
-  if (tel) {
-    meta.push(`<div class="meta-row meta-link">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.64 19.79 19.79 0 01.22 1.05 2 2 0 012.22 3h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 10.91a16 16 0 006.18 6.18l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-      <a href="tel:${escapeHtml(tel)}">${escapeHtml(s.contact_phone)}</a>
+  splitList(s.contact_email).forEach(addr => {
+    const href = safeUrl('mailto:' + addr);
+    if (href) meta.push(`<div class="meta-row meta-link">${ICON_MAIL}<a href="${escapeHtml(href)}">${escapeHtml(addr)}</a></div>`);
+  });
+  splitList(s.contact_phone).forEach(num => {
+    const tel = num.replace(/[^0-9+]/g, '');
+    if (tel) meta.push(`<div class="meta-row meta-link">${ICON_PHONE}<a href="tel:${escapeHtml(tel)}">${escapeHtml(num)}</a></div>`);
+  });
+  if (s.contact_address) {
+    meta.push(`<div class="meta-row">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span>${escapeHtml(s.contact_address)}</span>
     </div>`);
   }
 
@@ -567,7 +610,11 @@ function cardHtml(s, q) {
       Book a session
     </a>`);
   }
-  if (unitPage) {
+  if (servicePage) {
+    footer.push(`<a href="${escapeHtml(servicePage)}" class="card-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(s.name)} page (opens in a new tab)">
+      Learn more ${ICON_EXT}
+    </a>`);
+  } else if (unitPage) {
     footer.push(`<a href="${escapeHtml(unitPage)}" class="card-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(unit.name)} unit page (opens in a new tab)">
       Unit page ${ICON_EXT}
     </a>`);
@@ -578,6 +625,7 @@ function cardHtml(s, q) {
     <div class="card-badges">
       ${unit ? `<span class="badge badge-unit">${highlight(unit.name, q)}</span>` : ''}
       ${book ? `<span class="badge badge-book">Bookable</span>` : ''}
+      ${AUDIENCE_LABELS[s.audience] ? `<span class="badge badge-aud">${AUDIENCE_LABELS[s.audience]}</span>` : ''}
     </div>
     ${s.description ? `<p class="card-desc">${highlight(s.description, q)}</p>` : ''}
     ${meta.length ? `<div class="card-meta">${meta.join('')}</div>` : ''}
@@ -593,7 +641,7 @@ function render() {
   if (currentPage > totalPages) currentPage = 1;
 
   document.getElementById('resultCount').textContent = filtered.length;
-  document.getElementById('clearFilters').hidden = !(activeUnit || activeSearch.trim() || activeBookable !== 'all');
+  document.getElementById('clearFilters').hidden = !(activeUnit || activeAudience || activeSearch.trim() || activeBookable !== 'all');
   renderUnitIntro();
 
   const grid = document.getElementById('serviceGrid');
@@ -618,7 +666,7 @@ function render() {
 
 function setBookable(value) {
   activeBookable = value;
-  document.querySelectorAll('.chip-btn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.bookable === value)));
+  document.querySelectorAll('[data-bookable]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.bookable === value)));
 }
 
 // Event listeners
@@ -634,7 +682,7 @@ unitFilter.addEventListener('change', e => {
   render();
 });
 
-document.querySelectorAll('.chip-btn').forEach(btn => {
+document.querySelectorAll('[data-bookable]').forEach(btn => {
   btn.addEventListener('click', () => {
     setBookable(btn.dataset.bookable);
     currentPage = 1;
@@ -647,6 +695,7 @@ document.getElementById('clearFilters').addEventListener('click', () => {
   unitFilter.value = '';
   document.getElementById('searchInput').value = '';
   setBookable('all');
+  setAudience('');
   render();
 });
 
@@ -656,7 +705,7 @@ document.getElementById('clearFilters').addEventListener('click', () => {
 // made in the Widgets hub editor show up here with no deploy.
 const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
-const SERVICE_COLS = 'id,name,unit_slug,description,contact_name,contact_title,contact_email,contact_phone,booking_url,booking_note,sort_order';
+const SERVICE_COLS = 'id,name,unit_slug,description,contact_name,contact_title,contact_email,contact_phone,contact_address,booking_url,booking_note,audience,service_url,sort_order';
 
 async function fetchRows(path) {
   const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
@@ -674,6 +723,7 @@ async function init() {
   const params = new URLSearchParams(location.search);
   activeUnit = params.get('unit') || '';
   if (params.get('bookable') === '1') setBookable('yes');
+  activeAudience = params.get('audience') || '';
 
   try {
     [UNITS, SERVICES] = await Promise.all([
@@ -686,6 +736,7 @@ async function init() {
   if (activeUnit && !unitBySlug(activeUnit)) activeUnit = '';
   document.getElementById('totalCount').textContent = SERVICES.length;
   populateUnitFilter();
+  renderAudienceChips();
   render();
 }
 
