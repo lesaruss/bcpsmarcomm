@@ -1213,8 +1213,8 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
               {/* The Start Here cards, as steps (Sean, 2026-10-20). */}
               <li>
                 <b>Review the Department WCM Playbook weekly</b>
-                <span>Everything current for Department WCMs, updated after every Hot Lab and District Web Team meeting.</span>
-                <a className="home-link-btn" href="/playbooks/wcm-department">Open the playbook</a>
+                <span>Everything current for Department WCMs, refreshed every Thursday from that week's Hot Labs and updates.</span>
+                <button type="button" className="home-link-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=wcm-department', { scroll: false })}>Open the playbook</button>
               </li>
               <li>
                 <b>Check your roster status</b>
@@ -1224,7 +1224,7 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
               <li>
                 <b>Share the guide with your director</b>
                 <span>What directors need to know about the WCM program.</span>
-                <a className="home-link-btn" href="/playbooks/director-department">Open the director guide</a>
+                <a className="home-link-btn" href="/?page=dashboard&tab=documents&doc=director-department">Open the director guide</a>
               </li>
             </ol>
           </div>
