@@ -721,11 +721,13 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
       {snapshot && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
           {[
+            // Total traffic first (Sean, 2026-10-20): every session on
+            // browardschools.com in the period, all sources together.
             {
-              label: 'Top Dept Total Sessions',
-              value: fmt(topDept?.sessions || 0),
-              sub: topDept?.name || '-',
-              delta: <KpiDelta cur={topDept?.sessions} prev={prevTopDept?.sessions} prevLabel={pr?.prevLabel} />,
+              label: 'Total Sessions',
+              value: fmt(totalSources),
+              sub: 'All of browardschools.com',
+              delta: <KpiDelta cur={totalSources} prev={prevTotalSources || undefined} prevLabel={pr?.prevLabel} />,
             },
             {
               label: 'Departments Tracked',
@@ -736,7 +738,8 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
             {
               label: 'Programs Tracked',
               value: String(allPrograms.length),
-              sub: 'Programs & Services',
+              // The GA4 sync keeps the top 100 program pages.
+              sub: allPrograms.length >= 100 ? 'Top 100 Programs & Services pages' : 'Programs & Services',
               delta: null,
             },
             {

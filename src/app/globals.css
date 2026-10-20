@@ -1622,6 +1622,8 @@ body {
 .wcm-hub2-status.certified .wcm-hub2-status-btn { background: #16750C; }
 .wcm-hub2-status-link { font-size: 13px; font-weight: 700; color: #0e4e73; text-decoration: underline; }
 .wcm-hub2-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+/* Phones get the dashboard sections as a dropdown (Sean, 2026-10-20). */
+.wcm-hub2-tabselect { display: none; }
 .wcm-hub2-tab {
   appearance: none; background: none; border: none; cursor: pointer; font: inherit;
   font-size: 14px; font-weight: 700; color: var(--text-muted);
@@ -1645,8 +1647,10 @@ body {
 @media (max-width: 760px) {
   .wcm-hub2-hero { grid-template-columns: minmax(0, 1fr); padding: 22px 20px; }
   .wcm-hub2-title { font-size: 22px; }
-  .wcm-hub2-tabs { flex-wrap: nowrap; overflow-x: auto; gap: 0; }
-  .wcm-hub2-tab { padding: 11px 10px 12px; font-size: 13px; white-space: nowrap; flex: 0 0 auto; }
+  .wcm-hub2-tabs { display: none; }
+  .wcm-hub2-tabselect { display: flex; flex-direction: column; gap: 4px; margin-bottom: 18px; }
+  .wcm-hub2-tabselect span { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-secondary); }
+  .wcm-hub2-tabselect select { font: inherit; font-size: 15px; font-weight: 700; color: #0e4e73; padding: 12px 44px 12px 14px; border: 1px solid var(--border); border-radius: 6px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%230e4e73' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 16px center; appearance: none; -webkit-appearance: none; }
 }
 
 /* ── BCPS Marcom dashboard home (2026-10-01, one page per experience) ── */

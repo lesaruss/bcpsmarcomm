@@ -24,7 +24,6 @@ import GraphicsPage from '@/components/pages/GraphicsPage'
 import ReportsPage from '@/components/pages/ReportsPage'
 import MembersPage from '@/components/pages/MembersPage'
 import CommunityRelationsPage from '@/components/pages/CommunityRelationsPage'
-import MarcommAssignmentsPage from '@/components/pages/MarcommAssignmentsPage'
 import MinibsePage from '@/components/pages/MinibsePage'
 import NoteApprovalsPage from '@/components/pages/NoteApprovalsPage'
 import DepartmentAuditPage from '@/components/pages/DepartmentAuditPage'
@@ -101,6 +100,14 @@ function HomeInner() {
     }
   }, [isSchoolWcm, viewAs, searchParams, pathname, router])
 
+  // Old /?page=marcomm-assignments links move to the page's own address.
+  useEffect(() => {
+    if (searchParams.get('page') === 'marcomm-assignments') {
+      const row = searchParams.get('row')
+      router.replace(row ? `${MARCOMM_PATH}?row=${encodeURIComponent(row)}` : MARCOMM_PATH, { scroll: false })
+    }
+  }, [searchParams, router])
+
   const showToast = useCallback((msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 3000)
@@ -108,7 +115,9 @@ function HomeInner() {
 
   return (
     <div className="page-content">
-      {nav.page === 'dashboard'              && <HomePage onNavigate={navigate} viewAsUserId={viewAs?.id} onShowToast={showToast} />}
+      {/* MarComm Assignments is a dashboard tab at its own address, so the
+          tab bar stays on screen (Sean, 2026-10-20). */}
+      {(nav.page === 'dashboard' || nav.page === 'marcomm-assignments') && <HomePage onNavigate={navigate} viewAsUserId={viewAs?.id} onShowToast={showToast} />}
       {nav.page === 'notes'                  && <NotesPage />}
       {nav.page === 'profile'                && <ProfilePage subPage={nav.subPage} onNavigate={navigate} />}
       {nav.page === 'departments'            && <DepartmentsPage subPage={nav.subPage} onNavigate={navigate} />}
@@ -132,7 +141,6 @@ function HomeInner() {
       {nav.page === 'bcps-certification'       && <CertificationPage />}
       {nav.page === 'members'                  && <MembersPage />}
       {nav.page === 'community-relations'      && <CommunityRelationsPage />}
-      {nav.page === 'marcomm-assignments'      && <MarcommAssignmentsPage />}
       {nav.page === 'minibase'                   && <MinibsePage />}
       {nav.page === 'pulse-approvals'          && effectiveRole === 'superadmin' && <NoteApprovalsPage />}
       {nav.page === 'department-audit'        && <DepartmentAuditPage />}
