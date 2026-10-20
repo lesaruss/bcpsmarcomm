@@ -13,6 +13,8 @@ type Member = {
   // themselves (matched by email at registration time, see wcm-pilot-register).
   // Never set true by an admin manually reassigning a department below.
   department_confirmed: boolean
+  // Open Web Team and MarComm assignments; null where not counted.
+  open_assignments?: { web_team: number | null; marcomm: number | null }
   // WCM Roster standing, from /api/bcps/members (2026-09-23).
   roster_status?: 'confirmed' | 'on_roster' | 'unassigned'
   // Area within the department they cover, from the WCM Roster.
@@ -36,7 +38,11 @@ type Dossier = {
   pages_accepted: { total_fixed: number; total_verified: number; rounds: unknown[] }
 }
 
-type SortCol = 'name' | 'department' | 'division' | 'groups' | 'login' | 'unsorted'
+type SortCol = 'name' | 'department' | 'division' | 'groups' | 'open' | 'login' | 'unsorted'
+const openTotal = (m: { open_assignments?: { web_team: number | null; marcomm: number | null } }) =>
+  (m.open_assignments?.web_team ?? 0) + (m.open_assignments?.marcomm ?? 0)
+const openCounted = (m: { open_assignments?: { web_team: number | null; marcomm: number | null } }) =>
+  m.open_assignments?.web_team != null || m.open_assignments?.marcomm != null
 type SortDir = 'asc' | 'desc'
 type ViewMode = 'tiles' | 'table'
 
@@ -488,6 +494,7 @@ export default function MembersPage({ defaultDivision = '' }: { defaultDivision?
       case 'division': return (a.department?.division || '').localeCompare(b.department?.division || '') || a.name.localeCompare(b.name)
       case 'groups': return [...a.groups].sort().join(', ').localeCompare([...b.groups].sort().join(', ')) || a.name.localeCompare(b.name)
       case 'login': return new Date(a.last_sign_in_at || 0).getTime() - new Date(b.last_sign_in_at || 0).getTime()
+      case 'open': return openTotal(a) - openTotal(b) || Number(openCounted(a)) - Number(openCounted(b)) || a.name.localeCompare(b.name)
       default: return 0
     }
   }
@@ -502,12 +509,12 @@ export default function MembersPage({ defaultDivision = '' }: { defaultDivision?
   function clickHeader(col: SortCol) {
     if (sortCol === col) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return }
     setSortCol(col)
-    setSortDir(col === 'login' ? 'desc' : 'asc')
+    setSortDir(col === 'login' || col === 'open' ? 'desc' : 'asc')
   }
 
   function pickSort(col: SortCol) {
     setSortCol(col)
-    setSortDir(col === 'login' ? 'desc' : 'asc')
+    setSortDir(col === 'login' || col === 'open' ? 'desc' : 'asc')
   }
 
   function sortArrow(col: SortCol) {
@@ -602,6 +609,7 @@ export default function MembersPage({ defaultDivision = '' }: { defaultDivision?
         </div>
         {rosterBadge(m) && <div className="mp-row">WCM Roster: {rosterBadge(m)}</div>}
         {m.groups.length > 0 && <div className="mp-tags">{m.groups.map(g => <span key={g} className="mp-tag">{g}</span>)}</div>}
+        {openCounted(m) && <div className="mp-row">Open assignments: {openCell(m)}</div>}
         <div className="mp-row">Last login: <b>{fmtLogin(m.last_sign_in_at)}</b></div>
       </div>
     </div>
@@ -626,6 +634,14 @@ export default function MembersPage({ defaultDivision = '' }: { defaultDivision?
     return <div className="mp-grid">{sorted.map(tile)}</div>
   }
 
+  // "Web Team 3 · MarComm 2"; a dash for people neither tracker counts.
+  const openCell = (m: Member) => {
+    const o = m.open_assignments
+    if (!o || (o.web_team == null && o.marcomm == null)) return <span style={{ color: '#9ca3af' }}>—</span>
+    const parts = [o.web_team != null ? `Web Team ${o.web_team}` : null, o.marcomm != null ? `MarComm ${o.marcomm}` : null].filter(Boolean)
+    return <span style={{ whiteSpace: 'nowrap' }}><b>{openTotal(m)}</b> <span style={{ color: '#6b7280', fontSize: 11 }}>({parts.join(' · ')})</span></span>
+  }
+
   const row = (m: Member) => (
     <tr
       key={m.user_id}
@@ -648,6 +664,7 @@ export default function MembersPage({ defaultDivision = '' }: { defaultDivision?
       <td>{rosterBadge(m) ?? '—'}</td>
       <td>{m.department?.division ? <span className="mp-pill">{m.department.division}</span> : '—'}</td>
       <td>{m.groups.length ? m.groups.join(', ') : '—'}</td>
+      <td>{openCell(m)}</td>
       <td>{fmtLogin(m.last_sign_in_at)}</td>
     </tr>
   )
@@ -681,6 +698,7 @@ export default function MembersPage({ defaultDivision = '' }: { defaultDivision?
         </>)}
         {rosterBadge(m) && cardRow('WCM Roster', rosterBadge(m))}
         {cardRow('Groups', m.groups.length ? m.groups.join(', ') : '—')}
+        {openCounted(m) && cardRow('Open assignments', openCell(m))}
         {cardRow('Last login', fmtLogin(m.last_sign_in_at))}
       </div>
     )
@@ -702,6 +720,7 @@ export default function MembersPage({ defaultDivision = '' }: { defaultDivision?
             <th>WCM Roster</th>
             <Th col="division" label="Division" />
             <Th col="groups" label="Groups" />
+            <Th col="open" label="Open Assignments" />
             <Th col="login" label="Last Login" />
           </tr>
         </thead>
@@ -802,6 +821,7 @@ export default function MembersPage({ defaultDivision = '' }: { defaultDivision?
           aria-label="Sort members"
         >
           <option value="name">Name A&ndash;Z</option>
+          <option value="open">Most open assignments</option>
           <option value="department">Department</option>
           <option value="division">Division</option>
           <option value="groups">Groups</option>

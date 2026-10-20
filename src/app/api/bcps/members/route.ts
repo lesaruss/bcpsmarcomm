@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { loadAssignments, assignmentsFor } from '@/lib/bcps-team-home'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +37,21 @@ export async function GET(req: NextRequest) {
     svc.auth.admin.listUsers({ perPage: 1000 }),
     svc.from('bcps_wcm_roster_members').select('wcm_email, approved_at, sub_department'),
   ])
+  // Open assignments per person (Sean, 2026-10-20), counted only where the
+  // match is certain: Web Team Assignments for District Web Team and Office
+  // of Communications members (the tracker names people by first name, so
+  // anyone else could be credited with a namesake's work), and MarComm
+  // Assignments for people on its team roster, matched by email.
+  const [webRows, { data: mcTeam }, { data: mcOpen }] = await Promise.all([
+    loadAssignments(svc, req.nextUrl.origin).catch(() => []),
+    svc.from('bcps_marcomm_team').select('name, email').eq('active', true).eq('kind', 'person'),
+    svc.from('bcps_marcomm_requests').select('lead, support').not('status', 'in', '(completed,declined)'),
+  ])
+  const teamGroupIds = new Set((groups ?? []).filter(g => g.name === 'District Web Team' || g.name === 'Office of Communications').map(g => g.id))
+  const onWebTeam = new Set((gm ?? []).filter(x => teamGroupIds.has(x.group_id)).map(x => x.user_id))
+  const mcNameByEmail = new Map((mcTeam ?? []).filter(t => t.email).map(t => [String(t.email).toLowerCase(), String(t.name)]))
+  const mcCount = (name: string) => (mcOpen ?? []).filter(r =>
+    `${r.lead ?? ''},${r.support ?? ''}`.split(/[\/,]/).map(s => s.trim().toLowerCase()).includes(name.toLowerCase())).length
   // WCM Roster standing per email (2026-09-23, per Sean, Hot Lab
   // 2026-09-22): WCMs no longer see the WCM Roster page, so Members is where
   // they check who is confirmed. 'confirmed' = on the roster with an
@@ -87,6 +103,11 @@ export async function GET(req: NextRequest) {
       department_confirmed: !!r.department_confirmed,
       roster_status: rosterByEmail.get((u?.email || '').trim().toLowerCase()) ?? 'unassigned',
       sub_department: subDeptByEmail.get((u?.email || '').trim().toLowerCase()) ?? null,
+      // null = not counted for this person (see above), 0 = none open.
+      open_assignments: {
+        web_team: onWebTeam.has(r.user_id) ? assignmentsFor(webRows, name.split(/\s+/)[0], name).length : null,
+        marcomm: mcNameByEmail.has((u?.email || '').toLowerCase()) ? mcCount(mcNameByEmail.get((u?.email || '').toLowerCase())!) : null,
+      },
     }
   }).sort((a, b) => a.name.localeCompare(b.name))
 
