@@ -36,6 +36,11 @@ async function auth(): Promise<Record<string, string>> {
 const scoreColor = (n: number | null | undefined) => n == null ? '#6b7280' : n >= 80 ? '#1e6b3a' : n >= 60 ? '#8a5a00' : '#a13a2f'
 const pageLabel = (p: PageRow) => p.is_main ? 'Main page' : p.title || (p.url.replace(/^https?:\/\/[^/]+/, '') || '/')
 const pagePath = (p: PageRow) => p.url.replace(/^https?:\/\/(www\.)?[^/]+/, '') || '/'
+// When a page was checked, in the District's time (Sean, 2026-10-20: in a Hot
+// Lab nobody could tell whether the audit was from before or after the fixes).
+const checkedAt = (iso: string | null | undefined) => iso
+  ? new Date(iso).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+  : null
 const isAda = (i: { area: string }) => i.area === 'Accessibility'
 const kindOf = (i: { area: string }) => isAda(i) ? 'ADA' : 'Audit'
 
@@ -131,6 +136,16 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
   if (!sum) return <div className="sa-box"><style>{CSS}</style><p className="sa-muted">Loading the audit…</p></div>
 
   const audited = sum.pages.filter((p) => p.result).length
+  const dates = sum.pages.map((p) => p.result?.audited_at).filter((d): d is string => !!d).sort()
+  // The page in view, else the whole site: its newest check, and its oldest
+  // when the pages were checked at different times.
+  const shownWhen = page?.result
+    ? `Checked ${checkedAt(page.result.audited_at)}`
+    : dates.length
+      ? (checkedAt(dates[0]) === checkedAt(dates[dates.length - 1]) || dates[dates.length - 1].slice(0, 10) === dates[0].slice(0, 10)
+          ? `Checked ${checkedAt(dates[dates.length - 1])}`
+          : `Pages checked ${checkedAt(dates[0])} to ${checkedAt(dates[dates.length - 1])}`)
+      : null
   const issuePages = sum.pages.filter((p) => issues.some((i) => i.page_id === p.id))
   const countOn = (id: string) => issues.filter((i) => i.page_id === id)
 
@@ -140,6 +155,7 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
         <b style={{ color: scoreColor(sum.site_score) }}>{sum.site_score ?? '–'}</b>
         <span>{adaOnly ? 'accessibility' : 'site'} score<br />{audited} page{audited === 1 ? '' : 's'}{sum.pages.length > audited ? ` (${sum.pages.length - audited} not yet)` : ''}</span>
       </div>
+      {shownWhen && <span className="sa-when" title="When this audit was run (Eastern time)">{shownWhen}</span>}
       {issues.length > 0 && (
         <div className="sa-step" role="group" aria-label="Step through issues">
           <button type="button" onClick={() => step(-1)} disabled={cur === 0} aria-label="Previous issue">&lsaquo; Prev</button>
@@ -203,6 +219,7 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
                   </span>
                   <span className="sa-check-meta">
                     {!p.result ? 'Not audited yet' : done ? 'All clear' : `${fix} to fix · ${on.length - fix} to review`}
+                    {p.result && <small className="sa-check-when">Checked {checkedAt(p.result.audited_at)}</small>}
                   </span>
                   <span className="sa-check-score" style={{ color: scoreColor(p.result?.overall_score) }}>{p.result?.overall_score ?? '–'}</span>
                 </button>
@@ -340,6 +357,8 @@ const CSS = `
 .sa-check-text{display:flex;flex-direction:column;min-width:0;flex:1}
 .sa-check-title{font-size:13px;font-weight:800;color:var(--lr-text,#1a1a1a)}
 .sa-check-path{font-size:11px;color:var(--lr-text-50,#666);word-break:break-all}
+.sa-when{font-size:12px;font-weight:700;color:var(--lr-text-50,#555);background:rgba(22,114,167,.07);border-radius:6px;padding:6px 10px;white-space:nowrap}
+.sa-check-when{display:block;font-size:10.5px;font-weight:600;color:var(--lr-text-50,#777);margin-top:2px}
 .sa-src{display:inline-block;margin-left:8px;font-size:10px;font-weight:800;padding:1px 7px;border-radius:4px;background:rgba(22,114,167,.1);color:#0e4e73;word-break:normal}
 .sa-add{margin-top:16px;padding-top:14px;border-top:1px solid var(--lr-border,rgba(0,0,0,.1))}
 .sa-add-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
