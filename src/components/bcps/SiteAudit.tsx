@@ -22,8 +22,9 @@ type PageRow = {
   source?: 'main' | 'left_nav' | 'quick_link' | 'manual' | 'wcm_added'
   result: { id: string; audited_at: string; overall_score: number | null; checks_failed: number | null; checks_review: number | null } | null
 }
-type Issue = { page_id: string; result_id: string; check_id: string; area: string; title: string; detail: string; status: 'fail' | 'review' }
-type Summary = { pages: PageRow[]; issues: Issue[]; site_score: number | null; in_progress: number; can_run: boolean; can_add?: boolean }
+type Done = { by: string; at: string; note: string | null }
+type Issue = { page_id: string; result_id: string; check_id: string; area: string; title: string; detail: string; status: 'fail' | 'review'; done?: Done | null }
+type Summary = { pages: PageRow[]; issues: Issue[]; site_score: number | null; in_progress: number; can_run: boolean; can_add?: boolean; can_mark?: boolean; submitted?: string | null }
 const SOURCE_TAG: Partial<Record<NonNullable<PageRow['source']>, string>> = { quick_link: 'Quick link', manual: 'Quick link', wcm_added: 'Added by WCM' }
 
 const CHECKLIST = '__checklist'
@@ -148,6 +149,24 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
       : null
   const issuePages = sum.pages.filter((p) => issues.some((i) => i.page_id === p.id))
   const countOn = (id: string) => issues.filter((i) => i.page_id === id)
+  // Fixes reported back (Sean, 2026-10-20): every open item marked done
+  // unlocks Request re-audit.
+  const doneCount = issues.filter((i) => i.done).length
+  const allDone = issues.length > 0 && doneCount === issues.length
+  const submit = async () => {
+    if (!owner.department_id) return
+    setBusy(true); setMsg(null)
+    try {
+      const res = await fetch('/api/bcps/site-audit', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await auth()) }, body: JSON.stringify({ action: 'submit', department_id: owner.department_id }) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Could not request the re-audit.')
+      setMsg({ text: 'Sent. The District Web Team can see your fixes are done, and the re-audit has started. Pages fill in with fresh results over the next while.' })
+      await load()
+    } catch (e) { setMsg({ text: e instanceof Error ? e.message : 'Could not request the re-audit.', bad: true }) }
+    finally { setBusy(false) }
+  }
+  const setDone = (resultId: string, checkId: string, done: Done | null) =>
+    setSum((s) => s && { ...s, issues: s.issues.map((i) => i.result_id === resultId && i.check_id === checkId ? { ...i, done } : i) })
 
   const toolbar = (
     <div className="sa-tools">
@@ -176,6 +195,13 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
       <button type="button" className={`sa-link${pick === CHECKLIST ? ' on' : ''}`} onClick={() => { setPick(CHECKLIST); setFocus(null); setMsg(null) }}>
         Checklist ({sum.pages.length} page{sum.pages.length === 1 ? '' : 's'})
       </button>
+      {sum.can_mark && owner.department_id && issues.length > 0 && (
+        <div className="sa-progress-done" title="Mark each item done after you fix it in Finalsite (or check it, for a review item)">
+          <b>{doneCount} of {issues.length}</b> items done
+          <button type="button" className="sa-btn" disabled={busy || !allDone || sum.in_progress > 0} onClick={submit}
+            title={allDone ? 'Tell the District Web Team you are done and run the audit again' : 'Mark every item done first'}>Request re-audit</button>
+        </div>
+      )}
       <div className="sa-actions">
         {isAdmin && <a className="sa-link" href="/audit-questions">Question bank</a>}
         {sum.can_run && page && owner.department_id && <button type="button" className="sa-btn" disabled={busy} onClick={recheck}>{busy ? 'Working…' : 'Run audit on this page'}</button>}
@@ -184,6 +210,7 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
     </div>
   )
   const status = <>
+    {sum.submitted && <div className="sa-progress">Fixes reported done {checkedAt(sum.submitted)}{sum.in_progress > 0 ? '. The re-audit is running.' : '. The re-audit results are below.'}</div>}
     {sum.in_progress > 0 && <div className="sa-progress">Audit in progress: {sum.in_progress} job{sum.in_progress === 1 ? '' : 's'} waiting. Pages fill in as they finish.</div>}
     {msg && <p className="sa-msg" role="status" style={{ color: msg.bad ? '#a13a2f' : undefined }}>{msg.text}</p>}
   </>
@@ -218,7 +245,7 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
                     <span className="sa-check-path">{pagePath(p)}{p.source && SOURCE_TAG[p.source] && <span className="sa-src">{SOURCE_TAG[p.source]}</span>}</span>
                   </span>
                   <span className="sa-check-meta">
-                    {!p.result ? 'Not audited yet' : done ? 'All clear' : `${fix} to fix · ${on.length - fix} to review`}
+                    {!p.result ? 'Not audited yet' : done ? 'All clear' : `${fix} to fix · ${on.length - fix} to review${on.some((i) => i.done) ? ` · ${on.filter((i) => i.done).length} done` : ''}`}
                     {p.result && <small className="sa-check-when">Checked {checkedAt(p.result.audited_at)}</small>}
                   </span>
                   <span className="sa-check-score" style={{ color: scoreColor(p.result?.overall_score) }}>{p.result?.overall_score ?? '–'}</span>
@@ -239,9 +266,45 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false }: {
       {rid && !full[rid] && <>{bar}<div className="sa-box"><p className="sa-muted">Loading {page ? pageLabel(page) : 'this page'}…</p></div></>}
       {rid && full[rid] && <>
         <AuditViewer audit={full[rid]} showCourse={!adaOnly} toolbar={toolbar} focus={focus}
-          extra={(c) => c.status === 'pass' ? null : <AskQuestion key={`${rid}-${c.id}`} check={c} ctx={{ ...owner, result_id: rid, page_url: page?.url ?? full[rid].page_url ?? null }} />}
+          extra={(c) => c.status === 'pass' ? null : <>
+            {sum.can_mark && owner.department_id && <MarkDone key={`d-${rid}-${c.id}`} departmentId={owner.department_id} resultId={rid} check={c}
+              done={issues.find((i) => i.result_id === rid && i.check_id === c.id)?.done ?? null} onChange={(d) => setDone(rid, c.id, d)} />}
+            <AskQuestion key={`${rid}-${c.id}`} check={c} ctx={{ ...owner, result_id: rid, page_url: page?.url ?? full[rid].page_url ?? null }} />
+          </>}
           note={adaOnly ? <>Accessibility only (WCAG 2.1 AA). Green passes, red needs a fix. Only your page content counts; the district header, menus and footer are left out.</> : undefined} />
       </>}
+    </div>
+  )
+}
+
+// Mark as done (Sean, 2026-10-20): the WCM reports an item fixed in
+// Finalsite, or checked for a review item, with an optional note.
+function MarkDone({ departmentId, resultId, check, done, onChange }: { departmentId: string; resultId: string; check: CheckResult; done: Done | null; onChange: (d: Done | null) => void }) {
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const save = async (mark: boolean) => {
+    setBusy(true); setErr('')
+    try {
+      const res = await fetch('/api/bcps/site-audit', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await auth()) }, body: JSON.stringify({ action: 'mark', department_id: departmentId, result_id: resultId, check_id: check.id, done: mark, note }) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Could not save.')
+      onChange(mark ? { by: 'you', at: new Date().toISOString(), note: note.trim() || null } : null)
+      setNote('')
+    } catch (e) { setErr(e instanceof Error ? e.message : 'Could not save.') }
+    finally { setBusy(false) }
+  }
+  if (done) return (
+    <div className="sa-done on">
+      <span>&#10003; Marked done {checkedAt(done.at)}{done.by && done.by !== 'you' ? ` by ${done.by}` : ''}{done.note ? `: ${done.note}` : ''}</span>
+      <button type="button" className="sa-link" disabled={busy} onClick={() => save(false)}>Undo</button>
+    </div>
+  )
+  return (
+    <div className="sa-done">
+      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={check.status === 'review' ? 'Optional note, like: checked, it is correct' : 'Optional note, like: changed the heading'} aria-label="Note" />
+      <button type="button" className="sa-btn" disabled={busy} onClick={() => save(true)}>{check.status === 'review' ? 'Checked it, mark done' : 'Fixed it, mark done'}</button>
+      {err && <span className="sa-err">{err}</span>}
     </div>
   )
 }
@@ -359,6 +422,12 @@ const CSS = `
 .sa-check-path{font-size:11px;color:var(--lr-text-50,#666);word-break:break-all}
 .sa-when{font-size:12px;font-weight:700;color:var(--lr-text-50,#555);background:rgba(22,114,167,.07);border-radius:6px;padding:6px 10px;white-space:nowrap}
 .sa-check-when{display:block;font-size:10.5px;font-weight:600;color:var(--lr-text-50,#777);margin-top:2px}
+.sa-progress-done{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--lr-text,#1a1a1a)}
+.sa-progress-done b{font-weight:900;color:#0e4e73}
+.sa-done{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 4px;padding:10px 12px;border-radius:8px;background:rgba(22,114,167,.05);border:1px solid rgba(22,114,167,.15)}
+.sa-done input{flex:1 1 240px;min-width:0;font:inherit;font-size:12.5px;padding:8px 10px;border:1px solid rgba(0,0,0,.15);border-radius:6px}
+.sa-done.on{background:rgba(30,107,58,.08);border-color:rgba(30,107,58,.25);color:#1e6b3a;font-size:12.5px;font-weight:700}
+.sa-err{font-size:12px;color:#a13a2f}
 .sa-src{display:inline-block;margin-left:8px;font-size:10px;font-weight:800;padding:1px 7px;border-radius:4px;background:rgba(22,114,167,.1);color:#0e4e73;word-break:normal}
 .sa-add{margin-top:16px;padding-top:14px;border-top:1px solid var(--lr-border,rgba(0,0,0,.1))}
 .sa-add-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
