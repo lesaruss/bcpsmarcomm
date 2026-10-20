@@ -12,6 +12,10 @@ import { deptAccessFor, identifyCaller } from '@/lib/bcps-audit-auth'
 //   GET  ?department_id=&access=1           what the caller may do here
 //        ({ view, run, wcm }), for the department page's Run Audit button
 //   POST { department_id | school_id }      queue a full-site audit (admins)
+//   POST { action: 'add_page', department_id, url }
+//        Add a missing page (Sean, 2026-10-20): the department's WCM (or the
+//        District Web Team) adds a browardschools.com page the page finder
+//        missed; it joins the department's page list and is audited next.
 // Departments: admins, the department's WCM and its director may view.
 // Schools: admins only for now.
 export const dynamic = 'force-dynamic'
@@ -65,7 +69,7 @@ export async function GET(req: NextRequest) {
   }
 
   const [{ data: pages }, { data: results }, { data: queue }] = await Promise.all([
-    supabase.from('bcps_site_pages').select('id, url, title, is_main, active').eq(col, id).eq('active', true).order('is_main', { ascending: false }).order('url'),
+    supabase.from('bcps_site_pages').select('id, url, title, is_main, active, source').eq(col, id).eq('active', true).order('is_main', { ascending: false }).order('url'),
     supabase.from('bcps_audit_results').select(SUMMARY).eq(col, id).gte('audit_version', 3).order('audited_at', { ascending: false }).limit(300),
     supabase.from('bcps_audit_queue').select('status, kind').eq(col, id).in('status', ['queued', 'running']),
   ])
@@ -75,7 +79,7 @@ export async function GET(req: NextRequest) {
   for (const r of results ?? []) if (r.site_page_id && !latest.has(r.site_page_id)) latest.set(r.site_page_id, r)
   const legacyMain = (results ?? []).find((r) => !r.site_page_id)
   const list = (pages ?? []).map((p) => ({ ...p, result: latest.get(p.id) ?? (p.is_main ? legacyMain ?? null : null) }))
-  if (!list.length && legacyMain) list.push({ id: 'main', url: legacyMain.page_url ?? '', title: null, is_main: true, active: true, result: legacyMain })
+  if (!list.length && legacyMain) list.push({ id: 'main', url: legacyMain.page_url ?? '', title: null, is_main: true, active: true, source: 'main', result: legacyMain })
   const scored = list.filter((p) => p.result?.overall_score != null)
 
   // Every red and amber check on every page's latest audit, slimmed to what
@@ -97,11 +101,68 @@ export async function GET(req: NextRequest) {
     site_score: scored.length ? Math.round(scored.reduce((n, p) => n + (p.result!.overall_score as number), 0) / scored.length) : null,
     in_progress: (queue ?? []).length,
     can_run: ok.run,
+    can_add: !!owner.department_id && (ok.wcm || ok.caller.admin),
   })
 }
 
+// A page on the district site, cleaned the way the page finder stores it.
+const SITE_HOSTS = new Set(['www.browardschools.com', 'browardschools.com'])
+function cleanPageUrl(raw: string): string | null {
+  let u: URL
+  try { u = new URL(raw.trim()) } catch { return null }
+  if (!['https:', 'http:'].includes(u.protocol) || !SITE_HOSTS.has(u.hostname.toLowerCase())) return null
+  return `https://www.browardschools.com${u.pathname.replace(/\/+$/, '') || '/'}`
+}
+
+async function addPage(req: NextRequest, body: { department_id?: string; url?: string }) {
+  if (!body.department_id) return NextResponse.json({ error: 'department_id required' }, { status: 400 })
+  const ok = await access(req, { department_id: body.department_id })
+  if (!ok.ok) return NextResponse.json({ error: 'Not allowed' }, { status: ok.status })
+  if (!ok.wcm && !ok.caller.admin) return NextResponse.json({ error: 'Only this department\u2019s WCM can add pages to its audit.' }, { status: 403 })
+  const asked = cleanPageUrl(body.url ?? '')
+  if (!asked) return NextResponse.json({ error: 'Paste the full address of a page on browardschools.com.' }, { status: 400 })
+  // Follow it the way a visitor would (short /fs/pages/ links land somewhere
+  // else) and keep where it lands, which must still be on the district site.
+  let landed = asked
+  let title: string | null = null
+  try {
+    const ctl = new AbortController()
+    const tm = setTimeout(() => ctl.abort(), 15000)
+    const res = await fetch(asked, { signal: ctl.signal, redirect: 'follow', headers: { 'user-agent': 'Mozilla/5.0 (BCPS MarComm department audit)' } })
+    clearTimeout(tm)
+    if (!res.ok) return NextResponse.json({ error: `That page did not open (${res.status}). Check the address and try again.` }, { status: 422 })
+    const final = cleanPageUrl(res.url || asked)
+    if (!final) return NextResponse.json({ error: 'That link leads off browardschools.com, so it cannot be part of the audit.' }, { status: 422 })
+    landed = final
+    const html = await res.text()
+    title = (html.match(/<title>([^<]*)<\/title>/i)?.[1] ?? '').replace(/\s*-\s*Broward County Public Schools\s*$/i, '').replace(/&amp;/g, '&').trim() || null
+  } catch {
+    return NextResponse.json({ error: 'That page did not answer. Check the address and try again.' }, { status: 422 })
+  }
+  const { data: existing } = await supabase.from('bcps_site_pages').select('id, active').eq('department_id', body.department_id).eq('url', landed).maybeSingle()
+  if (existing?.active) return NextResponse.json({ error: 'That page is already part of this audit.' }, { status: 409 })
+  let pageId = existing?.id as string | undefined
+  if (existing) {
+    await supabase.from('bcps_site_pages').update({ active: true, last_seen_at: new Date().toISOString(), ...(title ? { title } : {}) }).eq('id', existing.id)
+  } else {
+    const { data: ins, error } = await supabase.from('bcps_site_pages')
+      .insert({ department_id: body.department_id, url: landed, title, is_main: false, source: 'wcm_added', added_by: ok.caller.email })
+      .select('id').single()
+    if (error || !ins) return NextResponse.json({ error: error?.message || 'Could not add the page.' }, { status: 500 })
+    pageId = ins.id
+  }
+  // Audited next, as part of the department's latest site run.
+  const { data: lastRun } = await supabase.from('bcps_audit_results').select('run_id').eq('department_id', body.department_id).not('run_id', 'is', null).order('audited_at', { ascending: false }).limit(1).maybeSingle()
+  await supabase.from('bcps_audit_queue').insert({
+    department_id: body.department_id, site_page_id: pageId, kind: 'page', run_id: lastRun?.run_id ?? null,
+    run_month: new Date().toISOString().slice(0, 7) + '-01', requested_by: ok.caller.email,
+  })
+  return NextResponse.json({ ok: true, page: { id: pageId, url: landed, title } })
+}
+
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({})) as { department_id?: string; school_id?: string }
+  const body = await req.json().catch(() => ({})) as { action?: string; department_id?: string; school_id?: string; url?: string }
+  if (body.action === 'add_page') return addPage(req, body)
   const owner = { department_id: body.department_id ?? null, school_id: body.school_id ?? null }
   if (!owner.department_id && !owner.school_id) return NextResponse.json({ error: 'department_id or school_id required' }, { status: 400 })
   const ok = await access(req, owner)

@@ -227,12 +227,17 @@ const norm = (u: string) => u.split('#')[0].split('?')[0].replace(/\/+$/, '')
 /**
  * A department's site = its main page plus every page in its left menu that
  * sits under the main page's own address (the menu also lists sibling
- * departments, which are not this department's pages). Reads the page's HTML
- * directly; no browser needed.
+ * departments, which are not this department's pages), plus the quick links
+ * on the main page itself (Sean, 2026-10-20, Hot Lab with Charter Schools: a
+ * page linked from the main page is part of the site whether or not the menu
+ * lists it). Quick links are often Finalsite short addresses (/fs/pages/<id>);
+ * those are followed to where they land and kept when that is under the
+ * department's address. Reads the page's HTML directly; no browser needed.
  */
-export async function discoverDeptPages(mainUrl: string): Promise<{ url: string; title: string; isMain: boolean }[]> {
+const MAX_SHORT_LINKS = 20
+export async function discoverDeptPages(mainUrl: string): Promise<{ url: string; title: string; isMain: boolean; source?: 'left_nav' | 'quick_link' }[]> {
   const main = norm(mainUrl)
-  const pages: { url: string; title: string; isMain: boolean }[] = [{ url: main, title: '', isMain: true }]
+  const pages: { url: string; title: string; isMain: boolean; source?: 'left_nav' | 'quick_link' }[] = [{ url: main, title: '', isMain: true }]
   let html = ''
   let finalUrl = mainUrl
   try {
@@ -249,22 +254,55 @@ export async function discoverDeptPages(mainUrl: string): Promise<{ url: string;
   if (start < 0) return pages
   const end = html.indexOf('id="fsPageContent"', start)
   const nav = html.slice(start, end > start ? end : start + 200000)
+  const content = end > start ? html.slice(end, end + 400000) : ''
   const base = new URL(finalUrl)
   const prefix = new URL(norm(finalUrl)).pathname
   const seen = new Set([main, norm(finalUrl)])
+  const titleOf = (raw: string) => raw.replace(/<span[^>]*fsStyleSROnly[\s\S]*?<\/span>/gi, '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim()
+  const underSite = (u: URL) => {
+    if (u.host !== base.host) return null
+    const path = u.pathname.replace(/\/+$/, '')
+    return path === prefix || path.startsWith(prefix + '/') ? norm(u.origin + path) : null
+  }
   const re = /<a\s[^>]*href="([^"#]+)"[^>]*>([\s\S]*?)<\/a>/gi
   let m: RegExpExecArray | null
   while ((m = re.exec(nav)) && pages.length < MAX_SITE_PAGES) {
     let u: URL
     try { u = new URL(m[1], base) } catch { continue }
-    if (u.host !== base.host) continue
-    const path = u.pathname.replace(/\/+$/, '')
-    if (path !== prefix && !path.startsWith(prefix + '/')) continue
-    const url = norm(u.origin + path)
-    if (seen.has(url)) continue
+    const url = underSite(u)
+    if (!url || seen.has(url)) continue
     seen.add(url)
-    const title = m[2].replace(/<span[^>]*fsStyleSROnly[\s\S]*?<\/span>/gi, '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim()
-    pages.push({ url, title, isMain: false })
+    pages.push({ url, title: titleOf(m[2]), isMain: false, source: 'left_nav' })
+  }
+  // Quick links in the main page's content.
+  const short: { href: string; title: string }[] = []
+  const re2 = /<a\s[^>]*href="([^"#]+)"[^>]*>([\s\S]*?)<\/a>/gi
+  while ((m = re2.exec(content)) && pages.length < MAX_SITE_PAGES) {
+    let u: URL
+    try { u = new URL(m[1], base) } catch { continue }
+    if (u.host === base.host && /^\/fs\/pages\/\d+\/?$/.test(u.pathname)) {
+      if (short.length < MAX_SHORT_LINKS && !short.some((x) => x.href === u.href)) short.push({ href: u.href, title: titleOf(m[2]) })
+      continue
+    }
+    const url = underSite(u)
+    if (!url || seen.has(url)) continue
+    seen.add(url)
+    pages.push({ url, title: titleOf(m[2]), isMain: false, source: 'quick_link' })
+  }
+  for (const s of short) {
+    if (pages.length >= MAX_SITE_PAGES) break
+    try {
+      const ctl = new AbortController()
+      const tm = setTimeout(() => ctl.abort(), 10000)
+      const res = await fetch(s.href, { signal: ctl.signal, redirect: 'follow', headers: { 'user-agent': 'Mozilla/5.0 (BCPS MarComm department audit)' } })
+      clearTimeout(tm)
+      res.body?.cancel().catch(() => {})
+      if (!res.ok || !res.url) continue
+      const url = underSite(new URL(res.url))
+      if (!url || seen.has(url)) continue
+      seen.add(url)
+      pages.push({ url, title: s.title, isMain: false, source: 'quick_link' })
+    } catch { /* an unreachable short link is skipped */ }
   }
   return pages
 }
