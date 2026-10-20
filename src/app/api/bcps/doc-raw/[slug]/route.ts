@@ -44,7 +44,12 @@ export async function GET(
     )
   }
 
-  return new NextResponse(doc.content, {
+  // ?embed=1: shown inside the dashboard's Documents tab (Sean, 2026-10-20).
+  // Links to another Playbook or doc open in the tab; every other link leaves
+  // the frame instead of loading inside it.
+  const body = req.nextUrl.searchParams.get('embed') === '1' ? withEmbedScript(doc.content) : doc.content
+
+  return new NextResponse(body, {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       'X-Frame-Options': 'SAMEORIGIN',
@@ -53,6 +58,23 @@ export async function GET(
       'Vercel-CDN-Cache-Control': 'no-store',
     },
   })
+}
+
+const EMBED_SCRIPT = `<script>
+document.addEventListener('click', function (e) {
+  var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+  if (!a || a.getAttribute('href').charAt(0) === '#') return;
+  var u = new URL(a.href, location.href);
+  var ours = u.origin === location.origin || u.hostname === 'bcpsmarcomm.com' || u.hostname === 'www.bcpsmarcomm.com';
+  var m = ours && u.pathname.match(/^\\/playbooks\\/(?:[^/]+\\/)?([^/]+)\\/?$/);
+  if (m && !u.hash) { e.preventDefault(); parent.postMessage({ type: 'bcps-open-doc', slug: decodeURIComponent(m[1]) }, location.origin); return; }
+  if (!a.target) a.target = ours ? '_top' : '_blank';
+}, true);
+</script>`
+
+function withEmbedScript(html: string): string {
+  const i = html.toLowerCase().lastIndexOf('</body>')
+  return i === -1 ? html + EMBED_SCRIPT : html.slice(0, i) + EMBED_SCRIPT + html.slice(i)
 }
 
 async function sha256HexPrefix(input: string, len: number): Promise<string> {
