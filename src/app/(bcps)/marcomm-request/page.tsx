@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
 // MarComm Request Form (Sean, 2026-10-08): replaces the Wufoo MarComm Request
-// Form and feeds MarComm Assignments directly. Signed-in District employees
-// only (the (bcps) layout redirects anyone without a session to /login); the
-// signed-in address is the requester email of record.
+// Form and feeds MarComm Assignments directly. Open to anyone since
+// 2026-10-20: signed in, the address comes from the session; signed out, the
+// requester types their District email.
 //
 // What changed from the Wufoo form, from a review of 80 tracked requests:
 // - "What are you requesting" and "Where will it be used" were open text and
@@ -43,6 +43,8 @@ interface Dept { department_name: string }
 
 export default function MarcommRequestPage() {
   const [email, setEmail] = useState('')
+  const [signedIn, setSignedIn] = useState(false)
+  const [website, setWebsite] = useState('')
   const [depts, setDepts] = useState<string[]>([])
   const [f, setF] = useState({
     requester_name: '', requester_title: '', requester_phone: '', org_type: '' as '' | 'School' | 'Department', org_name: '',
@@ -57,7 +59,7 @@ export default function MarcommRequestPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? '')
+      if (data.user?.email) { setEmail(data.user.email); setSignedIn(true) }
       const meta = (data.user?.user_metadata ?? {}) as { full_name?: string; name?: string }
       const name = meta.full_name || meta.name
       if (name) setF(p => ({ ...p, requester_name: p.requester_name || name }))
@@ -78,13 +80,14 @@ export default function MarcommRequestPage() {
     setError('')
     if (!services.length) { setError('Choose at least one service.'); return }
     if (!audiences.length) { setError('Choose at least one audience.'); return }
+    if (!signedIn && !/@browardschools\.com$/i.test(email.trim())) { setError('Please use your District email address (@browardschools.com).'); return }
     setBusy(true)
     try {
       let attachments: { name: string; path: string }[] = []
       if (files.length) {
         const r = await fetch('/api/bcps/marcomm-request-submit', {
           method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-          body: JSON.stringify({ action: 'upload_urls', files: files.map(x => ({ name: x.name, size: x.size })) }),
+          body: JSON.stringify({ action: 'upload_urls', requester_email: email, website, files: files.map(x => ({ name: x.name, size: x.size })) }),
         })
         const j = await r.json()
         if (!r.ok) throw new Error(j.error || 'Could not upload your files.')
@@ -97,7 +100,7 @@ export default function MarcommRequestPage() {
       }
       const r = await fetch('/api/bcps/marcomm-request-submit', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ ...f, event_date: f.event_date || null, services, audiences, attachments }),
+        body: JSON.stringify({ ...f, requester_email: email, website, event_date: f.event_date || null, services, audiences, attachments }),
       })
       const j = await r.json()
       if (!r.ok) throw new Error(j.error || 'Could not submit your request.')
@@ -137,7 +140,9 @@ export default function MarcommRequestPage() {
               <div className="grid">
                 <label>Your name *<input required value={f.requester_name} onChange={set('requester_name')} autoComplete="name" /></label>
                 <label>Title or position<input value={f.requester_title} onChange={set('requester_title')} /></label>
-                <label>District email<input value={email} readOnly aria-readonly="true" className="ro" /></label>
+                {signedIn
+                  ? <label>District email<input value={email} readOnly aria-readonly="true" className="ro" /></label>
+                  : <label>District email *<input type="email" required value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" placeholder="name@browardschools.com" /></label>}
                 <label>District phone<input type="tel" value={f.requester_phone} onChange={set('requester_phone')} autoComplete="tel" /></label>
               </div>
               <fieldset>
@@ -151,6 +156,7 @@ export default function MarcommRequestPage() {
               <label className="full">Name of your {f.org_type ? f.org_type.toLowerCase() : 'school or department'} *
                 <input required value={f.org_name} onChange={set('org_name')} list={f.org_type === 'Department' ? 'mcr-depts' : undefined} />
               </label>
+              <input className="mcr-hp" tabIndex={-1} autoComplete="off" aria-hidden="true" value={website} onChange={e => setWebsite(e.target.value)} name="website" />
               <datalist id="mcr-depts">{depts.map(d => <option key={d} value={d} />)}</datalist>
             </section>
 
@@ -250,6 +256,7 @@ const CSS = `
 .files { font-size: 13px; margin: 8px 0 0 18px; }
 .mcr-btn { font: inherit; font-size: 14px; font-weight: 800; padding: 13px 22px; border-radius: 6px; border: none; background: #1672A7; color: #fff; cursor: pointer; }
 .mcr-btn:disabled { opacity: 0.6; cursor: default; }
+.mcr-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .mcr-error { color: #b91c1c; font-size: 14px; font-weight: 600; }
 .mcr-done p { font-size: 15px; line-height: 1.7; }
 @media (max-width: 640px) {

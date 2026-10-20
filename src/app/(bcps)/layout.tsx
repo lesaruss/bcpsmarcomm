@@ -15,10 +15,13 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
   // MarComm Meeting onboarding (2026-10-16): public, standalone, like
   // wcm-registration. Must match the public path in middleware.ts.
   const isMarcommRegistration = pathname.startsWith('/marcomm-registration')
+  // MarComm Request Form: public since 2026-10-20 (Sean). Must match the
+  // public path in middleware.ts.
+  const isMarcommRequest = pathname.startsWith('/marcomm-request')
 
   // WCM Certification is gated the same as every other /bcps/* module now
   // (per V, 2026-07-28) - no more bespoke cert-only auth bypass here.
-  if (!isWcmPortal && !isWcmRosterForm && !isWcmRegistration && !isLoginPage && !isSchoolRegistration && !isMarcommRegistration) {
+  if (!isWcmPortal && !isWcmRosterForm && !isWcmRegistration && !isLoginPage && !isSchoolRegistration && !isMarcommRegistration && !isMarcommRequest) {
     // BCPS portal auth: redirect to BCPS login if no session
     const cookieStore = cookies()
     const supabase = createServerClient(
@@ -43,10 +46,10 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
     if (!user) redirect('/login')
   }
 
-  // MarComm Request Form (2026-10-08): signed-in District employees only (the
-  // auth check above still applies), but rendered on its own without the
-  // admin shell - most requesters have no other reason to use the portal.
-  if (pathname.startsWith('/marcomm-request')) {
+  // MarComm Request Form (2026-10-08; public since 2026-10-20): rendered on
+  // its own without the admin shell - most requesters have no other reason to
+  // use the portal.
+  if (isMarcommRequest) {
     return <>{children}</>
   }
 
