@@ -10,6 +10,7 @@ import WidgetsPage from './WidgetsPage'
 import DashboardPage from './DashboardPage'
 import MarcommAssignmentsPage from './MarcommAssignmentsPage'
 import AssignmentsPage from './AssignmentsPage'
+import DocumentsPage, { type PinnedDoc } from './DocumentsPage'
 import MembersPage from './MembersPage'
 import { WcmCommunityHub, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
@@ -649,7 +650,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
           </div>
         </>
       )}
-      {tab === 'documents' && <DocumentsTab kind="director" canMarcomm={canMarcomm} onNavigate={onNavigate} />}
+      {tab === 'documents' && <DocumentsTab kind="director" canMarcomm={canMarcomm} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audit' && <RunAuditTab depts={led} canRecheck={false} />}
       {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} oversight={oversight} />}
@@ -876,17 +877,15 @@ function NotesTab({ notes, led }: { notes: DirectorNote[]; led: DepartmentSummar
 // person can open, so a Playbook reads inside the dashboard with the tab bar
 // above it instead of as a loose page. ?tab=documents&doc=<slug> opens one.
 
-type CatalogDoc = { slug: string; title: string; description: string | null; date: string | null; doc_url: string; featured: boolean; section?: string }
-
 // Playbooks each dashboard always lists, even before a catalog grant exists.
-const PINNED_DOCS: Record<'director' | 'wcm', CatalogDoc[]> = {
+const PINNED_DOCS: Record<'director' | 'wcm', PinnedDoc[]> = {
   director: [
-    { slug: 'director-department', title: 'Director Playbook', description: 'What directors need to know about the Web Content Manager program, refreshed every Thursday.', date: null, doc_url: DIRECTOR_PLAYBOOK_URL, featured: true },
-    { slug: 'wcm-department', title: 'Department WCM Playbook', description: 'The detailed version your WCM works from: certification, the audit, Hot Lab and tools.', date: null, doc_url: '/playbooks/wcm-department', featured: false },
+    { slug: 'director-department', title: 'Director Playbook', description: 'What directors need to know about the Web Content Manager program, refreshed every Thursday.', doc_url: DIRECTOR_PLAYBOOK_URL },
+    { slug: 'wcm-department', title: 'Department WCM Playbook', description: 'The detailed version your WCM works from: certification, the audit, Hot Lab and tools.', doc_url: '/playbooks/wcm-department' },
   ],
   wcm: [
-    { slug: 'wcm-department', title: 'Department WCM Playbook', description: 'Certification, your audit, Hot Lab and tools, refreshed every Thursday.', date: null, doc_url: '/playbooks/wcm-department', featured: true },
-    { slug: 'score-100-checklist', title: 'Department Page Checklist', description: 'Exactly what the department audit checks, with the Finalsite steps for each item.', date: null, doc_url: '/playbooks/wcm-department/score-100-checklist', featured: false },
+    { slug: 'wcm-department', title: 'Department WCM Playbook', description: 'Certification, your audit, Hot Lab and tools, refreshed every Thursday.', doc_url: '/playbooks/wcm-department' },
+    { slug: 'score-100-checklist', title: 'Department Page Checklist', description: 'Exactly what the department audit checks, with the Finalsite steps for each item.', doc_url: '/playbooks/wcm-department/score-100-checklist' },
   ],
 }
 
@@ -899,8 +898,6 @@ function useDocParam(): [string | null, (slug: string | null) => void] {
     router.push(slug ? `/?page=dashboard&tab=documents&doc=${encodeURIComponent(slug)}` : '/?page=dashboard&tab=documents', { scroll: false })
   return [doc, open]
 }
-
-const isPlaybookUrl = (url: string) => url.startsWith('/playbooks/')
 
 // A Playbook served by /api/bcps/doc-raw?embed=1, grown to its full height so
 // the dashboard scrolls as one page. Playbook links inside it open here too.
@@ -926,28 +923,8 @@ function DocFrame({ slug, title, onOpen }: { slug: string; title: string; onOpen
     style={{ display: 'block', width: '100%', height, border: '1px solid var(--border)', borderRadius: 12, background: '#fff' }} />
 }
 
-function DocumentsTab({ kind, team = false, canMarcomm = false, onNavigate }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm'; team?: boolean; canMarcomm?: boolean; onNavigate: Navigate }) {
-  const router = useRouter()
+function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm'; team?: boolean; canMarcomm?: boolean }) {
   const [doc, openDoc] = useDocParam()
-  const [catalog, setCatalog] = useState<CatalogDoc[] | null>(null)
-  const [query, setQuery] = useState('')
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const r = await fetch('/api/bcps/documents', { headers: await authHeaders(), cache: 'no-store' })
-        const j = r.ok ? await r.json() : { documents: [] }
-        if (!cancelled) setCatalog(((j.documents ?? []) as CatalogDoc[]).filter((d) => (d.section || 'documents') === 'documents'))
-      } catch {
-        if (!cancelled) setCatalog([])
-      }
-    })()
-    return () => { cancelled = true }
-  }, [])
-
-  const pinned = kind === 'director' || kind === 'wcm' ? PINNED_DOCS[kind] : []
-  const docs = [...pinned, ...(catalog ?? []).filter((d) => !pinned.some((p) => p.slug === d.slug))]
-  const open = doc ? docs.find((d) => d.slug === doc) : null
 
   if (doc === 'web-team-assignments' && team) {
     return (
@@ -961,73 +938,38 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, onNavigate }: { 
     )
   }
   if (doc) {
-    const title = open?.title ?? 'Document'
     return (
       <div className="home-section">
         <div className="home-actions">
           <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>
           <a className="home-link-btn" href={`/api/bcps/doc-raw/${encodeURIComponent(doc)}`} target="_blank" rel="noopener noreferrer">Open full page</a>
         </div>
-        <DocFrame slug={doc} title={title} onOpen={(s) => openDoc(s)} />
+        <DocFrame slug={doc} title="Document" onOpen={(s) => openDoc(s)} />
       </div>
     )
   }
 
-  const q = query.trim().toLowerCase()
-  const shown = docs.filter((d) => !q || d.title.toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q))
-  const openCatalogDoc = (d: CatalogDoc) => {
-    if (isPlaybookUrl(d.doc_url)) openDoc(d.slug)
-    else if (/^https?:\/\//i.test(d.doc_url)) window.open(d.doc_url, '_blank', 'noopener')
-    else router.push(d.doc_url)
-  }
-  return (
-    <>
-      <p className="wcm-hub2-intro">{team
-        ? 'The trackers and every Playbook, in one place. Each one opens right here, with the dashboard tabs still above it.'
-        : 'Your Playbooks, kept current every Thursday. Each one opens right here, with the dashboard tabs still above it.'}</p>
-      {(team || canMarcomm) && (
-        <div className="wcm-hub2-grid home-section">
-          {team && (
-            <div className="wcm-hub2-card">
-              <h3>Web Team Assignments</h3>
-              <p>What the District Web Team is carrying, who leads it and where it stands.</p>
-              <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc('web-team-assignments')}>Open</button>
-            </div>
-          )}
-          {canMarcomm && (
-            <div className="wcm-hub2-card">
-              <h3>MarComm Assignments</h3>
-              <p>Every Marcomm Meeting request, its lead and its status.</p>
-              <a className="wcm-hub2-card-btn" href={MARCOMM_PATH}>Open</a>
-            </div>
-          )}
+  // The one Documents list (Sean, 2026-10-20): the same page Tools &
+  // Resources opened, with the trackers above it for the people who have them.
+  const trackers = (team || canMarcomm) ? (
+    <div className="wcm-hub2-grid home-section">
+      {team && (
+        <div className="wcm-hub2-card">
+          <h3>Web Team Assignments</h3>
+          <p>What the District Web Team is carrying, who leads it and where it stands.</p>
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc('web-team-assignments')}>Open</button>
         </div>
       )}
-      {team && <h3 className="home-grp">Playbooks</h3>}
-      {docs.length > 6 && (
-        <div className="home-actions">
-          <input type="search" className="home-dept-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Search ${docs.length} documents`} aria-label="Search documents" />
+      {canMarcomm && (
+        <div className="wcm-hub2-card">
+          <h3>MarComm Assignments</h3>
+          <p>Every Marcomm Meeting request, its lead and its status.</p>
+          <a className="wcm-hub2-card-btn" href={MARCOMM_PATH}>Open</a>
         </div>
       )}
-      {catalog === null && pinned.length === 0 && <div className="wcm-hub2-empty">Loading documents...</div>}
-      <div className="wcm-hub2-grid">
-        {shown.map((d) => (
-          <div key={d.slug} className="wcm-hub2-card">
-            <h3>{d.title}</h3>
-            {d.description && <p>{d.description}</p>}
-            {d.date && <span className="home-hint">{d.date}</span>}
-            <button type="button" className="wcm-hub2-card-btn" onClick={() => openCatalogDoc(d)}>Open</button>
-          </div>
-        ))}
-      </div>
-      {catalog !== null && shown.length === 0 && <div className="wcm-hub2-empty">{q ? 'No document matches that search.' : 'No documents yet.'}</div>}
-      {kind === 'superadmin' && (
-        <div className="home-actions">
-          <button type="button" className="home-link-btn" onClick={() => onNavigate('documents')}>Manage documents and access</button>
-        </div>
-      )}
-    </>
-  )
+    </div>
+  ) : null
+  return <DocumentsPage embedded onOpen={(s) => openDoc(s)} extras={trackers} pinned={kind === 'director' || kind === 'wcm' ? PINNED_DOCS[kind] : []} />
 }
 
 // MarComm Assignments keeps its own address (/marcomm-assignments); for the
@@ -1215,7 +1157,7 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
         </>
       )}
       {tab === 'widgets' && <WidgetsPage embedded />}
-      {tab === 'documents' && <DocumentsTab kind="wcm" canMarcomm={canMarcomm} onNavigate={onNavigate} />}
+      {tab === 'documents' && <DocumentsTab kind="wcm" canMarcomm={canMarcomm} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audit' && <RunAuditTab depts={mine} canRecheck guide={guide} onGuide={setGuide} wcm />}
       {tab === 'tools' && <ToolsPanel kind="wcm" onNavigate={onNavigate} kb={data.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
@@ -1830,6 +1772,7 @@ type HotLabLink = { title: string; date: string; url: string }
 // appear for people who can open them.
 const STAR_KEY = 'bcps-tool-stars'
 function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof typeof TOP_TOOLS; onNavigate: (page: PageId) => void; kb?: KbArticle[]; hotLabs?: HotLabLink[] }) {
+  const router = useRouter()
   const { pages, role, viewAs } = useBCPSShell()
   const [q, setQ] = useState('')
   const [group, setGroup] = useState('All')
@@ -1868,7 +1811,13 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
     ? pages.includes(t.gate) || (isSA && SUPERADMIN_PAGES_SET.has(t.gate))
     : isSA || !SUPERADMIN_PAGES_SET.has(t.gate)
   const mine = TOOLS.filter(canOpen)
-  const open = (t: Tool) => { if (t.page) onNavigate(t.page); else if (t.href) window.location.href = t.href }
+  // Documents is a dashboard tab now (Sean, 2026-10-20); the Member home has
+  // no tab bar, so it keeps the page.
+  const open = (t: Tool) => {
+    if (t.page === 'documents' && kind !== 'member') router.push('/?page=dashboard&tab=documents', { scroll: false })
+    else if (t.page) onNavigate(t.page)
+    else if (t.href) window.location.href = t.href
+  }
 
   type Item = { key: string; group: string; title: string; desc: string; text: string; icon?: React.ReactNode; go: () => void }
   const items: Item[] = [
@@ -2196,7 +2145,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, 
       <ProgramPanel p={p} />
       </>}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
-      {tab === 'documents' && <DocumentsTab kind="superadmin" team canMarcomm onNavigate={onNavigate} />}
+      {tab === 'documents' && <DocumentsTab kind="superadmin" team canMarcomm />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {/* Team is the Members directory, opening on Chief of Staff (the Office
@@ -2291,7 +2240,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       <h3 className="home-grp">Program</h3>
       <ProgramPanel p={p} />
       </>}
-      {tab === 'documents' && <DocumentsTab kind="dwt" team canMarcomm={kind === 'comms' || canMarcomm} onNavigate={onNavigate} />}
+      {tab === 'documents' && <DocumentsTab kind="dwt" team canMarcomm={kind === 'comms' || canMarcomm} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'program' && <ProgramPanel p={p} />}
