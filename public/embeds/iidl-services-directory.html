@@ -268,6 +268,9 @@
   .meta-row.meta-link svg { margin-top: 0; }
   .meta-row.meta-link a { display: inline-flex; align-items: center; min-height: 24px; }
   .meta-row a:hover { color: var(--blue-dark); text-decoration: underline; }
+  .mail-link { gap: 6px; font-weight: 600; }
+  .mail-link svg { flex-shrink: 0; }
+  .contact-title { display: block; color: var(--text-muted); font-weight: 400; }
 
   .book-note {
     font-size: 12px;
@@ -582,16 +585,29 @@ function cardHtml(s, q) {
   const ICON_PHONE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.64 19.79 19.79 0 01.22 1.05 2 2 0 012.22 3h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 10.91a16 16 0 006.18 6.18l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>';
 
   const meta = [];
-  if (s.contact_name) {
-    meta.push(`<div class="meta-row">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span>${highlight(s.contact_name, q)}${s.contact_title ? ', ' + escapeHtml(s.contact_title) : ''}</span>
+  // District practice: email addresses are never printed on the page. The
+  // contact's name is the mailto link (mail icon beside it); any extra
+  // inboxes become their own named links. The address stays in the href, so a
+  // click still opens a pre-addressed email.
+  const emailsList = splitList(s.contact_email).filter(addr => safeUrl('mailto:' + addr));
+  const mailLink = (addr, label) =>
+    `<a href="${escapeHtml('mailto:' + addr)}" class="mail-link" aria-label="Email ${escapeHtml(label)}">${ICON_MAIL}<span>${label === s.contact_name ? highlight(label, q) : escapeHtml(label)}</span></a>`;
+  // first.last@ reads as a person ("Claudia Brites"); anything else is a shared inbox.
+  const inboxLabel = addr => {
+    const m = addr.split('@')[0].match(/^([a-z]+)\.([a-z]+)$/i);
+    return m ? [m[1], m[2]].map(w => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ') : 'Team inbox';
+  };
+  if (s.contact_name || emailsList.length) {
+    const first = emailsList[0];
+    const who = s.contact_name
+      ? (first ? mailLink(first, s.contact_name) : `<span>${highlight(s.contact_name, q)}</span>`)
+      : mailLink(first, 'Send an email');
+    meta.push(`<div class="meta-row${first ? ' meta-link' : ''}">
+      ${first ? '' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'}
+      <span>${who}${s.contact_title ? `<span class="contact-title">${escapeHtml(s.contact_title)}</span>` : ''}</span>
     </div>`);
+    emailsList.slice(1).forEach(addr => meta.push(`<div class="meta-row meta-link">${mailLink(addr, inboxLabel(addr))}</div>`));
   }
-  splitList(s.contact_email).forEach(addr => {
-    const href = safeUrl('mailto:' + addr);
-    if (href) meta.push(`<div class="meta-row meta-link">${ICON_MAIL}<a href="${escapeHtml(href)}">${escapeHtml(addr)}</a></div>`);
-  });
   splitList(s.contact_phone).forEach(num => {
     const tel = num.replace(/[^0-9+]/g, '');
     if (tel) meta.push(`<div class="meta-row meta-link">${ICON_PHONE}<a href="tel:${escapeHtml(tel)}">${escapeHtml(num)}</a></div>`);
