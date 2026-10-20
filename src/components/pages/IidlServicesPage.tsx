@@ -23,8 +23,11 @@ interface Service {
   contact_title: string | null
   contact_email: string | null
   contact_phone: string | null
+  contact_address: string | null
   booking_url: string | null
   booking_note: string | null
+  audience: string | null
+  service_url: string | null
   review_note: string | null
   sort_order: number
 }
@@ -40,8 +43,12 @@ interface Unit {
 const BLUE = '#1672A7'
 const EMPTY_NEW = {
   name: '', unit_slug: '', description: '', contact_name: '', contact_title: '', contact_email: '',
-  contact_phone: '', booking_url: '', booking_note: '',
+  contact_phone: '', contact_address: '', booking_url: '', booking_note: '', audience: '', service_url: '',
 }
+
+// Matches the audience check constraint on bcps_iidl_services. 'all' services
+// show under every audience filter in the embed.
+const AUDIENCES = [['school', 'Schools'], ['district', 'District staff'], ['family', 'Families'], ['all', 'All audiences']]
 
 const C = {
   card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, marginBottom: 12 } as React.CSSProperties,
@@ -124,6 +131,13 @@ export default function IidlServicesPage() {
 
   if (loading) return <div style={{ padding: 32 }}>Loading II&amp;DL Services Directory content...</div>
 
+  const audienceOptions = (
+    <>
+      <option value="">Audience not set</option>
+      {AUDIENCES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+    </>
+  )
+
   const unitOptions = (
     <>
       <option value="">No unit</option>
@@ -191,6 +205,10 @@ export default function IidlServicesPage() {
               onChange={e => setEdit(s.id, 'unit_slug', e.target.value)}>
               {unitOptions}
             </select>
+            <select style={C.sel} aria-label="Audience" disabled={busy} value={editVal(s, 'audience')}
+              onChange={e => setEdit(s.id, 'audience', e.target.value)}>
+              {audienceOptions}
+            </select>
           </div>
           <textarea style={{ ...C.input, minHeight: 52, resize: 'vertical', marginBottom: 8 }} placeholder="Service description (hidden when blank)"
             aria-label="Service description" disabled={busy}
@@ -204,10 +222,14 @@ export default function IidlServicesPage() {
               value={editVal(s, 'contact_email')} onChange={e => setEdit(s.id, 'contact_email', e.target.value)} />
             <input style={C.input} placeholder="Contact phone" aria-label="Contact phone" disabled={busy}
               value={editVal(s, 'contact_phone')} onChange={e => setEdit(s.id, 'contact_phone', e.target.value)} />
+            <input style={C.input} placeholder="Contact address" aria-label="Contact address" disabled={busy}
+              value={editVal(s, 'contact_address')} onChange={e => setEdit(s.id, 'contact_address', e.target.value)} />
           </div>
           <div style={C.row}>
             <input style={C.input} placeholder="Microsoft Bookings URL (shows the Book a session button)" aria-label="Booking URL" disabled={busy}
               value={editVal(s, 'booking_url')} onChange={e => setEdit(s.id, 'booking_url', e.target.value)} />
+            <input style={C.input} placeholder="Service page URL (replaces the Unit page link)" aria-label="Service page URL" disabled={busy}
+              value={editVal(s, 'service_url')} onChange={e => setEdit(s.id, 'service_url', e.target.value)} />
           </div>
           <textarea style={{ ...C.input, minHeight: 44, resize: 'vertical', marginBottom: 8 }} placeholder="What the booking session covers (shown above the button)"
             aria-label="Booking note" disabled={busy}
@@ -245,6 +267,10 @@ export default function IidlServicesPage() {
                 onChange={e => setNewService({ ...newService, unit_slug: e.target.value })}>
                 {unitOptions}
               </select>
+              <select style={C.sel} aria-label="New service audience" value={newService.audience}
+                onChange={e => setNewService({ ...newService, audience: e.target.value })}>
+                {audienceOptions}
+              </select>
             </div>
             <textarea style={{ ...C.input, minHeight: 52, resize: 'vertical', marginBottom: 8 }} placeholder="Service description"
               aria-label="New service description" value={newService.description}
@@ -258,10 +284,14 @@ export default function IidlServicesPage() {
                 onChange={e => setNewService({ ...newService, contact_email: e.target.value })} />
               <input style={C.input} placeholder="Contact phone" aria-label="New contact phone" value={newService.contact_phone}
                 onChange={e => setNewService({ ...newService, contact_phone: e.target.value })} />
+              <input style={C.input} placeholder="Contact address" aria-label="New contact address" value={newService.contact_address}
+                onChange={e => setNewService({ ...newService, contact_address: e.target.value })} />
             </div>
             <div style={C.row}>
               <input style={C.input} placeholder="Microsoft Bookings URL" aria-label="New booking URL" value={newService.booking_url}
                 onChange={e => setNewService({ ...newService, booking_url: e.target.value })} />
+              <input style={C.input} placeholder="Service page URL (replaces the Unit page link)" aria-label="New service page URL" value={newService.service_url}
+                onChange={e => setNewService({ ...newService, service_url: e.target.value })} />
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <textarea style={{ ...C.input, flex: '1 1 260px', minHeight: 44, resize: 'vertical' }} placeholder="What the booking session covers"
