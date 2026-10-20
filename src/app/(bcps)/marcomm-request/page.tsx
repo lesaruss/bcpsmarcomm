@@ -131,9 +131,16 @@ export default function MarcommRequestPage() {
           </div>
         ) : (
           <form onSubmit={submit} noValidate={false}>
-            <h1>MarComm Request</h1>
-            <p className="lede">Request support from the Office of Communications: design, social media, ParentLink, press, video and BECON, web and more. Required fields are marked with an asterisk.</p>
-            <p className="mcr-urgent"><b>Urgent or emergency?</b> Do not use this form. Contact the Office of Communications directly so the team can respond right away.</p>
+            {/* Intro copy from the District's MarComm Request page (Sean, 2026-10-20). */}
+            <h1>Submit Your MarComm Request</h1>
+            <p className="lede">The Office of Communications provides communications resources for District schools and departments to assist with strategic communications and marketing efforts for internal and external stakeholders. To request our services, please review the information below and complete the online form.</p>
+            <ul className="mcr-terms">
+              <li>Allow our office <b>10 business days</b> to review your submission and respond. The Office of Communications does <b>NOT</b> guarantee consideration for any submission that does not provide sufficient notice.</li>
+              <li>Submissions for services must be <b>pre-approved by your school principal or department director</b>.</li>
+              <li><b>Please note:</b> Approved requests are prioritized based on the details/requirements of each submission, as well as the current volume of requests received by the Office of Communications.</li>
+            </ul>
+            <p className="mcr-urgent">If you have an emergency (such as a crisis situation or urgent media issue, etc.) please contact our office by phone at <a href="tel:+17543212300">754-321-2300</a>.</p>
+            <p className="lede">Required fields are marked with an asterisk.</p>
 
             <section className="mcr-card">
               <h2>1. About you</h2>
@@ -242,6 +249,9 @@ const CSS = `
 .mcr input.ro { background: #f3f4f6; color: rgba(26,26,26,0.75); }
 .mcr fieldset { border: none; padding: 0; margin: 16px 0 0; }
 .mcr legend { font-size: 13px; font-weight: 700; margin-bottom: 8px; padding: 0; }
+.mcr-terms { font-size: 14px; line-height: 1.7; color: rgba(26,26,26,0.8); margin: 0 0 18px; padding-left: 20px; }
+.mcr-terms li { margin-bottom: 6px; }
+.mcr-urgent a { color: #0e4e73; font-weight: 800; }
 .mcr-urgent { font-size: 14px; line-height: 1.6; background: #FFF4E5; border-left: 4px solid #C55326; border-radius: 4px; padding: 12px 16px; margin: 0 0 22px; }
 .hint { font-size: 12px; font-weight: 400; color: rgba(26,26,26,0.6); }
 .radios { display: flex; gap: 16px; flex-wrap: wrap; }
