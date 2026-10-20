@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
   const [{ data: requests, error }, { data: notes, error: notesError }, { data: team, error: teamError }, { data: snapshots, error: snapError }] = await Promise.all([
     supabase.from('bcps_marcomm_requests').select('*').order('submitted_at', { ascending: false }),
-    supabase.from('bcps_marcomm_request_notes').select('id, request_id, body, author, source, meeting_label, created_at').order('created_at', { ascending: false }),
+    supabase.from('bcps_marcomm_request_notes').select('id, request_id, body, author, source, meeting_label, created_at, edited_at, edited_by').order('created_at', { ascending: false }),
     supabase.from('bcps_marcomm_team').select('name, email, kind').eq('active', true).order('sort_order').order('name'),
     supabase.from('bcps_marcomm_snapshots').select('id, meeting_date, label, summary, source, created_at')
       .order('meeting_date', { ascending: false }).order('created_at', { ascending: false }),
@@ -131,6 +131,51 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     await supabase.from('bcps_marcomm_requests').update({ updated_at: new Date().toISOString() }).eq('id', id)
     return NextResponse.json({ ok: true, note: data })
+  }
+
+  // Correct a note someone typed or dictated (Marketing meeting, Sean,
+  // 2026-10-20). System and meeting notes are the record and stay as they are.
+  if (action === 'edit_note') {
+    const { note_id } = body as { note_id?: string }
+    const text = String((body as { body?: string }).body || '').trim()
+    if (!note_id || !text) return NextResponse.json({ error: 'note_id and note required' }, { status: 400 })
+    const { data: note } = await supabase.from('bcps_marcomm_request_notes').select('id, request_id, source').eq('id', note_id).maybeSingle()
+    if (!note) return NextResponse.json({ error: 'Note not found.' }, { status: 404 })
+    if (note.source !== 'typed' && note.source !== 'dictated') return NextResponse.json({ error: 'Only notes the team wrote can be edited.' }, { status: 400 })
+    const { error } = await supabase.from('bcps_marcomm_request_notes')
+      .update({ body: text.slice(0, 5000), edited_at: new Date().toISOString(), edited_by: auth.user.email }).eq('id', note_id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
+
+  // Combine records (Marketing meeting, Sean, 2026-10-20): other_id is folded
+  // into id, the request that stays. Its notes and attachments move over, its
+  // description is kept as a note, and it leaves the tracker. Nothing is
+  // deleted: the folded row keeps merged_into, merged_at and merged_by.
+  if (action === 'combine') {
+    const { other_id } = body as { other_id?: string }
+    if (!id || !other_id || id === other_id) return NextResponse.json({ error: 'Pick the request to combine with.' }, { status: 400 })
+    const { data: rows } = await supabase.from('bcps_marcomm_requests')
+      .select('id, job_number, title, requester_name, submitted_at, description, attachments, merged_into').in('id', [id, other_id])
+    const keep = rows?.find(r => r.id === id)
+    const fold = rows?.find(r => r.id === other_id)
+    if (!keep || !fold) return NextResponse.json({ error: 'Request not found.' }, { status: 404 })
+    if (keep.merged_into || fold.merged_into) return NextResponse.json({ error: 'One of these was already combined into another request.' }, { status: 409 })
+    const now = new Date().toISOString()
+    const label = fold.job_number ? `#${fold.job_number}` : 'a team item'
+    const { error: moveError } = await supabase.from('bcps_marcomm_request_notes').update({ request_id: keep.id }).eq('request_id', fold.id)
+    if (moveError) return NextResponse.json({ error: moveError.message }, { status: 500 })
+    const files = [...(Array.isArray(keep.attachments) ? keep.attachments : []), ...(Array.isArray(fold.attachments) ? fold.attachments : [])]
+    await supabase.from('bcps_marcomm_requests').update({ attachments: files, updated_at: now }).eq('id', keep.id)
+    const { error: foldError } = await supabase.from('bcps_marcomm_requests')
+      .update({ merged_into: keep.id, merged_at: now, merged_by: auth.user.email, updated_at: now }).eq('id', fold.id)
+    if (foldError) return NextResponse.json({ error: foldError.message }, { status: 500 })
+    const from = [fold.requester_name, fold.submitted_at ? `submitted ${longDate(String(fold.submitted_at).slice(0, 10))}` : null].filter(Boolean).join(', ')
+    await supabase.from('bcps_marcomm_request_notes').insert({
+      request_id: keep.id, author: auth.user.email, source: 'system',
+      body: `Combined with ${label}: ${fold.title}${from ? ` (${from})` : ''}. Its notes and files are here now.${fold.description ? `\n\nIts request: ${fold.description}` : ''}`.slice(0, 5000),
+    })
+    return NextResponse.json({ ok: true })
   }
 
   // Work the team starts itself (the spreadsheet's "Added for tracking

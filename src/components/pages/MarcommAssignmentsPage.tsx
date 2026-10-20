@@ -38,6 +38,7 @@ interface Req {
   event_date: string | null
   is_becon: boolean
   calendar_needed: boolean
+  calendar_form_submitted: boolean | null
   attachments: Attachment[]
   lead: string | null
   support: string | null
@@ -49,11 +50,13 @@ interface Req {
   link_url: string | null
   submitted_at: string
   completed_at: string | null
+  merged_into: string | null
 }
 type Priority = 'high' | 'medium' | 'low'
 interface Note {
   id: string; request_id: string; body: string; author: string | null; created_at: string
   source: 'typed' | 'dictated' | 'meeting' | 'system'; meeting_label: string | null
+  edited_at?: string | null; edited_by?: string | null
 }
 // A saved version of the tracker, taken after each Marcomm Meeting (from its
 // transcript when the meeting was recorded, or saved by hand when it was not).
@@ -168,7 +171,10 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
 
   // In a past version the rows come from that meeting's snapshot, read only.
   const viewing = version === 'live' ? null : snapshots.find(sn => sn.id === version) ?? null
-  const rowsSource: (Req | SnapshotRow)[] = viewing ? (versionRows ?? []) : requests
+  // A combined duplicate (merged_into) leaves the tracker; its notes and
+  // files are on the request it was combined into.
+  const liveRows = useMemo(() => requests.filter(r => !r.merged_into), [requests])
+  const rowsSource: (Req | SnapshotRow)[] = viewing ? (versionRows ?? []) : liveRows
   const active = rowsSource.filter(r => !CLOSED.has(r.status))
   const done = rowsSource.filter(r => CLOSED.has(r.status))
   const today = viewing ? viewing.meeting_date : todayIso()
@@ -347,7 +353,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
             // Past versions are read only, so their rows do not open.
             const openRow = viewing ? undefined : () => setOpenId(r.id)
             return (
-              <div key={r.id} className={`mca-row${viewing ? ' ro' : ''}`} role={viewing ? undefined : 'button'} tabIndex={viewing ? undefined : 0} onClick={openRow}
+              <div key={r.id} className={`mca-row${viewing ? ' ro' : ''}${r.status === 'new' ? ' is-new' : ''}`} role={viewing ? undefined : 'button'} tabIndex={viewing ? undefined : 0} onClick={openRow}
                 onKeyDown={e => { if (openRow && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openRow() } }}>
                 <div className="c-job">
                   {r.job_number ? <span className="r-job">{r.job_number}</span> : <span className="r-job team">Team item</span>}
@@ -380,7 +386,8 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
         </div>
       )}
 
-      {open && !viewing && <Drawer req={open} team={team} notes={notesFor.get(open.id) ?? []} onClose={() => setOpenId(null)} post={post} />}
+      {open && !viewing && <Drawer req={open} team={team} notes={notesFor.get(open.id) ?? []} onClose={() => setOpenId(null)} post={post}
+        others={liveRows.filter(r => r.id !== open.id)} combined={requests.filter(r => r.merged_into === open.id)} />}
       {savingSnapshot && <SaveSnapshot onClose={() => setSavingSnapshot(false)} post={post} />}
       {adding && <AddItem team={team} defaultLead={myName} onClose={() => setAdding(false)} post={post} />}
     </div>
@@ -500,9 +507,13 @@ function useDictation(onText: (text: string) => void) {
   return { recording, live, active, toggle: () => (recording ? stop() : start()) }
 }
 
-function Drawer({ req, team, notes, onClose, post }: {
+function Drawer({ req, team, notes, onClose, post, others, combined }: {
   req: Req; team: Member[]; notes: Note[]; onClose: () => void; post: (p: Record<string, unknown>) => Promise<unknown>
+  others: Req[]; combined: Req[]
 }) {
+  const [editingNote, setEditingNote] = useState<string | null>(null)
+  const [noteDraft, setNoteDraft] = useState('')
+  const [combineWith, setCombineWith] = useState('')
   const [lead, setLead] = useState(req.lead ?? '')
   const [support, setSupport] = useState(req.support ?? '')
   const [dateNeeded, setDateNeeded] = useState(req.date_needed ?? '')
@@ -655,7 +666,7 @@ function Drawer({ req, team, notes, onClose, post }: {
             {req.audiences.length > 0 && <p className="d-text"><b>Audience:</b> {req.audiences.join(', ')}</p>}
             {req.event_date && <p className="d-text"><b>Event date:</b> {fmtDate(req.event_date)}</p>}
             {req.is_becon && <p className="d-text"><b>BECON:</b> Yes</p>}
-            {req.calendar_needed && <p className="d-text"><b>District calendar:</b> Requested</p>}
+            {req.calendar_needed && <p className="d-text"><b>District calendar:</b> Requested{req.calendar_form_submitted === true ? ', Calendar Request Form submitted' : req.calendar_form_submitted === false ? ', Calendar Request Form not submitted yet' : ''}</p>}
           </section>
         )}
 
@@ -668,6 +679,26 @@ function Drawer({ req, team, notes, onClose, post }: {
             <ul className="d-files">{req.attachments.map(a => <li key={a.path}><button onClick={() => openAttachment(a.path)}>{a.name}</button></li>)}</ul>
           </section>
         )}
+
+        <section>
+          <h3>Combine records</h3>
+          {combined.length > 0 && <p className="d-text">Combined into this: {combined.map(c => `${c.job_number ? `#${c.job_number}` : 'Team item'} ${c.title}`).join('; ')}</p>}
+          <p className="muted">Is another row the same request? Combine it into this one: its notes and files move here and it leaves the list. Nothing is deleted.</p>
+          <div className="d-combine">
+            <select value={combineWith} onChange={e => setCombineWith(e.target.value)} aria-label="Request to combine into this one">
+              <option value="">Pick the duplicate...</option>
+              {[...others].sort((a, b) => byJob(a, b, -1)).map(o => (
+                <option key={o.id} value={o.id}>{o.job_number ? `#${o.job_number}` : 'Team item'}: {o.title}{o.requester_name ? ` (${o.requester_name})` : ''}</option>
+              ))}
+            </select>
+            <button className="mca-btn small" disabled={busy || !combineWith} onClick={async () => {
+              const o = others.find(x => x.id === combineWith)
+              if (!o || !window.confirm(`Combine ${o.job_number ? `#${o.job_number}` : 'this team item'} (${o.title}) into this request? Its notes and files move here and it leaves the list.`)) return
+              await run({ action: 'combine', id: req.id, other_id: o.id }, 'Combined.')
+              setCombineWith('')
+            }}>Combine</button>
+          </div>
+        </section>
 
         <section>
           <h3>Notes</h3>
@@ -691,8 +722,25 @@ function Drawer({ req, team, notes, onClose, post }: {
                   {fmtStamp(n.created_at)} · {n.source === 'meeting' ? (n.meeting_label ? `From the ${n.meeting_label}` : 'From a meeting') : nameOf(n.author)}
                   {n.source === 'dictated' && <span className="n-tag">Dictated</span>}
                   {n.source === 'meeting' && <span className="n-tag meeting">Meeting</span>}
+                  {n.edited_at && <span className="n-tag" title={`Edited ${fmtStamp(n.edited_at)}${n.edited_by ? ` by ${nameOf(n.edited_by)}` : ''}`}>Edited</span>}
+                  {(n.source === 'typed' || n.source === 'dictated') && editingNote !== n.id && (
+                    <button className="n-edit-btn" onClick={() => { setEditingNote(n.id); setNoteDraft(n.body) }} aria-label="Edit note">Edit</button>
+                  )}
                 </div>
-                <div className="n-body pre">{n.body}</div>
+                {editingNote === n.id ? (
+                  <div className="n-edit">
+                    <textarea value={noteDraft} onChange={e => setNoteDraft(e.target.value)} rows={3} aria-label="Edit note" autoFocus />
+                    <div className="n-edit-row">
+                      <button className="mca-btn small" disabled={busy || !noteDraft.trim()} onClick={async () => {
+                        await run({ action: 'edit_note', note_id: n.id, body: noteDraft }, 'Note saved.')
+                        setEditingNote(null)
+                      }}>Save</button>
+                      <button className="mca-btn small ghost" onClick={() => setEditingNote(null)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="n-body pre">{n.body}</div>
+                )}
               </li>
             ))}
           </ul>
@@ -815,7 +863,9 @@ const CSS = `
 .r-job.team { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(26,26,26,0.5); white-space: normal; }
 .col-sort { font: inherit; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: #0e4e73; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
 .col-sort:hover { text-decoration: underline; }
-.r-title { font-size: 13px; font-weight: 700; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.r-title { font-size: 13px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Only new requests are bold, like unread mail (Marketing meeting, 2026-10-20). */
+.mca-row.is-new .r-title { font-weight: 800; }
 .r-who { font-size: 11px; color: rgba(26,26,26,0.6); margin-top: 3px; }
 .r-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .r-tags span { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(22,114,167,0.08); color: #0e4e73; }
@@ -909,6 +959,11 @@ const CSS = `
 .d-files { list-style: none; padding: 0; margin: 0; }
 .d-files button { font: inherit; font-size: 13px; font-weight: 700; color: #0e4e73; background: none; border: none; text-decoration: underline; cursor: pointer; padding: 3px 0; }
 .d-add { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; margin-bottom: 14px; }
+.d-combine { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.d-combine select { flex: 1 1 260px; min-width: 0; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; background: #fff; }
+.n-edit-btn { font: inherit; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #0e4e73; background: none; border: 0; padding: 0; margin-left: 8px; cursor: pointer; text-decoration: underline; }
+.n-edit textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; }
+.n-edit-row { display: flex; gap: 8px; margin-top: 6px; }
 .d-notes { list-style: none; padding: 0; margin: 0; }
 .d-notes li { padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.06); }
 .n-meta { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(26,26,26,0.5); margin-bottom: 4px; }
