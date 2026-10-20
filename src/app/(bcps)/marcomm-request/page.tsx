@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { CalendarFields, CalendarGuidelines, CALENDAR_CSS, calendarMissing, emptyCalendar, type CalendarState } from '@/components/bcps/CalendarRequestFields'
+import { CALENDAR_GUIDELINES } from '@/lib/calendar-request'
+import { REQUEST_FORM_CSS as CSS } from '@/components/bcps/requestFormCss'
 
 // MarComm Request Form (Sean, 2026-10-08): replaces the Wufoo MarComm Request
 // Form and feeds MarComm Assignments directly. Open to anyone since
@@ -36,7 +39,6 @@ const SERVICE_HINTS: Record<string, string> = {
   'Writing or editing': 'Review or polish your copy',
 }
 const AUDIENCES = ['Students', 'Families', 'Employees', 'Principals and school leaders', 'Community and partners', 'Media', 'School Board', 'Other']
-const CALENDAR_FORM = 'https://browardschools.wufoo.com/forms/pnb9q6q0udguyg/'
 const ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.heic,.mp4,.mov,.txt'
 
 interface Dept { department_name: string }
@@ -49,7 +51,6 @@ export default function MarcommRequestPage() {
   const [f, setF] = useState({
     requester_name: '', requester_title: '', requester_phone: '', org_type: '' as '' | 'School' | 'Department', org_name: '',
     title: '', description: '', goal: '', date_needed: '', event_date: '', calendar_needed: false,
-    calendar_form_submitted: null as boolean | null,
   })
   const [services, setServices] = useState<string[]>([])
   const [audiences, setAudiences] = useState<string[]>([])
@@ -57,6 +58,20 @@ export default function MarcommRequestPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState<number | null>(null)
+  const [calDone, setCalDone] = useState<number | null>(null)
+  // The Calendar Post Request, filled in here when the event goes on the
+  // District calendar (Sean, 2026-10-20), so nobody fills out two forms.
+  const [cal, setCal] = useState<CalendarState>(emptyCalendar)
+  const wantCalendar = () => {
+    setF(p => ({ ...p, calendar_needed: true }))
+    setCal(c => ({
+      ...c,
+      event_name: c.event_name || f.title, event_date: c.event_date || f.event_date,
+      contact_name: c.contact_name || f.requester_name, contact_email: c.contact_email || email, contact_phone: c.contact_phone || f.requester_phone,
+      school_department: c.school_department || f.org_name,
+      submitter_name: c.submitter_name || f.requester_name, submitter_department: c.submitter_department || f.org_name, submitter_phone: c.submitter_phone || f.requester_phone,
+    }))
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -81,7 +96,7 @@ export default function MarcommRequestPage() {
     setError('')
     if (!services.length) { setError('Choose at least one service.'); return }
     if (!audiences.length) { setError('Choose at least one audience.'); return }
-    if (f.calendar_needed && f.calendar_form_submitted === null) { setError('Tell us whether you submitted the Calendar Request Form.'); return }
+    if (f.calendar_needed) { const m = calendarMissing(cal); if (m) { setError(m); return } }
     if (!signedIn && !/@browardschools\.com$/i.test(email.trim())) { setError('Please use your District email address (@browardschools.com).'); return }
     setBusy(true)
     try {
@@ -102,11 +117,11 @@ export default function MarcommRequestPage() {
       }
       const r = await fetch('/api/bcps/marcomm-request-submit', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ ...f, requester_email: email, website, event_date: f.event_date || null, services, audiences, attachments }),
+        body: JSON.stringify({ ...f, requester_email: email, website, event_date: f.event_date || null, services, audiences, attachments, calendar: f.calendar_needed ? cal : undefined }),
       })
       const j = await r.json()
       if (!r.ok) throw new Error(j.error || 'Could not submit your request.')
-      setDone(j.job_number)
+      setDone(j.job_number); setCalDone(j.calendar_number ?? null)
       attachments = []
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit your request.')
@@ -117,7 +132,7 @@ export default function MarcommRequestPage() {
 
   return (
     <div className="mcr">
-      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <style dangerouslySetInnerHTML={{ __html: CSS + CALENDAR_CSS }} />
       <header className="mcr-header">
         <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" />
         <span className="div" aria-hidden="true" />
@@ -128,8 +143,8 @@ export default function MarcommRequestPage() {
         {done !== null ? (
           <div className="mcr-card mcr-done">
             <h1>Request received</h1>
-            <p>Thank you. Your request number is <b>#{done}</b>. The Office of Communications reviews new requests at its weekly meeting and will follow up at <b>{email}</b> if anything else is needed.</p>
-            <button className="mcr-btn" onClick={() => { setDone(null); setServices([]); setAudiences([]); setFiles([]); setF(p => ({ ...p, title: '', description: '', goal: '', date_needed: '', event_date: '', calendar_needed: false, calendar_form_submitted: null })) }}>Submit another request</button>
+            <p>Thank you. Your request number is <b>#{done}</b>. The Office of Communications reviews new requests at its weekly meeting and will follow up at <b>{email}</b> if anything else is needed.{calDone ? <> Your calendar post request is <b>#{calDone}</b>; please allow five business days for it to be posted.</> : null}</p>
+            <button className="mcr-btn" onClick={() => { setDone(null); setServices([]); setAudiences([]); setFiles([]); setF(p => ({ ...p, title: '', description: '', goal: '', date_needed: '', event_date: '', calendar_needed: false })); setCal(emptyCalendar()) }}>Submit another request</button>
           </div>
         ) : (
           <form onSubmit={submit} noValidate={false}>
@@ -205,30 +220,32 @@ export default function MarcommRequestPage() {
                 <label>Date you need it ready to use *<input type="date" required value={f.date_needed} onChange={set('date_needed')} /><span className="hint">The day it must be finished, not the event date. Campaigns, video and print need the most lead time, so submit as early as you can.</span></label>
                 <label>Event date, if there is one<input type="date" value={f.event_date} onChange={set('event_date')} /></label>
               </div>
-              {/* Worded like the old form (Jennifer Hodder, 2026-10-20): the requester
-                  files the calendar request, not the Office of Communications. */}
+              {/* Worded like the old form (Jennifer Hodder, 2026-10-20). A Yes opens
+                  the Calendar Post Request below instead of sending people to Wufoo. */}
               <fieldset>
-                <legend>Does this event need to be posted on the District&apos;s Online Calendar? If so, please complete the <a href={CALENDAR_FORM} target="_blank" rel="noopener noreferrer">Calendar Request Form</a>.</legend>
+                <legend>Does this event need to be posted on the District&apos;s Online Calendar?</legend>
                 <div className="radios">
-                  <label className="pick"><input type="radio" name="cal" checked={f.calendar_needed} onChange={() => setF(p => ({ ...p, calendar_needed: true }))} /> Yes</label>
-                  <label className="pick"><input type="radio" name="cal" checked={!f.calendar_needed} onChange={() => setF(p => ({ ...p, calendar_needed: false, calendar_form_submitted: null }))} /> No</label>
+                  <label className="pick"><input type="radio" name="cal" checked={f.calendar_needed} onChange={wantCalendar} /> Yes</label>
+                  <label className="pick"><input type="radio" name="cal" checked={!f.calendar_needed} onChange={() => setF(p => ({ ...p, calendar_needed: false }))} /> No</label>
                 </div>
+                {f.calendar_needed && <p className="note">Please complete the calendar post request in step 4 below.</p>}
               </fieldset>
-              {f.calendar_needed && (
-                <fieldset>
-                  <legend>Did you submit a Calendar Request Form? *</legend>
-                  <div className="radios">
-                    <label className="pick"><input type="radio" name="calsub" required checked={f.calendar_form_submitted === true} onChange={() => setF(p => ({ ...p, calendar_form_submitted: true }))} /> Yes</label>
-                    <label className="pick"><input type="radio" name="calsub" required checked={f.calendar_form_submitted === false} onChange={() => setF(p => ({ ...p, calendar_form_submitted: false }))} /> No</label>
-                  </div>
-                  {f.calendar_form_submitted === false && <p className="note">Please complete the <a href={CALENDAR_FORM} target="_blank" rel="noopener noreferrer">Calendar Request Form</a> so your event can be posted.</p>}
-                </fieldset>
-              )}
               <label className="full">Attach files <span className="hint">Up to 5 files, 25 MB each: PDF, Word, Excel, PowerPoint, images or video</span>
                 <input type="file" multiple accept={ACCEPT} onChange={e => setFiles(Array.from(e.target.files ?? []).slice(0, 5))} />
               </label>
               {files.length > 0 && <ul className="files">{files.map(x => <li key={x.name}>{x.name}</li>)}</ul>}
             </section>
+
+            {f.calendar_needed && (
+              <section className="mcr-card">
+                <h2>4. District calendar post</h2>
+                <p className="hint" style={{ margin: '-6px 0 14px' }}>{CALENDAR_GUIDELINES.notice}</p>
+                <CalendarGuidelines ack={cal.guidelines_ack} onAck={v => setCal(c => ({ ...c, guidelines_ack: v }))} />
+                {cal.guidelines_ack
+                  ? <div style={{ marginTop: 18 }}><CalendarFields value={cal} onChange={setCal} /></div>
+                  : <p className="note">Check the box above to fill in the calendar post.</p>}
+              </section>
+            )}
 
             {error && <p className="mcr-error" role="alert">{error}</p>}
             <button className="mcr-btn" type="submit" disabled={busy}>{busy ? 'Submitting...' : 'Submit request'}</button>
@@ -239,48 +256,3 @@ export default function MarcommRequestPage() {
   )
 }
 
-const CSS = `
-.mcr { min-height: 100vh; background: #f5f5f5; font-family: 'Montserrat', -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; }
-.mcr-header { position: sticky; top: 0; z-index: 10; height: 64px; background: #fff; border-bottom: 3px solid #1672A7; display: flex; align-items: center; gap: 18px; padding: 0 28px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
-.mcr-header img { height: 42px; width: auto; }
-.mcr-header .div { width: 1px; height: 32px; background: rgba(0,0,0,0.12); }
-.mcr-header .ttl { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: #1672A7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mcr-main { max-width: 860px; margin: 0 auto; padding: 32px 20px 64px; }
-.mcr h1 { font-size: clamp(26px, 4vw, 36px); font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; margin: 0 0 8px; }
-.lede { font-size: 15px; line-height: 1.7; color: rgba(26,26,26,0.75); margin: 0 0 22px; }
-.mcr-card { background: #fff; border: 1px solid rgba(0,0,0,0.09); border-radius: 8px; padding: 22px 24px; margin-bottom: 16px; }
-.mcr h2 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: #1672A7; margin: 0 0 16px; }
-.mcr label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: #1a1a1a; min-width: 0; }
-.mcr label.full { margin-top: 14px; }
-.mcr .grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
-.mcr input:not([type=checkbox]):not([type=radio]), .mcr textarea, .mcr select { font: inherit; font-size: 14px; font-weight: 400; padding: 10px 12px; border: 1px solid rgba(0,0,0,0.22); border-radius: 6px; background: #fff; color: #1a1a1a; width: 100%; box-sizing: border-box; }
-.mcr input:focus-visible, .mcr textarea:focus-visible { outline: 3px solid #1672A7; outline-offset: 1px; }
-.mcr input.ro { background: #f3f4f6; color: rgba(26,26,26,0.75); }
-.mcr fieldset { border: none; padding: 0; margin: 16px 0 0; }
-.mcr legend a { color: #0e4e73; font-weight: 800; }
-.mcr legend { font-size: 13px; font-weight: 700; margin-bottom: 8px; padding: 0; }
-.lede a { color: #0e4e73; font-weight: 700; }
-.hint { font-size: 12px; font-weight: 400; color: rgba(26,26,26,0.6); }
-.radios { display: flex; gap: 16px; flex-wrap: wrap; }
-.pick { flex-direction: row !important; align-items: center; gap: 8px !important; font-weight: 600 !important; cursor: pointer; }
-.checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 8px; }
-.pick.box { align-items: flex-start; border: 1px solid rgba(0,0,0,0.14); border-radius: 6px; padding: 10px 12px; background: #fafafa; }
-.pick.box.on { border-color: #1672A7; background: rgba(22,114,167,0.06); }
-.pick.box input { margin-top: 2px; }
-.pick small { display: block; font-size: 11px; font-weight: 400; color: rgba(26,26,26,0.6); margin-top: 2px; }
-.note { font-size: 13px; margin: 8px 0 0; }
-.note a { color: #0e4e73; font-weight: 700; }
-.files { font-size: 13px; margin: 8px 0 0 18px; }
-.mcr-btn { font: inherit; font-size: 14px; font-weight: 800; padding: 13px 22px; border-radius: 6px; border: none; background: #1672A7; color: #fff; cursor: pointer; }
-.mcr-btn:disabled { opacity: 0.6; cursor: default; }
-.mcr-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
-.mcr-error { color: #b91c1c; font-size: 14px; font-weight: 600; }
-.mcr-done p { font-size: 15px; line-height: 1.7; }
-@media (max-width: 640px) {
-  .mcr-header { padding: 0 16px; gap: 12px; }
-  .mcr-header img { height: 34px; }
-  .mcr-main { padding: 24px 16px 48px; }
-  .mcr .grid { grid-template-columns: minmax(0,1fr); }
-  .mcr-card { padding: 18px 16px; }
-}
-`

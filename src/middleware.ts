@@ -121,6 +121,8 @@ export async function middleware(request: NextRequest) {
     // requester types a District (@browardschools.com) address; the request
     // only lands in MarComm Assignments for the team to review.
     pathname.startsWith('/marcomm-request') ||
+    // Calendar Post Request Form (2026-10-20): open the same way.
+    pathname.startsWith('/calendar-request') ||
     // School WCM signup (2026-10-05): visitors have no account yet. Account
     // creation is gated server-side on bcps_schools.wcm_email.
     pathname.startsWith('/school-registration') ||
