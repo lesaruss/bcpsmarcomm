@@ -1675,6 +1675,17 @@ body {
 /* Tools & Resources: large tiles, four to a row (Sean, 2026-10-07). */
 .home-tiles4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
 .home-tiles4 .home-ptile { min-height: 112px; padding: 18px; }
+/* Tools & Resources (Sean, 2026-10-20): one grid, group chips, a star on each tile. */
+.home-ptile-wrap { position: relative; min-width: 0; display: flex; }
+.home-ptile-wrap > .home-ptile { flex: 1; padding-right: 44px; }
+.home-star { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border: 0; border-radius: 6px; background: transparent; color: rgba(26,26,26,0.35); font-size: 20px; line-height: 1; cursor: pointer; }
+.home-star:hover { background: rgba(22,114,167,0.08); color: #0e4e73; }
+.home-star.on { color: #C55326; }
+.home-tgroups { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 18px; }
+.home-tgroup { font: inherit; font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); background: #fff; color: rgba(26,26,26,0.75); cursor: pointer; }
+.home-tgroup b { margin-left: 4px; font-weight: 800; color: rgba(26,26,26,0.45); }
+.home-tgroup.on { background: #1672A7; border-color: #1672A7; color: #fff; }
+.home-tgroup.on b { color: rgba(255,255,255,0.8); }
 .home-tiles4 .home-ptile b { font-size: 15px; }
 @media (max-width: 1100px) { .home-tiles4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .home-tiles4 { grid-template-columns: minmax(0, 1fr); } }
