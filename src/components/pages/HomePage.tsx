@@ -11,7 +11,7 @@ import DashboardPage from './DashboardPage'
 import MarcommAssignmentsPage from './MarcommAssignmentsPage'
 import AssignmentsPage from './AssignmentsPage'
 import MembersPage from './MembersPage'
-import { WcmCommunityHub, WcmHubCards, type CertStatus } from './WCMPage'
+import { WcmCommunityHub, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
 import SharedViewAsButton from '@/components/ViewAsButton'
 import type { AuditV3 } from '@/components/bcps/AuditViewer'
@@ -1199,20 +1199,37 @@ function WcmHome({ data, preview, onNavigate }: { data: HomeData; preview?: bool
               <li className={cert.certified ? 'done' : 'now'}>
                 <b>Finish your certification</b>
                 <span>{cert.certified ? 'Done. Your certificate and what comes next are on the What\u2019s Next page.' : `The Department WCM Certification is due ${DEPT_CERT_DEADLINE}. It covers how the audit works.`}</span>
-                {!cert.certified && <a className="wcm-hub2-card-btn" href="/certification/departments/dashboard">Open certification</a>}
+                {cert.certified
+                  ? <a className="home-link-btn" href="/briefs/bcps-wcm-cert-complete-2026-27">See what&apos;s next</a>
+                  : <a className="wcm-hub2-card-btn" href="/certification/departments/dashboard">Open certification</a>}
               </li>
               {mine.length > 0 && (
                 <li>
                   <b>Work through your audit</b>
-                  <span>Run Audit shows your page with every check pinned on it: green passes, red needs a fix, amber needs you to look. Website Review, at the top of the same tab, walks you through it.</span>
+                  <span>Run Audit shows your page with every check pinned on it: green passes, red needs a fix, amber needs you to look. Mark each item done as you fix it, then request a re-audit.</span>
                   <button type="button" className="home-link-btn" onClick={() => setTab('audit')}>Go to Run Audit</button>
                 </li>
               )}
+              {/* The Start Here cards, as steps (Sean, 2026-10-20). */}
+              <li>
+                <b>Review the Department WCM Playbook weekly</b>
+                <span>Everything current for Department WCMs, updated after every Hot Lab and District Web Team meeting.</span>
+                <a className="home-link-btn" href="/playbooks/wcm-department">Open the playbook</a>
+              </li>
+              <li>
+                <b>Check your roster status</b>
+                <span>See whether your director has confirmed you as your department&apos;s WCM. If not, send them the confirmation link.</span>
+                <a className="home-link-btn" href="/?page=members">Open Members</a>
+              </li>
+              <li>
+                <b>Share the guide with your director</b>
+                <span>What directors need to know about the WCM program.</span>
+                <a className="home-link-btn" href="/playbooks/director-department">Open the director guide</a>
+              </li>
             </ol>
           </div>
-          <HotLabCard items={data.hot_labs ?? []} />
           </div>
-          <div className="home-wcm-side"><WcmHubCards tab="start" certified={cert.certified} /></div>
+          <div className="home-wcm-side"><HotLabCard items={data.hot_labs ?? []} /></div>
           </div>
           {mine.map((d) => <WcmDepartmentCards key={d.id} dept={d} showName={mine.length > 1} onAudit={() => setTab('audit')} />)}
         </>
@@ -1503,10 +1520,12 @@ function hotLabLive(now: Date = new Date()): boolean {
 
 // The WCM's Hot Lab card: times, a Live badge while a session runs, and the
 // latest notes they can open (Sean, Oct 6 Hot Lab).
+// Beside Your next steps it matches their height: the times and Join button
+// stay put and the dates scroll (Sean, 2026-10-20).
 function HotLabCard({ items }: { items: { title: string; date: string; url: string }[] }) {
   const live = hotLabLive()
   return (
-    <div className="home-dept home-section">
+    <div className="home-dept home-section home-hotlab">
       <div className="home-dept-head">
         <h3>Hot Lab</h3>
         {live && <span className="home-live-pill">Live now</span>}
