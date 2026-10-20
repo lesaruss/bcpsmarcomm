@@ -274,6 +274,10 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
     return (searchParams.get('page') as PageId) || 'dashboard'
   }, [pathname, searchParams])
 
+  // A dashboard section other than Overview (?tab=, Sean 2026-10-20) gets the
+  // Dashboard button too, back to Overview, the same as every other page.
+  const onDashboardTab = activePage === 'dashboard' && !!searchParams.get('tab') && searchParams.get('tab') !== 'overview'
+
   // Pages without their own entry take their name from the tools catalog, so
   // a page never reads "Dashboard" next to the Dashboard button.
   const catalogTool = TOOLS.find((t) => t.page === activePage)
@@ -372,7 +376,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
                 >
                   <HamburgerIcon />
                 </button>
-              ) : activePage !== 'dashboard' && (
+              ) : (activePage !== 'dashboard' || onDashboardTab) && (
                 <button type="button" className="topbar-home-btn" onClick={() => handleNavigate('dashboard')}>
                   <HomeIcon /> <span>Dashboard</span>
                 </button>
