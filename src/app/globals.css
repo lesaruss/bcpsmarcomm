@@ -1702,6 +1702,18 @@ body {
 .home-live-pill { display: inline-flex; align-items: center; gap: 6px; background: #16750C; color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
 .home-live-pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #fff; }
 .home-hotlab-list { list-style: none; margin: 14px 0 10px; padding: 0; border-top: 1px solid var(--border); }
+/* WCM Overview (Sean, 2026-10-20): Hot Labs sits flush beside Your next steps
+   at the same height; the steps set the height and the dates scroll. */
+.home-wcm-cols { align-items: stretch; }
+.home-wcm-cols .home-wcm-main > .home-dept { margin-bottom: 0; }
+.home-wcm-side { position: relative; min-height: 320px; }
+.home-wcm-side .home-hotlab { position: absolute; inset: 0; display: flex; flex-direction: column; margin: 0; }
+.home-hotlab .home-hotlab-list { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+@media (max-width: 900px) {
+  .home-wcm-side { position: static; min-height: 0; }
+  .home-wcm-side .home-hotlab { position: static; }
+  .home-hotlab .home-hotlab-list { max-height: 260px; }
+}
 .home-hotlab-list li { border-bottom: 1px solid var(--border); }
 .home-hotlab-list a { display: block; padding: 8px 0; font-size: 13px; font-weight: 700; color: #0e4e73; }
 @media (max-width: 900px) { .home-wcm-cols { grid-template-columns: minmax(0, 1fr); } }
