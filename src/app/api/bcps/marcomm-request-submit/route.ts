@@ -176,7 +176,7 @@ ${row('Audience', esc(audiences.join(', ')))}
 ${row('Needed by', esc(longDate(body.date_needed as string)))}
 ${row('Event date', esc(longDate(isDate(body.event_date) ? body.event_date : null)))}
 ${row('Calendar', calendar ? 'Yes, the calendar post details are below' : null)}
-${row('Files', attachments.length ? esc(attachments.map(a => a.name).join(', ')) : null)}
+${row('Files', attachments.length ? `${esc(attachments.map(a => a.name).join(', '))} (<a href="https://bcpsmarcomm.com/marcomm-assignments?row=${data.id}">download from the request</a>)` : null)}
 </table>
 <p style="margin:16px 0 4px"><strong>Description</strong></p>
 <p style="margin:0;white-space:pre-wrap">${esc(description)}</p>
@@ -186,7 +186,7 @@ ${calendar && 'row' in calendar ? `<p style="margin:20px 0 4px"><strong>Calendar
 <table style="border-collapse:collapse;font-size:14px">
 ${calendarEmailRows(calendar.row)}
 </table>` : ''}
-<p style="margin:20px 0 0"><a href="https://bcpsmarcomm.com/marcomm-assignments">Open MarComm Assignments</a>. Reply to this email to reach the requester.</p>`,
+<p style="margin:20px 0 0"><a href="https://bcpsmarcomm.com/marcomm-assignments?row=${data.id}">Open this request in MarComm Assignments</a>. Reply to this email to reach the requester.</p>`,
   })
 
   return NextResponse.json({ ok: true, id: data.id, job_number: data.job_number, calendar_number: calendarNumber })

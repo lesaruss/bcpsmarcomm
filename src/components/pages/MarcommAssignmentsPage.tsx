@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
 
 // MarComm Assignments (Sean, 2026-10-08). The Office of Communications request
 // tracker, modeled on Web Team Assignments and replacing the MarComm
@@ -18,7 +19,9 @@ async function authHeaders(): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-interface Attachment { name: string; path: string }
+// path: a file in the private bucket. url: a Wufoo file that could not be
+// copied over, opened where it is.
+interface Attachment { name: string; path?: string; url?: string }
 interface Req {
   id: string
   job_number: number | null
@@ -84,10 +87,14 @@ const STATUSES: { id: string; label: string; cls: string }[] = [
   { id: 'declined',    label: 'Declined',    cls: 'st-hold' },
 ]
 const CLOSED = new Set(['completed', 'declined'])
+const MARCOMM_HOME = '/marcomm-assignments'
+const ATTACH_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.heic,.mp4,.mov,.txt'
 // The team logs work by MarComm job number (Marcomm Meeting, Oct 14, 2026), so
 // it has its own column and sorts either way; team items have no number and
 // always sort last.
-type Sort = 'needed' | 'newest' | 'job_desc' | 'job_asc'
+// Submitted date sorts (Jennifer Hodder, 2026-10-21): requests from one day
+// share a date, so ties go by job number and the numbers stay in order.
+type Sort = 'needed' | 'newest' | 'sub_desc' | 'sub_asc' | 'job_desc' | 'job_asc'
 const byJob = (a: { job_number: number | null }, b: { job_number: number | null }, dir: 1 | -1) =>
   a.job_number == null ? (b.job_number == null ? 0 : 1) : b.job_number == null ? -1 : (a.job_number - b.job_number) * dir
 const statusOf = (id: string) => STATUSES.find(s => s.id === id) ?? STATUSES[0]
@@ -130,11 +137,16 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
   const [sort, setSort] = useState<Sort>('needed')
   const [openId, setOpenId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  // A sign-in that has expired still shows the list from before, but every
+  // save fails (Jennifer Hodder, 2026-10-21: "I am locked out and can't add
+  // anything"). Say so, with a way back in.
+  const [expired, setExpired] = useState(false)
 
   const load = useCallback(async () => {
     try {
       const r = await fetch('/api/bcps/marcomm-requests', { headers: await authHeaders(), cache: 'no-store' })
       const j = await r.json()
+      if (r.status === 401) setExpired(true)
       if (!r.ok) throw new Error(j.error || 'Could not load requests.')
       setRequests(j.requests); setNotes(j.notes); setTeam(j.team ?? []); setSnapshots(j.snapshots ?? []); setMe((j.me ?? '').toLowerCase()); setError('')
     } catch (e) {
@@ -212,6 +224,10 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
     })
     return rows.sort((a, b) => {
       if (sort === 'job_desc' || sort === 'job_asc') return byJob(a, b, sort === 'job_asc' ? 1 : -1)
+      if (sort === 'sub_desc' || sort === 'sub_asc') {
+        const dir = sort === 'sub_asc' ? 1 : -1
+        return (a.submitted_at.slice(0, 10).localeCompare(b.submitted_at.slice(0, 10)) * dir) || byJob(a, b, dir as 1 | -1) || a.submitted_at.localeCompare(b.submitted_at) * dir
+      }
       if (tab === 'completed' || sort === 'newest') return (b.completed_at ?? b.submitted_at).localeCompare(a.completed_at ?? a.submitted_at)
       // Most urgent first: new requests waiting for triage, then high priority,
       // then nearest date needed, then undated.
@@ -229,6 +245,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
       method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify(payload),
     })
     const j = await r.json().catch(() => ({}))
+    if (r.status === 401) { setExpired(true); throw new Error('Your sign-in has expired. Sign in again, then try once more.') }
     if (!r.ok) throw new Error(j.error || 'Could not save.')
     await load()
     return j
@@ -258,6 +275,17 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
           </>}
         </div>
       </div>
+
+      {/* Update the tracker from a Marcomm Meeting transcript (Sean, 2026-10-21),
+          for people granted 'marcomm-transcripts'; hidden for everyone else. */}
+      {!viewing && <MeetingTranscriptUpload tracker="marcomm" onApplied={() => { load() }} />}
+
+      {expired && (
+        <div className="mca-banner expired">
+          <b>Your sign-in has expired.</b> You can still read the list, but notes and changes will not save until you sign in again.{' '}
+          <a className="mca-btn small" href={`/login?next=${encodeURIComponent(typeof window === 'undefined' ? MARCOMM_HOME : window.location.pathname + window.location.search)}`}>Sign in again</a>
+        </div>
+      )}
 
       {viewing ? (
         <div className="mca-banner past">
@@ -322,9 +350,11 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
             </select>
           </label>
           <label><span className="fl">Sort</span>
-            <select value={tab === 'completed' && (sort === 'needed' || sort === 'newest') ? 'newest' : sort} onChange={e => setSort(e.target.value as Sort)}>
+            <select value={tab === 'completed' && sort === 'needed' ? 'newest' : tab === 'active' && sort === 'newest' ? 'sub_desc' : sort} onChange={e => setSort(e.target.value as Sort)}>
               {tab === 'active' && <option value="needed">Most urgent first</option>}
-              <option value="newest">{tab === 'active' ? 'Newest first' : 'Recently closed'}</option>
+              {tab === 'completed' && <option value="newest">Recently closed</option>}
+              <option value="sub_desc">Submitted, newest first</option>
+              <option value="sub_asc">Submitted, oldest first</option>
               <option value="job_desc">Job number, high to low</option>
               <option value="job_asc">Job number, low to high</option>
             </select>
@@ -367,6 +397,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
                     <span className="r-title">{r.title}</span>
                   </div>
                   <div className="r-who">{[r.requester_name, r.org_name].filter(Boolean).join(' · ') || 'Office of Communications'}</div>
+                  <div className="r-sub">Submitted {fmtDate(r.submitted_at)}</div>
                   {r.services.length > 0 && <div className="r-tags">{r.services.map(s => <span key={s}>{s}</span>)}</div>}
                   {link && <a className="r-link" href={link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>Open link</a>}
                 </div>
@@ -678,12 +709,38 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
         {req.description && <section><h3>Request</h3><p className="d-text pre">{req.description}</p></section>}
         {req.goal && <section><h3>Why it matters</h3><p className="d-text pre">{req.goal}</p></section>}
 
-        {req.attachments.length > 0 && (
-          <section>
-            <h3>Attachments</h3>
-            <ul className="d-files">{req.attachments.map(a => <li key={a.path}><button onClick={() => openAttachment(a.path)}>{a.name}</button></li>)}</ul>
-          </section>
-        )}
+        <section>
+          <h3>Attachments</h3>
+          {req.attachments.length > 0
+            ? <ul className="d-files">{req.attachments.map(a => <li key={a.path ?? a.url}>{a.path
+                ? <button onClick={() => openAttachment(a.path!)}>{a.name}</button>
+                : <a href={a.url} target="_blank" rel="noopener noreferrer">{a.name} (opens on Wufoo)</a>}</li>)}</ul>
+            : <p className="muted">No files yet.</p>}
+          {/* The team adds files too (Jennifer Hodder, 2026-10-21), the same
+              way the request form does: straight to storage by signed link. */}
+          <label className="d-addfiles">
+            <span className="mca-btn small ghost">{busy ? 'Working...' : 'Add files'}</span>
+            <input type="file" multiple accept={ATTACH_ACCEPT} disabled={busy} onChange={async e => {
+              const picked = Array.from(e.target.files ?? []).slice(0, 5)
+              e.target.value = ''
+              if (!picked.length) return
+              setBusy(true); setMsg('')
+              try {
+                const j = await post({ action: 'upload_urls', id: req.id, files: picked.map(x => ({ name: x.name, size: x.size })) }) as { uploads: { name: string; path: string; token: string }[] }
+                const done: { name: string; path: string }[] = []
+                for (let i = 0; i < j.uploads.length; i++) {
+                  const u = j.uploads[i]
+                  const { error } = await supabaseClient.storage.from('marcomm-attachments').uploadToSignedUrl(u.path, u.token, picked[i])
+                  if (error) throw new Error(`Could not upload ${u.name}.`)
+                  done.push({ name: u.name, path: u.path })
+                }
+                await post({ action: 'add_attachments', id: req.id, files: done })
+                setMsg(`${done.length} file${done.length === 1 ? '' : 's'} added.`)
+              } catch (err) { setMsg(err instanceof Error ? err.message : 'Could not add the files.') } finally { setBusy(false) }
+            }} />
+          </label>
+          <span className="muted small"> Up to 5 files at a time, 25 MB each.</span>
+        </section>
 
         <section>
           <h3>Combine records</h3>
@@ -975,6 +1032,7 @@ const CSS = `
 /* Only new requests are bold, like unread mail (Marketing meeting, 2026-10-20). */
 .mca-row.is-new .r-title { font-weight: 800; }
 .r-who { font-size: 11px; color: rgba(26,26,26,0.6); margin-top: 3px; }
+.r-sub { font-size: 11px; color: rgba(26,26,26,0.5); margin-top: 2px; }
 .r-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .r-tags span { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(22,114,167,0.08); color: #0e4e73; }
 .lead { font-size: 12px; font-weight: 700; }
@@ -1078,6 +1136,10 @@ const CSS = `
 .cal-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .cal-actions input { flex: 1 1 220px; min-width: 0; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; }
 @media (max-width: 640px) { .cal-row-head { grid-template-columns: minmax(0,1fr) auto; } .cal-row-head .r-job { grid-column: 1 / -1; } .cal-detail { padding: 4px 16px 16px; } }
+.mca-banner.expired { background: #FFF4E5; border-color: #C55326; color: #7a2e0e; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.d-addfiles { display: inline-block; margin-top: 8px; cursor: pointer; }
+.d-addfiles input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.d-addfiles:focus-within .mca-btn { outline: 3px solid #1672A7; outline-offset: 2px; }
 .d-combine { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .d-combine select { flex: 1 1 260px; min-width: 0; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; background: #fff; }
 .n-edit-btn { font: inherit; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #0e4e73; background: none; border: 0; padding: 0; margin-left: 8px; cursor: pointer; text-decoration: underline; }
