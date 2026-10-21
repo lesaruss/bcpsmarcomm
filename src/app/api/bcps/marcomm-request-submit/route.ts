@@ -54,6 +54,10 @@ function isDate(v: unknown): v is string {
   return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
 }
 
+// Date submitted (start_date) defaults to the day the request came in, Eastern
+// (Sean, 2026-10-21); the team can change it in the drawer.
+const todayEastern = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+
 export async function POST(req: NextRequest) {
   const signedIn = req.headers.get('authorization') ? await requireDistrictUser(req) : null
   if (signedIn && !signedIn.ok) return NextResponse.json({ error: signedIn.error }, { status: signedIn.status })
@@ -125,6 +129,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase.from('bcps_marcomm_requests').insert({
     job_number: job as number,
     source: 'form',
+    start_date: todayEastern(),
     title,
     requester_name: clean(body.requester_name, 120),
     requester_title: clean(body.requester_title, 120),

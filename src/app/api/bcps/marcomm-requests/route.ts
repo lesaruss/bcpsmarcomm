@@ -23,6 +23,10 @@ const STATUSES = ['new', 'needs_info', 'assigned', 'in_progress', 'in_review', '
 const CLOSED = new Set(['completed', 'declined'])
 const PRIORITIES = ['high', 'medium', 'low']
 
+// Date submitted (start_date) defaults to the day the request came in, Eastern
+// (Sean, 2026-10-21); the team can change it in the drawer.
+const todayEastern = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+
 export async function GET(req: NextRequest) {
   const auth = await requireBcpsPageAccess(req, PAGE)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
@@ -114,7 +118,7 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     const changes: string[] = []
     if (status !== undefined && status !== before?.status) changes.push(`Status changed to ${statusLabel(status as string)}.`)
-    for (const [key, label] of [['title', 'Title'], ['lead', 'Lead'], ['support', 'Support'], ['date_needed', 'Date needed'], ['start_date', 'Start date'], ['priority', 'Priority']] as const) {
+    for (const [key, label] of [['title', 'Title'], ['lead', 'Lead'], ['support', 'Support'], ['date_needed', 'Date needed'], ['start_date', 'Date submitted'], ['priority', 'Priority']] as const) {
       if (!(key in patch)) continue
       const next = (patch[key] as string | null) ?? null
       const prev = (before?.[key] as string | null) ?? null
@@ -228,7 +232,7 @@ export async function POST(req: NextRequest) {
     if (!title?.trim()) return NextResponse.json({ error: 'title required' }, { status: 400 })
     const { data, error } = await supabase.from('bcps_marcomm_requests').insert({
       source: 'internal', title: title.trim().slice(0, 200), description: description?.trim() || null,
-      lead: lead?.trim() || null, date_needed: date_needed || null,
+      lead: lead?.trim() || null, date_needed: date_needed || null, start_date: todayEastern(),
       status: lead?.trim() ? 'assigned' : 'new', created_by_email: auth.user.email,
     }).select('id').single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

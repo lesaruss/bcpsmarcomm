@@ -649,7 +649,7 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
               ))}
             </div>
           </div>
-          <label><span className="fl">Start date</span>
+          <label><span className="fl">Date submitted</span>
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
           </label>
           <label><span className="fl">Date needed</span>
@@ -673,7 +673,8 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
           {late && <button className="mca-btn small ghost" disabled={busy}
             onClick={() => run({ action: 'update', id: req.id, overdue_dismissed: true }, 'Overdue flag cleared.')}>Clear overdue flag</button>}
         </div>
-        <label className="d-link"><span className="fl">Link (proof, draft or final)</span>
+        <label className="d-link"><span className="fl">Link to the work</span>
+          <span className="hint">Where the team can open the piece itself: a proof sent for approval, a draft in progress, or the final version.</span>
           <span className="d-link-row">
             <input type="url" value={link} onChange={e => setLink(e.target.value)} placeholder="https://" />
             {req.link_url && <a className="mca-btn small ghost" href={req.link_url} target="_blank" rel="noopener noreferrer">Open</a>}
@@ -1119,6 +1120,7 @@ const CSS = `
 .check input { width: 16px; height: 16px; margin: 0; flex: none; }
 .d-link { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
 .d-link-row { display: flex; gap: 6px; }
+.d-link .hint { font-size: 12px; line-height: 1.45; color: rgba(26,26,26,0.6); }
 .d-link-row input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 9px 10px; border: 1px solid rgba(0,0,0,0.15); border-radius: 6px; }
 .recorder-bar { display: flex; align-items: center; gap: 10px; width: 100%; }
 .mic-btn { display: inline-flex; align-items: center; gap: 7px; font-family: inherit; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.10em; padding: 8px 16px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.12); background: #fff; color: rgba(26,26,26,0.6); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
@@ -1187,8 +1189,8 @@ const CSS = `
 .d-addfiles:focus-within .mca-btn { outline: 3px solid #1672A7; outline-offset: 2px; }
 .d-request .d-text { margin-bottom: 12px; }
 .d-qa { display: flex; flex-direction: column; gap: 3px; margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid #1672A7; background: rgba(22,114,167,0.04); border-radius: 0 6px 6px 0; }
-.d-qa-q { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #0e4e73; }
-.d-qa-a { font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+.d-qa-q { font-size: 13px; font-weight: 800; line-height: 1.4; color: #1a1a1a; }
+.d-qa-a { font-size: 14px; font-weight: 400; line-height: 1.55; color: rgba(26,26,26,0.85); overflow-wrap: anywhere; }
 .d-combine { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .d-combine select { flex: 1 1 260px; min-width: 0; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; background: #fff; }
 .n-edit-btn { font: inherit; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #0e4e73; background: none; border: 0; padding: 0; margin-left: 8px; cursor: pointer; text-decoration: underline; }
