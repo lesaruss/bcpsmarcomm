@@ -283,7 +283,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
       </div>
 
       {/* Update the tracker from a Marcomm Meeting transcript (Sean, 2026-10-21),
-          for people granted 'marcomm-transcripts'; hidden for everyone else. */}
+          for the MarComm Assignments editors ('marcomm-edit'); hidden for everyone else. */}
       {!viewing && <MeetingTranscriptUpload tracker="marcomm" onApplied={() => { load() }} />}
 
       {expired && (
