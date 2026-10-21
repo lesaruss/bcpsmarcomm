@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase'
 
 // Update Web Team Assignments from a meeting transcript (Sean, 2026-10-21).
 // Shown only to people granted the 'meeting-transcripts' page (or admins).
+// tracker 'marcomm' does the same for MarComm Assignments, for people granted
+// the 'marcomm-transcripts' page (Sean, 2026-10-21: so Jen can do it herself).
 // Paste or upload the transcript, Claude proposes the changes, the person
 // unticks anything wrong and applies. Data: /api/bcps/meeting-transcript.
 
@@ -17,11 +19,29 @@ async function authHeaders(): Promise<Record<string, string>> {
 
 const STATUS_LABELS: Record<string, string> = {
   'in-progress': 'In Progress', pending: 'Pending', ongoing: 'Ongoing', completed: 'Completed', archived: 'Archived',
+  new: 'New', needs_info: 'Needs Info', assigned: 'Assigned', in_progress: 'In Progress', in_review: 'In Review',
+  scheduled: 'Scheduled', on_hold: 'On Hold', declined: 'Declined',
 }
-const FIELDS: [string, string][] = [
-  ['status', 'Status'], ['lead', 'Lead'], ['support', 'Support'], ['start_date', 'Start'],
-  ['deadline_date', 'Deadline'], ['priority', 'Priority'], ['ooc', 'OOC'], ['description', 'Description'],
-]
+type Tracker = 'web-team' | 'marcomm'
+const FIELDS: Record<Tracker, [string, string][]> = {
+  'web-team': [
+    ['status', 'Status'], ['lead', 'Lead'], ['support', 'Support'], ['start_date', 'Start'],
+    ['deadline_date', 'Deadline'], ['priority', 'Priority'], ['ooc', 'OOC'], ['description', 'Description'],
+  ],
+  marcomm: [['status', 'Status'], ['lead', 'Lead'], ['support', 'Support'], ['deadline_date', 'Date needed'], ['priority', 'Priority']],
+}
+const COPY: Record<Tracker, { label: string; help: string; summary: string }> = {
+  'web-team': {
+    label: 'District Web Team Meeting',
+    help: 'Claude reads the transcript against the tracker and proposes changes: deadlines, leads, statuses and new action items. Nothing changes until you review them and press Apply.',
+    summary: 'Meeting summary (shown at the top of the tracker)',
+  },
+  marcomm: {
+    label: 'Marcomm Meeting',
+    help: 'Claude reads the transcript against the open requests and proposes changes: leads, support, statuses, dates needed, priorities and new team items. Nothing changes until you review them and press Apply. Each change gets a note naming this meeting, and the tracker is saved as of this meeting.',
+    summary: 'Meeting summary (saved with this meeting\'s version of the tracker)',
+  },
+}
 
 interface Change {
   slug: string
@@ -82,11 +102,12 @@ function currentOf(c: Change, field: string): unknown {
   return (c.current as unknown as Record<string, unknown>)[field]
 }
 
-export default function MeetingTranscriptUpload({ onApplied }: { onApplied: () => void }) {
+export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team' }: { onApplied: () => void; tracker?: Tracker }) {
+  const copy = COPY[tracker]
   const [allowed, setAllowed] = useState(false)
   const [uploads, setUploads] = useState<Upload[]>([])
   const [open, setOpen] = useState(false)
-  const [label, setLabel] = useState('District Web Team Meeting')
+  const [label, setLabel] = useState(COPY[tracker].label)
   const [date, setDate] = useState(today())
   const [transcript, setTranscript] = useState('')
   const [busy, setBusy] = useState<'' | 'reading' | 'applying'>('')
@@ -98,7 +119,7 @@ export default function MeetingTranscriptUpload({ onApplied }: { onApplied: () =
   const [done, setDone] = useState('')
 
   const loadUploads = async () => {
-    const res = await fetch('/api/bcps/meeting-transcript', { headers: await authHeaders(), cache: 'no-store' })
+    const res = await fetch(`/api/bcps/meeting-transcript?tracker=${tracker}`, { headers: await authHeaders(), cache: 'no-store' })
     const j = await res.json().catch(() => ({}))
     setAllowed(!!j.allowed)
     setUploads(j.uploads ?? [])
@@ -124,7 +145,7 @@ export default function MeetingTranscriptUpload({ onApplied }: { onApplied: () =
     try {
       const res = await fetch('/api/bcps/meeting-transcript', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ action: 'propose', transcript: cleanTranscript(transcript), meeting_date: date, meeting_label: label }),
+        body: JSON.stringify({ tracker, action: 'propose', transcript: cleanTranscript(transcript), meeting_date: date, meeting_label: label }),
       })
       const j = await res.json().catch(() => ({ error: 'The server did not answer. Try again.' }))
       if (!res.ok) throw new Error(j.error || 'Something went wrong.')
@@ -146,7 +167,7 @@ export default function MeetingTranscriptUpload({ onApplied }: { onApplied: () =
       }
       const res = await fetch('/api/bcps/meeting-transcript', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ action: 'apply', upload_id: uploadId, payload }),
+        body: JSON.stringify({ tracker, action: 'apply', upload_id: uploadId, payload }),
       })
       const j = await res.json().catch(() => ({ error: 'The server did not answer. Try again.' }))
       if (!res.ok) throw new Error(j.error || 'Something went wrong.')
@@ -162,7 +183,7 @@ export default function MeetingTranscriptUpload({ onApplied }: { onApplied: () =
     if (uploadId) {
       await fetch('/api/bcps/meeting-transcript', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ action: 'discard', upload_id: uploadId }),
+        body: JSON.stringify({ tracker, action: 'discard', upload_id: uploadId }),
       }).catch(() => {})
     }
     reset()
@@ -192,7 +213,7 @@ export default function MeetingTranscriptUpload({ onApplied }: { onApplied: () =
 
             {!proposal && (
               <>
-                <p className="mtu-help">Claude reads the transcript against the tracker and proposes changes: deadlines, leads, statuses and new action items. Nothing changes until you review them and press Apply.</p>
+                <p className="mtu-help">{copy.help}</p>
                 <div className="mtu-grid">
                   <label><span className="mtu-l">Meeting</span><input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120} /></label>
                   <label><span className="mtu-l">Meeting date</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
@@ -229,7 +250,7 @@ export default function MeetingTranscriptUpload({ onApplied }: { onApplied: () =
             {proposal && (
               <>
                 <label className="mtu-block">
-                  <span className="mtu-l">Meeting summary (shown at the top of the tracker)</span>
+                  <span className="mtu-l">{copy.summary}</span>
                   <textarea rows={3} value={proposal.summary} onChange={(e) => setProposal({ ...proposal, summary: e.target.value })} />
                 </label>
 
@@ -242,7 +263,7 @@ export default function MeetingTranscriptUpload({ onApplied }: { onApplied: () =
                       <strong>{c.current.title}</strong>
                     </label>
                     <ul className="mtu-diff">
-                      {FIELDS.filter(([f]) => c[f] !== null && c[f] !== undefined).map(([f, name]) => {
+                      {FIELDS[tracker].filter(([f]) => c[f] !== null && c[f] !== undefined).map(([f, name]) => {
                         const before = currentOf(c, f)
                         return (
                           <li key={f}><span className="mtu-l">{name}</span>{before !== undefined && <><s>{show(f, before)}</s> &rarr; </>}<b>{show(f, c[f])}</b></li>
@@ -266,9 +287,9 @@ export default function MeetingTranscriptUpload({ onApplied }: { onApplied: () =
                     <ul className="mtu-diff">
                       <li><span className="mtu-l">Lead</span><b>{show('lead', n.lead)}</b></li>
                       {n.support && n.support.length > 0 && <li><span className="mtu-l">Support</span><b>{show('support', n.support)}</b></li>}
-                      {n.deadline_date && <li><span className="mtu-l">Deadline</span><b>{show('deadline_date', n.deadline_date)}</b></li>}
+                      {n.deadline_date && <li><span className="mtu-l">{tracker === 'marcomm' ? 'Date needed' : 'Deadline'}</span><b>{show('deadline_date', n.deadline_date)}</b></li>}
                       {n.priority && <li><span className="mtu-l">Priority</span><b>{n.priority}</b></li>}
-                      <li><span className="mtu-l">OOC</span><b>{n.ooc ? 'Yes' : 'No'}</b></li>
+                      {tracker === 'web-team' && <li><span className="mtu-l">OOC</span><b>{n.ooc ? 'Yes' : 'No'}</b></li>}
                     </ul>
                     <p className="mtu-ev">From the transcript: &ldquo;{n.evidence}&rdquo;</p>
                   </div>
