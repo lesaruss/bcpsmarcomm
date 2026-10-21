@@ -73,6 +73,8 @@
   .video-poster { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; padding: 0; border-radius: 18px; overflow: hidden; cursor: pointer; background: var(--navy); box-shadow: 0 10px 30px rgba(14,48,68,.22); text-align: left; font: inherit; }
   .poster-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
   .poster-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(14,48,68,.92) 0%, rgba(14,48,68,.65) 45%, rgba(14,48,68,.1) 100%); }
+  /* Posters made from graphics that carry their own text get a heavier shade */
+  .video-poster.busy .poster-shade { background: linear-gradient(90deg, rgba(14,48,68,.96) 0%, rgba(14,48,68,.88) 55%, rgba(14,48,68,.55) 100%); }
   .poster-text { position: absolute; left: 24px; top: 22px; right: 45%; display: flex; flex-direction: column; gap: 6px; color: #fff; }
   .poster-kicker { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); }
   .poster-title { font-size: clamp(20px, 2.2vw, 30px); line-height: 1.1; font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
@@ -82,10 +84,19 @@
   .poster-meta { position: absolute; right: 14px; bottom: 12px; display: flex; gap: 6px; }
   .poster-meta span { font-size: 12px; font-weight: 800; color: #fff; background: rgba(0,0,0,.6); border-radius: 4px; padding: 2px 7px; }
   .poster-soon { position: absolute; left: 24px; bottom: 14px; right: 110px; font-size: 13px; font-weight: 700; color: #fff; }
-  .video-caption { margin-top: 12px; font-size: 14px; color: var(--text); }
-  .video-social { margin-top: 6px; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
-  .video-social strong { color: var(--ink); }
-  .video-social span { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; }
+  .video-list { margin-top: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .vid-btn { font: inherit; text-align: left; background: #fff; border: 2px solid var(--line); border-radius: 10px; padding: 6px; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; position: relative; }
+  .vid-btn img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: center top; border-radius: 6px; display: block; }
+  .vid-btn .vid-title { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.3; padding: 0 2px; }
+  .vid-btn .vid-len { position: absolute; top: 10px; right: 10px; font-size: 11px; font-weight: 800; color: #fff; background: rgba(0,0,0,.65); border-radius: 4px; padding: 1px 6px; }
+  .vid-btn:hover { border-color: var(--primary); }
+  .vid-btn[aria-pressed="true"] { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(22,114,167,.25); }
+  .vid-btn[aria-pressed="true"] .vid-title { color: var(--primary-dark); }
+  .results-hint { display: inline-block; margin-top: 10px; font-size: 14px; font-weight: 800; color: var(--primary-dark); }
+  .results-hint[hidden] { display: none; }
+  @keyframes results-flash { 0% { box-shadow: 0 0 0 0 rgba(244,196,54,0); } 25% { box-shadow: 0 0 0 6px rgba(244,196,54,.85); } 100% { box-shadow: 0 0 0 0 rgba(244,196,54,0); } }
+  .tasks.flash .task:not([hidden]) { animation: results-flash 1.1s ease-out; }
+  @media (prefers-reduced-motion: reduce) { .tasks.flash .task:not([hidden]) { animation: none; } }
   .hero h1 { font-size: clamp(30px, 4vw, 46px); line-height: 1.05; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
   .hero p { margin-top: 10px; font-size: 16px; color: var(--text); max-width: 60ch; }
   .search-box label { display: block; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
@@ -253,7 +264,10 @@
     .more-tabs { flex-wrap: wrap; overflow: visible; border-bottom: 0; gap: 6px; }
     .chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .poster-text { left: 16px; top: 14px; right: 30%; }
-    .poster-play { width: 60px; height: 60px; margin: -30px 0 0 -30px; }
+    .poster-play { width: 52px; height: 52px; margin: 0; left: 16px; top: auto; bottom: 14px; }
+    .poster-play svg { width: 24px; height: 24px; }
+    .poster-text { right: 16px; }
+    .poster-soon { left: 80px; bottom: 16px; }
     .poster-soon { left: 16px; right: 90px; font-size: 12px; }
     .more-tab { flex: 1 1 calc(50% - 6px); text-align: center; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 0; font-size: 14px; padding: 10px 8px; }
     .more-tab[aria-selected="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
@@ -343,6 +357,7 @@
       <form class="search-box" id="search-form" role="search">
         <label for="q">What do you need today?</label>
         <div class="search-row"><input id="q" type="search" autocomplete="off" placeholder="Try report card, bus, or register" aria-controls="task-grid"><button type="submit">Search</button></div>
+        <a class="results-hint" id="results-hint" href="#s-tasks" hidden></a>
       </form>
       <div class="chips" id="chips" role="group" aria-label="Filter by topic">
         <button type="button" class="chip" data-cat="all" aria-pressed="true">Top tasks</button>
@@ -355,20 +370,23 @@
       </div>
     </div>
     <div class="hero-video" id="s-video">
-      <span class="bn native">Finalsite native: video element (YouTube or Vimeo, captions on)</span>
+      <span class="bn native">Finalsite native: video element with a short playlist (YouTube or Vimeo, captions on)</span>
       <button type="button" class="video-poster" id="video-poster" aria-label="Play the welcome video: how to use the Parents and Families page, 1 minute 30 seconds, captioned">
-        <img src="https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1772472322/browardschoolscom/oivossp8hlgumw3yj8v0/TestingToolKit.jpg" alt="" class="poster-photo">
+        <img src="https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1772472322/browardschoolscom/oivossp8hlgumw3yj8v0/TestingToolKit.jpg" alt="" class="poster-photo" id="poster-photo">
         <span class="poster-shade" aria-hidden="true"></span>
         <span class="poster-text" aria-hidden="true">
-          <span class="poster-kicker">Welcome, families</span>
-          <span class="poster-title">Find what you need in 90 seconds</span>
+          <span class="poster-kicker" id="poster-kicker">Welcome, families</span>
+          <span class="poster-title" id="poster-title">Find what you need in 90 seconds</span>
         </span>
         <span class="poster-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>
-        <span class="poster-meta" aria-hidden="true"><span>1:30</span><span>CC</span></span>
+        <span class="poster-meta" aria-hidden="true"><span id="poster-len">1:30</span><span>CC</span></span>
         <span class="poster-soon" id="poster-soon" aria-live="polite"></span>
       </button>
-      <p class="video-caption">A quick welcome and walkthrough: searching, the topic buttons, and signing in to FOCUS.</p>
-      <p class="video-social"><strong>Short how-tos, also on social:</strong> <span>Find your bus route</span><span>Check grades in FOCUS</span><span>Pay for lunch online</span></p>
+      <div class="video-list" role="group" aria-label="Choose a video">
+        <button type="button" class="vid-btn" data-vid="0" aria-pressed="true"><img src="https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1772472322/browardschoolscom/oivossp8hlgumw3yj8v0/TestingToolKit.jpg" alt=""><span class="vid-title">Welcome to Parents &amp; Families</span><span class="vid-len">1:30</span></button>
+        <button type="button" class="vid-btn" data-vid="1" aria-pressed="false"><img src="https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1792074921/browardschoolscom/u3xmqp7oafq1qfoarf1i/Parent-University---Linewize-Parent-Powered-by-Qustodio.jpg" alt=""><span class="vid-title">Check grades and attendance in FOCUS</span><span class="vid-len">2:05</span></button>
+        <button type="button" class="vid-btn" data-vid="2" aria-pressed="false"><img src="https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1781105725/browardschoolscom/mdi4lc4et5scyd7eqlhb/SchoolLunchBowl.jpg" alt=""><span class="vid-title">School meals and paying online</span><span class="vid-len">1:45</span></button>
+      </div>
     </div>
   </section>
 
@@ -597,6 +615,7 @@
   var form = document.getElementById('search-form'), q = document.getElementById('q');
   var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
   var DEFAULT_STATUS = status.textContent;
+  var hint = document.getElementById('results-hint');
 
   function norm(s) { return (s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
   // A department's /overview page and its bare address are the same place.
@@ -686,20 +705,33 @@
       status.textContent = list.length + (list.length === 1 ? ' result' : ' results') + (words.length ? ' for "' + state.q.trim() + '"' : '') + where;
     }
     chips.forEach(function (c) { c.setAttribute('aria-pressed', String(c.getAttribute('data-cat') === state.cat)); });
+    // While typing, say how many results are waiting below the search.
+    hint.hidden = !words.length;
+    if (words.length) hint.textContent = list.length ? 'See ' + list.length + (list.length === 1 ? ' result' : ' results') + ' below' : 'No matches yet. Try another word.';
   }
 
   var typing;
   q.addEventListener('input', function () {
     clearTimeout(typing);
-    typing = setTimeout(function () { state.q = q.value; state.limit = PAGE_SIZE; render(); }, 120);
+    // Typing searches every topic, so a topic picked earlier cannot hide matches.
+    typing = setTimeout(function () { state.q = q.value; state.cat = 'all'; state.limit = PAGE_SIZE; render(); }, 120);
   });
+  // Topic buttons and Search take the visitor down to the results and flash
+  // them, so it is obvious something changed (Sean, 2026-10-21: the results
+  // sat below the fold and the buttons looked like they did nothing).
+  var tasksSection = document.getElementById('s-tasks');
+  function showResults() {
+    tasksSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    grid.classList.remove('flash'); void grid.offsetWidth; grid.classList.add('flash');
+    setTimeout(function () { grid.classList.remove('flash'); }, 1200);
+  }
   form.addEventListener('submit', function (e) {
-    e.preventDefault(); state.q = q.value; state.limit = PAGE_SIZE; render();
-    document.getElementById('s-tasks').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    e.preventDefault(); clearTimeout(typing); state.q = q.value; state.cat = 'all'; state.limit = PAGE_SIZE; render(); showResults();
   });
   chips.forEach(function (c) {
-    c.addEventListener('click', function () { state.cat = c.getAttribute('data-cat'); state.limit = PAGE_SIZE; render(); });
+    c.addEventListener('click', function () { state.cat = c.getAttribute('data-cat'); state.limit = PAGE_SIZE; render(); showResults(); });
   });
+  hint.addEventListener('click', function (e) { e.preventDefault(); showResults(); });
   clearBtn.addEventListener('click', function () { q.value = ''; state = { cat: 'all', q: '', limit: PAGE_SIZE }; render(); q.focus(); });
   moreBtn.addEventListener('click', function () { state.limit = 1000; render(); });
 
@@ -740,9 +772,32 @@
   var mt = /^#more=([a-z]+)$/.exec(location.hash);
   if (mt && document.getElementById('tab-' + mt[1])) openTab(mt[1], false, true);
 
-  // The welcome video is a placeholder image until the real video exists.
-  document.getElementById('video-poster').addEventListener('click', function () {
-    document.getElementById('poster-soon').textContent = 'Placeholder: the captioned welcome video plays here once it is recorded.';
+  // Video playlist. Placeholder posters until the real videos are recorded;
+  // the titles are examples of the series, not final.
+  var VIDEOS = [
+    { kicker: 'Welcome, families', title: 'Find what you need in 90 seconds', len: '1:30', label: 'Welcome to Parents and Families, 1 minute 30 seconds',
+      img: 'https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1772472322/browardschoolscom/oivossp8hlgumw3yj8v0/TestingToolKit.jpg' },
+    { kicker: 'How to', title: 'Check grades and attendance in FOCUS', len: '2:05', label: 'Check grades and attendance in FOCUS, 2 minutes 5 seconds',
+      img: 'https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1792074921/browardschoolscom/u3xmqp7oafq1qfoarf1i/Parent-University---Linewize-Parent-Powered-by-Qustodio.jpg', busy: true },
+    { kicker: 'How to', title: 'School meals and paying online', len: '1:45', label: 'School meals and paying online, 1 minute 45 seconds',
+      img: 'https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1781105725/browardschoolscom/mdi4lc4et5scyd7eqlhb/SchoolLunchBowl.jpg' }
+  ];
+  var poster = document.getElementById('video-poster'), soon = document.getElementById('poster-soon');
+  var vidBtns = Array.prototype.slice.call(document.querySelectorAll('.vid-btn'));
+  function showVideo(i) {
+    var v = VIDEOS[i];
+    document.getElementById('poster-photo').src = v.img;
+    document.getElementById('poster-kicker').textContent = v.kicker;
+    document.getElementById('poster-title').textContent = v.title;
+    document.getElementById('poster-len').textContent = v.len;
+    poster.setAttribute('aria-label', 'Play video: ' + v.label + ', captioned');
+    soon.textContent = '';
+    poster.classList.toggle('busy', !!v.busy);
+    vidBtns.forEach(function (b, k) { b.setAttribute('aria-pressed', String(k === i)); });
+  }
+  vidBtns.forEach(function (b, k) { b.addEventListener('click', function () { showVideo(k); }); });
+  poster.addEventListener('click', function () {
+    soon.textContent = 'Placeholder: this video plays here, with captions, once it is recorded.';
   });
 
   var notesBtn = document.getElementById('notes-toggle');
@@ -755,8 +810,8 @@
   // works and a link can open any step.
   var STEPS = [
     { id: 's-hero', title: 'What you are looking at', text: 'A proposed Parents & Families page in the browardschools.com look. The header, navigation and footer match the live site; the content below is reorganized.', why: 'The live page opens with a welcome message, a video and ten stories before the resources families come for. This version starts with the tasks.' },
-    { id: 's-video', title: 'A welcome video', text: 'Right beside the search, a short captioned video welcomes families and shows how to use the page. The same recording is cut into short how-tos for social media.', why: 'Seeing it done once is faster than reading instructions, and the social clips bring families back to this page.' },
-    { id: 's-hero', title: 'One search, one set of topics', text: 'Type what you need or pick a topic. Try "report card", "bus", "lunch" or "shots". Results appear right below, in Get it done. The seven topic buttons sit in two rows under the search.', why: 'Find It Fast is folded in here instead of sitting further down the page, so families search and browse in one place. Search understands the words families use, not only official names.' },
+    { id: 's-video', title: 'Videos for families', text: 'Beside the search, a short captioned video player with a few videos to choose from: a welcome, checking grades in FOCUS, and school meals. Pick one below the player to switch.', why: 'Seeing it done once is faster than reading instructions. The same videos can be shared on social media to bring families back here. These titles are examples.' },
+    { id: 's-hero', title: 'One search, one set of topics', text: 'Type what you need or pick a topic. Try "report card", "bus", "lunch" or "shots". The page moves down to the results in Get it done and highlights them, so you can see it worked.', why: 'Find It Fast is folded in here instead of sitting further down the page, so families search and browse in one place. Search understands the words families use, not only official names.' },
     { id: 's-tasks', title: 'Get it done', text: 'Before anyone searches, this shows the eight tasks families do most, each named for what you can do and the tool it opens. Searching or picking a topic swaps in every matching resource.', why: 'The eight tasks are written into the page, so they show even if the resource list cannot load. Phase 1 confirms the order with traffic, search and Customer Service data.' },
     { id: 's-signin', title: 'Sign in, with help beside it', text: 'Sign in, Create an account and Trouble signing in? sit together, with a line explaining where you are going and what you need.', why: 'Login trouble is one of the most common reasons families call. Help belongs next to the button.' },
     { id: 's-dates', title: 'Coming up', text: 'The next few dates families need, pulled from the District calendar.', why: 'Deadlines and events sit next to the tasks they affect.' },
