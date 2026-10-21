@@ -67,14 +67,14 @@
   .crumbs a { color: var(--primary-dark); }
 
   /* Page hero */
-  .hero { position: relative; background: var(--softer); border-radius: 24px; padding: 36px 40px; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 32px 40px; align-items: start; }
+  .hero { position: relative; background: var(--softer); border-radius: 24px; padding: 36px 40px; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 32px 40px; align-items: stretch; }
   .hero-main { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
   .signin-bar { display: flex; flex-direction: column; gap: 10px; }
   .hero .signin-label { margin: 0; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--primary-dark); }
   .signin-label svg { width: 16px; height: 16px; }
   .signin-links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
   /* Things to know: a swipeable slider, one item at a time */
-  .ticker { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px 14px; min-width: 0; }
+  .ticker { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px 14px; min-width: 0; flex: 1; display: flex; flex-direction: column; }
   .ticker-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
   .ticker-head h2 { font-size: 18px; line-height: 1.1; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; margin-right: auto; }
   .ticker-count { font-size: 13px; font-weight: 700; color: var(--muted); }
@@ -82,38 +82,19 @@
   .ticker-arrow svg { width: 18px; height: 18px; }
   .ticker-arrow:hover { border-color: var(--primary); }
   .ticker-arrow:disabled { opacity: .35; cursor: default; }
-  .ticker-track { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; column-gap: 32px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .ticker-track { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; column-gap: 32px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; overscroll-behavior-x: contain; flex: 1; }
   .ticker-track::-webkit-scrollbar { display: none; }
-  .ticker-item { scroll-snap-align: start; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .ticker-item { scroll-snap-align: start; min-width: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px; }
   .ticker-tag { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); background: var(--gold); border-radius: 4px; padding: 2px 8px; }
   .ticker-item h3 { font-size: 17px; line-height: 1.3; color: var(--ink); }
   .hero .ticker-item p { margin: 0; font-size: 15px; color: var(--text); max-width: none; }
   .ticker-item .btn { margin-top: 4px; }
-  .ticker-dots { display: flex; gap: 6px; justify-content: center; margin-top: 12px; }
+  .ticker-dots { display: flex; gap: 6px; justify-content: center; margin-top: auto; padding-top: 12px; }
   .ticker-dots button { width: 9px; height: 9px; padding: 0; border-radius: 50%; border: 0; background: var(--line); cursor: pointer; }
   .ticker-dots button[aria-current="true"] { background: var(--primary); width: 22px; border-radius: 5px; }
   @media (prefers-reduced-motion: reduce) { .ticker-track { scroll-behavior: auto; } }
-  /* Video lightbox */
-  .lightbox { border: 0; padding: 0; background: transparent; width: min(960px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); margin: auto; overflow: visible; }
-  .lightbox::backdrop { background: rgba(8,20,30,.82); }
-  .lb-inner { background: #0b1a24; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
-  .lb-frame { position: relative; aspect-ratio: 16 / 9; background: var(--navy); }
-  .lb-frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; opacity: .35; }
-  .lb-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; text-align: center; color: #fff; }
-  .lb-center .poster-play { position: static; margin: 0; }
-  .lb-center p { font-size: 15px; font-weight: 700; max-width: 46ch; }
-  .lb-cc { position: absolute; right: 14px; bottom: 12px; font-size: 12px; font-weight: 800; color: #fff; background: rgba(0,0,0,.6); border-radius: 4px; padding: 2px 7px; }
-  .lb-bar { display: flex; align-items: center; gap: 12px; padding: 14px 18px; color: #fff; }
-  .lb-bar h2 { font-size: 18px; line-height: 1.2; margin-right: auto; font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
-  .lb-bar span { font-size: 13px; font-weight: 700; color: #b9c7d2; }
-  .lb-close { width: 38px; height: 38px; border-radius: 6px; border: 1px solid rgba(255,255,255,.3); background: transparent; color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
-  .lb-close:hover { background: rgba(255,255,255,.12); }
   .signin-link { font-size: 14px; font-weight: 700; color: var(--primary-dark); }
-  .hero-ctas { display: flex; flex-wrap: wrap; gap: 10px; }
-  .hero-ctas .btn { font-size: 15px; padding: 12px 20px; }
   .btn.small { padding: 7px 14px; font-size: 13px; }
-  .btn.ghost { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 800; cursor: pointer; }
-  .btn.ghost svg { width: 16px; height: 16px; }
   .finder { background: var(--softer); border-radius: 24px; padding: 28px 32px; display: flex; flex-direction: column; gap: 16px; margin-bottom: 18px; }
   .finder h2 { font-size: 26px; line-height: 1.15; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
   .finder .search-box { max-width: 820px; }
@@ -280,6 +261,9 @@
   .tour-dots span.on { background: var(--gold); }
   .tour-close { position: absolute; top: 10px; right: 12px; background: none; border: 0; color: #b9c7d2; font-size: 22px; cursor: pointer; line-height: 1; }
 
+  /* Extra-wide screens: cap the video so the two columns stay in proportion */
+  @media (min-width: 1600px) { .hero { grid-template-columns: minmax(0, 1fr) 720px; } }
+  @media (min-width: 1101px) and (max-width: 1439px) { .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
   @media (max-width: 1100px) {
     .hero { grid-template-columns: minmax(0, 1fr); }
     .chips { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -322,10 +306,7 @@
     .task .t-label { font-size: 15px; }
     .task .t-tool { font-size: 12px; }
     .ticker { padding: 14px 14px 12px; }
-    .lb-bar { padding: 12px 14px; }
-    .lb-bar h2 { font-size: 16px; }
     .finder { padding: 20px 16px; }
-    .hero-ctas .btn { flex: 1 1 auto; text-align: center; justify-content: center; }
     .tour-card { right: 16px; bottom: 16px; }
     .mock-bar .mock-actions { margin-left: 0; }
   }
@@ -394,7 +375,7 @@
   <p class="crumbs"><a href="https://www.browardschools.com">Home</a> &rsaquo; Parents &amp; Families</p>
 
   <section class="hero" id="s-hero" data-bn aria-labelledby="h-page">
-    <span class="bn native">Finalsite native: text, buttons, sign-in links and a video lightbox</span>
+    <span class="bn native">Finalsite native: text, sign-in links and a content slider</span>
     <div class="hero-main">
       <div class="hero-head">
         <h1 id="h-page">Parents &amp; Families</h1>
@@ -427,10 +408,6 @@
         </div>
         <div class="ticker-dots" id="ticker-dots" role="group" aria-label="Choose an item"></div>
       </section>
-      <div class="hero-ctas">
-        <a class="btn primary" id="cta-find" href="#s-tasks">Find what you need</a>
-        <button type="button" class="btn ghost" id="cta-watch"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>Watch how it works</button>
-      </div>
     </div>
     <div class="hero-video" id="s-video">
       <span class="bn native">Finalsite native: video element with a short playlist (YouTube or Vimeo, captions on)</span>
@@ -452,24 +429,6 @@
       </div>
     </div>
   </section>
-
-  <dialog class="lightbox" id="video-lightbox" aria-labelledby="lb-title">
-    <div class="lb-inner">
-      <div class="lb-frame">
-        <img src="" alt="" id="lb-photo">
-        <div class="lb-center">
-          <span class="poster-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>
-          <p>Placeholder: the video plays here, with captions, once it is recorded.</p>
-        </div>
-        <span class="lb-cc" aria-hidden="true">CC</span>
-      </div>
-      <div class="lb-bar">
-        <h2 id="lb-title"></h2>
-        <span id="lb-len"></span>
-        <button type="button" class="lb-close" id="lb-close" aria-label="Close video">&times;</button>
-      </div>
-    </div>
-  </dialog>
 
   <section class="section" id="s-tasks" data-bn aria-labelledby="h-tasks">
     <span class="bn embed">Embed: search, topic buttons and tasks, powered by Find It Fast data edited live in BCPS MarComm</span>
@@ -883,26 +842,6 @@
   function playPlaceholder() { soon.textContent = 'Placeholder: this video plays here, with captions, once it is recorded.'; }
   poster.addEventListener('click', playPlaceholder);
 
-  // Welcome buttons: one drops to Get it done with the search ready, the
-  // other starts the welcome video.
-  document.getElementById('cta-find').addEventListener('click', function (e) {
-    e.preventDefault();
-    document.getElementById('s-tasks').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setTimeout(function () { q.focus({ preventScroll: true }); }, 400);
-  });
-  var lb = document.getElementById('video-lightbox'), watchBtn = document.getElementById('cta-watch');
-  watchBtn.addEventListener('click', function () {
-    var v = VIDEOS[0];
-    document.getElementById('lb-photo').src = v.img;
-    document.getElementById('lb-title').textContent = v.title;
-    document.getElementById('lb-len').textContent = v.len;
-    lb.showModal();
-    document.getElementById('lb-close').focus();
-  });
-  document.getElementById('lb-close').addEventListener('click', function () { lb.close(); });
-  // A click on the dark area around the video closes it.
-  lb.addEventListener('click', function (e) { if (e.target === lb) lb.close(); });
-  lb.addEventListener('close', function () { watchBtn.focus(); });
 
   // Things to know slider. Swipe or scroll on touch, arrows and dots anywhere.
   // It never moves on its own, so nobody loses their place while reading.
@@ -953,7 +892,7 @@
     { id: 's-hero', title: 'What you are looking at', text: 'A proposed Parents & Families page in the browardschools.com look. The header, navigation and footer match the live site; the content below is reorganized.', why: 'The live page opens with a welcome message, a video and ten stories before the resources families come for. This version welcomes families, then gets them to their task.' },
     { id: 's-signin', title: 'Sign in, right at the top', text: 'FOCUS and Family Access, with Sign in, Create an account and Trouble signing in? together, so the most common task is the first thing families see.', why: 'Login is one of the main reasons families visit and call. Help belongs next to the button.' },
     { id: 's-ticker', title: 'Things to know', text: 'A short slider of what families should know right now. Each item is a sentence or two and one button. Swipe, or use the arrows and dots. Editors pick up to 10 items.', why: 'Timely news gets seen without pushing the tasks down the page, and it never moves on its own, so nobody loses their place.' },
-    { id: 's-video', title: 'Videos for families', text: 'A short captioned video player with a few videos to choose from: a welcome, checking grades in FOCUS, and school meals. Watch how it works starts the welcome video; Find what you need drops to Get it done.', why: 'Seeing it done once is faster than reading instructions, and the same videos can be shared on social media. These titles are examples.' },
+    { id: 's-video', title: 'Videos for families', text: 'A short captioned video player with a few videos to choose from: a welcome, checking grades in FOCUS, and school meals.', why: 'Seeing it done once is faster than reading instructions, and the same videos can be shared on social media. These titles are examples.' },
     { id: 's-tasks', title: 'Get it done: search, topics and results in one place', text: 'Type what you need or pick a topic, and the results change right below. Before anyone searches, it shows the eight tasks families do most. Try "report card", "bus", "lunch" or "shots".', why: 'Search, topics and results live together, so it is obvious the buttons work. Resources come from Find It Fast, edited live in BCPS MarComm; the eight top tasks still show if that list cannot load.' },
     { id: 's-dates', title: 'Coming up', text: 'The next few dates families need, pulled from the District calendar.', why: 'Deadlines and events sit next to the tasks they affect.' },
     { id: 's-more', tab: 'learn', title: 'More for families: Learn with us', text: 'Everything below the top now sits in one tabbed section. Learn with us opens first: Parent University, Student University and other family learning tools.', why: 'Four stacked sections became four tabs, so the page is less than half as long and each one is a click away. Parent University and Student University already exist, but today they are inside a list of ten stories.' },
