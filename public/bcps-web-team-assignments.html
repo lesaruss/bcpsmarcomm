@@ -291,6 +291,7 @@
   .done-empty { font-size: 13px; color: var(--text-50); font-style: italic; padding: 14px 22px; }
   .status-menu { display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 50; background: #fff; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.14); padding: 4px; min-width: 130px; }
   .status-menu.open { display: block; }
+  .status-menu.up { top: auto; bottom: calc(100% + 4px); }
   .status-menu button { display: block; width: 100%; text-align: left; font-family: inherit; font-size: 11px; font-weight: 700; color: var(--text-75); background: none; border: none; border-radius: 5px; padding: 7px 10px; cursor: pointer; }
   .status-menu button:hover { background: var(--surface2); }
   .status-menu button.current { color: var(--bcps-blue); background: rgba(22,114,167,0.06); }
@@ -5597,6 +5598,24 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
     best.scrollIntoView({ block: 'center' });
     openNotes(best);
   });
+</script>
+<script>
+  // Status menus on the last rows of a section were cut off by the section's
+  // rounded box (overflow: hidden), so Completed could not be picked
+  // (Sean, 2026-10-21). Open the menu upward when it does not fit below.
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest || !e.target.closest('.status-badge-btn')) return;
+    requestAnimationFrame(function () {
+      document.querySelectorAll('.status-menu.open').forEach(function (menu) {
+        menu.classList.remove('up');
+        var box = menu.closest('.section-block');
+        var limit = Math.min(window.innerHeight, box ? box.getBoundingClientRect().bottom : Infinity);
+        var r = menu.getBoundingClientRect();
+        var top = box ? Math.max(0, box.getBoundingClientRect().top) : 0;
+        if (r.bottom > limit && r.top - r.height - 8 >= top) menu.classList.add('up');
+      });
+    });
+  }, true);
 </script>
 </body>
 </html>
