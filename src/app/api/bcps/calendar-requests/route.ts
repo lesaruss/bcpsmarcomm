@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireBcpsPageAccess(req, PAGE)
+  const auth = await requireBcpsPageAccess(req, 'marcomm-edit')
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
   const body = await req.json().catch(() => ({})) as { id?: string; status?: string; posted_url?: string; note?: string }
   if (!body.id || !STATUSES.includes(body.status ?? '')) return NextResponse.json({ error: 'id and status required' }, { status: 400 })

@@ -11,7 +11,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 // row's reference (J1744 for a job number, T<id> for a team item) and
 // "deadline_date" is the date needed.
 
-export const MARCOMM_TRANSCRIPT_PAGE = 'marcomm-transcripts'
+// The MarComm Assignments editors (Sean, 2026-10-21) upload transcripts.
+export const MARCOMM_TRANSCRIPT_PAGE = 'marcomm-edit'
 export const MARCOMM_STATUSES = ['new', 'needs_info', 'assigned', 'in_progress', 'in_review', 'scheduled', 'on_hold', 'completed', 'declined']
 
 const orNull = (t: Record<string, unknown>) => ({ anyOf: [t, { type: 'null' }] })

@@ -141,6 +141,10 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
   // save fails (Jennifer Hodder, 2026-10-21: "I am locked out and can't add
   // anything"). Say so, with a way back in.
   const [expired, setExpired] = useState(false)
+  // Editors (Sean, 2026-10-21): Jennifer Hodder, Sean, Felicia Hicks and
+  // Farrah Wilson change things; everyone else views, for the meetings. The
+  // server enforces it ('marcomm-edit'); this only hides the controls.
+  const [canEdit, setCanEdit] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -148,7 +152,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
       const j = await r.json()
       if (r.status === 401) setExpired(true)
       if (!r.ok) throw new Error(j.error || 'Could not load requests.')
-      setRequests(j.requests); setNotes(j.notes); setTeam(j.team ?? []); setSnapshots(j.snapshots ?? []); setMe((j.me ?? '').toLowerCase()); setError('')
+      setRequests(j.requests); setNotes(j.notes); setTeam(j.team ?? []); setSnapshots(j.snapshots ?? []); setMe((j.me ?? '').toLowerCase()); setCanEdit(!!j.can_edit); setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load requests.')
     } finally {
@@ -270,8 +274,10 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
           </label>
           {!viewing && <>
             <a className="mca-btn ghost" href="/marcomm-request" target="_blank" rel="noopener">Open request form</a>
-            <button className="mca-btn ghost" onClick={() => setSavingSnapshot(true)}>Save meeting snapshot</button>
-            <button className="mca-btn" onClick={() => setAdding(true)}>Add team item</button>
+            {canEdit ? <>
+              <button className="mca-btn ghost" onClick={() => setSavingSnapshot(true)}>Save meeting snapshot</button>
+              <button className="mca-btn" onClick={() => setAdding(true)}>Add team item</button>
+            </> : !loading && <span className="mca-viewonly" title="Jennifer Hodder updates the tracker during the Marcomm Meeting">View only</span>}
           </>}
         </div>
       </div>
@@ -313,7 +319,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
         {!viewing && <button role="tab" aria-selected={tab === 'calendar'} onClick={() => { setTab('calendar'); setOpenId(null) }}>Calendar posts</button>}
       </div>
 
-      {tab === 'calendar' && !viewing ? <CalendarPosts /> : <>
+      {tab === 'calendar' && !viewing ? <CalendarPosts canEdit={canEdit} /> : <>
 
       <div className="mca-filters">
         {tab === 'active' && (
@@ -375,7 +381,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
               title="Sort by job number" aria-label="Sort by job number">
               Job #{sort === 'job_desc' ? ' \u2193' : sort === 'job_asc' ? ' \u2191' : ''}
             </button>
-            <span>Request</span><span>Lead / Support</span><span>{tab === 'active' ? 'Date Needed' : 'Closed'}</span><span>Status</span><span>Notes</span>
+            <span>Request</span><span>Lead / Support</span><span>Submitted</span><span>{tab === 'active' ? 'Date Needed' : 'Closed'}</span><span>Status</span><span>Notes</span>
           </div>
           {list.length === 0 && <p className="mca-empty">No requests match these filters.</p>}
           {list.map(r => {
@@ -397,7 +403,6 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
                     <span className="r-title">{r.title}</span>
                   </div>
                   <div className="r-who">{[r.requester_name, r.org_name].filter(Boolean).join(' · ') || 'Office of Communications'}</div>
-                  <div className="r-sub">Submitted {fmtDate(r.submitted_at)}</div>
                   {r.services.length > 0 && <div className="r-tags">{r.services.map(s => <span key={s}>{s}</span>)}</div>}
                   {link && <a className="r-link" href={link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>Open link</a>}
                 </div>
@@ -405,6 +410,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
                   <div className="lead">{r.lead || <span className="none">Unassigned</span>}</div>
                   {r.support && <div className="support">{r.support}</div>}
                 </div>
+                <div className="c-date" data-label="Date Submitted"><span className="date sub">{fmtDate(r.start_date ?? (r.submitted_at ? r.submitted_at.slice(0, 10) : null))}</span></div>
                 <div className="c-date" data-label={tab === 'active' ? 'Date Needed' : 'Closed'}>
                   {tab === 'active'
                     ? r.is_ongoing && !r.date_needed
@@ -422,7 +428,7 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
 
       </>}
 
-      {open && !viewing && <Drawer req={open} team={team} notes={notesFor.get(open.id) ?? []} onClose={() => setOpenId(null)} post={post}
+      {open && !viewing && <Drawer req={open} canEdit={canEdit} team={team} notes={notesFor.get(open.id) ?? []} onClose={() => setOpenId(null)} post={post}
         others={liveRows.filter(r => r.id !== open.id)} combined={requests.filter(r => r.merged_into === open.id)} />}
       {savingSnapshot && <SaveSnapshot onClose={() => setSavingSnapshot(false)} post={post} />}
       {adding && <AddItem team={team} defaultLead={myName} onClose={() => setAdding(false)} post={post} />}
@@ -543,8 +549,8 @@ function useDictation(onText: (text: string) => void) {
   return { recording, live, active, toggle: () => (recording ? stop() : start()) }
 }
 
-function Drawer({ req, team, notes, onClose, post, others, combined }: {
-  req: Req; team: Member[]; notes: Note[]; onClose: () => void; post: (p: Record<string, unknown>) => Promise<unknown>
+function Drawer({ req, canEdit, team, notes, onClose, post, others, combined }: {
+  req: Req; canEdit: boolean; team: Member[]; notes: Note[]; onClose: () => void; post: (p: Record<string, unknown>) => Promise<unknown>
   others: Req[]; combined: Req[]
 }) {
   const [editingNote, setEditingNote] = useState<string | null>(null)
@@ -621,7 +627,7 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
                 <button className="mca-btn small ghost" onClick={() => { setTitle(req.title); setEditingTitle(false) }}>Cancel</button>
               </div>
             ) : (
-              <h2>{req.title} <button className="d-edit" onClick={() => setEditingTitle(true)} aria-label="Edit title" title="Edit title">&#9998;</button></h2>
+              <h2>{req.title} {canEdit && <button className="d-edit" onClick={() => setEditingTitle(true)} aria-label="Edit title" title="Edit title">&#9998;</button>}</h2>
             )}
           </div>
           <div className="d-head-actions">
@@ -630,6 +636,8 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
           </div>
         </div>
 
+        {/* Viewers see every field, locked (Sean, 2026-10-21). */}
+        <fieldset className="d-fields" disabled={!canEdit}>
         <div className="d-grid">
           <label><span className="fl">Status</span>
             <select value={req.status} disabled={busy} onChange={e => {
@@ -682,6 +690,7 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
         </label>
         {dirty && <button className="mca-btn small" disabled={busy}
           onClick={() => run({ action: 'update', id: req.id, lead, support, date_needed: dateNeeded || null, start_date: startDate || null, link_url: link }, 'Saved.')}>Save changes</button>}
+        </fieldset>
         {msg && <p className="d-msg">{msg}</p>}
 
         <section>
@@ -707,9 +716,9 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
           </section>
         )}
 
-        <EditableText label="Request" value={req.description} busy={busy} formatted
+        <EditableText label="Request" value={req.description} busy={busy} canEdit={canEdit} formatted
           onSave={v => run({ action: 'update', id: req.id, description: v }, 'Request saved.')} />
-        <EditableText label="Why it matters" value={req.goal} busy={busy}
+        <EditableText label="Why it matters" value={req.goal} busy={busy} canEdit={canEdit}
           onSave={v => run({ action: 'update', id: req.id, goal: v }, 'Saved.')} />
 
         <section>
@@ -721,6 +730,7 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
             : <p className="muted">No files yet.</p>}
           {/* The team adds files too (Jennifer Hodder, 2026-10-21), the same
               way the request form does: straight to storage by signed link. */}
+          {canEdit && <>
           <label className="d-addfiles">
             <span className="mca-btn small ghost">{busy ? 'Working...' : 'Add files'}</span>
             <input type="file" multiple accept={ATTACH_ACCEPT} disabled={busy} onChange={async e => {
@@ -743,9 +753,10 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
             }} />
           </label>
           <span className="muted small"> Up to 5 files at a time, 25 MB each.</span>
+          </>}
         </section>
 
-        <section>
+        {canEdit && <section>
           <h3>Combine records</h3>
           {combined.length > 0 && <p className="d-text">Combined into this: {combined.map(c => `${c.job_number ? `#${c.job_number}` : 'Team item'} ${c.title}`).join('; ')}</p>}
           <p className="muted">Is another row the same request? Combine it into this one: its notes and files move here and it leaves the list. Nothing is deleted.</p>
@@ -763,11 +774,11 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
               setCombineWith('')
             }}>Combine</button>
           </div>
-        </section>
+        </section>}
 
         <section>
           <h3>Notes</h3>
-          <div className="d-add">
+          {canEdit && <div className="d-add">
             <div className="recorder-bar">
               <button type="button" className={`mic-btn${dictation.recording ? ' recording' : ''}`} onClick={dictation.toggle}>
                 <span className="mic-dot" />{dictation.recording ? 'Stop' : 'Record'}
@@ -778,8 +789,8 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
               placeholder="Type a note, or use Record above to speak it..."
               onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); addNote() } }} />
             <button className="mca-btn small" disabled={busy || !note.trim()} onClick={addNote}>Add note</button>
-          </div>
-          {notes.length === 0 && <p className="muted">No notes yet. Add the first one above.</p>}
+          </div>}
+          {notes.length === 0 && <p className="muted">{canEdit ? 'No notes yet. Add the first one above.' : 'No notes yet.'}</p>}
           <ul className="d-notes">
             {notes.map(n => (
               <li key={n.id} className={`src-${n.source}`}>
@@ -788,8 +799,15 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
                   {n.source === 'dictated' && <span className="n-tag">Dictated</span>}
                   {n.source === 'meeting' && <span className="n-tag meeting">Meeting</span>}
                   {n.edited_at && <span className="n-tag" title={`Edited ${fmtStamp(n.edited_at)}${n.edited_by ? ` by ${nameOf(n.edited_by)}` : ''}`}>Edited</span>}
-                  {n.source !== 'system' && editingNote !== n.id && (
+                  {canEdit && n.source !== 'system' && editingNote !== n.id && (
                     <button className="n-edit-btn" onClick={() => { setEditingNote(n.id); setNoteDraft(n.body) }} aria-label="Edit note">Edit</button>
+                  )}
+                  {/* Delete a note, editors only (Sean, 2026-10-21). */}
+                  {canEdit && editingNote !== n.id && (
+                    <button className="n-edit-btn danger" disabled={busy} aria-label="Delete note" onClick={() => {
+                      if (window.confirm(`Delete this note? This cannot be undone.\n\n"${n.body.length > 160 ? n.body.slice(0, 160) + '...' : n.body}"`))
+                        run({ action: 'delete_note', note_id: n.id }, 'Note deleted.')
+                    }}>Delete</button>
                   )}
                 </div>
                 {editingNote === n.id ? (
@@ -836,13 +854,13 @@ function RequestText({ text }: { text: string }) {
 
 // Edit the request text in place, the same way as the title (Jennifer
 // Hodder, 2026-10-22).
-function EditableText({ label, value, busy, formatted = false, onSave }: { label: string; value: string | null; busy: boolean; formatted?: boolean; onSave: (v: string) => Promise<boolean> }) {
+function EditableText({ label, value, busy, canEdit, formatted = false, onSave }: { label: string; value: string | null; busy: boolean; canEdit: boolean; formatted?: boolean; onSave: (v: string) => Promise<boolean> }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value ?? '')
   useEffect(() => { if (!editing) setDraft(value ?? '') }, [value, editing])
   return (
     <section>
-      <h3>{label} {!editing && <button className="d-edit" onClick={() => setEditing(true)} aria-label={`Edit ${label}`} title={`Edit ${label}`}>&#9998;</button>}</h3>
+      <h3>{label} {canEdit && !editing && <button className="d-edit" onClick={() => setEditing(true)} aria-label={`Edit ${label}`} title={`Edit ${label}`}>&#9998;</button>}</h3>
       {editing ? (
         <div className="n-edit">
           <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={Math.min(18, Math.max(4, draft.split('\n').length + 1))} aria-label={label} autoFocus />
@@ -877,7 +895,7 @@ const CAL_STATUS: Record<CalReq['status'], { label: string; cls: string }> = {
 }
 const time12 = (t: string) => { const [h, m] = t.split(':').map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` }
 
-function CalendarPosts() {
+function CalendarPosts({ canEdit }: { canEdit: boolean }) {
   const [rows, setRows] = useState<CalReq[] | null>(null)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<'new' | 'posted' | 'declined' | 'all'>('new')
@@ -944,13 +962,13 @@ function CalendarPosts() {
                   {r.additional_info && <p className="d-text pre"><b>Additional information:</b> {r.additional_info}</p>}
                   <p className="d-text"><b>Submitted by:</b> {[r.submitter_name, r.submitter_department, r.submitter_phone].filter(Boolean).join(', ')}</p>
                   {r.status !== 'new' && <p className="d-text muted">{CAL_STATUS[r.status].label} {r.status_at ? fmtStamp(r.status_at) : ''}{r.status_by ? ` by ${r.status_by}` : ''}{r.status_note ? `: ${r.status_note}` : ''}{r.posted_url ? <> · <a href={r.posted_url} target="_blank" rel="noopener noreferrer">View on the calendar</a></> : null}</p>}
-                  <div className="cal-actions">
+                  {canEdit && <div className="cal-actions">
                     <input type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="Calendar link, once posted (https://)" aria-label="Calendar link" />
                     <input value={note} onChange={e => setNote(e.target.value)} placeholder="Note (optional, required to decline)" aria-label="Note" />
                     <button className="mca-btn small" disabled={busy} onClick={() => save(r.id, 'posted')}>Mark posted</button>
                     <button className="mca-btn small ghost" disabled={busy || !note.trim()} onClick={() => save(r.id, 'declined')}>Decline</button>
                     {r.status !== 'new' && <button className="mca-btn small ghost" disabled={busy} onClick={() => save(r.id, 'new')}>Reopen</button>}
-                  </div>
+                  </div>}
                 </div>
               )}
             </div>
@@ -1063,7 +1081,7 @@ const CSS = `
 .mca-controls label.grow { flex: 1; min-width: min(260px, 100%); }
 .mca select, .mca input, .mca textarea { font: inherit; font-size: 13px; padding: 9px 12px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; background-color: #fff; color: #1a1a1a; width: 100%; box-sizing: border-box; }
 .mca-table { background: #fff; border: 1px solid rgba(0,0,0,0.09); border-radius: 8px; overflow: hidden; }
-.mca-row { display: grid; grid-template-columns: 92px minmax(0,1fr) 170px 140px 120px 80px; gap: 12px; padding: 14px 20px; border-bottom: 1px solid rgba(0,0,0,0.07); align-items: start; cursor: pointer; }
+.mca-row { display: grid; grid-template-columns: 92px minmax(0,1fr) 170px 110px 140px 120px 80px; gap: 12px; padding: 14px 20px; border-bottom: 1px solid rgba(0,0,0,0.07); align-items: start; cursor: pointer; }
 .mca-row:hover { background: rgba(22,114,167,0.04); }
 .mca-row:focus-visible { outline: 3px solid #1672A7; outline-offset: -3px; }
 .mca-colhead { background: #fafafa; cursor: default; padding-top: 10px; padding-bottom: 10px; }
@@ -1087,6 +1105,7 @@ const CSS = `
 .date { font-size: 12px; font-weight: 700; color: #C55326; }
 .date.late { color: #b91c1c; }
 .date.none { color: rgba(26,26,26,0.5); font-weight: 400; }
+.date.sub { color: rgba(26,26,26,0.75); }
 .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; padding: 4px 10px; border-radius: 20px; white-space: nowrap; border: 1px solid transparent; }
 .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .st-new { background: rgba(197,83,38,0.08); border-color: rgba(197,83,38,0.28); color: #a5441f; }
@@ -1193,6 +1212,11 @@ const CSS = `
 .d-qa-a { font-size: 14px; font-weight: 400; line-height: 1.55; color: rgba(26,26,26,0.85); overflow-wrap: anywhere; }
 .d-combine { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .d-combine select { flex: 1 1 260px; min-width: 0; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; background: #fff; }
+.n-edit-btn.danger { color: #b3261e; }
+.n-edit-btn:disabled { opacity: 0.5; cursor: default; }
+.d-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.d-fields:disabled select, .d-fields:disabled input { background: #f6f7f8; color: #1a1a1a; cursor: default; }
+.mca-viewonly { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #0e4e73; background: rgba(22,114,167,0.08); border: 1px solid rgba(22,114,167,0.3); border-radius: 6px; padding: 8px 12px; }
 .n-edit-btn { font: inherit; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #0e4e73; background: none; border: 0; padding: 0; margin-left: 8px; cursor: pointer; text-decoration: underline; }
 .n-edit textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; }
 .n-edit-row { display: flex; gap: 8px; margin-top: 6px; }
