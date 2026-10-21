@@ -169,6 +169,8 @@ function toRow(e: Entry, fields: Field[], map: FieldMap) {
     status: 'new',
     // Wufoo reports times in the account's zone, Eastern for the District.
     submitted_at: e.DateCreated ? `${e.DateCreated} America/New_York` : new Date().toISOString(),
+    // Date submitted in the tracker (Sean, 2026-10-21): the Wufoo entry's own day.
+    start_date: /^\d{4}-\d{2}-\d{2}/.test(e.DateCreated || '') ? e.DateCreated.slice(0, 10) : new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
     created_by_email: 'Wufoo',
     source_payload: e,
     files,
