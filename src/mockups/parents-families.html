@@ -117,6 +117,16 @@
   /* Keep headings clear of the sticky review bar when scrolled to */
   .section, .hero, .signin { scroll-margin-top: 72px; }
 
+  /* More for families: one tabbed section instead of four stacked ones */
+  .more-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); margin-bottom: 20px; overflow-x: auto; scrollbar-width: none; }
+  .more-tabs::-webkit-scrollbar { display: none; }
+  .more-tab { flex: 0 0 auto; font: inherit; font-size: 15px; text-transform: uppercase; font-variation-settings: "wdth" 75, "wght" 800; color: var(--muted); background: none; border: 0; border-bottom: 4px solid transparent; margin-bottom: -2px; padding: 10px 16px; cursor: pointer; border-radius: 6px 6px 0 0; }
+  .more-tab:hover { color: var(--ink); background: var(--softer); }
+  .more-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--primary); }
+  .more-panel[hidden] { display: none; }
+  .more-panel .panel-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .more-panel .intro { color: var(--muted); margin-bottom: 18px; max-width: 70ch; }
+
   /* Dates */
   .dates { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
   .date { border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; gap: 14px; align-items: flex-start; }
@@ -213,6 +223,9 @@
   }
   @media (max-width: 560px) {
     .mock-bar { position: static; }
+    .more-tabs { flex-wrap: wrap; overflow: visible; border-bottom: 0; gap: 6px; }
+    .more-tab { flex: 1 1 calc(50% - 6px); text-align: center; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 0; font-size: 14px; padding: 10px 8px; }
+    .more-tab[aria-selected="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
     .section, .hero, .signin { scroll-margin-top: 12px; }
     .cards, .dates, .groups { grid-template-columns: minmax(0, 1fr); }
     .tasks { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -371,65 +384,69 @@
     <a class="more-link" href="https://www.browardschools.com/calendar-e3">View the full calendar &rsaquo;</a>
   </section>
 
-  <section class="section" id="s-learn" data-bn aria-labelledby="h-learn">
-    <span class="bn native">Finalsite native: posts element</span>
-    <h2 id="h-learn">Learn with us</h2>
-    <p class="intro">Free sessions and tools for families and students.</p>
-    <div class="cards">
-      <article class="card"><div class="band"></div><div class="body"><span class="tag-live">Tonight, 6:30 PM</span><h3>Parent University</h3><p>Online sessions for parents and guardians, starting with Linewize Parent for a safer online life at home.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Join a session &rsaquo;</a></div></article>
-      <article class="card green"><div class="band"></div><div class="body"><h3>Student University</h3><p>Sessions on testing, college readiness and student wellness, with advice from experts and peers.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Learn more &rsaquo;</a></div></article>
-      <article class="card gold"><div class="band"></div><div class="body"><h3>BCPS Testing Toolkit</h3><p>Grade-level strategies that help students stay calm, confident and prepared for tests.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Open the toolkit &rsaquo;</a></div></article>
-      <article class="card orange"><div class="band"></div><div class="body"><h3>Plan for life after high school</h3><p>Xello tools for careers, college and scholarships, with ways for parents to stay involved.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Start planning &rsaquo;</a></div></article>
+  <section class="section" id="s-more" aria-labelledby="h-more">
+    <span class="bn confirm">To confirm: Finalsite tabs element, or a small embed if it cannot hold cards</span>
+    <h2 id="h-more">More for families</h2>
+    <p class="intro">Learning, support, stories and what is happening across the District, one tab at a time.</p>
+    <div class="more-tabs" role="tablist" aria-label="More for families">
+      <button type="button" role="tab" class="more-tab" id="tab-learn" aria-controls="s-learn" aria-selected="true">Learn with us</button>
+      <button type="button" role="tab" class="more-tab" id="tab-support" aria-controls="s-support" aria-selected="false" tabindex="-1">Support</button>
+      <button type="button" role="tab" class="more-tab" id="tab-stories" aria-controls="s-stories" aria-selected="false" tabindex="-1">Family spotlight</button>
+      <button type="button" role="tab" class="more-tab" id="tab-compass" aria-controls="s-compass" aria-selected="false" tabindex="-1">District Compass</button>
     </div>
-  </section>
-
-  <section class="section" id="s-support" data-bn aria-labelledby="h-support">
-    <span class="bn native">Finalsite native: link lists</span>
-    <h2 id="h-support">Support for every family</h2>
-    <p class="intro">Help for your child's wellbeing, and for families who are new to BCPS.</p>
-    <div class="groups">
-      <div class="group"><h3>New to BCPS?</h3><ul>
-        <li><a href="https://www.browardschools.com/fs/pages/83926">How to register your child</a></li>
-        <li><a href="https://www.browardschools.com/fs/pages/84659">Find your assigned school</a></li>
-        <li><a href="https://www.browardschools.com/fs/pages/87203">Explore school choice</a></li>
-        <li><a href="https://www.browardschools.com/fs/pages/86047">Military-connected families</a></li>
-      </ul></div>
-      <div class="group"><h3>Wellness and student support</h3><ul>
-        <li><a href="https://www.browardschools.com/bcps-departments/office-of-student-services/student-services-mental-health/mental-health-services">Mental health support</a></li>
-        <li><a href="https://www.browardschools.com/fs/pages/84173">Child abuse and neglect</a></li>
-        <li><a href="https://www.browardschools.com/parentsstudentsstaff/parents-families">School counseling</a></li>
-        <li><a href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Health services and telehealth</a></li>
-      </ul></div>
-      <div class="group"><h3>Language and school life</h3><ul>
-        <li><a href="https://www.browardschools.com/bcps-departments/academics/bilingualesol">Bilingual and ESOL</a></li>
-        <li><a href="https://www.browardschools.com/the-code-book-for-student-conduct">Code Book for Student Conduct</a></li>
-        <li><a href="https://www.browardschools.com/back-to-school-online-forms">Back to school online forms</a></li>
-        <li><a href="https://www.browardschools.com/community/volunteer">Volunteer at a school</a></li>
-      </ul></div>
+    <div class="more-panel" role="tabpanel" id="s-learn" aria-labelledby="tab-learn">
+      <h3 class="panel-title">Learn with us</h3>
+      <p class="intro">Free sessions and tools for families and students.</p>
+      <div class="cards">
+        <article class="card"><div class="band"></div><div class="body"><span class="tag-live">Tonight, 6:30 PM</span><h3>Parent University</h3><p>Online sessions for parents and guardians, starting with Linewize Parent for a safer online life at home.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Join a session &rsaquo;</a></div></article>
+        <article class="card green"><div class="band"></div><div class="body"><h3>Student University</h3><p>Sessions on testing, college readiness and student wellness, with advice from experts and peers.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Learn more &rsaquo;</a></div></article>
+        <article class="card gold"><div class="band"></div><div class="body"><h3>BCPS Testing Toolkit</h3><p>Grade-level strategies that help students stay calm, confident and prepared for tests.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Open the toolkit &rsaquo;</a></div></article>
+        <article class="card orange"><div class="band"></div><div class="body"><h3>Plan for life after high school</h3><p>Xello tools for careers, college and scholarships, with ways for parents to stay involved.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Start planning &rsaquo;</a></div></article>
+      </div>
     </div>
-  </section>
-
-  <section class="section" id="s-stories" data-bn aria-labelledby="h-stories">
-    <span class="bn native">Finalsite native: posts element, newest four</span>
-    <h2 id="h-stories">Family spotlight</h2>
-    <p class="intro">Stories and programs from across the District.</p>
-    <div class="cards">
-      <article class="card"><div class="band"></div><div class="body"><h3>Helping families support student resilience</h3><p>Free Recovery Services support for students facing grief, trauma or life changes.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
-      <article class="card green"><div class="band"></div><div class="body"><h3>Mindfulness in Broward Schools</h3><p>Free family access to Inner Explorer in Clever to practice mindfulness together.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
-      <article class="card gold"><div class="band"></div><div class="body"><h3>Heart Gallery of Broward County</h3><p>Connecting foster youth with forever families and supporting adoptive parents.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
-      <article class="card orange"><div class="band"></div><div class="body"><h3>Life skills and wellness</h3><p>Rethink Ed in Clever helps students and families build resiliency and confidence.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+    <div class="more-panel" role="tabpanel" id="s-support" aria-labelledby="tab-support" hidden>
+      <h3 class="panel-title">Support for every family</h3>
+      <p class="intro">Help for your child's wellbeing, and for families who are new to BCPS.</p>
+      <div class="groups">
+        <div class="group"><h3>New to BCPS?</h3><ul>
+          <li><a href="https://www.browardschools.com/fs/pages/83926">How to register your child</a></li>
+          <li><a href="https://www.browardschools.com/fs/pages/84659">Find your assigned school</a></li>
+          <li><a href="https://www.browardschools.com/fs/pages/87203">Explore school choice</a></li>
+          <li><a href="https://www.browardschools.com/fs/pages/86047">Military-connected families</a></li>
+        </ul></div>
+        <div class="group"><h3>Wellness and student support</h3><ul>
+          <li><a href="https://www.browardschools.com/bcps-departments/office-of-student-services/student-services-mental-health/mental-health-services">Mental health support</a></li>
+          <li><a href="https://www.browardschools.com/fs/pages/84173">Child abuse and neglect</a></li>
+          <li><a href="https://www.browardschools.com/parentsstudentsstaff/parents-families">School counseling</a></li>
+          <li><a href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Health services and telehealth</a></li>
+        </ul></div>
+        <div class="group"><h3>Language and school life</h3><ul>
+          <li><a href="https://www.browardschools.com/bcps-departments/academics/bilingualesol">Bilingual and ESOL</a></li>
+          <li><a href="https://www.browardschools.com/the-code-book-for-student-conduct">Code Book for Student Conduct</a></li>
+          <li><a href="https://www.browardschools.com/back-to-school-online-forms">Back to school online forms</a></li>
+          <li><a href="https://www.browardschools.com/community/volunteer">Volunteer at a school</a></li>
+        </ul></div>
+      </div>
     </div>
-    <a class="more-link" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">See all family stories &rsaquo;</a>
-  </section>
-
-  <section class="section" id="s-compass" data-bn aria-labelledby="h-compass">
-    <span class="bn native">Finalsite native: posts element</span>
-    <h2 id="h-compass">District Compass</h2>
-    <p class="intro">What is in motion across the District, and how you can be part of it.</p>
-    <div class="groups">
-      <div class="group"><h3>Redefining Our Schools</h3><p>Reimagining how education is delivered to meet the needs of every learner.</p></div>
-      <div class="group"><h3>Broward Powered by AI</h3><p>Responsible use of AI to support teaching, learning and operations.</p></div>
-      <div class="group"><h3>Internet safety for families</h3><p>Parent tools, conversation guides and device agreements, now on their own page.</p></div>
+    <div class="more-panel" role="tabpanel" id="s-stories" aria-labelledby="tab-stories" hidden>
+      <h3 class="panel-title">Family spotlight</h3>
+      <p class="intro">Stories and programs from across the District.</p>
+      <div class="cards">
+        <article class="card"><div class="band"></div><div class="body"><h3>Helping families support student resilience</h3><p>Free Recovery Services support for students facing grief, trauma or life changes.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+        <article class="card green"><div class="band"></div><div class="body"><h3>Mindfulness in Broward Schools</h3><p>Free family access to Inner Explorer in Clever to practice mindfulness together.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+        <article class="card gold"><div class="band"></div><div class="body"><h3>Heart Gallery of Broward County</h3><p>Connecting foster youth with forever families and supporting adoptive parents.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+        <article class="card orange"><div class="band"></div><div class="body"><h3>Life skills and wellness</h3><p>Rethink Ed in Clever helps students and families build resiliency and confidence.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+      </div>
+      <a class="more-link" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">See all family stories &rsaquo;</a>
+    </div>
+    <div class="more-panel" role="tabpanel" id="s-compass" aria-labelledby="tab-compass" hidden>
+      <h3 class="panel-title">District Compass</h3>
+      <p class="intro">What is in motion across the District, and how you can be part of it.</p>
+      <div class="groups">
+        <div class="group"><h3>Redefining Our Schools</h3><p>Reimagining how education is delivered to meet the needs of every learner.</p></div>
+        <div class="group"><h3>Broward Powered by AI</h3><p>Responsible use of AI to support teaching, learning and operations.</p></div>
+        <div class="group"><h3>Internet safety for families</h3><p>Parent tools, conversation guides and device agreements, now on their own page.</p></div>
+      </div>
     </div>
   </section>
 
@@ -647,6 +664,33 @@
     });
   });
 
+  // More for families tabs. The address bar carries the open tab (#more=support)
+  // so a link can open it directly and Back returns to it.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.more-tab'));
+  function openTab(key, focus, fromHash) {
+    tabs.forEach(function (t) {
+      var on = t.id === 'tab-' + key;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      if (on && focus) t.focus();
+    });
+    if (!fromHash) history.replaceState(null, '', '#more=' + key);
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { openTab(t.id.slice(4)); });
+    t.addEventListener('keydown', function (e) {
+      var to = null;
+      if (e.key === 'ArrowRight') to = tabs[(i + 1) % tabs.length];
+      else if (e.key === 'ArrowLeft') to = tabs[(i - 1 + tabs.length) % tabs.length];
+      else if (e.key === 'Home') to = tabs[0];
+      else if (e.key === 'End') to = tabs[tabs.length - 1];
+      if (to) { e.preventDefault(); openTab(to.id.slice(4), true); }
+    });
+  });
+  var mt = /^#more=([a-z]+)$/.exec(location.hash);
+  if (mt && document.getElementById('tab-' + mt[1])) openTab(mt[1], false, true);
+
   var notesBtn = document.getElementById('notes-toggle');
   notesBtn.addEventListener('click', function () {
     var on = document.body.classList.toggle('show-notes');
@@ -661,12 +705,12 @@
     { id: 's-tasks', title: 'Get it done', text: 'Before anyone searches, this shows the eight tasks families do most, each named for what you can do and the tool it opens. Searching or picking a topic swaps in every matching resource.', why: 'The eight tasks are written into the page, so they show even if the resource list cannot load. Phase 1 confirms the order with traffic, search and Customer Service data.' },
     { id: 's-signin', title: 'Sign in, with help beside it', text: 'Sign in, Create an account and Trouble signing in? sit together, with a line explaining where you are going and what you need.', why: 'Login trouble is one of the most common reasons families call. Help belongs next to the button.' },
     { id: 's-dates', title: 'Coming up', text: 'The next few dates families need, pulled from the District calendar.', why: 'Deadlines and events sit next to the tasks they affect.' },
-    { id: 's-learn', title: 'Learn with us', text: 'Parent University and Student University get a visible home, with other family learning tools.', why: 'Both already exist, but today they are inside a list of ten stories.' },
-    { id: 's-support', title: 'Support for every family', text: 'Short link groups for families who are new, who need wellbeing support, or who need language help.', why: 'Curated, not endless. Department directors help choose what is spotlighted.' },
-    { id: 's-stories', title: 'Family spotlight', text: 'Stories stay, after the essentials, as a row of the newest four.', why: 'We keep telling the District story without pushing tasks down the page.' },
-    { id: 's-compass', title: 'District Compass', text: 'District initiatives in a compact row. Internet Safety moves to its own page, linked here.', why: 'Internet Safety is valuable but long; on its own page it is easier to use and easier to find.' },
+    { id: 's-more', tab: 'learn', title: 'More for families: Learn with us', text: 'Everything below the top now sits in one tabbed section. Learn with us opens first: Parent University, Student University and other family learning tools.', why: 'Four stacked sections became four tabs, so the page is less than half as long and each one is a click away. Parent University and Student University already exist, but today they are inside a list of ten stories.' },
+    { id: 's-more', tab: 'support', title: 'More for families: Support', text: 'Short link groups for families who are new, who need wellbeing support, or who need language help.', why: 'Curated, not endless. Department directors help choose what is spotlighted.' },
+    { id: 's-more', tab: 'stories', title: 'More for families: Family spotlight', text: 'Stories stay, as the newest four, one tab over.', why: 'We keep telling the District story without pushing tasks down the page.' },
+    { id: 's-more', tab: 'compass', title: 'More for families: District Compass', text: 'District initiatives in a compact row. Internet Safety moves to its own page, linked here.', why: 'Internet Safety is valuable but long; on its own page it is easier to use and easier to find.' },
     { id: 's-feedback', title: 'Was this page helpful?', text: 'One question at the bottom of every page.', why: 'It shows us which pages are not working, so we know where to look first.' },
-    { id: 's-hero', title: 'One pattern, three pages', text: 'Students and Community get the same top: a search, topic buttons and their own top tasks, fed by the same resource list. Then dates, learning, support and stories.', why: 'A visitor learns the pattern once. Turn on Build notes to see which blocks are native Finalsite and which are embeds.' }
+    { id: 's-hero', title: 'One pattern, three pages', text: 'Students and Community get the same top: a search, topic buttons and their own top tasks, fed by the same resource list. Then dates and the More tabs.', why: 'A visitor learns the pattern once. Turn on Build notes to see which blocks are native Finalsite and which are embeds.' }
   ];
   var cur = -1, card = document.getElementById('tour-card'), dots = document.getElementById('tour-dots');
   STEPS.forEach(function () { dots.appendChild(document.createElement('span')); });
@@ -676,6 +720,7 @@
     if (prevEl) prevEl.classList.remove('tour-target');
     cur = i;
     var s = STEPS[i], el = document.getElementById(s.id);
+    if (s.tab) openTab(s.tab, false, true);
     el.classList.add('tour-target');
     document.body.classList.add('touring');
     document.getElementById('tour-step').textContent = 'Step ' + (i + 1) + ' of ' + STEPS.length;
