@@ -67,17 +67,29 @@
   .crumbs a { color: var(--primary-dark); }
 
   /* Page hero */
-  .hero { position: relative; background: var(--softer); border-radius: 24px; padding: 36px 40px; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 32px; align-items: center; }
+  .hero { position: relative; background: var(--softer); border-radius: 24px; padding: 36px 40px; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px 32px; align-items: end; }
   .hero h1 { font-size: clamp(30px, 4vw, 46px); line-height: 1.05; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
   .hero p { margin-top: 10px; font-size: 16px; color: var(--text); max-width: 60ch; }
   .search-box label { display: block; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
   .search-row { display: flex; gap: 8px; }
   .search-row input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 14px 16px; border: 2px solid #a3a3a3; border-radius: 6px; background: #fff; }
   .search-row button { font: inherit; font-weight: 800; padding: 0 20px; border-radius: 6px; border: 0; background: var(--primary); color: #fff; cursor: pointer; }
-  .search-hint { font-size: 13px; color: var(--muted); margin-top: 8px; }
-  .search-hint button { font: inherit; font-size: 13px; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; margin: 2px 2px 0 0; cursor: pointer; color: var(--primary-dark); }
-  .search-result { margin-top: 10px; font-size: 14px; background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--primary); border-radius: 6px; padding: 10px 12px; display: none; }
-  .search-result.show { display: block; }
+  .chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font: inherit; font-size: 14px; font-weight: 700; color: var(--muted); background: #fff; border: 1px solid #d4d4d4; border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+  .chip:hover { border-color: var(--primary); color: var(--primary-dark); }
+  .chip[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .results-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 16px; }
+  .results-head h2 { font-size: 26px; line-height: 1.15; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
+  .results-status { color: var(--muted); flex: 1 1 320px; }
+  .clear-btn { font: inherit; font-weight: 800; font-size: 14px; color: var(--primary-dark); background: #fff; border: 2px solid var(--primary); border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+  .clear-btn[hidden], .show-more[hidden], .no-results[hidden], .task[hidden] { display: none; }
+  .task .t-cat { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--primary-dark); }
+  .task.res .t-tool { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .task .t-ext { margin-top: auto; font-size: 12px; font-weight: 700; color: var(--muted); }
+  .task.res:before { background: var(--primary); }
+  .show-more { display: block; margin: 16px auto 0; font: inherit; font-weight: 800; color: var(--primary-dark); background: #fff; border: 2px solid var(--primary); border-radius: 6px; padding: 10px 20px; cursor: pointer; }
+  .no-results { border: 1px dashed #a3a3a3; border-radius: 16px; padding: 20px; color: var(--text); }
+  .no-results a { color: var(--primary-dark); font-weight: 700; }
 
   /* Sections */
   .section { margin-top: 44px; position: relative; }
@@ -92,7 +104,6 @@
   .task svg { width: 30px; height: 30px; color: var(--primary); }
   .task .t-label { font-size: 17px; font-weight: 800; color: var(--ink); line-height: 1.25; }
   .task .t-tool { font-size: 13px; color: var(--muted); }
-  .task .t-go { margin-top: auto; font-size: 13px; font-weight: 700; color: var(--primary-dark); }
 
   /* Sign-in strip */
   .signin { margin-top: 16px; display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; background: var(--gold-soft); border-radius: 16px; padding: 16px 20px; }
@@ -103,10 +114,8 @@
   .btn:hover { filter: brightness(.95); }
   .signin .note { flex-basis: 100%; font-size: 13px; color: var(--text); }
 
-  /* Find It Fast embed */
-  .fif-frame { overflow: hidden; background: #fff; }
+  /* Keep headings clear of the sticky review bar when scrolled to */
   .section, .hero, .signin { scroll-margin-top: 72px; }
-  .fif-frame iframe { width: 100%; border: 0; display: block; }
 
   /* Dates */
   .dates { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
@@ -212,7 +221,6 @@
     .task svg { width: 24px; height: 24px; }
     .task .t-label { font-size: 15px; }
     .task .t-tool { font-size: 12px; }
-    .task .t-go { display: none; }
     .signin .btns { margin-left: 0; }
     .tour-card { right: 16px; bottom: 16px; }
     .mock-bar .mock-actions { margin-left: 0; }
@@ -282,49 +290,62 @@
   <p class="crumbs"><a href="https://www.browardschools.com">Home</a> &rsaquo; Parents &amp; Families</p>
 
   <section class="hero" id="s-hero" data-bn aria-labelledby="h-page">
-    <span class="bn native">Finalsite native: page title and site search</span>
-    <div>
+    <span class="bn embed">Embed: search, filters and tasks, powered by Find It Fast data edited live in BCPS MarComm</span>
+    <div class="hero-head">
       <h1 id="h-page">Parents &amp; Families</h1>
       <p>Everything you need to support your child at BCPS, starting with the things families do most.</p>
     </div>
     <form class="search-box" id="search-form" role="search">
       <label for="q">What do you need today?</label>
-      <div class="search-row"><input id="q" type="search" autocomplete="off" placeholder="Try report card, bus, or register"><button type="submit">Search</button></div>
-      <div class="search-hint">Popular: <button type="button" data-q="report card">report card</button><button type="button" data-q="bus">bus</button><button type="button" data-q="register">register</button><button type="button" data-q="lunch">lunch</button></div>
-      <div class="search-result" id="search-result" aria-live="polite"></div>
+      <div class="search-row"><input id="q" type="search" autocomplete="off" placeholder="Try report card, bus, or register" aria-controls="task-grid"><button type="submit">Search</button></div>
     </form>
+    <div class="chips" id="chips" role="group" aria-label="Filter by topic">
+      <button type="button" class="chip" data-cat="all" aria-pressed="true">Top tasks</button>
+      <button type="button" class="chip" data-cat="enroll" aria-pressed="false">Enrollment &amp; Registration</button>
+      <button type="button" class="chip" data-cat="portal" aria-pressed="false">Grades &amp; Family Portal</button>
+      <button type="button" class="chip" data-cat="transport" aria-pressed="false">Transportation &amp; Meals</button>
+      <button type="button" class="chip" data-cat="calendar" aria-pressed="false">Calendars &amp; Key Dates</button>
+      <button type="button" class="chip" data-cat="forms" aria-pressed="false">Forms &amp; Paperwork</button>
+      <button type="button" class="chip" data-cat="support" aria-pressed="false">Family &amp; Student Support</button>
+    </div>
   </section>
 
-  <section class="section" id="s-tasks" data-bn aria-labelledby="h-tasks">
-    <span class="bn native">Finalsite native: content element with icons</span>
-    <h2 id="h-tasks">Get it done</h2>
-    <p class="intro">The tasks families come to the site for most. Each one says what you can do and which tool it opens.</p>
-    <div class="tasks">
-      <a class="task" href="https://www.browardschools.com/fs/pages/83139">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/><path d="M8 7h8M8 11h8M8 15h5"/><path d="M3 21h18"/></svg>
-        <span class="t-label">Check grades and attendance</span><span class="t-tool">Opens FOCUS</span><span class="t-go">Go &rsaquo;</span></a>
-      <a class="task" href="https://www.browardschools.com/fs/pages/83926">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 3v2h6V3"/><path d="M9 12l2 2 4-4"/></svg>
-        <span class="t-label">Enroll or register your child</span><span class="t-tool">Steps and documents you need</span><span class="t-go">Go &rsaquo;</span></a>
-      <a class="task" href="https://www.browardschools.com/fs/pages/84659">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
-        <span class="t-label">Find your school</span><span class="t-tool">School Locator</span><span class="t-go">Go &rsaquo;</span></a>
-      <a class="task" href="https://www.browardschools.com/fs/pages/87203">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v9h14v-9"/><path d="M10 19v-5h4v5"/></svg>
-        <span class="t-label">Explore school choice</span><span class="t-tool">Magnet, innovative and other programs</span><span class="t-go">Go &rsaquo;</span></a>
-      <a class="task" href="https://www.browardschools.com/bcps-departments/student-transportation-fleet-services/overview">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="6" width="18" height="11" rx="2"/><path d="M3 12h18M7 17v2M17 17v2"/></svg>
-        <span class="t-label">Bus routes and transportation</span><span class="t-tool">Student Transportation</span><span class="t-go">Go &rsaquo;</span></a>
-      <a class="task" href="https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 2 2v8"/><path d="M11 3v8"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/></svg>
-        <span class="t-label">School meals, menus and payments</span><span class="t-tool">Menus, free and reduced meals, MySchoolBucks</span><span class="t-go">Go &rsaquo;</span></a>
-      <a class="task" href="https://www.browardschools.com/calendar-e3">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
-        <span class="t-label">Calendars and key dates</span><span class="t-tool">School year, meetings and events</span><span class="t-go">Go &rsaquo;</span></a>
-      <a class="task" href="https://www.browardschools.com/parentsstudentsstaff/customer-service">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12a8 8 0 0 1 16 0v4a2 2 0 0 1-2 2h-2v-6h4"/><path d="M4 12v4a2 2 0 0 0 2 2h2v-6H4"/></svg>
-        <span class="t-label">Get help</span><span class="t-tool">Customer Service and who to contact</span><span class="t-go">Go &rsaquo;</span></a>
+  <section class="section" id="s-tasks" aria-labelledby="h-tasks">
+    <div class="results-head">
+      <h2 id="h-tasks">Get it done</h2>
+      <p class="results-status" id="results-status" aria-live="polite">The tasks families come to the site for most. Search or pick a topic to see everything.</p>
+      <button type="button" class="clear-btn" id="clear-btn" hidden>Clear</button>
     </div>
+    <div class="tasks" id="task-grid">
+      <a class="task" data-cat="portal" data-keys="grades report card attendance focus progress transcript" href="https://www.browardschools.com/fs/pages/83139">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/><path d="M8 7h8M8 11h8M8 15h5"/><path d="M3 21h18"/></svg>
+        <span class="t-label">Check grades and attendance</span><span class="t-tool">Opens FOCUS</span></a>
+      <a class="task" data-cat="enroll" data-keys="enroll register registration new student sign up documents" href="https://www.browardschools.com/fs/pages/83926">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 3v2h6V3"/><path d="M9 12l2 2 4-4"/></svg>
+        <span class="t-label">Enroll or register your child</span><span class="t-tool">Steps and documents you need</span></a>
+      <a class="task" data-cat="enroll" data-keys="find school locator zoned assigned boundary address" href="https://www.browardschools.com/fs/pages/84659">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        <span class="t-label">Find your school</span><span class="t-tool">School Locator</span></a>
+      <a class="task" data-cat="enroll" data-keys="school choice magnet innovative programs apply transfer" href="https://www.browardschools.com/fs/pages/87203">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v9h14v-9"/><path d="M10 19v-5h4v5"/></svg>
+        <span class="t-label">Explore school choice</span><span class="t-tool">Magnet, innovative and other programs</span></a>
+      <a class="task" data-cat="transport" data-keys="bus route transportation ride pickup drop off stop" href="https://www.browardschools.com/bcps-departments/student-transportation-fleet-services/overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="6" width="18" height="11" rx="2"/><path d="M3 12h18M7 17v2M17 17v2"/></svg>
+        <span class="t-label">Bus routes and transportation</span><span class="t-tool">Student Transportation</span></a>
+      <a class="task" data-cat="transport" data-keys="lunch breakfast meals menu food nutrition free reduced payment myschoolbucks cafeteria" href="https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 2 2v8"/><path d="M11 3v8"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/></svg>
+        <span class="t-label">School meals, menus and payments</span><span class="t-tool">Menus, free and reduced meals, MySchoolBucks</span></a>
+      <a class="task" data-cat="calendar" data-keys="calendar dates holidays schedule events early release" href="https://www.browardschools.com/calendar-e3">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+        <span class="t-label">Calendars and key dates</span><span class="t-tool">School year, meetings and events</span></a>
+      <a class="task" data-cat="support" data-keys="help contact customer service question phone complaint" href="https://www.browardschools.com/parentsstudentsstaff/customer-service">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12a8 8 0 0 1 16 0v4a2 2 0 0 1-2 2h-2v-6h4"/><path d="M4 12v4a2 2 0 0 0 2 2h2v-6H4"/></svg>
+        <span class="t-label">Get help</span><span class="t-tool">Customer Service and who to contact</span></a>
+    </div>
+    <div class="no-results" id="no-results" hidden>
+      <p><strong>Nothing matched that yet.</strong> Try a different word, pick a topic above, or <a href="https://www.browardschools.com/parentsstudentsstaff/customer-service">ask Customer Service</a>.</p>
+    </div>
+    <button type="button" class="show-more" id="show-more" hidden></button>
 
     <div class="signin" id="s-signin">
       <p>FOCUS and Family Access</p>
@@ -335,13 +356,6 @@
       </div>
       <p class="note">Sign in opens the BCPS Single Sign-On page in a new system. You will need the parent account you created with your child's school. Grades and attendance are inside FOCUS once you sign in.</p>
     </div>
-  </section>
-
-  <section class="section" id="s-fif" data-bn aria-labelledby="h-fif">
-    <span class="bn embed">Embed: Find It Fast widget, edited live in BCPS MarComm</span>
-    <h2 id="h-fif">Find anything else</h2>
-    <p class="intro">Search or filter every family resource in one place.</p>
-    <div class="fif-frame"><iframe id="bcps-widget-find-it-fast" src="/widgets/find-it-fast.html" height="640" title="Find It Fast: search family resources"></iframe></div>
   </section>
 
   <section class="section" id="s-dates" data-bn aria-labelledby="h-dates">
@@ -464,52 +478,166 @@
 
 <script>
 (function () {
-  // Find It Fast sizes itself through postMessage, the same companion script
-  // the Widgets page hands out for Finalsite (WidgetsPage.tsx copyEmbed).
-  var ifr = document.getElementById('bcps-widget-find-it-fast');
-  window.addEventListener('message', function (e) {
-    var d = e.data;
-    if (!d || d.type !== 'bcps-widget-resize' || d.slug !== 'find-it-fast') return;
-    ifr.style.height = d.height + 'px';
-  });
-
   var menu = document.getElementById('menu-toggle'), nav = document.getElementById('nav-main');
   menu.addEventListener('click', function () {
     var open = nav.classList.toggle('open');
     menu.setAttribute('aria-expanded', String(open));
   });
 
-  // Search is illustrative: it shows where common words would lead.
-  var SYN = [
-    { words: ['report card', 'grades', 'grade', 'attendance', 'focus'], label: 'Check grades and attendance (FOCUS)', url: 'https://www.browardschools.com/fs/pages/83139' },
-    { words: ['bus', 'transportation', 'route', 'ride'], label: 'Bus routes and transportation', url: 'https://www.browardschools.com/bcps-departments/student-transportation-fleet-services/overview' },
-    { words: ['register', 'enroll', 'enrollment', 'registration', 'sign up'], label: 'Enroll or register your child', url: 'https://www.browardschools.com/fs/pages/83926' },
-    { words: ['lunch', 'menu', 'meals', 'breakfast', 'food', 'payment'], label: 'School meals, menus and payments', url: 'https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus' },
-    { words: ['school', 'locator', 'zone', 'assigned'], label: 'Find your school (School Locator)', url: 'https://www.browardschools.com/fs/pages/84659' },
-    { words: ['calendar', 'holiday', 'dates', 'schedule'], label: 'Calendars and key dates', url: 'https://www.browardschools.com/calendar-e3' }
-  ];
-  var form = document.getElementById('search-form'), q = document.getElementById('q'), out = document.getElementById('search-result');
-  function runSearch(text) {
-    var t = (text || '').trim().toLowerCase();
-    if (!t) { out.classList.remove('show'); return; }
-    var hit = null;
-    for (var i = 0; i < SYN.length && !hit; i++) for (var j = 0; j < SYN[i].words.length; j++) if (t.indexOf(SYN[i].words[j]) !== -1) { hit = SYN[i]; break; }
-    out.innerHTML = '';
-    var p = document.createElement('span');
-    if (hit) {
-      p.textContent = 'Best match for "' + text + '": ';
-      var a = document.createElement('a'); a.href = hit.url; a.textContent = hit.label; a.style.fontWeight = '800';
-      out.appendChild(p); out.appendChild(a);
-    } else {
-      p.textContent = 'In the live page this would run the site search for "' + text + '". Try Find It Fast below.';
-      out.appendChild(p);
-    }
-    out.classList.add('show');
-  }
-  form.addEventListener('submit', function (e) { e.preventDefault(); runSearch(q.value); });
-  document.querySelectorAll('[data-q]').forEach(function (b) {
-    b.addEventListener('click', function () { q.value = b.getAttribute('data-q'); runSearch(q.value); });
+  // Search, topic buttons and Get it done are one experience (Sean, 2026-10-21:
+  // fold Find It Fast into the top of the page instead of embedding it
+  // separately). The eight top tasks are plain HTML so the page works with no
+  // data at all; the Find It Fast resources are read at runtime from the same
+  // tables the widget and its BCPS MarComm editor use (public/widgets/
+  // find-it-fast.html), so an edit there shows up here too.
+  var SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+  var PAGE_SIZE = 8;
+
+  var CAT_LABELS = {
+    enroll: 'Enrollment & Registration', portal: 'Grades & Family Portal', transport: 'Transportation & Meals',
+    calendar: 'Calendars & Key Dates', forms: 'Forms & Paperwork', support: 'Family & Student Support'
+  };
+  var ICONS = {
+    enroll: '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 3v2h6V3"/><path d="M9 12l2 2 4-4"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+    forms: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>',
+    support: '<path d="M20.8 8.3a4.5 4.5 0 0 0-7.6-3.1L12 6.4l-1.2-1.2A4.5 4.5 0 1 0 4.3 11.6L12 19l7.7-7.4a4.5 4.5 0 0 0 1.1-3.3z"/>',
+    portal: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+    transport: '<rect x="3" y="6" width="18" height="11" rx="2"/><path d="M3 12h18M7 17v2M17 17v2"/>'
+  };
+  // Words families use, mapped to the words the pages use. Only an item's own
+  // title, description and keywords are searched, never its topic name, so
+  // "bus" does not pull in meals just because they share a topic button.
+  var SYNONYMS = {
+    'card': ['grade'], 'grades': ['grade', 'focus'],
+    'bus': ['transportation', 'route'], 'ride': ['transportation', 'bus'],
+    'register': ['enroll', 'registration'], 'signup': ['register', 'enroll'], 'enroll': ['register', 'registration'],
+    'lunch': ['meal', 'menu', 'food', 'nutrition'], 'breakfast': ['meal', 'menu', 'food'], 'food': ['meal', 'nutrition', 'menu'],
+    'shots': ['immunization'], 'vaccine': ['immunization'], 'vaccines': ['immunization'],
+    'pay': ['payment', 'store', 'myschoolbucks'], 'fees': ['payment', 'store'],
+    'login': ['sign', 'sso', 'focus'], 'password': ['sign', 'sso', 'focus'],
+    'holiday': ['calendar'], 'holidays': ['calendar'], 'schedule': ['calendar', 'dates'],
+    'aftercare': ['after school', 'bascc'], 'daycare': ['after school', 'child care'],
+    'english': ['esol', 'language'], 'spanish': ['esol', 'language'], 'counselor': ['counseling', 'mental health'],
+    'phone': ['phone numbers', 'contact'], 'help': ['customer service', 'contact', 'support']
+  };
+
+  var grid = document.getElementById('task-grid');
+  var status = document.getElementById('results-status');
+  var clearBtn = document.getElementById('clear-btn');
+  var moreBtn = document.getElementById('show-more');
+  var none = document.getElementById('no-results');
+  var form = document.getElementById('search-form'), q = document.getElementById('q');
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+  var DEFAULT_STATUS = status.textContent;
+
+  function norm(s) { return (s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+  // A department's /overview page and its bare address are the same place.
+  function urlKey(u) { return (u || '').toLowerCase().replace(/^https?:\/\/(www\.)?/, '').replace(/\/+$/, '').replace(/\/overview$/, ''); }
+
+  var items = Array.prototype.map.call(grid.querySelectorAll('.task'), function (el, i) {
+    return {
+      el: el, featured: true, order: i, cat: el.getAttribute('data-cat'), url: urlKey(el.getAttribute('href')),
+      title: norm(el.querySelector('.t-label').textContent),
+      text: norm(el.querySelector('.t-label').textContent + ' ' + el.querySelector('.t-tool').textContent + ' ' + el.getAttribute('data-keys'))
+    };
   });
+
+  function tileFor(link) {
+    var a = document.createElement('a');
+    a.className = 'task res';
+    a.href = link.url;
+    var external = !/^https?:\/\/(www\.)?browardschools\.com/i.test(link.url);
+    a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' + (ICONS[link.cat] || '') + '</svg>' +
+      '<span class="t-cat"></span><span class="t-label"></span><span class="t-tool"></span>' + (external ? '<span class="t-ext">Opens another site</span>' : '');
+    a.querySelector('.t-cat').textContent = CAT_LABELS[link.cat] || '';
+    a.querySelector('.t-label').textContent = link.title;
+    a.querySelector('.t-tool').textContent = link.blurb || '';
+    a.hidden = true;
+    grid.appendChild(a);
+    return a;
+  }
+
+  function loadResources() {
+    var h = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY };
+    return fetch(SUPABASE_URL + '/rest/v1/bcps_fif_links?select=category_slug,title,url,blurb,sort_order&order=sort_order.asc', { headers: h })
+      .then(function (r) { if (!r.ok) throw new Error('find it fast ' + r.status); return r.json(); })
+      .then(function (rows) {
+        var seen = {};
+        items.forEach(function (it) { seen[it.url] = true; });
+        rows.forEach(function (row, i) {
+          var key = urlKey(row.url);
+          // Skip anything already a top task, and the link back to this page.
+          if (seen[key] || /parentsstudentsstaff\/parents-families$/.test(key)) return;
+          seen[key] = true;
+          var link = { cat: row.category_slug, title: row.title, url: row.url, blurb: row.blurb };
+          items.push({ el: tileFor(link), featured: false, order: 100 + i, cat: link.cat, url: key, title: norm(link.title), text: norm(link.title + ' ' + (link.blurb || '')) });
+        });
+      })
+      .catch(function () { /* top tasks still work without the resource list */ });
+  }
+
+  var state = { cat: 'all', q: '', limit: PAGE_SIZE };
+
+  function matches(it, words) {
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i], alts = [w].concat(SYNONYMS[w] || []), ok = false;
+      for (var j = 0; j < alts.length && !ok; j++) if (it.text.indexOf(alts[j]) !== -1) ok = true;
+      if (!ok && w.length > 3 && w.charAt(w.length - 1) === 's' && it.text.indexOf(w.slice(0, -1)) !== -1) ok = true;
+      if (!ok) return false;
+    }
+    return true;
+  }
+
+  function render() {
+    var words = norm(state.q).split(' ').filter(Boolean);
+    var browsing = state.cat === 'all' && !words.length;
+    var list = items.filter(function (it) {
+      if (browsing) return it.featured;
+      if (state.cat !== 'all' && it.cat !== state.cat) return false;
+      return !words.length || matches(it, words);
+    });
+    list.sort(function (a, b) {
+      if (words.length) {
+        var at = matches({ text: a.title }, words) ? 0 : 1, bt = matches({ text: b.title }, words) ? 0 : 1;
+        if (at !== bt) return at - bt;
+      }
+      if (a.featured !== b.featured) return a.featured ? -1 : 1;
+      return a.order - b.order;
+    });
+    items.forEach(function (it) { it.el.hidden = true; });
+    list.forEach(function (it, i) { it.el.hidden = i >= state.limit; grid.appendChild(it.el); });
+
+    none.hidden = list.length > 0;
+    clearBtn.hidden = browsing;
+    var rest = list.length - state.limit;
+    moreBtn.hidden = rest <= 0;
+    if (rest > 0) moreBtn.textContent = 'Show ' + rest + ' more';
+    if (browsing) status.textContent = DEFAULT_STATUS;
+    else {
+      var where = state.cat !== 'all' ? ' in ' + CAT_LABELS[state.cat] : '';
+      status.textContent = list.length + (list.length === 1 ? ' result' : ' results') + (words.length ? ' for "' + state.q.trim() + '"' : '') + where;
+    }
+    chips.forEach(function (c) { c.setAttribute('aria-pressed', String(c.getAttribute('data-cat') === state.cat)); });
+  }
+
+  var typing;
+  q.addEventListener('input', function () {
+    clearTimeout(typing);
+    typing = setTimeout(function () { state.q = q.value; state.limit = PAGE_SIZE; render(); }, 120);
+  });
+  form.addEventListener('submit', function (e) {
+    e.preventDefault(); state.q = q.value; state.limit = PAGE_SIZE; render();
+    document.getElementById('s-tasks').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  chips.forEach(function (c) {
+    c.addEventListener('click', function () { state.cat = c.getAttribute('data-cat'); state.limit = PAGE_SIZE; render(); });
+  });
+  clearBtn.addEventListener('click', function () { q.value = ''; state = { cat: 'all', q: '', limit: PAGE_SIZE }; render(); q.focus(); });
+  moreBtn.addEventListener('click', function () { state.limit = 1000; render(); });
+
+  loadResources().then(render);
 
   document.querySelectorAll('[data-fb]').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -529,17 +657,16 @@
   // works and a link can open any step.
   var STEPS = [
     { id: 's-hero', title: 'What you are looking at', text: 'A proposed Parents & Families page in the browardschools.com look. The header, navigation and footer match the live site; the content below is reorganized.', why: 'The live page opens with a welcome message, a video and ten stories before the resources families come for. This version starts with the tasks.' },
-    { id: 's-hero', title: 'Search that speaks family', text: 'A search box at the top, with popular words underneath. Try "report card" or "bus".', why: 'Search should understand the words families use, not only official names.' },
-    { id: 's-tasks', title: 'Get it done', text: 'Eight tasks families do most, each named for what you can do, then the tool it opens.', why: 'Starting list from our research. Phase 1 confirms the order with traffic, search and Customer Service data.' },
+    { id: 's-hero', title: 'One search, one set of topics', text: 'Type what you need or pick a topic. Try "report card", "bus", "lunch" or "shots". Results appear right below, in Get it done.', why: 'Find It Fast is folded in here instead of sitting further down the page, so families search and browse in one place. Search understands the words families use, not only official names.' },
+    { id: 's-tasks', title: 'Get it done', text: 'Before anyone searches, this shows the eight tasks families do most, each named for what you can do and the tool it opens. Searching or picking a topic swaps in every matching resource.', why: 'The eight tasks are written into the page, so they show even if the resource list cannot load. Phase 1 confirms the order with traffic, search and Customer Service data.' },
     { id: 's-signin', title: 'Sign in, with help beside it', text: 'Sign in, Create an account and Trouble signing in? sit together, with a line explaining where you are going and what you need.', why: 'Login trouble is one of the most common reasons families call. Help belongs next to the button.' },
-    { id: 's-fif', title: 'Find anything else', text: 'Find It Fast, the searchable resource list we already built, embedded here. The team edits it live in BCPS MarComm.', why: 'It covers the long tail of links without a long page, and it is our working example of an embed where Finalsite has no equivalent.' },
     { id: 's-dates', title: 'Coming up', text: 'The next few dates families need, pulled from the District calendar.', why: 'Deadlines and events sit next to the tasks they affect.' },
     { id: 's-learn', title: 'Learn with us', text: 'Parent University and Student University get a visible home, with other family learning tools.', why: 'Both already exist, but today they are inside a list of ten stories.' },
     { id: 's-support', title: 'Support for every family', text: 'Short link groups for families who are new, who need wellbeing support, or who need language help.', why: 'Curated, not endless. Department directors help choose what is spotlighted.' },
     { id: 's-stories', title: 'Family spotlight', text: 'Stories stay, after the essentials, as a row of the newest four.', why: 'We keep telling the District story without pushing tasks down the page.' },
     { id: 's-compass', title: 'District Compass', text: 'District initiatives in a compact row. Internet Safety moves to its own page, linked here.', why: 'Internet Safety is valuable but long; on its own page it is easier to use and easier to find.' },
     { id: 's-feedback', title: 'Was this page helpful?', text: 'One question at the bottom of every page.', why: 'It shows us which pages are not working, so we know where to look first.' },
-    { id: 's-tasks', title: 'One pattern, three pages', text: 'Students and Community get the same blocks in the same places: tasks, sign-in help, Find It Fast, dates, learning, support, stories.', why: 'A visitor learns the pattern once. Turn on Build notes to see which blocks are native Finalsite and which are embeds.' }
+    { id: 's-hero', title: 'One pattern, three pages', text: 'Students and Community get the same top: a search, topic buttons and their own top tasks, fed by the same resource list. Then dates, learning, support and stories.', why: 'A visitor learns the pattern once. Turn on Build notes to see which blocks are native Finalsite and which are embeds.' }
   ];
   var cur = -1, card = document.getElementById('tour-card'), dots = document.getElementById('tour-dots');
   STEPS.forEach(function () { dots.appendChild(document.createElement('span')); });
