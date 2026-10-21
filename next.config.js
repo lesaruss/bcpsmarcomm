@@ -68,6 +68,11 @@ const nextConfig = {
         './node_modules/tesseract.js-core/**',
         './node_modules/sharp/**',
       ],
+      // Portals Project mockups (2026-10-21): the route reads its HTML from
+      // src/mockups/ at runtime, which the file tracer cannot see statically.
+      '/mockups/parents-families': [
+        './src/mockups/**',
+      ],
     },
   },
   async rewrites() {
