@@ -4,20 +4,16 @@
 -- they can just basically see it during the meetings." Editors also upload
 -- meeting transcripts and delete notes.
 --
--- The transcript-upload page ('marcomm-transcripts', 20261021_bcps_marcomm_
--- transcript_upload) becomes the editor page, 'marcomm-edit': every write to
--- /api/bcps/marcomm-requests and /api/bcps/calendar-requests and the MarComm
--- transcript upload check it. Admins and superadmins pass by role. Change who
--- edits on the Permissions page.
-update public.acl_objects
-   set slug = 'marcomm-edit', title = 'MarComm Assignments editors',
-       description = 'Edit MarComm Assignments: update requests, notes and files, delete notes, combine records, calendar posts and meeting transcripts. Everyone else with MarComm Assignments can view only.'
- where brand = 'bcps' and kind = 'page' and slug = 'marcomm-transcripts';
-
--- Only named people, not the District Web Team group.
-delete from public.acl_grants g using public.acl_objects o
- where g.object_id = o.id and o.brand = 'bcps' and o.kind = 'page' and o.slug = 'marcomm-edit'
-   and g.subject_type = 'group';
+-- Page 'marcomm-edit': every write to /api/bcps/marcomm-requests and
+-- /api/bcps/calendar-requests and the MarComm transcript upload check it.
+-- Admins and superadmins pass by role. Change who edits on the Permissions
+-- page. The old transcript-upload page ('marcomm-transcripts') is no longer
+-- checked anywhere and is labelled retired. (Deleting its grants through the
+-- database tool hung, so it was left in place.)
+insert into public.acl_objects (brand, kind, slug, title, description, visibility, sensitive)
+select 'bcps', 'page', 'marcomm-edit', 'MarComm Assignments editors',
+       'Edit MarComm Assignments: update requests, notes and files, delete notes, combine records, calendar posts and meeting transcripts. Everyone else with MarComm Assignments can view only.', 'restricted', false
+ where not exists (select 1 from public.acl_objects where brand = 'bcps' and kind = 'page' and slug = 'marcomm-edit');
 
 insert into public.acl_grants (object_id, subject_type, subject_id, role)
 select o.id, 'user', s.id, 'view'
@@ -30,3 +26,8 @@ select o.id, 'user', s.id, 'view'
   ) as s(id)
  where o.brand = 'bcps' and o.kind = 'page' and o.slug = 'marcomm-edit'
    and not exists (select 1 from public.acl_grants g where g.object_id = o.id and g.subject_type = 'user' and g.subject_id = s.id);
+
+update public.acl_objects
+   set title = 'MarComm Meeting Transcript Upload (retired)',
+       description = 'Retired 2026-10-21. Transcript upload is now part of MarComm Assignments editors (marcomm-edit). Not checked by any page.'
+ where brand = 'bcps' and kind = 'page' and slug = 'marcomm-transcripts';
