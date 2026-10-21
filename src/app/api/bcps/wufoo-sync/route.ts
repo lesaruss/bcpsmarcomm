@@ -139,7 +139,8 @@ function toRow(e: Entry, fields: Field[], map: FieldMap) {
   // Answers with no tracker column are kept in the request text, labelled.
   const extra = fields.filter(f => !used.has(f.id) && f.type !== 'file')
     .map(f => ({ f, v: answer(f, e).join(', ') })).filter(x => x.v)
-    .map(x => `${x.f.title.trim() || 'Link'}: ${x.v}`)
+    // The question without its examples ("(e.g., a flyer, ...)"), 2026-10-22.
+    .map(x => `${x.f.title.replace(/\s*\((?:e\.g\.|i\.e\.)[^)]*\)/gi, '').trim() || 'Link'}: ${x.v}`)
   // Files are copied to Attachments by sync, not listed in the text.
   const description = [get('description', '\n'), extra.join('\n')].filter(Boolean).join('\n\n') || null
   const firstLine = (get('description', ' ') ?? extra[0] ?? `Wufoo entry ${e.EntryId}`).replace(/\s+/g, ' ')
