@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { REVIEW_WINDOWS } from './review-windows'
+import { trackerHtml } from './web-team-tracker'
 
 // Data for the District Web Team and SuperAdmin dashboards (Sean, 2026-10-01,
 // mock v3 "Team Dashboards"). Read with the service role from
@@ -45,7 +46,7 @@ export interface TeamMemberWork {
 // buttons call the highest toggleTagN(). Lead, support, status and dates
 // edited on the page are saved to bcps_assignment_tags and win over the
 // file.
-interface RawRow { slug: string; title: string; lead: string; support: string; status: string; deadline: string | null }
+interface RawRow { slug: string; title: string; desc: string; lead: string; support: string; status: string; deadline: string | null }
 
 function decode(s: string): string {
   return s.replace(/&amp;/g, '&').replace(/&#39;/g, '’').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim()
@@ -69,6 +70,7 @@ export function parseAssignmentsHtml(html: string): RawRow[] {
     rows.push({
       slug: m[1],
       title,
+      desc: decode(/class="assignment-desc">([^<]*)/.exec(block)?.[1] ?? ''),
       lead: decode(m[2]),
       support: decode(/class="assignment-support">([^<]*)</.exec(block)?.[1] ?? ''),
       status: /status-badge-btn ([a-z-]+)"/.exec(block)?.[1] ?? 'pending',
@@ -115,10 +117,10 @@ function personMatches(entry: string, first: string, full: string): boolean {
 type LoadedRow = RawRow & { date_iso: string | null; priority: 'high' | 'medium' | 'low' | null }
 
 export async function loadAssignments(svc: SupabaseClient, origin: string): Promise<LoadedRow[]> {
+  // trackerHtml includes rows added by meeting transcript uploads (2026-10-21).
   let html = ''
   try {
-    const res = await fetch(`${origin}/bcps-web-team-assignments.html`, { cache: 'no-store' })
-    if (res.ok) html = await res.text()
+    html = await trackerHtml(svc, origin)
   } catch { /* no assignments rather than a failed dashboard */ }
   const rows = parseAssignmentsHtml(html)
   if (!rows.length) return []
@@ -132,6 +134,7 @@ export async function loadAssignments(svc: SupabaseClient, origin: string): Prom
     return {
       slug: r.slug,
       title: asText(t?.title_override) || r.title,
+      desc: r.desc,
       lead: asText(t?.lead_override) || r.lead,
       support: t?.support_override === null || t?.support_override === undefined ? r.support : asText(t.support_override),
       status: t?.is_ongoing ? 'ongoing' : (t?.status || r.status),

@@ -12,6 +12,7 @@
     "normalizer:check": "tsx scripts/check-email-normalizer.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.137.0",
     "@sparticuz/chromium": "^149.0.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",
@@ -27,7 +28,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "typescript": "^5",
-    "tsx": "^4.20.3"
+    "tsx": "^4.20.3",
+    "typescript": "^5"
   }
 }
