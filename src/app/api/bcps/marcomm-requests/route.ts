@@ -17,6 +17,7 @@ const supabase = createClient(
 
 const PAGE = 'marcomm-assignments'
 const BUCKET = 'marcomm-attachments'
+const ALLOWED_FILE = /\.(pdf|docx?|xlsx?|pptx?|jpe?g|png|gif|webp|heic|mp4|mov|txt)$/i
 
 const STATUSES = ['new', 'needs_info', 'assigned', 'in_progress', 'in_review', 'scheduled', 'on_hold', 'completed', 'declined'] as const
 const CLOSED = new Set(['completed', 'declined'])
@@ -131,6 +132,41 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     await supabase.from('bcps_marcomm_requests').update({ updated_at: new Date().toISOString() }).eq('id', id)
     return NextResponse.json({ ok: true, note: data })
+  }
+
+  // The team adds files to a request (Jennifer Hodder, 2026-10-21), the
+  // same way the request form does: upload_urls hands out one-file signed
+  // upload links into the private bucket, then add_attachments records them.
+  if (action === 'upload_urls') {
+    const files = Array.isArray((body as { files?: unknown }).files) ? (body as { files: { name?: string; size?: number }[] }).files : []
+    if (!id || !files.length || files.length > 5) return NextResponse.json({ error: 'Add up to 5 files at a time.' }, { status: 400 })
+    const batch = crypto.randomUUID()
+    const uploads: { name: string; path: string; token: string }[] = []
+    for (const f of files) {
+      const name = String(f.name || '').replace(/[^\w.\- ]+/g, '_').slice(0, 120)
+      if (!name || !ALLOWED_FILE.test(name)) return NextResponse.json({ error: `${f.name || 'A file'} is not a supported file type.` }, { status: 400 })
+      if (!f.size || f.size > 25 * 1024 * 1024) return NextResponse.json({ error: `${name} is larger than 25 MB.` }, { status: 400 })
+      const path = `requests/${batch}/${name}`
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path)
+      if (error || !data) return NextResponse.json({ error: 'Could not prepare the upload.' }, { status: 500 })
+      uploads.push({ name, path, token: data.token })
+    }
+    return NextResponse.json({ ok: true, uploads })
+  }
+
+  if (action === 'add_attachments') {
+    const files = (Array.isArray((body as { files?: unknown }).files) ? (body as { files: { name?: string; path?: string }[] }).files : [])
+      .filter(f => typeof f.path === 'string' && f.path.startsWith('requests/')).slice(0, 5)
+      .map(f => ({ name: String(f.name || f.path!.split('/').pop()).slice(0, 120), path: f.path as string }))
+    if (!id || !files.length) return NextResponse.json({ error: 'id and files required' }, { status: 400 })
+    const { data: row } = await supabase.from('bcps_marcomm_requests').select('attachments').eq('id', id).maybeSingle()
+    if (!row) return NextResponse.json({ error: 'Request not found.' }, { status: 404 })
+    const now = new Date().toISOString()
+    const { error } = await supabase.from('bcps_marcomm_requests')
+      .update({ attachments: [...(Array.isArray(row.attachments) ? row.attachments : []), ...files], updated_at: now }).eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    await supabase.from('bcps_marcomm_request_notes').insert({ request_id: id, author: auth.user.email, source: 'system', body: `Added ${files.length === 1 ? 'a file' : `${files.length} files`}: ${files.map(f => f.name).join(', ')}.` })
+    return NextResponse.json({ ok: true })
   }
 
   // Correct a note someone typed or dictated (Marketing meeting, Sean,
