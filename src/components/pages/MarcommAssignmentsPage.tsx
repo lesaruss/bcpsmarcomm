@@ -593,9 +593,9 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const run = async (p: Record<string, unknown>, ok: string) => {
+  const run = async (p: Record<string, unknown>, ok: string): Promise<boolean> => {
     setBusy(true); setMsg('')
-    try { await post(p); setMsg(ok) } catch (e) { setMsg(e instanceof Error ? e.message : 'Could not save.') } finally { setBusy(false) }
+    try { await post(p); setMsg(ok); return true } catch (e) { setMsg(e instanceof Error ? e.message : 'Could not save.'); return false } finally { setBusy(false) }
   }
   const openAttachment = async (path: string) => {
     const r = await fetch(`/api/bcps/marcomm-requests?attachment=${encodeURIComponent(path)}`, { headers: await authHeaders() })
@@ -706,8 +706,10 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
           </section>
         )}
 
-        {req.description && <section><h3>Request</h3><p className="d-text pre">{req.description}</p></section>}
-        {req.goal && <section><h3>Why it matters</h3><p className="d-text pre">{req.goal}</p></section>}
+        <EditableText label="Request" value={req.description} busy={busy} formatted
+          onSave={v => run({ action: 'update', id: req.id, description: v }, 'Request saved.')} />
+        <EditableText label="Why it matters" value={req.goal} busy={busy}
+          onSave={v => run({ action: 'update', id: req.id, goal: v }, 'Saved.')} />
 
         <section>
           <h3>Attachments</h3>
@@ -785,7 +787,7 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
                   {n.source === 'dictated' && <span className="n-tag">Dictated</span>}
                   {n.source === 'meeting' && <span className="n-tag meeting">Meeting</span>}
                   {n.edited_at && <span className="n-tag" title={`Edited ${fmtStamp(n.edited_at)}${n.edited_by ? ` by ${nameOf(n.edited_by)}` : ''}`}>Edited</span>}
-                  {(n.source === 'typed' || n.source === 'dictated') && editingNote !== n.id && (
+                  {n.source !== 'system' && editingNote !== n.id && (
                     <button className="n-edit-btn" onClick={() => { setEditingNote(n.id); setNoteDraft(n.body) }} aria-label="Edit note">Edit</button>
                   )}
                 </div>
@@ -809,6 +811,49 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
         </section>
       </aside>
     </div>
+  )
+}
+
+// A Wufoo answer is saved as "Question: answer" on its own line. The
+// examples in a question ("(e.g., a flyer, a social media post...)") are
+// longer than most answers, so they are dropped (Jennifer Hodder,
+// 2026-10-22).
+const stripExamples = (label: string) => label.replace(/\s*\((?:e\.g\.|i\.e\.|for example)[^)]*\)/gi, '').trim()
+const QA = /^([^:\n]{3,200}?):\s+(.+)$/
+function RequestText({ text }: { text: string }) {
+  const paras = text.replace(/\r/g, '').split(/\n{2,}/)
+  return <div className="d-request">{paras.map((para, i) => {
+    const lines = para.split('\n')
+    const qa = lines.every(l => QA.test(l) && !/^https?$/i.test(l.split(':')[0]))
+    // Each "who, what, where" answer on its own, the question as a heading.
+    if (qa) return lines.map((l, j) => { const m = l.match(QA)!; return (
+      <div key={`${i}-${j}`} className="d-qa"><span className="d-qa-q">{stripExamples(m[1])}</span><span className="d-qa-a">{m[2]}</span></div>
+    ) })
+    return <p key={i} className="d-text pre">{para.trim()}</p>
+  })}</div>
+}
+
+// Edit the request text in place, the same way as the title (Jennifer
+// Hodder, 2026-10-22).
+function EditableText({ label, value, busy, formatted = false, onSave }: { label: string; value: string | null; busy: boolean; formatted?: boolean; onSave: (v: string) => Promise<boolean> }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value ?? '')
+  useEffect(() => { if (!editing) setDraft(value ?? '') }, [value, editing])
+  return (
+    <section>
+      <h3>{label} {!editing && <button className="d-edit" onClick={() => setEditing(true)} aria-label={`Edit ${label}`} title={`Edit ${label}`}>&#9998;</button>}</h3>
+      {editing ? (
+        <div className="n-edit">
+          <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={Math.min(18, Math.max(4, draft.split('\n').length + 1))} aria-label={label} autoFocus />
+          <div className="n-edit-row">
+            <button className="mca-btn small" disabled={busy} onClick={async () => { if (await onSave(draft)) setEditing(false) }}>Save</button>
+            <button className="mca-btn small ghost" onClick={() => { setDraft(value ?? ''); setEditing(false) }}>Cancel</button>
+          </div>
+        </div>
+      ) : value
+        ? (formatted ? <RequestText text={value} /> : <p className="d-text pre">{value}</p>)
+        : <p className="muted">Nothing here yet.</p>}
+    </section>
   )
 }
 
@@ -1140,6 +1185,10 @@ const CSS = `
 .d-addfiles { display: inline-block; margin-top: 8px; cursor: pointer; }
 .d-addfiles input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .d-addfiles:focus-within .mca-btn { outline: 3px solid #1672A7; outline-offset: 2px; }
+.d-request .d-text { margin-bottom: 12px; }
+.d-qa { display: flex; flex-direction: column; gap: 3px; margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid #1672A7; background: rgba(22,114,167,0.04); border-radius: 0 6px 6px 0; }
+.d-qa-q { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #0e4e73; }
+.d-qa-a { font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
 .d-combine { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .d-combine select { flex: 1 1 260px; min-width: 0; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; background: #fff; }
 .n-edit-btn { font: inherit; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #0e4e73; background: none; border: 0; padding: 0; margin-left: 8px; cursor: pointer; text-decoration: underline; }

@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   if (action === 'update') {
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
-    const { status, lead, support, date_needed, start_date, priority, link_url, title } = body as Record<string, string | null | undefined>
+    const { status, lead, support, date_needed, start_date, priority, link_url, title, description, goal } = body as Record<string, string | null | undefined>
     const { is_ongoing, overdue_dismissed } = body as Record<string, boolean | undefined>
     if (status !== undefined) {
       if (!STATUSES.includes(status as typeof STATUSES[number])) return NextResponse.json({ error: 'Unknown status.' }, { status: 400 })
@@ -98,6 +98,10 @@ export async function POST(req: NextRequest) {
       if (!t) return NextResponse.json({ error: 'A title is required.' }, { status: 400 })
       patch.title = t.slice(0, 200)
     }
+    // The request text itself (Jennifer Hodder, 2026-10-22): the team corrects
+    // or updates what was submitted.
+    if (description !== undefined) patch.description = (description || '').trim().slice(0, 8000) || null
+    if (goal !== undefined) patch.goal = (goal || '').trim().slice(0, 4000) || null
     if (is_ongoing !== undefined) patch.is_ongoing = !!is_ongoing
     if (overdue_dismissed !== undefined) patch.overdue_dismissed = !!overdue_dismissed
     // A new date needed brings the overdue flag back.
@@ -116,6 +120,8 @@ export async function POST(req: NextRequest) {
       const prev = (before?.[key] as string | null) ?? null
       if (next !== prev) changes.push(next ? `${label} set to ${next}${prev ? ` (was ${prev})` : ''}.` : `${label} cleared${prev ? ` (was ${prev})` : ''}.`)
     }
+    if ('description' in patch) changes.push('Request text edited.')
+    if ('goal' in patch) changes.push('"Why it matters" edited.')
     if ('is_ongoing' in patch && patch.is_ongoing !== before?.is_ongoing) changes.push(patch.is_ongoing ? 'Marked ongoing.' : 'No longer ongoing.')
     if (changes.length) {
       await supabase.from('bcps_marcomm_request_notes').insert({ request_id: id, body: changes.join(' '), author: auth.user.email, source: 'system' })
@@ -169,7 +175,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  // Correct a note someone typed or dictated (Marketing meeting, Sean,
+  // Correct a note someone typed or dictated, or a meeting note (Marketing meeting, Sean,
   // 2026-10-20). System and meeting notes are the record and stay as they are.
   if (action === 'edit_note') {
     const { note_id } = body as { note_id?: string }
@@ -177,7 +183,8 @@ export async function POST(req: NextRequest) {
     if (!note_id || !text) return NextResponse.json({ error: 'note_id and note required' }, { status: 400 })
     const { data: note } = await supabase.from('bcps_marcomm_request_notes').select('id, request_id, source').eq('id', note_id).maybeSingle()
     if (!note) return NextResponse.json({ error: 'Note not found.' }, { status: 404 })
-    if (note.source !== 'typed' && note.source !== 'dictated') return NextResponse.json({ error: 'Only notes the team wrote can be edited.' }, { status: 400 })
+    // Meeting notes too (2026-10-22); the automatic system lines stay as recorded.
+    if (note.source === 'system') return NextResponse.json({ error: 'Automatic history lines cannot be edited.' }, { status: 400 })
     const { error } = await supabase.from('bcps_marcomm_request_notes')
       .update({ body: text.slice(0, 5000), edited_at: new Date().toISOString(), edited_by: auth.user.email }).eq('id', note_id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
