@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase'
 // Update Web Team Assignments from a meeting transcript (Sean, 2026-10-21).
 // Shown only to people granted the 'meeting-transcripts' page (or admins).
 // tracker 'marcomm' does the same for MarComm Assignments, for people granted
-// the 'marcomm-transcripts' page (Sean, 2026-10-21: so Jen can do it herself).
+// the 'marcomm-edit' page, the MarComm Assignments editors (Sean, 2026-10-21).
 // Paste or upload the transcript, Claude proposes the changes, the person
 // unticks anything wrong and applies. Data: /api/bcps/meeting-transcript.
 

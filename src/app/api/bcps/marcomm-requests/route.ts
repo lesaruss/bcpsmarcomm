@@ -16,6 +16,10 @@ const supabase = createClient(
 // src/lib/bcps-auth.ts).
 
 const PAGE = 'marcomm-assignments'
+// Editors (Sean, 2026-10-21): only the people granted 'marcomm-edit' (Jennifer
+// Hodder, Sean, Felicia Hicks, Farrah Wilson) and admins change anything.
+// Everyone else with the page views it, for the meetings.
+const EDIT_PAGE = 'marcomm-edit'
 const BUCKET = 'marcomm-attachments'
 const ALLOWED_FILE = /\.(pdf|docx?|xlsx?|pptx?|jpe?g|png|gif|webp|heic|mp4|mov|txt)$/i
 
@@ -61,14 +65,15 @@ export async function GET(req: NextRequest) {
   const failed = error || notesError || teamError || snapError
   if (failed) return NextResponse.json({ error: failed.message }, { status: 500 })
 
-  const res = NextResponse.json({ ok: true, requests: requests ?? [], notes: notes ?? [], team: team ?? [], snapshots: snapshots ?? [], me: auth.user.email })
+  const canEdit = (await requireBcpsPageAccess(req, EDIT_PAGE)).ok
+  const res = NextResponse.json({ ok: true, requests: requests ?? [], notes: notes ?? [], team: team ?? [], snapshots: snapshots ?? [], me: auth.user.email, can_edit: canEdit })
   res.headers.set('Cache-Control', 'no-store')
   return res
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireBcpsPageAccess(req, PAGE)
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const auth = await requireBcpsPageAccess(req, EDIT_PAGE)
+  if (!auth.ok) return NextResponse.json({ error: auth.status === 401 ? auth.error : 'You can view MarComm Assignments. Only its editors can make changes.' }, { status: auth.status })
 
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid request.' }, { status: 400 }) }
@@ -192,6 +197,18 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase.from('bcps_marcomm_request_notes')
       .update({ body: text.slice(0, 5000), edited_at: new Date().toISOString(), edited_by: auth.user.email }).eq('id', note_id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
+
+  // Delete a note (Sean, 2026-10-21: "only admins, so like Jen, myself,
+  // Felicia, or Farah"), which the editor check above already enforces.
+  if (action === 'delete_note') {
+    const { note_id } = body as { note_id?: string }
+    if (!note_id) return NextResponse.json({ error: 'note_id required' }, { status: 400 })
+    const { data, error } = await supabase.from('bcps_marcomm_request_notes').delete().eq('id', note_id).select('id, request_id, body, author, source, created_at')
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!data?.length) return NextResponse.json({ error: 'Note not found.' }, { status: 404 })
+    console.log('marcomm note deleted', JSON.stringify({ by: auth.user.email, note: data[0] }))
     return NextResponse.json({ ok: true })
   }
 
