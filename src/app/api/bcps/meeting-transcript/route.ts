@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase-admin'
 import { requireBcpsPageAccess } from '@/lib/bcps-auth'
 import { loadAssignments } from '@/lib/bcps-team-home'
+import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadMarcommRows, marcommPrompt, attachCurrent, marcommPayload } from '@/lib/marcomm-meeting-transcript'
 
 // Meeting transcript upload for Web Team Assignments (Sean, 2026-10-21).
 // A designated person (granted the 'meeting-transcripts' page, or a BCPS
@@ -17,6 +18,9 @@ import { loadAssignments } from '@/lib/bcps-team-home'
 //   POST { action: 'apply', upload_id, payload }
 //                                 -> { result }   payload is the reviewed proposal
 //   POST { action: 'discard', upload_id }
+// ?tracker=marcomm (GET) or tracker: 'marcomm' (POST) does the same for
+// MarComm Assignments (Sean, 2026-10-21), under the 'marcomm-transcripts'
+// grant; see lib/marcomm-meeting-transcript.
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
@@ -136,12 +140,12 @@ interface Proposal {
   new_items: Array<Record<string, unknown> & { title: string }>
 }
 
-async function propose(transcript: string, meetingDate: string, meetingLabel: string, origin: string): Promise<Proposal> {
+type Tracker = 'web-team' | 'marcomm'
+const trackerOf = (v: unknown): Tracker => (v === 'marcomm' ? 'marcomm' : 'web-team')
+
+async function ask(schema: Record<string, unknown>, system: string, content: string): Promise<Proposal> {
   const key = await anthropicKey()
   if (!key) throw new Error('The Claude key is not set up for this site.')
-  const rows = await loadAssignments(svc, origin)
-  if (!rows.length) throw new Error('Could not read the current tracker.')
-
   const client = new Anthropic({ apiKey: key })
   const stream = client.beta.messages.stream({
     model: MODEL,
@@ -149,18 +153,32 @@ async function propose(transcript: string, meetingDate: string, meetingLabel: st
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
     thinking: { type: 'adaptive' },
-    output_config: { effort: 'high', format: { type: 'json_schema', schema: PROPOSAL_SCHEMA } },
-    system: SYSTEM,
-    messages: [{
-      role: 'user',
-      content: `Meeting: ${meetingLabel}\nMeeting date: ${meetingDate}\n\n<tracker>\n${rowsForPrompt(rows)}\n</tracker>\n\n<transcript>\n${transcript}\n</transcript>`,
-    }],
+    output_config: { effort: 'high', format: { type: 'json_schema', schema } },
+    system,
+    messages: [{ role: 'user', content }],
   })
   const msg = await stream.finalMessage()
   if (msg.stop_reason === 'refusal') throw new Error('Claude declined to read this transcript.')
   if (msg.stop_reason === 'max_tokens') throw new Error('The transcript produced more changes than fit in one pass. Try uploading it in two halves.')
   const text = msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('')
-  const parsed = JSON.parse(text) as Proposal
+  return JSON.parse(text) as Proposal
+}
+
+async function proposeMarcomm(transcript: string, meetingDate: string, meetingLabel: string): Promise<Proposal> {
+  const { rows, team } = await loadMarcommRows(svc)
+  if (!rows.length) throw new Error('Could not read the current tracker.')
+  const parsed = await ask(MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM,
+    `Meeting: ${meetingLabel}\nMeeting date: ${meetingDate}\n\n<tracker>\n${marcommPrompt(rows, team)}\n</tracker>\n\n<transcript>\n${transcript}\n</transcript>`)
+  attachCurrent(parsed, rows)
+  parsed.new_items = parsed.new_items || []
+  return parsed
+}
+
+async function propose(transcript: string, meetingDate: string, meetingLabel: string, origin: string): Promise<Proposal> {
+  const rows = await loadAssignments(svc, origin)
+  if (!rows.length) throw new Error('Could not read the current tracker.')
+  const parsed = await ask(PROPOSAL_SCHEMA, SYSTEM,
+    `Meeting: ${meetingLabel}\nMeeting date: ${meetingDate}\n\n<tracker>\n${rowsForPrompt(rows)}\n</tracker>\n\n<transcript>\n${transcript}\n</transcript>`)
 
   // Keep only changes to rows that exist, so a mistyped slug cannot create a
   // phantom row.
@@ -201,36 +219,40 @@ function toPayload(p: Proposal, meetingDate: string, meetingLabel: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const auth = await requireBcpsPageAccess(req, PAGE)
+  const tracker = trackerOf(req.nextUrl.searchParams.get('tracker'))
+  const auth = await requireBcpsPageAccess(req, tracker === 'marcomm' ? MARCOMM_TRANSCRIPT_PAGE : PAGE)
   if (!auth.ok) return NextResponse.json({ allowed: false }, { status: auth.status === 401 ? 401 : 200 })
   const { data } = await svc.from('bcps_meeting_uploads')
     .select('id, meeting_date, meeting_label, status, uploaded_by_name, created_at, applied_at, result')
-    .order('created_at', { ascending: false }).limit(10)
+    .eq('tracker', tracker).order('created_at', { ascending: false }).limit(10)
   return NextResponse.json({ allowed: true, uploads: data ?? [] })
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireBcpsPageAccess(req, PAGE)
-  if (!auth.ok) return NextResponse.json({ error: auth.status === 401 ? auth.error : 'You have not been designated to upload meeting transcripts.' }, { status: auth.status })
   const body = await req.json().catch(() => ({}))
+  const tracker = trackerOf(body.tracker)
+  const auth = await requireBcpsPageAccess(req, tracker === 'marcomm' ? MARCOMM_TRANSCRIPT_PAGE : PAGE)
+  if (!auth.ok) return NextResponse.json({ error: auth.status === 401 ? auth.error : 'You have not been designated to upload meeting transcripts.' }, { status: auth.status })
   const name = await displayName(auth.user.userId, auth.user.email)
 
   if (body.action === 'propose') {
     const transcript = String(body.transcript || '').trim()
     const meetingDate = String(body.meeting_date || '')
-    const meetingLabel = String(body.meeting_label || '').trim().slice(0, 120) || 'District Web Team Meeting'
+    const meetingLabel = String(body.meeting_label || '').trim().slice(0, 120) || (tracker === 'marcomm' ? 'Marcomm Meeting' : 'District Web Team Meeting')
     if (transcript.length < 200) return NextResponse.json({ error: 'Paste or upload the transcript first.' }, { status: 400 })
     if (transcript.length > MAX_TRANSCRIPT) return NextResponse.json({ error: 'That transcript is too long for one upload. Split it in two.' }, { status: 400 })
     if (!DATE.test(meetingDate)) return NextResponse.json({ error: 'Choose the meeting date.' }, { status: 400 })
 
     const { data: up, error: insErr } = await svc.from('bcps_meeting_uploads').insert({
-      meeting_date: meetingDate, meeting_label: meetingLabel, transcript,
+      tracker, meeting_date: meetingDate, meeting_label: meetingLabel, transcript,
       uploaded_by_email: auth.user.email, uploaded_by_name: name,
     }).select('id').single()
     if (insErr || !up) return NextResponse.json({ error: 'Could not save the upload.' }, { status: 500 })
 
     try {
-      const proposal = await propose(transcript, meetingDate, meetingLabel, req.nextUrl.origin)
+      const proposal = tracker === 'marcomm'
+        ? await proposeMarcomm(transcript, meetingDate, meetingLabel)
+        : await propose(transcript, meetingDate, meetingLabel, req.nextUrl.origin)
       await svc.from('bcps_meeting_uploads').update({ proposal }).eq('id', up.id)
       return NextResponse.json({ upload_id: up.id, proposal })
     } catch (e) {
@@ -242,8 +264,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.action === 'apply' || body.action === 'discard') {
-    const { data: up } = await svc.from('bcps_meeting_uploads').select('id, status, meeting_date, meeting_label').eq('id', String(body.upload_id || '')).maybeSingle()
-    if (!up) return NextResponse.json({ error: 'That upload was not found.' }, { status: 404 })
+    const { data: up } = await svc.from('bcps_meeting_uploads').select('id, status, meeting_date, meeting_label, tracker').eq('id', String(body.upload_id || '')).maybeSingle()
+    if (!up || up.tracker !== tracker) return NextResponse.json({ error: 'That upload was not found.' }, { status: 404 })
     if (up.status !== 'proposed') return NextResponse.json({ error: `That upload was already ${up.status}.` }, { status: 409 })
 
     if (body.action === 'discard') {
@@ -251,11 +273,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    const payload = toPayload(body.payload || {}, up.meeting_date as string, up.meeting_label as string)
+    const payload = tracker === 'marcomm'
+      ? marcommPayload(body.payload || {}, (await loadMarcommRows(svc)).rows, up.meeting_date as string, up.meeting_label as string)
+      : toPayload(body.payload || {}, up.meeting_date as string, up.meeting_label as string)
     if (!payload.changes.length && !payload.new_items.length && !payload.summary) {
       return NextResponse.json({ error: 'Nothing is selected to apply.' }, { status: 400 })
     }
-    const { data: result, error } = await svc.rpc('bcps_web_team_apply_meeting_update', { payload, p_author: name })
+    const { data: result, error } = tracker === 'marcomm'
+      ? await svc.rpc('bcps_marcomm_apply_meeting_update', { payload })
+      : await svc.rpc('bcps_web_team_apply_meeting_update', { payload, p_author: name })
     if (error) {
       console.error('meeting-transcript: apply failed', error)
       return NextResponse.json({ error: 'The tracker could not be updated. Nothing was changed.' }, { status: 500 })

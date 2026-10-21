@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
 
 // MarComm Assignments (Sean, 2026-10-08). The Office of Communications request
 // tracker, modeled on Web Team Assignments and replacing the MarComm
@@ -272,6 +273,10 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
           </>}
         </div>
       </div>
+
+      {/* Update the tracker from a Marcomm Meeting transcript (Sean, 2026-10-21),
+          for people granted 'marcomm-transcripts'; hidden for everyone else. */}
+      {!viewing && <MeetingTranscriptUpload tracker="marcomm" onApplied={() => { load() }} />}
 
       {expired && (
         <div className="mca-banner expired">
