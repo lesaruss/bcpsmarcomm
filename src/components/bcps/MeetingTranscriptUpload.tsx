@@ -290,7 +290,7 @@ export default function MeetingTranscriptUpload({ onApplied }: { onApplied: () =
 }
 
 const CSS = `
-.mtu-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 20px; background: #fff; border-bottom: 1px solid rgba(0,0,0,0.09); font-family: 'Montserrat', -apple-system, 'Segoe UI', sans-serif; font-size: 13px; color: rgba(26,26,26,0.7); }
+.mtu-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0 10px; padding: 10px 20px; background: #fff; border: 1px solid rgba(0,0,0,0.09); border-radius: 8px; font-family: 'Montserrat', -apple-system, 'Segoe UI', sans-serif; font-size: 13px; color: rgba(26,26,26,0.7); }
 .mtu-btn { font: inherit; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; padding: 9px 16px; border-radius: 6px; border: 1px solid #1672A7; background: #1672A7; color: #fff; cursor: pointer; }
 .mtu-btn.ghost { background: #fff; color: #0e4e73; }
 .mtu-btn:disabled { opacity: 0.5; cursor: default; }
