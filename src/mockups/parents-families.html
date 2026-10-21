@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Mockup: Parents &amp; Families | Broward County Public Schools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wdth,wght@75..100,300..800&display=swap" rel="stylesheet">
+<style>
+  /* Portals Project mockup (2026-10-21). Colors, type and shapes are taken
+     from the live browardschools.com theme (uploaded/themes/default_25/main.css
+     and the page's own --primary/--secondary/--tertiary values), so the team
+     reacts to the structure, not to a different look. */
+  :root {
+    --primary: #1672a7; --primary-dark: #0e4e73; --secondary: #ba4e24; --tertiary: #16750c;
+    --gold: #f4c436; --gold-soft: #fcf0cd; --navy: #0e3044;
+    --ink: #262626; --text: #404040; --muted: #525252; --line: #e5e5e5; --soft: #f5f5f5; --softer: #fafafa;
+    --mock: #5b2a86;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: "Open Sans", Arial, sans-serif; color: var(--text); background: #fff; line-height: 1.55; }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .wrap { width: 100%; padding: 0 40px; }
+
+  /* Review bar: the only part that is not the proposed page. */
+  .mock-bar { position: sticky; top: 0; z-index: 900; background: var(--mock); color: #fff; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 40px; font-size: 14px; }
+  .mock-bar strong { font-weight: 800; letter-spacing: .02em; }
+  .mock-bar .mock-sub { opacity: .9; }
+  .mock-bar .mock-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .mock-btn { font: inherit; font-size: 13px; font-weight: 700; border-radius: 6px; padding: 7px 12px; border: 1px solid rgba(255,255,255,.55); background: transparent; color: #fff; cursor: pointer; text-decoration: none; }
+  .mock-btn:hover { background: rgba(255,255,255,.12); }
+  .mock-btn[aria-pressed="true"] { background: #fff; color: var(--mock); }
+  .mock-btn.solid { background: #fff; color: var(--mock); border-color: #fff; }
+
+  /* Finalsite utility bar */
+  .utility { background: var(--soft); font-size: 13px; }
+  .utility .wrap { display: flex; align-items: center; gap: 18px; min-height: 40px; flex-wrap: wrap; }
+  .utility nav ul { list-style: none; display: flex; gap: 18px; flex-wrap: wrap; }
+  .utility a { text-decoration: none; color: var(--muted); font-weight: 600; }
+  .utility a:hover { color: var(--ink); text-decoration: underline; }
+  .utility .tools { margin-left: auto; display: flex; gap: 14px; }
+  .utility .tools button { font: inherit; font-weight: 700; color: var(--muted); background: none; border: 0; cursor: pointer; }
+
+  /* Finalsite header and main navigation */
+  .site-header { border-bottom: 1px solid var(--line); background: #fff; }
+  .site-header .wrap { display: flex; align-items: center; gap: 28px; min-height: 92px; }
+  .site-header .logo img { height: 62px; width: auto; display: block; }
+  .nav-main { margin-left: auto; }
+  .nav-main ul { list-style: none; display: flex; gap: 22px; flex-wrap: wrap; }
+  .nav-main a { text-decoration: none; color: var(--muted); text-transform: uppercase; font-size: 14px; font-variation-settings: "wdth" 75, "wght" 800; padding: 6px 0; display: inline-block; border-bottom: 4px solid transparent; }
+  .nav-main a:hover { border-bottom-color: var(--primary); }
+  .menu-toggle { display: none; margin-left: auto; font: inherit; font-weight: 800; text-transform: uppercase; font-size: 14px; background: none; border: 2px solid var(--muted); border-radius: 6px; padding: 6px 12px; color: var(--muted); }
+
+  /* Audience bar (Finalsite sticky callouts) */
+  .audience { background: var(--navy); }
+  .audience ul { list-style: none; display: flex; flex-wrap: wrap; }
+  .audience a { display: block; text-decoration: none; color: #fff; font-size: 14px; font-variation-settings: "wdth" 75, "wght" 700; text-transform: uppercase; padding: 12px 18px; }
+  .audience a:hover { background: rgba(255,255,255,.1); }
+  .audience a[aria-current="page"] { background: var(--gold); color: var(--ink); }
+
+  .crumbs { font-size: 13px; color: var(--muted); padding: 14px 0; }
+  .crumbs a { color: var(--primary-dark); }
+
+  /* Page hero */
+  .hero { position: relative; background: var(--softer); border-radius: 24px; padding: 36px 40px; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 32px; align-items: center; }
+  .hero h1 { font-size: clamp(30px, 4vw, 46px); line-height: 1.05; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
+  .hero p { margin-top: 10px; font-size: 16px; color: var(--text); max-width: 60ch; }
+  .search-box label { display: block; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+  .search-row { display: flex; gap: 8px; }
+  .search-row input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 14px 16px; border: 2px solid #a3a3a3; border-radius: 6px; background: #fff; }
+  .search-row button { font: inherit; font-weight: 800; padding: 0 20px; border-radius: 6px; border: 0; background: var(--primary); color: #fff; cursor: pointer; }
+  .search-hint { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .search-hint button { font: inherit; font-size: 13px; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; margin: 2px 2px 0 0; cursor: pointer; color: var(--primary-dark); }
+  .search-result { margin-top: 10px; font-size: 14px; background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--primary); border-radius: 6px; padding: 10px 12px; display: none; }
+  .search-result.show { display: block; }
+
+  /* Sections */
+  .section { margin-top: 44px; position: relative; }
+  .section > h2 { font-size: 26px; line-height: 1.15; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; margin-bottom: 6px; }
+  .section > .intro { color: var(--muted); margin-bottom: 18px; max-width: 70ch; }
+
+  /* Top tasks */
+  .tasks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .task { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line); border-radius: 16px; padding: 18px; text-decoration: none; background: #fff; position: relative; min-height: 150px; transition: box-shadow .2s, border-color .2s; }
+  .task:hover { border-color: var(--primary); box-shadow: 0 6px 18px rgba(14,48,68,.12); }
+  .task:before { content: ""; position: absolute; left: 0; top: 18px; bottom: 18px; width: 4px; background: var(--gold); border-radius: 0 4px 4px 0; }
+  .task svg { width: 30px; height: 30px; color: var(--primary); }
+  .task .t-label { font-size: 17px; font-weight: 800; color: var(--ink); line-height: 1.25; }
+  .task .t-tool { font-size: 13px; color: var(--muted); }
+  .task .t-go { margin-top: auto; font-size: 13px; font-weight: 700; color: var(--primary-dark); }
+
+  /* Sign-in strip */
+  .signin { margin-top: 16px; display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; background: var(--gold-soft); border-radius: 16px; padding: 16px 20px; }
+  .signin p { font-weight: 700; color: var(--ink); }
+  .signin .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+  .btn { display: inline-block; font-weight: 800; font-size: 14px; text-decoration: none; border-radius: 6px; padding: 10px 16px; border: 2px solid var(--primary); color: var(--primary-dark); background: #fff; }
+  .btn.primary { background: var(--primary); color: #fff; }
+  .btn:hover { filter: brightness(.95); }
+  .signin .note { flex-basis: 100%; font-size: 13px; color: var(--text); }
+
+  /* Find It Fast embed */
+  .fif-frame { overflow: hidden; background: #fff; }
+  .section, .hero, .signin { scroll-margin-top: 72px; }
+  .fif-frame iframe { width: 100%; border: 0; display: block; }
+
+  /* Dates */
+  .dates { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .date { border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; gap: 14px; align-items: flex-start; }
+  .date .day { min-width: 58px; text-align: center; background: var(--navy); color: #fff; border-radius: 10px; padding: 6px 4px; line-height: 1.1; }
+  .date .day b { display: block; font-size: 24px; }
+  .date .day span { font-size: 12px; text-transform: uppercase; font-weight: 700; }
+  .date h3 { font-size: 15px; color: var(--ink); line-height: 1.3; }
+  .date p { font-size: 13px; color: var(--muted); }
+  .more-link { display: inline-block; margin-top: 14px; font-weight: 800; color: var(--primary-dark); }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .card { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+  .card .band { height: 8px; background: var(--primary); }
+  .card.green .band { background: var(--tertiary); }
+  .card.orange .band { background: var(--secondary); }
+  .card.gold .band { background: var(--gold); }
+  .card .body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .card h3 { font-size: 17px; color: var(--ink); line-height: 1.25; }
+  .card p { font-size: 14px; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card a.go { margin-top: auto; font-weight: 800; font-size: 14px; color: var(--primary-dark); }
+  .tag-live { display: inline-block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; background: var(--gold-soft); color: var(--ink); border-radius: 4px; padding: 2px 6px; align-self: flex-start; }
+
+  /* Link groups */
+  .groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .group { background: var(--softer); border-radius: 16px; padding: 18px; }
+  .group h3 { font-size: 16px; color: var(--ink); margin-bottom: 8px; }
+  .group ul { list-style: none; }
+  .group li { padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .group li:last-child { border-bottom: 0; }
+  .group a { color: var(--primary-dark); text-decoration: none; font-weight: 600; }
+  .group a:hover { text-decoration: underline; }
+
+  /* Feedback */
+  .feedback { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 20px; }
+  .feedback p { font-weight: 800; color: var(--ink); }
+  .feedback button { font: inherit; font-weight: 700; padding: 8px 18px; border-radius: 6px; border: 2px solid var(--primary); background: #fff; color: var(--primary-dark); cursor: pointer; }
+  .feedback .thanks { font-size: 14px; color: var(--tertiary); font-weight: 700; }
+
+  /* Footer */
+  .site-footer { margin-top: 56px; padding: 0 10px 10px; }
+  .site-footer .inner { background: var(--softer); border-radius: 24px; padding: 32px 40px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 28px; font-size: 14px; }
+  .site-footer img { height: 52px; width: auto; }
+  .site-footer h3 { font-size: 14px; text-transform: uppercase; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; margin-bottom: 8px; }
+  .site-footer ul { list-style: none; }
+  .site-footer li { padding: 3px 0; }
+  .site-footer a { color: var(--muted); }
+
+  /* Build notes (toggle) */
+  .bn { display: none; position: absolute; top: -12px; right: 0; z-index: 5; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; border-radius: 6px; padding: 4px 8px; color: #fff; max-width: 70%; text-align: right; }
+  .bn.native { background: var(--tertiary); }
+  .bn.embed { background: var(--secondary); }
+  .bn.confirm { background: var(--mock); }
+  body.show-notes .bn { display: inline-block; }
+  body.show-notes [data-bn] { outline: 2px dashed rgba(91,42,134,.45); outline-offset: 6px; border-radius: 18px; }
+
+  /* Guided walkthrough */
+  .tour-dim { position: fixed; inset: 0; background: rgba(14,48,68,.55); z-index: 950; display: none; }
+  body.touring .tour-dim { display: block; }
+  body.touring .tour-target { position: relative; z-index: 960; background: #fff; box-shadow: 0 0 0 8px #fff, 0 0 0 12px var(--gold); border-radius: 18px; }
+  .tour-card { position: fixed; z-index: 970; right: 24px; bottom: 24px; width: min(420px, calc(100vw - 32px)); background: #12202b; color: #fff; border-radius: 16px; padding: 20px 20px 16px; box-shadow: 0 12px 40px rgba(0,0,0,.35); display: none; }
+  body.touring .tour-card { display: block; }
+  .tour-card .step { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); font-weight: 800; }
+  .tour-card h2 { font-size: 20px; margin: 4px 0 8px; line-height: 1.2; }
+  .tour-card p { font-size: 15px; line-height: 1.55; color: #e9eef2; }
+  .tour-card .why { margin-top: 8px; font-size: 13px; color: #b9c7d2; }
+  .tour-nav { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+  .tour-nav button { font: inherit; font-size: 14px; font-weight: 800; border-radius: 6px; padding: 8px 14px; cursor: pointer; border: 1px solid rgba(255,255,255,.5); background: transparent; color: #fff; }
+  .tour-nav button.next { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+  .tour-nav button:disabled { opacity: .4; cursor: default; }
+  .tour-nav .count { font-size: 13px; color: #b9c7d2; margin: 0 auto; }
+  .tour-dots { display: flex; gap: 5px; margin-top: 10px; justify-content: center; flex-wrap: wrap; }
+  .tour-dots span { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.3); }
+  .tour-dots span.on { background: var(--gold); }
+  .tour-close { position: absolute; top: 10px; right: 12px; background: none; border: 0; color: #b9c7d2; font-size: 22px; cursor: pointer; line-height: 1; }
+
+  @media (max-width: 1100px) {
+    .tasks, .cards, .dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .nav-main ul { gap: 14px; }
+  }
+  @media (max-width: 860px) {
+    .wrap, .mock-bar { padding-left: 16px; padding-right: 16px; }
+    .nav-main { display: none; width: 100%; }
+    .nav-main.open { display: block; }
+    .nav-main ul { flex-direction: column; gap: 0; padding-bottom: 12px; }
+    .site-header .wrap { flex-wrap: wrap; min-height: 76px; }
+    .site-header .logo img { height: 48px; }
+    .menu-toggle { display: inline-block; }
+    .utility nav { display: none; }
+    .hero { grid-template-columns: minmax(0, 1fr); padding: 24px 18px; gap: 18px; }
+    .site-footer .inner { grid-template-columns: minmax(0, 1fr); padding: 24px 18px; }
+    .audience a { padding: 10px 12px; font-size: 13px; }
+  }
+  @media (max-width: 560px) {
+    .mock-bar { position: static; }
+    .section, .hero, .signin { scroll-margin-top: 12px; }
+    .cards, .dates, .groups { grid-template-columns: minmax(0, 1fr); }
+    .tasks { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .task { min-height: 0; padding: 14px 12px 14px 16px; border-radius: 12px; }
+    .task:before { top: 14px; bottom: 14px; }
+    .task svg { width: 24px; height: 24px; }
+    .task .t-label { font-size: 15px; }
+    .task .t-tool { font-size: 12px; }
+    .task .t-go { display: none; }
+    .signin .btns { margin-left: 0; }
+    .tour-card { right: 16px; bottom: 16px; }
+    .mock-bar .mock-actions { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-bar" role="region" aria-label="Mockup review controls">
+  <span><strong>Mockup for review.</strong> <span class="mock-sub">Proposed Parents &amp; Families page. Not the live site.</span></span>
+  <div class="mock-actions">
+    <button type="button" class="mock-btn solid" id="tour-start">Walk me through it</button>
+    <button type="button" class="mock-btn" id="notes-toggle" aria-pressed="false">Build notes</button>
+    <a class="mock-btn" href="/playbooks/portals-project">Portals Project playbook</a>
+  </div>
+</div>
+
+<div class="tour-dim" id="tour-dim"></div>
+
+<div class="utility">
+  <div class="wrap">
+    <nav aria-label="Utility">
+      <ul>
+        <li><a href="https://www.browardschools.com/bcps-departments/safety-security-and-emergency-preparedness/department-of-safety-security/report-a-safety-or-security-tip">See Something, Say Something</a></li>
+        <li><a href="https://www.browardschools.com/bcps-departments/office-of-student-services/student-services-mental-health/mental-health-services">Mental Health Support</a></li>
+        <li><a href="https://www.browardschools.com/bcps-departments/office-of-student-services/student-services-mental-health/foster-care-and-prevention-services-program">Report Child Abuse</a></li>
+        <li><a href="https://sso.browardschools.com">Single Sign-On</a></li>
+        <li><a href="https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus">Lunch Menus</a></li>
+        <li><a href="https://www.browardschools.com/calendar-e3">Calendars</a></li>
+        <li><a href="https://www.browardschools.com/parentsstudentsstaff/customer-service">Customer Service</a></li>
+      </ul>
+    </nav>
+    <div class="tools"><button type="button" aria-label="Translate this page">Translate</button><button type="button" aria-label="Search the site">Search</button></div>
+  </div>
+</div>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="logo" href="https://www.browardschools.com"><img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools home"></a>
+    <button type="button" class="menu-toggle" id="menu-toggle" aria-expanded="false" aria-controls="nav-main">Menu</button>
+    <nav class="nav-main" id="nav-main" aria-label="Main">
+      <ul>
+        <li><a href="https://www.browardschools.com">Our Schools</a></li>
+        <li><a href="https://www.browardschools.com">Academics</a></li>
+        <li><a href="https://www.browardschools.com">About Us</a></li>
+        <li><a href="https://www.browardschools.com">Directory</a></li>
+        <li><a href="https://www.browardschools.com">School Board</a></li>
+        <li><a href="https://www.browardschools.com/calendar-e3">Calendar</a></li>
+        <li><a href="https://www.browardschools.com/contact">Contact Us</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<nav class="audience" aria-label="Audiences">
+  <div class="wrap">
+    <ul>
+      <li><a href="#" aria-current="page">Parents</a></li>
+      <li><a href="https://www.browardschools.com/parentsstudentsstaff/students">Students</a></li>
+      <li><a href="https://www.browardschools.com/parentsstudentsstaff/staff">Staff</a></li>
+      <li><a href="https://www.browardschools.com">Community</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="wrap" id="main">
+  <p class="crumbs"><a href="https://www.browardschools.com">Home</a> &rsaquo; Parents &amp; Families</p>
+
+  <section class="hero" id="s-hero" data-bn aria-labelledby="h-page">
+    <span class="bn native">Finalsite native: page title and site search</span>
+    <div>
+      <h1 id="h-page">Parents &amp; Families</h1>
+      <p>Everything you need to support your child at BCPS, starting with the things families do most.</p>
+    </div>
+    <form class="search-box" id="search-form" role="search">
+      <label for="q">What do you need today?</label>
+      <div class="search-row"><input id="q" type="search" autocomplete="off" placeholder="Try report card, bus, or register"><button type="submit">Search</button></div>
+      <div class="search-hint">Popular: <button type="button" data-q="report card">report card</button><button type="button" data-q="bus">bus</button><button type="button" data-q="register">register</button><button type="button" data-q="lunch">lunch</button></div>
+      <div class="search-result" id="search-result" aria-live="polite"></div>
+    </form>
+  </section>
+
+  <section class="section" id="s-tasks" data-bn aria-labelledby="h-tasks">
+    <span class="bn native">Finalsite native: content element with icons</span>
+    <h2 id="h-tasks">Get it done</h2>
+    <p class="intro">The tasks families come to the site for most. Each one says what you can do and which tool it opens.</p>
+    <div class="tasks">
+      <a class="task" href="https://www.browardschools.com/fs/pages/83139">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/><path d="M8 7h8M8 11h8M8 15h5"/><path d="M3 21h18"/></svg>
+        <span class="t-label">Check grades and attendance</span><span class="t-tool">Opens FOCUS</span><span class="t-go">Go &rsaquo;</span></a>
+      <a class="task" href="https://www.browardschools.com/fs/pages/83926">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 3v2h6V3"/><path d="M9 12l2 2 4-4"/></svg>
+        <span class="t-label">Enroll or register your child</span><span class="t-tool">Steps and documents you need</span><span class="t-go">Go &rsaquo;</span></a>
+      <a class="task" href="https://www.browardschools.com/fs/pages/84659">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        <span class="t-label">Find your school</span><span class="t-tool">School Locator</span><span class="t-go">Go &rsaquo;</span></a>
+      <a class="task" href="https://www.browardschools.com/fs/pages/87203">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 10v9h14v-9"/><path d="M10 19v-5h4v5"/></svg>
+        <span class="t-label">Explore school choice</span><span class="t-tool">Magnet, innovative and other programs</span><span class="t-go">Go &rsaquo;</span></a>
+      <a class="task" href="https://www.browardschools.com/bcps-departments/student-transportation-fleet-services/overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="6" width="18" height="11" rx="2"/><path d="M3 12h18M7 17v2M17 17v2"/></svg>
+        <span class="t-label">Bus routes and transportation</span><span class="t-tool">Student Transportation</span><span class="t-go">Go &rsaquo;</span></a>
+      <a class="task" href="https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 2 2v8"/><path d="M11 3v8"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/></svg>
+        <span class="t-label">School meals, menus and payments</span><span class="t-tool">Menus, free and reduced meals, MySchoolBucks</span><span class="t-go">Go &rsaquo;</span></a>
+      <a class="task" href="https://www.browardschools.com/calendar-e3">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+        <span class="t-label">Calendars and key dates</span><span class="t-tool">School year, meetings and events</span><span class="t-go">Go &rsaquo;</span></a>
+      <a class="task" href="https://www.browardschools.com/parentsstudentsstaff/customer-service">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12a8 8 0 0 1 16 0v4a2 2 0 0 1-2 2h-2v-6h4"/><path d="M4 12v4a2 2 0 0 0 2 2h2v-6H4"/></svg>
+        <span class="t-label">Get help</span><span class="t-tool">Customer Service and who to contact</span><span class="t-go">Go &rsaquo;</span></a>
+    </div>
+
+    <div class="signin" id="s-signin">
+      <p>FOCUS and Family Access</p>
+      <div class="btns">
+        <a class="btn primary" href="https://sso.browardschools.com">Sign in</a>
+        <a class="btn" href="https://www.browardschools.com/bcps-departments/information-systems/focus-student-information-system">Create an account</a>
+        <a class="btn" href="https://www.browardschools.com/parentsstudentsstaff/customer-service">Trouble signing in?</a>
+      </div>
+      <p class="note">Sign in opens the BCPS Single Sign-On page in a new system. You will need the parent account you created with your child's school. Grades and attendance are inside FOCUS once you sign in.</p>
+    </div>
+  </section>
+
+  <section class="section" id="s-fif" data-bn aria-labelledby="h-fif">
+    <span class="bn embed">Embed: Find It Fast widget, edited live in BCPS MarComm</span>
+    <h2 id="h-fif">Find anything else</h2>
+    <p class="intro">Search or filter every family resource in one place.</p>
+    <div class="fif-frame"><iframe id="bcps-widget-find-it-fast" src="/widgets/find-it-fast.html" height="640" title="Find It Fast: search family resources"></iframe></div>
+  </section>
+
+  <section class="section" id="s-dates" data-bn aria-labelledby="h-dates">
+    <span class="bn native">Finalsite native: calendar element, next four events</span>
+    <h2 id="h-dates">Coming up</h2>
+    <p class="intro">Dates families need this month.</p>
+    <ul class="dates">
+      <li class="date"><div class="day"><span>Oct</span><b>21</b></div><div><h3>Report Cards Issued</h3><p>All day</p></div></li>
+      <li class="date"><div class="day"><span>Oct</span><b>21</b></div><div><h3>Parent University: Linewize Parent</h3><p>6:30 to 7:30 PM, online</p></div></li>
+      <li class="date"><div class="day"><span>Oct</span><b>21</b></div><div><h3>ESE Advisory Council</h3><p>6:15 to 8:45 PM, Indian Ridge Middle School</p></div></li>
+      <li class="date"><div class="day"><span>Oct</span><b>24</b></div><div><h3>Broward Education Foundation 5K</h3><p>7:15 AM, Charnow Park, Hollywood</p></div></li>
+    </ul>
+    <a class="more-link" href="https://www.browardschools.com/calendar-e3">View the full calendar &rsaquo;</a>
+  </section>
+
+  <section class="section" id="s-learn" data-bn aria-labelledby="h-learn">
+    <span class="bn native">Finalsite native: posts element</span>
+    <h2 id="h-learn">Learn with us</h2>
+    <p class="intro">Free sessions and tools for families and students.</p>
+    <div class="cards">
+      <article class="card"><div class="band"></div><div class="body"><span class="tag-live">Tonight, 6:30 PM</span><h3>Parent University</h3><p>Online sessions for parents and guardians, starting with Linewize Parent for a safer online life at home.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Join a session &rsaquo;</a></div></article>
+      <article class="card green"><div class="band"></div><div class="body"><h3>Student University</h3><p>Sessions on testing, college readiness and student wellness, with advice from experts and peers.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Learn more &rsaquo;</a></div></article>
+      <article class="card gold"><div class="band"></div><div class="body"><h3>BCPS Testing Toolkit</h3><p>Grade-level strategies that help students stay calm, confident and prepared for tests.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Open the toolkit &rsaquo;</a></div></article>
+      <article class="card orange"><div class="band"></div><div class="body"><h3>Plan for life after high school</h3><p>Xello tools for careers, college and scholarships, with ways for parents to stay involved.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Start planning &rsaquo;</a></div></article>
+    </div>
+  </section>
+
+  <section class="section" id="s-support" data-bn aria-labelledby="h-support">
+    <span class="bn native">Finalsite native: link lists</span>
+    <h2 id="h-support">Support for every family</h2>
+    <p class="intro">Help for your child's wellbeing, and for families who are new to BCPS.</p>
+    <div class="groups">
+      <div class="group"><h3>New to BCPS?</h3><ul>
+        <li><a href="https://www.browardschools.com/fs/pages/83926">How to register your child</a></li>
+        <li><a href="https://www.browardschools.com/fs/pages/84659">Find your assigned school</a></li>
+        <li><a href="https://www.browardschools.com/fs/pages/87203">Explore school choice</a></li>
+        <li><a href="https://www.browardschools.com/fs/pages/86047">Military-connected families</a></li>
+      </ul></div>
+      <div class="group"><h3>Wellness and student support</h3><ul>
+        <li><a href="https://www.browardschools.com/bcps-departments/office-of-student-services/student-services-mental-health/mental-health-services">Mental health support</a></li>
+        <li><a href="https://www.browardschools.com/fs/pages/84173">Child abuse and neglect</a></li>
+        <li><a href="https://www.browardschools.com/parentsstudentsstaff/parents-families">School counseling</a></li>
+        <li><a href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Health services and telehealth</a></li>
+      </ul></div>
+      <div class="group"><h3>Language and school life</h3><ul>
+        <li><a href="https://www.browardschools.com/bcps-departments/academics/bilingualesol">Bilingual and ESOL</a></li>
+        <li><a href="https://www.browardschools.com/the-code-book-for-student-conduct">Code Book for Student Conduct</a></li>
+        <li><a href="https://www.browardschools.com/back-to-school-online-forms">Back to school online forms</a></li>
+        <li><a href="https://www.browardschools.com/community/volunteer">Volunteer at a school</a></li>
+      </ul></div>
+    </div>
+  </section>
+
+  <section class="section" id="s-stories" data-bn aria-labelledby="h-stories">
+    <span class="bn native">Finalsite native: posts element, newest four</span>
+    <h2 id="h-stories">Family spotlight</h2>
+    <p class="intro">Stories and programs from across the District.</p>
+    <div class="cards">
+      <article class="card"><div class="band"></div><div class="body"><h3>Helping families support student resilience</h3><p>Free Recovery Services support for students facing grief, trauma or life changes.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+      <article class="card green"><div class="band"></div><div class="body"><h3>Mindfulness in Broward Schools</h3><p>Free family access to Inner Explorer in Clever to practice mindfulness together.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+      <article class="card gold"><div class="band"></div><div class="body"><h3>Heart Gallery of Broward County</h3><p>Connecting foster youth with forever families and supporting adoptive parents.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+      <article class="card orange"><div class="band"></div><div class="body"><h3>Life skills and wellness</h3><p>Rethink Ed in Clever helps students and families build resiliency and confidence.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+    </div>
+    <a class="more-link" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">See all family stories &rsaquo;</a>
+  </section>
+
+  <section class="section" id="s-compass" data-bn aria-labelledby="h-compass">
+    <span class="bn native">Finalsite native: posts element</span>
+    <h2 id="h-compass">District Compass</h2>
+    <p class="intro">What is in motion across the District, and how you can be part of it.</p>
+    <div class="groups">
+      <div class="group"><h3>Redefining Our Schools</h3><p>Reimagining how education is delivered to meet the needs of every learner.</p></div>
+      <div class="group"><h3>Broward Powered by AI</h3><p>Responsible use of AI to support teaching, learning and operations.</p></div>
+      <div class="group"><h3>Internet safety for families</h3><p>Parent tools, conversation guides and device agreements, now on their own page.</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="s-feedback" data-bn aria-label="Page feedback">
+    <span class="bn confirm">To confirm: Finalsite form or small embed</span>
+    <div class="feedback" id="feedback">
+      <p>Was this page helpful?</p>
+      <button type="button" data-fb="yes">Yes</button>
+      <button type="button" data-fb="no">No</button>
+      <span class="thanks" id="fb-thanks" aria-live="polite"></span>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="inner">
+    <div>
+      <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools">
+      <p style="margin-top:12px">Kathleen C. Wright (KCW) Administration Center<br>600 S.E. Third Avenue, Fort Lauderdale, FL 33301</p>
+    </div>
+    <div><h3>Stay connected</h3><ul>
+      <li><a href="https://www.browardschools.com/anonymous-tips">Anonymous Tips</a></li>
+      <li><a href="https://www.browardschools.com/contact">Contact Us</a></li>
+      <li><a href="https://www.browardschools.com/parentsstudentsstaff/customer-service">Customer Service</a></li>
+    </ul></div>
+    <div><h3>About this site</h3><ul>
+      <li><a href="https://www.browardschools.com/programs-and-services/website-accessibility-statement/overview">Website Accessibility Statement</a></li>
+      <li><a href="https://www.browardschools.com/parentsstudentsstaff/customer-service">Share feedback on our service</a></li>
+    </ul></div>
+  </div>
+</footer>
+
+<aside class="tour-card" id="tour-card" role="dialog" aria-modal="false" aria-labelledby="tour-title">
+  <button type="button" class="tour-close" id="tour-close" aria-label="End the walkthrough">&times;</button>
+  <div class="step" id="tour-step"></div>
+  <h2 id="tour-title"></h2>
+  <p id="tour-text"></p>
+  <p class="why" id="tour-why"></p>
+  <div class="tour-nav">
+    <button type="button" id="tour-prev">Back</button>
+    <span class="count" id="tour-count"></span>
+    <button type="button" class="next" id="tour-next">Next</button>
+  </div>
+  <div class="tour-dots" id="tour-dots" aria-hidden="true"></div>
+</aside>
+
+<script>
+(function () {
+  // Find It Fast sizes itself through postMessage, the same companion script
+  // the Widgets page hands out for Finalsite (WidgetsPage.tsx copyEmbed).
+  var ifr = document.getElementById('bcps-widget-find-it-fast');
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d || d.type !== 'bcps-widget-resize' || d.slug !== 'find-it-fast') return;
+    ifr.style.height = d.height + 'px';
+  });
+
+  var menu = document.getElementById('menu-toggle'), nav = document.getElementById('nav-main');
+  menu.addEventListener('click', function () {
+    var open = nav.classList.toggle('open');
+    menu.setAttribute('aria-expanded', String(open));
+  });
+
+  // Search is illustrative: it shows where common words would lead.
+  var SYN = [
+    { words: ['report card', 'grades', 'grade', 'attendance', 'focus'], label: 'Check grades and attendance (FOCUS)', url: 'https://www.browardschools.com/fs/pages/83139' },
+    { words: ['bus', 'transportation', 'route', 'ride'], label: 'Bus routes and transportation', url: 'https://www.browardschools.com/bcps-departments/student-transportation-fleet-services/overview' },
+    { words: ['register', 'enroll', 'enrollment', 'registration', 'sign up'], label: 'Enroll or register your child', url: 'https://www.browardschools.com/fs/pages/83926' },
+    { words: ['lunch', 'menu', 'meals', 'breakfast', 'food', 'payment'], label: 'School meals, menus and payments', url: 'https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus' },
+    { words: ['school', 'locator', 'zone', 'assigned'], label: 'Find your school (School Locator)', url: 'https://www.browardschools.com/fs/pages/84659' },
+    { words: ['calendar', 'holiday', 'dates', 'schedule'], label: 'Calendars and key dates', url: 'https://www.browardschools.com/calendar-e3' }
+  ];
+  var form = document.getElementById('search-form'), q = document.getElementById('q'), out = document.getElementById('search-result');
+  function runSearch(text) {
+    var t = (text || '').trim().toLowerCase();
+    if (!t) { out.classList.remove('show'); return; }
+    var hit = null;
+    for (var i = 0; i < SYN.length && !hit; i++) for (var j = 0; j < SYN[i].words.length; j++) if (t.indexOf(SYN[i].words[j]) !== -1) { hit = SYN[i]; break; }
+    out.innerHTML = '';
+    var p = document.createElement('span');
+    if (hit) {
+      p.textContent = 'Best match for "' + text + '": ';
+      var a = document.createElement('a'); a.href = hit.url; a.textContent = hit.label; a.style.fontWeight = '800';
+      out.appendChild(p); out.appendChild(a);
+    } else {
+      p.textContent = 'In the live page this would run the site search for "' + text + '". Try Find It Fast below.';
+      out.appendChild(p);
+    }
+    out.classList.add('show');
+  }
+  form.addEventListener('submit', function (e) { e.preventDefault(); runSearch(q.value); });
+  document.querySelectorAll('[data-q]').forEach(function (b) {
+    b.addEventListener('click', function () { q.value = b.getAttribute('data-q'); runSearch(q.value); });
+  });
+
+  document.querySelectorAll('[data-fb]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.getElementById('fb-thanks').textContent = b.getAttribute('data-fb') === 'yes'
+        ? 'Thank you. (In the live page, this is counted for each page.)'
+        : 'Thank you. A short "What were you looking for?" box would open here.';
+    });
+  });
+
+  var notesBtn = document.getElementById('notes-toggle');
+  notesBtn.addEventListener('click', function () {
+    var on = document.body.classList.toggle('show-notes');
+    notesBtn.setAttribute('aria-pressed', String(on));
+  });
+
+  // Guided walkthrough. The address bar carries the step (#tour=3) so Back
+  // works and a link can open any step.
+  var STEPS = [
+    { id: 's-hero', title: 'What you are looking at', text: 'A proposed Parents & Families page in the browardschools.com look. The header, navigation and footer match the live site; the content below is reorganized.', why: 'The live page opens with a welcome message, a video and ten stories before the resources families come for. This version starts with the tasks.' },
+    { id: 's-hero', title: 'Search that speaks family', text: 'A search box at the top, with popular words underneath. Try "report card" or "bus".', why: 'Search should understand the words families use, not only official names.' },
+    { id: 's-tasks', title: 'Get it done', text: 'Eight tasks families do most, each named for what you can do, then the tool it opens.', why: 'Starting list from our research. Phase 1 confirms the order with traffic, search and Customer Service data.' },
+    { id: 's-signin', title: 'Sign in, with help beside it', text: 'Sign in, Create an account and Trouble signing in? sit together, with a line explaining where you are going and what you need.', why: 'Login trouble is one of the most common reasons families call. Help belongs next to the button.' },
+    { id: 's-fif', title: 'Find anything else', text: 'Find It Fast, the searchable resource list we already built, embedded here. The team edits it live in BCPS MarComm.', why: 'It covers the long tail of links without a long page, and it is our working example of an embed where Finalsite has no equivalent.' },
+    { id: 's-dates', title: 'Coming up', text: 'The next few dates families need, pulled from the District calendar.', why: 'Deadlines and events sit next to the tasks they affect.' },
+    { id: 's-learn', title: 'Learn with us', text: 'Parent University and Student University get a visible home, with other family learning tools.', why: 'Both already exist, but today they are inside a list of ten stories.' },
+    { id: 's-support', title: 'Support for every family', text: 'Short link groups for families who are new, who need wellbeing support, or who need language help.', why: 'Curated, not endless. Department directors help choose what is spotlighted.' },
+    { id: 's-stories', title: 'Family spotlight', text: 'Stories stay, after the essentials, as a row of the newest four.', why: 'We keep telling the District story without pushing tasks down the page.' },
+    { id: 's-compass', title: 'District Compass', text: 'District initiatives in a compact row. Internet Safety moves to its own page, linked here.', why: 'Internet Safety is valuable but long; on its own page it is easier to use and easier to find.' },
+    { id: 's-feedback', title: 'Was this page helpful?', text: 'One question at the bottom of every page.', why: 'It shows us which pages are not working, so we know where to look first.' },
+    { id: 's-tasks', title: 'One pattern, three pages', text: 'Students and Community get the same blocks in the same places: tasks, sign-in help, Find It Fast, dates, learning, support, stories.', why: 'A visitor learns the pattern once. Turn on Build notes to see which blocks are native Finalsite and which are embeds.' }
+  ];
+  var cur = -1, card = document.getElementById('tour-card'), dots = document.getElementById('tour-dots');
+  STEPS.forEach(function () { dots.appendChild(document.createElement('span')); });
+  function show(i, fromHash) {
+    if (i < 0 || i >= STEPS.length) return;
+    var prevEl = document.querySelector('.tour-target');
+    if (prevEl) prevEl.classList.remove('tour-target');
+    cur = i;
+    var s = STEPS[i], el = document.getElementById(s.id);
+    el.classList.add('tour-target');
+    document.body.classList.add('touring');
+    document.getElementById('tour-step').textContent = 'Step ' + (i + 1) + ' of ' + STEPS.length;
+    document.getElementById('tour-title').textContent = s.title;
+    document.getElementById('tour-text').textContent = s.text;
+    document.getElementById('tour-why').textContent = 'Why: ' + s.why;
+    document.getElementById('tour-count').textContent = (i + 1) + ' of ' + STEPS.length;
+    document.getElementById('tour-prev').disabled = i === 0;
+    document.getElementById('tour-next').textContent = i === STEPS.length - 1 ? 'Finish' : 'Next';
+    Array.prototype.forEach.call(dots.children, function (d, k) { d.className = k === i ? 'on' : ''; });
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!fromHash) history.replaceState(null, '', '#tour=' + (i + 1));
+    document.getElementById('tour-next').focus({ preventScroll: true });
+  }
+  function end() {
+    var t = document.querySelector('.tour-target'); if (t) t.classList.remove('tour-target');
+    document.body.classList.remove('touring'); cur = -1;
+    history.replaceState(null, '', location.pathname + location.search);
+    document.getElementById('tour-start').focus();
+  }
+  document.getElementById('tour-start').addEventListener('click', function () { show(0); });
+  document.getElementById('tour-next').addEventListener('click', function () { cur === STEPS.length - 1 ? end() : show(cur + 1); });
+  document.getElementById('tour-prev').addEventListener('click', function () { show(cur - 1); });
+  document.getElementById('tour-close').addEventListener('click', end);
+  document.getElementById('tour-dim').addEventListener('click', end);
+  document.addEventListener('keydown', function (e) {
+    if (cur < 0) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); cur === STEPS.length - 1 ? end() : show(cur + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); show(cur - 1); }
+    else if (e.key === 'Escape') end();
+  });
+  var m = /^#tour=(\d+)$/.exec(location.hash);
+  if (m) show(Math.min(STEPS.length, Math.max(1, parseInt(m[1], 10))) - 1, true);
+})();
+</script>
+</body>
+</html>
