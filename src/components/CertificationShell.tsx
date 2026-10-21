@@ -25,7 +25,6 @@ export default function CertificationShell({ children }: { children: React.React
     // does not exist - clicking Departments from a certification page 404'd.)
     const routes: Partial<Record<PageId, string>> = {
       'bcps-google-governance': '/google-governance-plan.html',
-      'bcps-assignments': '/bcps-web-team-assignments.html',
       'bcps-certification': '/certification/departments',
     }
     window.location.href = routes[page] ?? `/?page=${page}`
