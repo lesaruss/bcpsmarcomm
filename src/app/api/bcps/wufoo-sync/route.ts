@@ -9,7 +9,11 @@ import { timingSafeEqual } from 'crypto'
 //
 // Callers:
 //   Wufoo's webhook  form-encoded POST carrying HandshakeKey; it starts a sync
-//   pg_cron / Logan  x-sync-key header (or ?key=) with action discover | sync | register_webhook
+//   pg_cron / Logan  x-sync-key header (or ?key=) with action discover | sync | register_webhook | backfill_files
+// Files on an entry are copied into the private marcomm-attachments bucket
+// (Sean, 2026-10-22: there was no place to download them), so they show under
+// Attachments on the request and outlive Wufoo. backfill_files does the same
+// for entries imported before, whose files were only listed in the text.
 // Nothing is imported until bcps_marcomm_wufoo_state.enabled is set, after the
 // field map from discover has been checked against the form.
 export const dynamic = 'force-dynamic'
@@ -20,6 +24,36 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 const WUFOO = 'https://browardschools.wufoo.com/api/v3'
 const SELF = 'https://bcpsmarcomm.com/api/bcps/wufoo-sync'
 const PAGE_SIZE = 25
+const BUCKET = 'marcomm-attachments'
+
+// Wufoo writes a file answer as "name.pdf (https://browardschools.wufoo.com/cabinet/...)".
+function parseFile(answer: string): { name: string; url: string } | null {
+  const m = answer.match(/^(.*?)\s*\((https:\/\/[^\s)]+)\)\s*$/)
+  if (!m) return null
+  return { name: (m[1] || m[2].split('/').pop() || 'file').trim(), url: m[2] }
+}
+
+// Copy one Wufoo file into our bucket. Cabinet links open for anyone with the
+// link; the API key is tried if they do not. A file that cannot be copied
+// keeps its Wufoo link, so it is still listed.
+async function copyFile(job: number, f: { name: string; url: string }): Promise<{ name: string; path?: string; url?: string }> {
+  try {
+    const key = process.env.WUFOO_API_KEY
+    let r = await fetch(f.url, { cache: 'no-store', redirect: 'follow' })
+    if (!r.ok && key) r = await fetch(f.url, { cache: 'no-store', redirect: 'follow', headers: { Authorization: `Basic ${Buffer.from(`${key}:footastic`).toString('base64')}` } })
+    const type = r.headers.get('content-type') || 'application/octet-stream'
+    if (!r.ok || type.includes('text/html')) throw new Error(`Wufoo ${r.status}`)
+    const safe = f.name.replace(/[^\w.\- ]+/g, '_').slice(0, 120) || 'file'
+    const path = `requests/wufoo-${job}/${safe}`
+    const { error } = await supabase.storage.from(BUCKET).upload(path, Buffer.from(await r.arrayBuffer()), { contentType: type, upsert: true })
+    if (error) throw new Error(error.message)
+    return { name: f.name, path }
+  } catch {
+    return { name: f.name, url: f.url }
+  }
+}
+const copyFiles = (job: number, answers: string[]) =>
+  Promise.all(answers.map(parseFile).filter((f): f is { name: string; url: string } => !!f).map(f => copyFile(job, f)))
 
 type WField = { ID: string; Title: string; Type: string; SubFields?: { ID: string; Label: string }[] }
 type Field = { id: string; title: string; type: string; subfields: { id: string; label: string }[] }
@@ -106,8 +140,8 @@ function toRow(e: Entry, fields: Field[], map: FieldMap) {
   const extra = fields.filter(f => !used.has(f.id) && f.type !== 'file')
     .map(f => ({ f, v: answer(f, e).join(', ') })).filter(x => x.v)
     .map(x => `${x.f.title.trim() || 'Link'}: ${x.v}`)
-  const description = [get('description', '\n'), extra.join('\n'), files.length ? `Files on Wufoo:\n${files.join('\n')}` : '']
-    .filter(Boolean).join('\n\n') || null
+  // Files are copied to Attachments by sync, not listed in the text.
+  const description = [get('description', '\n'), extra.join('\n')].filter(Boolean).join('\n\n') || null
   const firstLine = (get('description', ' ') ?? extra[0] ?? `Wufoo entry ${e.EntryId}`).replace(/\s+/g, ' ')
   // Yes/No checkboxes come back as the ticked label.
   const yes = (col: keyof FieldMap) => /^(y|true)/i.test(get(col) ?? '')
@@ -136,6 +170,7 @@ function toRow(e: Entry, fields: Field[], map: FieldMap) {
     submitted_at: e.DateCreated ? `${e.DateCreated} America/New_York` : new Date().toISOString(),
     created_by_email: 'Wufoo',
     source_payload: e,
+    files,
   }
 }
 
@@ -183,12 +218,16 @@ async function sync() {
     const q = `Filter1=${encodeURIComponent(`EntryId Is_greater_than ${after}`)}&sort=EntryId&sortDirection=ASC&pageSize=${PAGE_SIZE}`
     const { Entries } = await wufoo<{ Entries: Entry[] }>(`/forms/${state.form_hash}/entries.json?${q}`)
     for (const e of Entries) {
-      const row = toRow(e, state.fields, state.field_map)
+      const { files, ...row } = toRow(e, state.fields, state.field_map)
       const { data, error } = await supabase.from('bcps_marcomm_requests')
         .upsert(row, { onConflict: 'job_number', ignoreDuplicates: true }).select('id')
       if (error) throw new Error(`Entry ${e.EntryId}: ${error.message}`)
       if (data?.length) {
         imported.push(row.job_number)
+        if (files.length) {
+          const attachments = await copyFiles(row.job_number, files)
+          if (attachments.length) await supabase.from('bcps_marcomm_requests').update({ attachments }).eq('id', data[0].id)
+        }
         await supabase.from('bcps_marcomm_request_notes').insert({
           request_id: data[0].id, body: `Imported from Wufoo entry ${row.job_number}.`, author: 'Wufoo', source: 'system',
         })
@@ -201,6 +240,33 @@ async function sync() {
   const result = { imported, already_tracked: skipped, last_entry_id: after }
   await saveState({ last_entry_id: after, last_run_at: new Date().toISOString(), last_result: result, last_error: null })
   return result
+}
+
+// Entries imported before files were copied: their files sit in the text as
+// "Files on Wufoo:" lines. Copy them to Attachments and take the lines out.
+async function backfillFiles() {
+  const { data: rows, error } = await supabase.from('bcps_marcomm_requests')
+    .select('id, job_number, description, attachments').eq('source', 'wufoo').ilike('description', '%Files on Wufoo:%')
+  if (error) throw new Error(error.message)
+  const done: { job: number; copied: number; linked: number }[] = []
+  for (const r of rows ?? []) {
+    const text = String(r.description ?? '')
+    const at = text.indexOf('Files on Wufoo:')
+    const answers = text.slice(at + 'Files on Wufoo:'.length).split('\n').map(l => l.trim()).filter(Boolean)
+    const attachments = await copyFiles(r.job_number as number, answers)
+    if (!attachments.length) continue
+    const kept = Array.isArray(r.attachments) ? r.attachments : []
+    await supabase.from('bcps_marcomm_requests').update({
+      attachments: [...kept, ...attachments], description: text.slice(0, at).trim() || null, updated_at: new Date().toISOString(),
+    }).eq('id', r.id)
+    const copied = attachments.filter(a => a.path).length
+    await supabase.from('bcps_marcomm_request_notes').insert({
+      request_id: r.id, author: 'Wufoo', source: 'system',
+      body: `Files from Wufoo moved to Attachments: ${attachments.map(a => a.name).join(', ')}.${copied < attachments.length ? ' Some could not be copied and still open on Wufoo.' : ''}`,
+    })
+    done.push({ job: r.job_number as number, copied, linked: attachments.length - copied })
+  }
+  return { backfilled: done }
 }
 
 async function registerWebhook() {
@@ -228,6 +294,7 @@ async function handle(req: NextRequest, body: Record<string, string>) {
     if (action === 'discover') return NextResponse.json(await discover(body.form || req.nextUrl.searchParams.get('form')))
     if (action === 'register_webhook') return NextResponse.json(await registerWebhook())
     if (action === 'sync') return NextResponse.json(await sync())
+    if (action === 'backfill_files') return NextResponse.json(await backfillFiles())
     return NextResponse.json({ error: 'Unknown action.' }, { status: 400 })
   } catch (e) { return fail(e) }
 }

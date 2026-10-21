@@ -19,7 +19,9 @@ async function authHeaders(): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-interface Attachment { name: string; path: string }
+// path: a file in the private bucket. url: a Wufoo file that could not be
+// copied over, opened where it is.
+interface Attachment { name: string; path?: string; url?: string }
 interface Req {
   id: string
   job_number: number | null
@@ -710,7 +712,9 @@ function Drawer({ req, team, notes, onClose, post, others, combined }: {
         <section>
           <h3>Attachments</h3>
           {req.attachments.length > 0
-            ? <ul className="d-files">{req.attachments.map(a => <li key={a.path}><button onClick={() => openAttachment(a.path)}>{a.name}</button></li>)}</ul>
+            ? <ul className="d-files">{req.attachments.map(a => <li key={a.path ?? a.url}>{a.path
+                ? <button onClick={() => openAttachment(a.path!)}>{a.name}</button>
+                : <a href={a.url} target="_blank" rel="noopener noreferrer">{a.name} (opens on Wufoo)</a>}</li>)}</ul>
             : <p className="muted">No files yet.</p>}
           {/* The team adds files too (Jennifer Hodder, 2026-10-21), the same
               way the request form does: straight to storage by signed link. */}
