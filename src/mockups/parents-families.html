@@ -69,10 +69,45 @@
   /* Page hero */
   .hero { position: relative; background: var(--softer); border-radius: 24px; padding: 36px 40px; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 32px 40px; align-items: start; }
   .hero-main { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
-  .signin-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px 10px 16px; }
-  .signin-label { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: var(--ink); font-size: 15px; }
-  .signin-label svg { width: 18px; height: 18px; color: var(--primary); }
-  .signin-links { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+  .signin-bar { display: flex; flex-direction: column; gap: 10px; }
+  .hero .signin-label { margin: 0; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--primary-dark); }
+  .signin-label svg { width: 16px; height: 16px; }
+  .signin-links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+  /* Things to know: a swipeable slider, one item at a time */
+  .ticker { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px 14px; min-width: 0; }
+  .ticker-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .ticker-head h2 { font-size: 18px; line-height: 1.1; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; margin-right: auto; }
+  .ticker-count { font-size: 13px; font-weight: 700; color: var(--muted); }
+  .ticker-arrow { width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--line); background: #fff; color: var(--primary-dark); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .ticker-arrow svg { width: 18px; height: 18px; }
+  .ticker-arrow:hover { border-color: var(--primary); }
+  .ticker-arrow:disabled { opacity: .35; cursor: default; }
+  .ticker-track { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; column-gap: 32px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .ticker-track::-webkit-scrollbar { display: none; }
+  .ticker-item { scroll-snap-align: start; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .ticker-tag { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); background: var(--gold); border-radius: 4px; padding: 2px 8px; }
+  .ticker-item h3 { font-size: 17px; line-height: 1.3; color: var(--ink); }
+  .hero .ticker-item p { margin: 0; font-size: 15px; color: var(--text); max-width: none; }
+  .ticker-item .btn { margin-top: 4px; }
+  .ticker-dots { display: flex; gap: 6px; justify-content: center; margin-top: 12px; }
+  .ticker-dots button { width: 9px; height: 9px; padding: 0; border-radius: 50%; border: 0; background: var(--line); cursor: pointer; }
+  .ticker-dots button[aria-current="true"] { background: var(--primary); width: 22px; border-radius: 5px; }
+  @media (prefers-reduced-motion: reduce) { .ticker-track { scroll-behavior: auto; } }
+  /* Video lightbox */
+  .lightbox { border: 0; padding: 0; background: transparent; width: min(960px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); margin: auto; overflow: visible; }
+  .lightbox::backdrop { background: rgba(8,20,30,.82); }
+  .lb-inner { background: #0b1a24; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .lb-frame { position: relative; aspect-ratio: 16 / 9; background: var(--navy); }
+  .lb-frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; opacity: .35; }
+  .lb-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; text-align: center; color: #fff; }
+  .lb-center .poster-play { position: static; margin: 0; }
+  .lb-center p { font-size: 15px; font-weight: 700; max-width: 46ch; }
+  .lb-cc { position: absolute; right: 14px; bottom: 12px; font-size: 12px; font-weight: 800; color: #fff; background: rgba(0,0,0,.6); border-radius: 4px; padding: 2px 7px; }
+  .lb-bar { display: flex; align-items: center; gap: 12px; padding: 14px 18px; color: #fff; }
+  .lb-bar h2 { font-size: 18px; line-height: 1.2; margin-right: auto; font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
+  .lb-bar span { font-size: 13px; font-weight: 700; color: #b9c7d2; }
+  .lb-close { width: 38px; height: 38px; border-radius: 6px; border: 1px solid rgba(255,255,255,.3); background: transparent; color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+  .lb-close:hover { background: rgba(255,255,255,.12); }
   .signin-link { font-size: 14px; font-weight: 700; color: var(--primary-dark); }
   .hero-ctas { display: flex; flex-wrap: wrap; gap: 10px; }
   .hero-ctas .btn { font-size: 15px; padding: 12px 20px; }
@@ -286,7 +321,9 @@
     .task svg { width: 24px; height: 24px; }
     .task .t-label { font-size: 15px; }
     .task .t-tool { font-size: 12px; }
-    .signin-links { margin-left: 0; }
+    .ticker { padding: 14px 14px 12px; }
+    .lb-bar { padding: 12px 14px; }
+    .lb-bar h2 { font-size: 16px; }
     .finder { padding: 20px 16px; }
     .hero-ctas .btn { flex: 1 1 auto; text-align: center; justify-content: center; }
     .tour-card { right: 16px; bottom: 16px; }
@@ -357,20 +394,39 @@
   <p class="crumbs"><a href="https://www.browardschools.com">Home</a> &rsaquo; Parents &amp; Families</p>
 
   <section class="hero" id="s-hero" data-bn aria-labelledby="h-page">
-    <span class="bn native">Finalsite native: text, buttons and a sign-in link bar</span>
+    <span class="bn native">Finalsite native: text, buttons, sign-in links and a video lightbox</span>
     <div class="hero-main">
       <div class="hero-head">
         <h1 id="h-page">Parents &amp; Families</h1>
         <p>Welcome. Everything you need to support your child at BCPS is on this page, starting with the things families do most.</p>
       </div>
       <div class="signin-bar" id="s-signin">
-        <span class="signin-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>FOCUS and Family Access</span>
+        <p class="signin-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>FOCUS and Family Access</p>
         <span class="signin-links">
           <a class="btn primary small" href="https://sso.browardschools.com">Sign in</a>
           <a class="signin-link" href="https://www.browardschools.com/bcps-departments/information-systems/focus-student-information-system">Create an account</a>
           <a class="signin-link" href="https://www.browardschools.com/parentsstudentsstaff/customer-service">Trouble signing in?</a>
         </span>
       </div>
+      <section class="ticker" id="s-ticker" aria-roledescription="carousel" aria-labelledby="h-ticker">
+        <span class="bn native">Finalsite native: content slider. Editors choose up to 10 items; these are examples</span>
+        <div class="ticker-head">
+          <h2 id="h-ticker">Things to know</h2>
+          <span class="ticker-count" id="ticker-count" aria-live="polite">1 of 7</span>
+          <button type="button" class="ticker-arrow" id="ticker-prev" aria-label="Previous item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+          <button type="button" class="ticker-arrow" id="ticker-next" aria-label="Next item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        </div>
+        <div class="ticker-track" id="ticker-track">
+          <article class="ticker-item" aria-roledescription="slide" aria-label="1 of 7"><span class="ticker-tag">This week</span><h3>Report cards are out</h3><p>First-quarter report cards were issued October 21. Sign in to FOCUS to see grades, attendance and teacher comments.</p><a class="btn primary small" href="https://www.browardschools.com/fs/pages/83139">Check grades</a></article>
+          <article class="ticker-item" aria-roledescription="slide" aria-label="2 of 7"><span class="ticker-tag">Parent University</span><h3>Keep your child safe online</h3><p>Join the free Linewize Parent session tonight, 6:30 to 7:30 PM, online. Learn how to set up the parent app at home.</p><a class="btn primary small" href="https://www.browardschools.com/calendar-e3">See the details</a></article>
+          <article class="ticker-item" aria-roledescription="slide" aria-label="3 of 7"><span class="ticker-tag">Meals</span><h3>Free and reduced meals</h3><p>You can apply for free and reduced meals at any time during the school year. This month's menus are online too.</p><a class="btn primary small" href="https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus">Menus and meals</a></article>
+          <article class="ticker-item" aria-roledescription="slide" aria-label="4 of 7"><span class="ticker-tag">Forms</span><h3>Finish your back to school forms</h3><p>Complete your child's required forms online so your school has up-to-date contacts and permissions.</p><a class="btn primary small" href="https://www.browardschools.com/back-to-school-online-forms">Go to the forms</a></article>
+          <article class="ticker-item" aria-roledescription="slide" aria-label="5 of 7"><span class="ticker-tag">Support</span><h3>Help for your child's well-being</h3><p>Counselors, social workers and mental health services are available at every school, at no cost to families.</p><a class="btn primary small" href="https://www.browardschools.com/bcps-departments/office-of-student-services/student-services-mental-health/mental-health-services">Find support</a></article>
+          <article class="ticker-item" aria-roledescription="slide" aria-label="6 of 7"><span class="ticker-tag">Safety</span><h3>See something, say something</h3><p>Report a safety concern any time. Tips can be anonymous and go straight to the people who can help.</p><a class="btn primary small" href="https://www.browardschools.com/anonymous-tips">Report a tip</a></article>
+          <article class="ticker-item" aria-roledescription="slide" aria-label="7 of 7"><span class="ticker-tag">Get involved</span><h3>Volunteer at your school</h3><p>Help in classrooms, at events and on field trips. Register once and you are ready to volunteer at any school.</p><a class="btn primary small" href="https://www.browardschools.com/community/volunteer">Become a volunteer</a></article>
+        </div>
+        <div class="ticker-dots" id="ticker-dots" role="group" aria-label="Choose an item"></div>
+      </section>
       <div class="hero-ctas">
         <a class="btn primary" id="cta-find" href="#s-tasks">Find what you need</a>
         <button type="button" class="btn ghost" id="cta-watch"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>Watch how it works</button>
@@ -396,6 +452,24 @@
       </div>
     </div>
   </section>
+
+  <dialog class="lightbox" id="video-lightbox" aria-labelledby="lb-title">
+    <div class="lb-inner">
+      <div class="lb-frame">
+        <img src="" alt="" id="lb-photo">
+        <div class="lb-center">
+          <span class="poster-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>
+          <p>Placeholder: the video plays here, with captions, once it is recorded.</p>
+        </div>
+        <span class="lb-cc" aria-hidden="true">CC</span>
+      </div>
+      <div class="lb-bar">
+        <h2 id="lb-title"></h2>
+        <span id="lb-len"></span>
+        <button type="button" class="lb-close" id="lb-close" aria-label="Close video">&times;</button>
+      </div>
+    </div>
+  </dialog>
 
   <section class="section" id="s-tasks" data-bn aria-labelledby="h-tasks">
     <span class="bn embed">Embed: search, topic buttons and tasks, powered by Find It Fast data edited live in BCPS MarComm</span>
@@ -816,11 +890,56 @@
     document.getElementById('s-tasks').scrollIntoView({ behavior: 'smooth', block: 'start' });
     setTimeout(function () { q.focus({ preventScroll: true }); }, 400);
   });
-  document.getElementById('cta-watch').addEventListener('click', function () {
-    showVideo(0); playPlaceholder();
-    poster.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    poster.focus({ preventScroll: true });
+  var lb = document.getElementById('video-lightbox'), watchBtn = document.getElementById('cta-watch');
+  watchBtn.addEventListener('click', function () {
+    var v = VIDEOS[0];
+    document.getElementById('lb-photo').src = v.img;
+    document.getElementById('lb-title').textContent = v.title;
+    document.getElementById('lb-len').textContent = v.len;
+    lb.showModal();
+    document.getElementById('lb-close').focus();
   });
+  document.getElementById('lb-close').addEventListener('click', function () { lb.close(); });
+  // A click on the dark area around the video closes it.
+  lb.addEventListener('click', function (e) { if (e.target === lb) lb.close(); });
+  lb.addEventListener('close', function () { watchBtn.focus(); });
+
+  // Things to know slider. Swipe or scroll on touch, arrows and dots anywhere.
+  // It never moves on its own, so nobody loses their place while reading.
+  var track = document.getElementById('ticker-track');
+  var slides = Array.prototype.slice.call(track.children);
+  var tDots = document.getElementById('ticker-dots');
+  var tPrev = document.getElementById('ticker-prev'), tNext = document.getElementById('ticker-next');
+  var tCount = document.getElementById('ticker-count');
+  var tCur = 0;
+  slides.forEach(function (sl, i) {
+    var d = document.createElement('button');
+    d.type = 'button';
+    d.setAttribute('aria-label', 'Item ' + (i + 1) + ' of ' + slides.length);
+    d.addEventListener('click', function () { goSlide(i); });
+    tDots.appendChild(d);
+  });
+  var dotBtns = Array.prototype.slice.call(tDots.children);
+  function markSlide(i) {
+    tCur = i;
+    tCount.textContent = (i + 1) + ' of ' + slides.length;
+    tPrev.disabled = i === 0;
+    tNext.disabled = i === slides.length - 1;
+    dotBtns.forEach(function (d, k) { d.setAttribute('aria-current', String(k === i)); });
+  }
+  function goSlide(i) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    track.scrollTo({ left: slides[i].offsetLeft - slides[0].offsetLeft });
+    markSlide(i);
+  }
+  tPrev.addEventListener('click', function () { goSlide(tCur - 1); });
+  tNext.addEventListener('click', function () { goSlide(tCur + 1); });
+  var tScroll;
+  track.addEventListener('scroll', function () {
+    clearTimeout(tScroll);
+    tScroll = setTimeout(function () { markSlide(Math.round(track.scrollLeft / (slides[1].offsetLeft - slides[0].offsetLeft))); }, 80);
+  });
+  markSlide(0);
 
   var notesBtn = document.getElementById('notes-toggle');
   notesBtn.addEventListener('click', function () {
@@ -832,7 +951,8 @@
   // works and a link can open any step.
   var STEPS = [
     { id: 's-hero', title: 'What you are looking at', text: 'A proposed Parents & Families page in the browardschools.com look. The header, navigation and footer match the live site; the content below is reorganized.', why: 'The live page opens with a welcome message, a video and ten stories before the resources families come for. This version welcomes families, then gets them to their task.' },
-    { id: 's-signin', title: 'Sign in, right at the top', text: 'A slim FOCUS and Family Access bar: Sign in, Create an account and Trouble signing in? together, so the most common task is the first thing families see.', why: 'Login is one of the main reasons families visit and call. Help belongs next to the button.' },
+    { id: 's-signin', title: 'Sign in, right at the top', text: 'FOCUS and Family Access, with Sign in, Create an account and Trouble signing in? together, so the most common task is the first thing families see.', why: 'Login is one of the main reasons families visit and call. Help belongs next to the button.' },
+    { id: 's-ticker', title: 'Things to know', text: 'A short slider of what families should know right now. Each item is a sentence or two and one button. Swipe, or use the arrows and dots. Editors pick up to 10 items.', why: 'Timely news gets seen without pushing the tasks down the page, and it never moves on its own, so nobody loses their place.' },
     { id: 's-video', title: 'Videos for families', text: 'A short captioned video player with a few videos to choose from: a welcome, checking grades in FOCUS, and school meals. Watch how it works starts the welcome video; Find what you need drops to Get it done.', why: 'Seeing it done once is faster than reading instructions, and the same videos can be shared on social media. These titles are examples.' },
     { id: 's-tasks', title: 'Get it done: search, topics and results in one place', text: 'Type what you need or pick a topic, and the results change right below. Before anyone searches, it shows the eight tasks families do most. Try "report card", "bus", "lunch" or "shots".', why: 'Search, topics and results live together, so it is obvious the buttons work. Resources come from Find It Fast, edited live in BCPS MarComm; the eight top tasks still show if that list cannot load.' },
     { id: 's-dates', title: 'Coming up', text: 'The next few dates families need, pulled from the District calendar.', why: 'Deadlines and events sit next to the tasks they affect.' },
