@@ -19,7 +19,7 @@ import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadM
 //                                 -> { result }   payload is the reviewed proposal
 //   POST { action: 'discard', upload_id }
 // ?tracker=marcomm (GET) or tracker: 'marcomm' (POST) does the same for
-// MarComm Assignments (Sean, 2026-10-21), under the 'marcomm-transcripts'
+// MarComm Assignments (Sean, 2026-10-21), under the 'marcomm-edit'
 // grant; see lib/marcomm-meeting-transcript.
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300

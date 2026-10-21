@@ -31,3 +31,8 @@ update public.acl_objects
    set title = 'MarComm Meeting Transcript Upload (retired)',
        description = 'Retired 2026-10-21. Transcript upload is now part of MarComm Assignments editors (marcomm-edit). Not checked by any page.'
  where brand = 'bcps' and kind = 'page' and slug = 'marcomm-transcripts';
+
+-- Removed the same day at Sean's request, once nothing checked it.
+delete from public.acl_grants g using public.acl_objects o
+ where g.object_id = o.id and o.brand = 'bcps' and o.kind = 'page' and o.slug = 'marcomm-transcripts';
+delete from public.acl_objects where brand = 'bcps' and kind = 'page' and slug = 'marcomm-transcripts';
