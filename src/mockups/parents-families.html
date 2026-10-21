@@ -67,15 +67,33 @@
   .crumbs a { color: var(--primary-dark); }
 
   /* Page hero */
-  .hero { position: relative; background: var(--softer); border-radius: 24px; padding: 36px 40px; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px 32px; align-items: end; }
+  .hero { position: relative; background: var(--softer); border-radius: 24px; padding: 36px 40px; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 32px 40px; align-items: center; }
+  .hero-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .hero-video { position: relative; min-width: 0; }
+  .video-poster { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; padding: 0; border-radius: 18px; overflow: hidden; cursor: pointer; background: var(--navy); box-shadow: 0 10px 30px rgba(14,48,68,.22); text-align: left; font: inherit; }
+  .poster-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+  .poster-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(14,48,68,.92) 0%, rgba(14,48,68,.65) 45%, rgba(14,48,68,.1) 100%); }
+  .poster-text { position: absolute; left: 24px; top: 22px; right: 45%; display: flex; flex-direction: column; gap: 6px; color: #fff; }
+  .poster-kicker { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); }
+  .poster-title { font-size: clamp(20px, 2.2vw, 30px); line-height: 1.1; font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
+  .poster-play { position: absolute; left: 50%; top: 50%; width: 76px; height: 76px; margin: -38px 0 0 -38px; border-radius: 50%; background: var(--gold); color: var(--ink); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(0,0,0,.3); transition: transform .2s; }
+  .poster-play svg { width: 34px; height: 34px; margin-left: 4px; }
+  .video-poster:hover .poster-play, .video-poster:focus-visible .poster-play { transform: scale(1.08); }
+  .poster-meta { position: absolute; right: 14px; bottom: 12px; display: flex; gap: 6px; }
+  .poster-meta span { font-size: 12px; font-weight: 800; color: #fff; background: rgba(0,0,0,.6); border-radius: 4px; padding: 2px 7px; }
+  .poster-soon { position: absolute; left: 24px; bottom: 14px; right: 110px; font-size: 13px; font-weight: 700; color: #fff; }
+  .video-caption { margin-top: 12px; font-size: 14px; color: var(--text); }
+  .video-social { margin-top: 6px; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+  .video-social strong { color: var(--ink); }
+  .video-social span { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; }
   .hero h1 { font-size: clamp(30px, 4vw, 46px); line-height: 1.05; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
   .hero p { margin-top: 10px; font-size: 16px; color: var(--text); max-width: 60ch; }
   .search-box label { display: block; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
   .search-row { display: flex; gap: 8px; }
   .search-row input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 14px 16px; border: 2px solid #a3a3a3; border-radius: 6px; background: #fff; }
   .search-row button { font: inherit; font-weight: 800; padding: 0 20px; border-radius: 6px; border: 0; background: var(--primary); color: #fff; cursor: pointer; }
-  .chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip { font: inherit; font-size: 14px; font-weight: 700; color: var(--muted); background: #fff; border: 1px solid #d4d4d4; border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+  .chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .chip { font: inherit; font-size: 14px; font-weight: 700; color: var(--muted); background: #fff; border: 1px solid #d4d4d4; border-radius: 6px; padding: 9px 10px; cursor: pointer; text-align: center; }
   .chip:hover { border-color: var(--primary); color: var(--primary-dark); }
   .chip[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
   .results-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 16px; }
@@ -141,6 +159,13 @@
   .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
   .card { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
   .card .band { height: 8px; background: var(--primary); }
+  .card .pic { aspect-ratio: 3 / 2; background: var(--soft); overflow: hidden; }
+  .card .pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card .pic.icon { display: flex; align-items: center; justify-content: center; background: var(--primary); color: #fff; }
+  .card.green .pic.icon { background: var(--tertiary); }
+  .card.orange .pic.icon { background: var(--secondary); }
+  .card.gold .pic.icon { background: var(--gold); color: var(--ink); }
+  .card .pic.icon svg { width: 54px; height: 54px; }
   .card.green .band { background: var(--tertiary); }
   .card.orange .band { background: var(--secondary); }
   .card.gold .band { background: var(--gold); }
@@ -204,6 +229,8 @@
   .tour-close { position: absolute; top: 10px; right: 12px; background: none; border: 0; color: #b9c7d2; font-size: 22px; cursor: pointer; line-height: 1; }
 
   @media (max-width: 1100px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+    .hero-video { max-width: 720px; }
     .tasks, .cards, .dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .nav-main ul { gap: 14px; }
@@ -224,6 +251,10 @@
   @media (max-width: 560px) {
     .mock-bar { position: static; }
     .more-tabs { flex-wrap: wrap; overflow: visible; border-bottom: 0; gap: 6px; }
+    .chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .poster-text { left: 16px; top: 14px; right: 30%; }
+    .poster-play { width: 60px; height: 60px; margin: -30px 0 0 -30px; }
+    .poster-soon { left: 16px; right: 90px; font-size: 12px; }
     .more-tab { flex: 1 1 calc(50% - 6px); text-align: center; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 0; font-size: 14px; padding: 10px 8px; }
     .more-tab[aria-selected="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
     .section, .hero, .signin { scroll-margin-top: 12px; }
@@ -303,23 +334,41 @@
   <p class="crumbs"><a href="https://www.browardschools.com">Home</a> &rsaquo; Parents &amp; Families</p>
 
   <section class="hero" id="s-hero" data-bn aria-labelledby="h-page">
-    <span class="bn embed">Embed: search, filters and tasks, powered by Find It Fast data edited live in BCPS MarComm</span>
-    <div class="hero-head">
-      <h1 id="h-page">Parents &amp; Families</h1>
-      <p>Everything you need to support your child at BCPS, starting with the things families do most.</p>
+    <span class="bn embed">Embed: search, topic buttons and tasks, powered by Find It Fast data edited live in BCPS MarComm</span>
+    <div class="hero-main">
+      <div class="hero-head">
+        <h1 id="h-page">Parents &amp; Families</h1>
+        <p>Everything you need to support your child at BCPS, starting with the things families do most.</p>
+      </div>
+      <form class="search-box" id="search-form" role="search">
+        <label for="q">What do you need today?</label>
+        <div class="search-row"><input id="q" type="search" autocomplete="off" placeholder="Try report card, bus, or register" aria-controls="task-grid"><button type="submit">Search</button></div>
+      </form>
+      <div class="chips" id="chips" role="group" aria-label="Filter by topic">
+        <button type="button" class="chip" data-cat="all" aria-pressed="true">Top tasks</button>
+        <button type="button" class="chip" data-cat="enroll" aria-pressed="false">Enrollment</button>
+        <button type="button" class="chip" data-cat="portal" aria-pressed="false">Grades &amp; FOCUS</button>
+        <button type="button" class="chip" data-cat="transport" aria-pressed="false">Bus &amp; Meals</button>
+        <button type="button" class="chip" data-cat="calendar" aria-pressed="false">Calendars</button>
+        <button type="button" class="chip" data-cat="forms" aria-pressed="false">Forms</button>
+        <button type="button" class="chip" data-cat="support" aria-pressed="false">Family Support</button>
+      </div>
     </div>
-    <form class="search-box" id="search-form" role="search">
-      <label for="q">What do you need today?</label>
-      <div class="search-row"><input id="q" type="search" autocomplete="off" placeholder="Try report card, bus, or register" aria-controls="task-grid"><button type="submit">Search</button></div>
-    </form>
-    <div class="chips" id="chips" role="group" aria-label="Filter by topic">
-      <button type="button" class="chip" data-cat="all" aria-pressed="true">Top tasks</button>
-      <button type="button" class="chip" data-cat="enroll" aria-pressed="false">Enrollment &amp; Registration</button>
-      <button type="button" class="chip" data-cat="portal" aria-pressed="false">Grades &amp; Family Portal</button>
-      <button type="button" class="chip" data-cat="transport" aria-pressed="false">Transportation &amp; Meals</button>
-      <button type="button" class="chip" data-cat="calendar" aria-pressed="false">Calendars &amp; Key Dates</button>
-      <button type="button" class="chip" data-cat="forms" aria-pressed="false">Forms &amp; Paperwork</button>
-      <button type="button" class="chip" data-cat="support" aria-pressed="false">Family &amp; Student Support</button>
+    <div class="hero-video" id="s-video">
+      <span class="bn native">Finalsite native: video element (YouTube or Vimeo, captions on)</span>
+      <button type="button" class="video-poster" id="video-poster" aria-label="Play the welcome video: how to use the Parents and Families page, 1 minute 30 seconds, captioned">
+        <img src="https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1772472322/browardschoolscom/oivossp8hlgumw3yj8v0/TestingToolKit.jpg" alt="" class="poster-photo">
+        <span class="poster-shade" aria-hidden="true"></span>
+        <span class="poster-text" aria-hidden="true">
+          <span class="poster-kicker">Welcome, families</span>
+          <span class="poster-title">Find what you need in 90 seconds</span>
+        </span>
+        <span class="poster-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>
+        <span class="poster-meta" aria-hidden="true"><span>1:30</span><span>CC</span></span>
+        <span class="poster-soon" id="poster-soon" aria-live="polite"></span>
+      </button>
+      <p class="video-caption">A quick welcome and walkthrough: searching, the topic buttons, and signing in to FOCUS.</p>
+      <p class="video-social"><strong>Short how-tos, also on social:</strong> <span>Find your bus route</span><span>Check grades in FOCUS</span><span>Pay for lunch online</span></p>
     </div>
   </section>
 
@@ -398,10 +447,10 @@
       <h3 class="panel-title">Learn with us</h3>
       <p class="intro">Free sessions and tools for families and students.</p>
       <div class="cards">
-        <article class="card"><div class="band"></div><div class="body"><span class="tag-live">Tonight, 6:30 PM</span><h3>Parent University</h3><p>Online sessions for parents and guardians, starting with Linewize Parent for a safer online life at home.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Join a session &rsaquo;</a></div></article>
-        <article class="card green"><div class="band"></div><div class="body"><h3>Student University</h3><p>Sessions on testing, college readiness and student wellness, with advice from experts and peers.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Learn more &rsaquo;</a></div></article>
-        <article class="card gold"><div class="band"></div><div class="body"><h3>BCPS Testing Toolkit</h3><p>Grade-level strategies that help students stay calm, confident and prepared for tests.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Open the toolkit &rsaquo;</a></div></article>
-        <article class="card orange"><div class="band"></div><div class="body"><h3>Plan for life after high school</h3><p>Xello tools for careers, college and scholarships, with ways for parents to stay involved.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Start planning &rsaquo;</a></div></article>
+        <article class="card"><div class="pic"><img src="https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1792074921/browardschoolscom/u3xmqp7oafq1qfoarf1i/Parent-University---Linewize-Parent-Powered-by-Qustodio.jpg" alt=""></div><div class="body"><span class="tag-live">Tonight, 6:30 PM</span><h3>Parent University</h3><p>Online sessions for parents and guardians, starting with Linewize Parent for a safer online life at home.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Join a session &rsaquo;</a></div></article>
+        <article class="card green"><div class="pic"><img src="https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1776793465/browardschoolscom/bjhjnbbzajd6k584wev0/Student-University.png" alt=""></div><div class="body"><h3>Student University</h3><p>Sessions on testing, college readiness and student wellness, with advice from experts and peers.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Learn more &rsaquo;</a></div></article>
+        <article class="card gold"><div class="pic"><img src="https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1772472322/browardschoolscom/oivossp8hlgumw3yj8v0/TestingToolKit.jpg" alt=""></div><div class="body"><h3>BCPS Testing Toolkit</h3><p>Grade-level strategies that help students stay calm, confident and prepared for tests.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Open the toolkit &rsaquo;</a></div></article>
+        <article class="card orange"><div class="pic icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/></svg></div><div class="body"><h3>Plan for life after high school</h3><p>Xello tools for careers, college and scholarships, with ways for parents to stay involved.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Start planning &rsaquo;</a></div></article>
       </div>
     </div>
     <div class="more-panel" role="tabpanel" id="s-support" aria-labelledby="tab-support" hidden>
@@ -432,10 +481,10 @@
       <h3 class="panel-title">Family spotlight</h3>
       <p class="intro">Stories and programs from across the District.</p>
       <div class="cards">
-        <article class="card"><div class="band"></div><div class="body"><h3>Helping families support student resilience</h3><p>Free Recovery Services support for students facing grief, trauma or life changes.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
-        <article class="card green"><div class="band"></div><div class="body"><h3>Mindfulness in Broward Schools</h3><p>Free family access to Inner Explorer in Clever to practice mindfulness together.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
-        <article class="card gold"><div class="band"></div><div class="body"><h3>Heart Gallery of Broward County</h3><p>Connecting foster youth with forever families and supporting adoptive parents.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
-        <article class="card orange"><div class="band"></div><div class="body"><h3>Life skills and wellness</h3><p>Rethink Ed in Clever helps students and families build resiliency and confidence.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+        <article class="card"><div class="pic icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20.8 8.3a4.5 4.5 0 0 0-7.6-3.1L12 6.4l-1.2-1.2A4.5 4.5 0 1 0 4.3 11.6L12 19l7.7-7.4a4.5 4.5 0 0 0 1.1-3.3z"/></svg></div><div class="body"><h3>Helping families support student resilience</h3><p>Free Recovery Services support for students facing grief, trauma or life changes.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+        <article class="card green"><div class="pic icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 19c0-8 6-14 15-14-1 9-6 15-14 15"/><path d="M5 19l7-7"/></svg></div><div class="body"><h3>Mindfulness in Broward Schools</h3><p>Free family access to Inner Explorer in Clever to practice mindfulness together.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+        <article class="card gold"><div class="pic"><img src="https://resources.finalsite.net/images/f_auto,q_auto,t_image_size_2/v1762463314/browardschoolscom/tgzzg4tfgkyya3lbtdxh/heartgallerythumbnail.jpg" alt=""></div><div class="body"><h3>Heart Gallery of Broward County</h3><p>Connecting foster youth with forever families and supporting adoptive parents.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
+        <article class="card orange"><div class="pic icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l2.6 5.6 6 .6-4.5 4 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.5-4 6-.6z"/></svg></div><div class="body"><h3>Life skills and wellness</h3><p>Rethink Ed in Clever helps students and families build resiliency and confidence.</p><a class="go" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">Read more &rsaquo;</a></div></article>
       </div>
       <a class="more-link" href="https://www.browardschools.com/parentsstudentsstaff/parents-families">See all family stories &rsaquo;</a>
     </div>
@@ -691,6 +740,11 @@
   var mt = /^#more=([a-z]+)$/.exec(location.hash);
   if (mt && document.getElementById('tab-' + mt[1])) openTab(mt[1], false, true);
 
+  // The welcome video is a placeholder image until the real video exists.
+  document.getElementById('video-poster').addEventListener('click', function () {
+    document.getElementById('poster-soon').textContent = 'Placeholder: the captioned welcome video plays here once it is recorded.';
+  });
+
   var notesBtn = document.getElementById('notes-toggle');
   notesBtn.addEventListener('click', function () {
     var on = document.body.classList.toggle('show-notes');
@@ -701,7 +755,8 @@
   // works and a link can open any step.
   var STEPS = [
     { id: 's-hero', title: 'What you are looking at', text: 'A proposed Parents & Families page in the browardschools.com look. The header, navigation and footer match the live site; the content below is reorganized.', why: 'The live page opens with a welcome message, a video and ten stories before the resources families come for. This version starts with the tasks.' },
-    { id: 's-hero', title: 'One search, one set of topics', text: 'Type what you need or pick a topic. Try "report card", "bus", "lunch" or "shots". Results appear right below, in Get it done.', why: 'Find It Fast is folded in here instead of sitting further down the page, so families search and browse in one place. Search understands the words families use, not only official names.' },
+    { id: 's-video', title: 'A welcome video', text: 'Right beside the search, a short captioned video welcomes families and shows how to use the page. The same recording is cut into short how-tos for social media.', why: 'Seeing it done once is faster than reading instructions, and the social clips bring families back to this page.' },
+    { id: 's-hero', title: 'One search, one set of topics', text: 'Type what you need or pick a topic. Try "report card", "bus", "lunch" or "shots". Results appear right below, in Get it done. The seven topic buttons sit in two rows under the search.', why: 'Find It Fast is folded in here instead of sitting further down the page, so families search and browse in one place. Search understands the words families use, not only official names.' },
     { id: 's-tasks', title: 'Get it done', text: 'Before anyone searches, this shows the eight tasks families do most, each named for what you can do and the tool it opens. Searching or picking a topic swaps in every matching resource.', why: 'The eight tasks are written into the page, so they show even if the resource list cannot load. Phase 1 confirms the order with traffic, search and Customer Service data.' },
     { id: 's-signin', title: 'Sign in, with help beside it', text: 'Sign in, Create an account and Trouble signing in? sit together, with a line explaining where you are going and what you need.', why: 'Login trouble is one of the most common reasons families call. Help belongs next to the button.' },
     { id: 's-dates', title: 'Coming up', text: 'The next few dates families need, pulled from the District calendar.', why: 'Deadlines and events sit next to the tasks they affect.' },
