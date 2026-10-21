@@ -119,12 +119,26 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
   const [done, setDone] = useState('')
 
   const loadUploads = async () => {
-    const res = await fetch(`/api/bcps/meeting-transcript?tracker=${tracker}`, { headers: await authHeaders(), cache: 'no-store' })
+    const get = async () => fetch(`/api/bcps/meeting-transcript?tracker=${tracker}`, { headers: await authHeaders(), cache: 'no-store' })
+    let res = await get()
+    // A stale access token answers 401 and hid the bar for good (Sean,
+    // 2026-10-21: "I don't see it"). Refresh the session once and ask again.
+    if (res.status === 401) {
+      await supabaseClient.auth.refreshSession().catch(() => null)
+      res = await get()
+    }
     const j = await res.json().catch(() => ({}))
     setAllowed(!!j.allowed)
     setUploads(j.uploads ?? [])
   }
-  useEffect(() => { loadUploads().catch(() => {}) }, [])
+  useEffect(() => {
+    loadUploads().catch(() => {})
+    // The session can arrive or refresh after the page mounts; check again then.
+    const { data } = supabaseClient.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') loadUploads().catch(() => {})
+    })
+    return () => data.subscription.unsubscribe()
+  }, [])
 
   if (!allowed) return null
 
