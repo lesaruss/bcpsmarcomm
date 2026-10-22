@@ -213,6 +213,11 @@
   .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; }
   .modal-header-text { flex: 1; min-width: 0; }
   .modal-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 4px; line-height: 1.3; }
+  /* Description and the Playbook, then Widget, links (Sean, 2026-10-22). */
+  .modal-desc { font-size: 12px; line-height: 1.55; color: var(--text-50); margin: 6px 0 8px; }
+  .modal-desc:empty, .modal-links:empty { display: none; }
+  .modal-links { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .modal-links .playbook-btn { margin-top: 0; }
   .modal-subtitle { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--bcps-blue); }
   .modal-close { font-size: 20px; color: var(--text-30); cursor: pointer; padding: 2px 6px; border-radius: 4px; border: none; background: none; line-height: 1; flex-shrink: 0; }
   .modal-close:hover { color: var(--text); background: var(--surface2); }
@@ -4807,6 +4812,8 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
     <div class="modal-header">
       <div class="modal-header-text">
         <div class="modal-title" id="modal-title">Assignment Notes</div>
+        <div class="modal-desc" id="modal-desc"></div>
+        <div class="modal-links" id="modal-links"></div>
         <div class="modal-subtitle">Notes Trail</div>
       </div>
       <button class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
@@ -4867,16 +4874,32 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
     const name = nameEl ? nameEl.textContent : slug;
     currentSlug = slug;
     document.getElementById('modal-title').textContent = name;
+    var descEl = rowEl.querySelector('.assignment-desc, .completed-desc');
+    document.getElementById('modal-desc').textContent = descEl ? descEl.textContent : '';
+    renderModalLinks(slug);
     document.getElementById('modal-overlay').classList.add('open');
     document.getElementById('note-input').value = '';
     // Default the author to whoever leads this assignment - they're the one reporting out.
     const leadEl = rowEl.querySelector('.assignment-lead');
-    const rowLeadText = (typeof efCache !== 'undefined' && efCache[slug] && efCache[slug].lead_override)
-      ? efCache[slug].lead_override
+    const rowLeadText = (window.efCache && window.efCache[slug] && window.efCache[slug].lead_override)
+      ? window.efCache[slug].lead_override
       : (leadEl ? leadEl.textContent.split('/')[0].trim() : (rowEl.getAttribute('data-lead') || '').split('/')[0].trim());
     if (rowLeadText) document.getElementById('author-input').value = rowLeadText;
     loadNotes();
     setTimeout(() => document.getElementById('note-input').focus(), 100);
+  }
+
+  // Playbook first, then the Widget (Sean, 2026-10-22): more rows have a
+  // Playbook than a widget. Both leave the frame for the dashboard.
+  function renderModalLinks(slug) {
+    var box = document.getElementById('modal-links');
+    var ef = (window.efCache && window.efCache[slug]) || {};
+    var links = [];
+    if (ef.playbook_url) links.push({ href: ef.playbook_url, icon: '&#128214;', label: 'Playbook' });
+    if (ef.widget_url) links.push({ href: ef.widget_url, icon: '&#129513;', label: 'Widget' });
+    box.innerHTML = links.map(function (l) {
+      return '<a class="playbook-btn" target="_top" href="' + escHtml(l.href) + '"><span class="playbook-icon">' + l.icon + '</span> ' + l.label + '</a>';
+    }).join('');
   }
 
   function handleOverlayClick(e) {
@@ -5148,6 +5171,9 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
     return Object.assign({ 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' }, extra || {});
   }
   var efCache = {};
+  // Shared with the notes pop-up's links and default author, which run in
+  // another script block.
+  window.efCache = efCache;
 
   function parseDeadlineText(text){
     if (!text) return null;
@@ -5169,7 +5195,7 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   }
 
   function loadEditableFields(){
-    fetch(EF_TABLE + '?select=assignment_slug,lead_override,support_override,start_date,deadline_date,is_ongoing,overdue_dismissed,playbook_url,title_override', { headers: efHeaders() })
+    fetch(EF_TABLE + '?select=assignment_slug,lead_override,support_override,start_date,deadline_date,is_ongoing,overdue_dismissed,playbook_url,widget_url,title_override', { headers: efHeaders() })
       .then(function(res){ return res.json(); })
       .then(function(rows){
         (rows || []).forEach(function(r){ efCache[r.assignment_slug] = r; });
