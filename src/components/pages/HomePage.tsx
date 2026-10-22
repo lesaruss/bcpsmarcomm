@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { MARCOMM_PATH, type PageId, type BreadcrumbItem } from '@/lib/types'
 import DepartmentsPage from './DepartmentsPage'
+import SchoolsPage from './SchoolsPage'
 import AnalyticsPage from './AnalyticsPage'
 import WidgetsPage from './WidgetsPage'
 import DashboardPage from './DashboardPage'
@@ -21,7 +22,6 @@ import SiteAudit from '@/components/bcps/SiteAudit'
 import { SAMPLE_SUPERADMIN_ID, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
 import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
-import { downloadSchoolsCsv, csvDateStamp } from '@/lib/school-list-csv'
 import {
   REVIEW_CYCLE, REVIEW_WINDOWS, NEXT_CYCLE_START, windowForDivision, windowState,
   formatWindowDate, formatWindowRange, type ReviewWindow,
@@ -223,6 +223,7 @@ interface TeamHomeData {
   kb_articles?: KbArticle[]
   program: TeamProgram
   ada: TeamAda
+  school_ada?: TeamAda | null
   banners: TeamBanners
   proud_points?: TeamBanners & { ready: number }
   my_assignments: Assignment[]
@@ -1593,14 +1594,18 @@ function ProgramPanel({ p }: { p: TeamProgram }) {
   )
 }
 
-function AdaPanel({ ada, onNavigate }: { ada: TeamAda; onNavigate: (page: PageId) => void }) {
+// schools: Application Services works on schools (Sean, 2026-10-22), so
+// their ADA tab counts school full-site scans and points to the Schools tab,
+// where ADA Manager's school side now lives.
+function AdaPanel({ ada, onNavigate, schools, onOpenSchools }: { ada: TeamAda; onNavigate: (page: PageId) => void; schools?: boolean; onOpenSchools?: () => void }) {
+  const what = schools ? 'schools' : 'department sites'
   return (
     <>
-      <p className="wcm-hub2-intro">Accessibility across department sites. Wave is the ADA standard; results separate what a WCM can fix from what Finalsite has to fix.</p>
+      <p className="wcm-hub2-intro">Accessibility across {what}. Wave is the ADA standard; results separate what a WCM can fix from what Finalsite has to fix.</p>
       <div className="home-kpis">
-        <div className="home-kpi"><b>{ada.average_score ?? '-'}</b><span>Average ADA score, department sites</span></div>
-        <div className="home-kpi"><b>{ada.sites_scanned}</b><span>Department sites scanned</span></div>
-        <div className="home-kpi"><b>{ada.scans_30d}</b><span>Scans in the last 30 days</span></div>
+        <div className="home-kpi"><b>{ada.average_score ?? '-'}</b><span>Average ADA score, {what}</span></div>
+        <div className="home-kpi"><b>{ada.sites_scanned}</b><span>{schools ? 'Schools with a full-site scan' : 'Department sites scanned'}</span></div>
+        <div className="home-kpi"><b>{ada.scans_30d}</b><span>{schools ? 'Full-site scans in the last 30 days' : 'Scans in the last 30 days'}</span></div>
         {ada.last_scan && <div className="home-kpi"><b>{new Date(ada.last_scan).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</b><span>Most recent scan</span></div>}
       </div>
       <div className="wcm-hub2-grid">
@@ -1609,14 +1614,22 @@ function AdaPanel({ ada, onNavigate }: { ada: TeamAda; onNavigate: (page: PageId
           <p>Scan any page and see every issue, in plain language.</p>
           <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('ada-scanner')}>Open ADA Scanner</button>
         </div>
-        <div className="wcm-hub2-card">
-          <h3>ADA Manager</h3>
-          <p>Full-site school scans and per-page issue detail.</p>
-          <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('ada-manager')}>Open ADA Manager</button>
-        </div>
+        {schools && onOpenSchools ? (
+          <div className="wcm-hub2-card">
+            <h3>Schools</h3>
+            <p>Every school as a tile: its WCM, its District Web Team Lead and its ADA score, with each school&rsquo;s page-by-page detail.</p>
+            <button type="button" className="wcm-hub2-card-btn" onClick={onOpenSchools}>Open Schools</button>
+          </div>
+        ) : (
+          <div className="wcm-hub2-card">
+            <h3>ADA Manager</h3>
+            <p>Full-site school scans and per-page issue detail.</p>
+            <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('ada-manager')}>Open ADA Manager</button>
+          </div>
+        )}
         {ada.lowest.length > 0 && (
           <div className="wcm-hub2-card">
-            <h3>Lowest scoring sites</h3>
+            <h3>Lowest scoring {schools ? 'schools' : 'sites'}</h3>
             <ul className="home-mini">
               {ada.lowest.map((l) => <li key={l.department}><span>{l.department}</span><b>{l.score}</b></li>)}
             </ul>
@@ -1772,10 +1785,14 @@ function useMySchools(enabled: boolean): { lead: string; schools: MySchool[] | n
       if (!email) return
       const { data: l } = await supabase.from('bcps_support_leads').select('full_name').eq('email', email).maybeSingle()
       if (!l) return
-      const [{ data }, { data: wcms }] = await Promise.all([
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      // bcps_schools is server-only (found 2026-10-22: the WCM names never
+      // showed); /api/bcps/schools serves it to any signed-in account.
+      const [{ data }, wcmJson] = await Promise.all([
         supabase.from('bcps_school_assignments').select('loc_no, display_name, school_level, region, no_wcm').eq('lead_email', email).order('display_name'),
-        supabase.from('bcps_schools').select('school_location_nbr, wcm_name, wcm_email').not('wcm_name', 'is', null),
+        fetch('/api/bcps/schools', { headers: token ? { Authorization: `Bearer ${token}` } : {} }).then((r) => (r.ok ? r.json() : { schools: [] })).catch(() => ({ schools: [] })),
       ])
+      const wcms = ((wcmJson as { schools?: { school_location_nbr: string | null; wcm_name: string | null; wcm_email: string | null }[] }).schools ?? []).filter((w) => w.wcm_name)
       const key = (n: string | null) => (n || '').replace(/^0+/, '')
       const byLoc = new Map((wcms ?? []).map((w) => [key(w.school_location_nbr as string), w]))
       setLead(l.full_name)
@@ -1798,55 +1815,6 @@ function MySchoolsSummary({ schools, onOpen }: { schools: MySchool[]; onOpen: ()
         <div className="home-actions"><button type="button" className="home-btn" onClick={onOpen}>Open My Schools</button></div>
       </div>
     </>
-  )
-}
-
-function MySchoolsTab({ lead, schools }: { lead: string; schools: MySchool[] }) {
-  const [query, setQuery] = useState('')
-  const q = query.trim().toLowerCase()
-  const matches = q
-    ? schools.filter((s) => [s.display_name, s.loc_no, s.region, s.school_level, s.wcm_name].some((v) => (v || '').toLowerCase().includes(q)))
-    : schools
-  const noWcm = schools.filter((s) => s.no_wcm).length
-  const exportCsv = () => downloadSchoolsCsv(schools, `my-schools-${lead.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${csvDateStamp()}.csv`)
-  return (
-    <div className="home-section">
-      <div className="home-hero">
-        <div className="home-hero-label">My Schools</div>
-        <h1 className="home-title">{schools.length} school{schools.length === 1 ? '' : 's'}</h1>
-        <p>The schools you lead for the District Web Team{noWcm ? `. ${noWcm} ha${noWcm === 1 ? 's' : 've'} no WCM on file` : ''}. Export the list for Excel any time.</p>
-        <div className="home-actions">
-          <button type="button" className="home-btn" onClick={exportCsv} disabled={!schools.length}>Export to CSV</button>
-        </div>
-      </div>
-      {!schools.length ? <div className="wcm-hub2-empty">No schools are assigned to you yet.</div> : (
-        <div className="home-dept">
-          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search my schools"
-            placeholder="Search by school, location number, region or WCM"
-            style={{ font: 'inherit', fontSize: 13, padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 6, width: '100%', maxWidth: 380, boxSizing: 'border-box', marginBottom: 10 }} />
-          {q && !matches.length ? <div className="wcm-hub2-empty">No school matches &ldquo;{query}&rdquo;.</div> : (
-            <div className="home-table-wrap">
-              <table className="home-table">
-                <thead><tr><th>Location</th><th>School</th><th>Level</th><th>Region</th><th>WCM</th></tr></thead>
-                <tbody>
-                  {matches.map((s) => (
-                    <tr key={s.loc_no}>
-                      <td>{s.loc_no}</td>
-                      <td>{s.display_name}</td>
-                      <td>{s.school_level || ''}</td>
-                      <td>{s.region || ''}</td>
-                      <td>{s.no_wcm ? <span className="home-tag late">No WCM</span>
-                        : s.wcm_name ? (s.wcm_email ? <a href={`mailto:${s.wcm_email}`}>{s.wcm_name}</a> : s.wcm_name)
-                        : <span style={{ color: 'var(--text-muted)' }}>In BCPS Central</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -2341,6 +2309,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, 
     { id: 'documents', label: 'Documents' },
     ...((th.team_members?.length ?? 0) > 0 ? [{ id: 'team', label: 'Team' }] : []),
     { id: 'departments', label: 'Departments' },
+    { id: 'schools', label: 'Schools' },
     { id: 'audits', label: 'Run Audit' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'tools', label: 'Tools & Resources' },
@@ -2414,7 +2383,9 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   const past = assignments.filter((a) => a.past_date).length
   const greet = who ? who.split(/\s+/)[0] : firstName(data)
   const mine = useMySchools(!previewNote)
-  const schoolsTab = mine.schools ? [{ id: 'myschools', label: 'My Schools' }] : []
+  // Schools (Sean, 2026-10-22) replaces My Schools: Application Services and
+  // any District Web Team Lead get it; it opens on the lead's own schools.
+  const schoolsTab = kind === 'appsvc' || mine.schools ? [{ id: 'schools', label: 'Schools' }] : []
   const tabs = kind === 'comms'
     ? [
         { id: 'overview', label: 'Overview' },
@@ -2463,7 +2434,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
           </>
         ) : (
           <>
-            <StatTile label="Average ADA score" value={th.ada.average_score ?? '-'} note={`${th.ada.sites_scanned} department sites scanned`} />
+            <StatTile label="Average ADA score" value={(th.school_ada ?? th.ada).average_score ?? '-'} note={th.school_ada ? `${th.school_ada.sites_scanned} school${th.school_ada.sites_scanned === 1 ? '' : 's'} with a full-site scan` : `${th.ada.sites_scanned} department sites scanned`} />
             <StatTile label="Next Hot Lab" value={nextHotLab()} note="Tuesdays and Thursdays" />
           </>
         )}
@@ -2471,18 +2442,20 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         <StatTile label="Proud Points to review" value={th.proud_points?.pending ?? 0} note={th.proud_points?.ready ? `${th.proud_points.ready} approved, not posted yet` : 'Proud Points'} tone={th.proud_points?.pending ? 'warn' : undefined} />
       </div>
       <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />
-      {mine.schools && <MySchoolsSummary schools={mine.schools} onOpen={() => setTab('myschools')} />}
+      {mine.schools && <MySchoolsSummary schools={mine.schools} onOpen={() => setTab('schools')} />}
       <h3 className="home-grp">Program</h3>
       <ProgramPanel p={p} />
       </>}
-      {tab === 'myschools' && mine.schools && <MySchoolsTab lead={mine.lead} schools={mine.schools} />}
+      {(tab === 'schools' || tab === 'myschools') && <SchoolsPage />}
       {tab === 'documents' && <DocumentsTab kind="dwt" team canMarcomm={kind === 'comms' || canMarcomm} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'banners' && <BannersPanel b={th.banners} pp={th.proud_points} onNavigate={onNavigate} />}
-      {tab === 'ada' && <AdaPanel ada={th.ada} onNavigate={onNavigate} />}
+      {tab === 'ada' && (kind === 'appsvc' && th.school_ada
+        ? <AdaPanel ada={th.school_ada} onNavigate={onNavigate} schools onOpenSchools={() => setTab('schools')} />
+        : <AdaPanel ada={th.ada} onNavigate={onNavigate} />)}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'wcm' && <WcmCommunityHub />}
       {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
@@ -2548,7 +2521,7 @@ function PageUnderTabs({ tabs, onChange, children }: { tabs: { id: string; label
 // "View as person" (Sean, 2026-10-09): the dashboard built from one real
 // person's data (/api/bcps/home?as=<email>, SuperAdmin only), shown the way
 // they will see it, under a banner naming who it is.
-function PersonPreview({ email, onNavigate, onShowToast }: { email: string; onNavigate: Navigate; onShowToast?: (msg: string) => void }) {
+function PersonPreview({ email, onNavigate, onShowToast, page }: { email: string; onNavigate: Navigate; onShowToast?: (msg: string) => void; page?: React.ReactNode }) {
   const { setViewAs } = useBCPSShell()
   const [data, setData] = useState<HomeData | null>(null)
   const [error, setError] = useState('')
@@ -2581,13 +2554,16 @@ function PersonPreview({ email, onNavigate, onShowToast }: { email: string; onNa
   if (error) return <>{banner}<div className="wcm-hub2-empty">{error}</div></>
   if (!data) return <>{banner}<div className="wcm-hub2-empty">Loading {email}&apos;s dashboard...</div></>
   let body: React.ReactNode
-  if (data.experience === 'superadmin' && data.team_home) body = <SuperAdminHome data={data} onNavigate={onNavigate} preview onShowToast={onShowToast} />
-  else if (data.experience === 'dwt' && data.team_home) body = <WebTeamHome data={data} kind={data.team_kind ?? 'comms'} onNavigate={onNavigate} assignments={data.team_home.my_assignments} who={data.name ?? undefined} onShowToast={onShowToast} />
-  else if (data.experience === 'director') body = <DirectorHome data={data} onNavigate={onNavigate} />
+  if (data.experience === 'superadmin' && data.team_home) body = <SuperAdminHome data={data} onNavigate={onNavigate} preview onShowToast={onShowToast} page={page} />
+  else if (data.experience === 'dwt' && data.team_home) body = <WebTeamHome data={data} kind={data.team_kind ?? 'comms'} onNavigate={onNavigate} assignments={data.team_home.my_assignments} who={data.name ?? undefined} onShowToast={onShowToast} page={page} />
+  else if (data.experience === 'director') body = <DirectorHome data={data} onNavigate={onNavigate} page={page} />
   else if (data.experience === 'school_wcm') body = <SchoolWcmHome data={data} onNavigate={onNavigate} />
-  else if (data.experience === 'wcm') body = <WcmHome data={data} onNavigate={onNavigate} />
+  else if (data.experience === 'wcm') body = <WcmHome data={data} onNavigate={onNavigate} page={page} />
   else if (data.experience === 'marcomm') body = <MarcommHome data={data} />
   else body = <MemberHome data={data} onNavigate={onNavigate} />
+  // A page opened while viewing as someone shows under their tab bar, as it
+  // does for them (Sean, 2026-10-22: Open ADA Manager lost the tabs).
+  if (page && !['superadmin', 'dwt', 'director', 'wcm'].includes(data.experience)) body = page
   return <>{banner}{body}</>
 }
 
@@ -2625,6 +2601,7 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast, page }
   // the person's own tab bar. Previews, a failed load and the dashboards with
   // no tab bar show the page on its own.
   if (page) {
+    if (viewAsUserId?.startsWith('person:')) return <PersonPreview key={viewAsUserId} email={viewAsUserId.slice('person:'.length)} onNavigate={onNavigate} onShowToast={onShowToast} page={page} />
     if (viewAsUserId || failed || !data) return <>{page}</>
     if (data.experience === 'superadmin' && data.team_home) return <SuperAdminHome data={data} onNavigate={onNavigate} onShowToast={onShowToast} page={page} />
     if (data.experience === 'dwt' && data.team_home) return <WebTeamHome data={data} kind={data.team_kind ?? 'comms'} onNavigate={onNavigate} assignments={data.team_home.my_assignments} onShowToast={onShowToast} page={page} />

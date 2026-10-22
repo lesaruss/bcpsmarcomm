@@ -515,6 +515,26 @@ export default function ADAManagerPage() {
 
   useEffect(() => { loadAll() }, [loadAll])
 
+  // Full-site scans go to named people only for now (Sean, 2026-10-22).
+  const [canFullScan, setCanFullScan] = useState(false)
+  useEffect(() => {
+    (async () => {
+      const t = await token()
+      const r = await fetch('/api/bcps/school-sitemap?check=1', { headers: { Authorization: `Bearer ${t}` }, cache: 'no-store' })
+      const j = await r.json().catch(() => ({}))
+      setCanFullScan(!!j.allowed)
+    })().catch(() => {})
+  }, [token])
+
+  // ?school=<id> from a Schools tab tile opens that school's pages.
+  useEffect(() => {
+    if (loading) return
+    const id = new URLSearchParams(window.location.search).get('school')
+    if (!id || !schools.some(s => s.id === id)) return
+    setExpanded(id)
+    setTimeout(() => document.getElementById(`ada-school-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150)
+  }, [loading, schools])
+
   const reclassify = useCallback(async (glossaryKey: string, owner: GlossaryOwner) => {
     try {
       const t = await token()
@@ -690,7 +710,7 @@ export default function ADAManagerPage() {
             const isScanning = progress?.schoolId === school.id
             const isExpanded = expanded === school.id
             return (
-              <div key={school.id} style={C.card}>
+              <div key={school.id} id={`ada-school-${school.id}`} style={C.card}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                   <ScoreRing score={score?.avg_ada_score} />
                   <div style={{ flex: 1, minWidth: 200 }}>
@@ -725,9 +745,11 @@ export default function ADAManagerPage() {
                         {isExpanded ? 'Hide pages' : 'View pages'}
                       </button>
                     )}
-                    <button style={{ ...C.btnPrimary, opacity: isScanning ? 0.6 : 1 }} onClick={() => scanFullSite(school)} disabled={isScanning || !!progress}>
-                      {isScanning ? `Scanning ${progress!.current}/${progress!.total}…` : 'Scan Full Site'}
-                    </button>
+                    {canFullScan && (
+                      <button style={{ ...C.btnPrimary, opacity: isScanning ? 0.6 : 1 }} onClick={() => scanFullSite(school)} disabled={isScanning || !!progress}>
+                        {isScanning ? `Scanning ${progress!.current}/${progress!.total}…` : 'Scan Full Site'}
+                      </button>
+                    )}
                   </div>
                 </div>
 

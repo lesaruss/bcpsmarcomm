@@ -8,6 +8,7 @@
 // per V, 2026-08-19, this tooling is a working tool for the whole team).
 
 import { NextRequest, NextResponse } from 'next/server'
+import { requireNamedPageGrant } from '@/lib/bcps-auth'
 import { createClient } from '@supabase/supabase-js'
 import { discoverSchoolPages } from '@/lib/sitemap-crawl'
 
@@ -33,9 +34,18 @@ async function requireAuth(req: NextRequest): Promise<{ ok: true } | { ok: false
   return { ok: true }
 }
 
+// A full-site scan is given to people by name while it is being worked out
+// (Sean, 2026-10-22: Vanessa only for now, plus the superadmin): the
+// 'ada-full-site-scan' page grant, where a group grant does not count.
+// ?check=1 answers whether the caller may scan, so the button can hide.
+const FULL_SCAN_PAGE = 'ada-full-site-scan'
+
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const may = await requireNamedPageGrant(req, FULL_SCAN_PAGE)
+  if (req.nextUrl.searchParams.get('check')) return NextResponse.json({ allowed: may.ok })
+  if (!may.ok) return NextResponse.json({ error: 'Full-site scans are limited to named people for now.' }, { status: 403 })
 
   const schoolId = req.nextUrl.searchParams.get('school_id')
   if (!schoolId) return NextResponse.json({ error: 'school_id required' }, { status: 400 })

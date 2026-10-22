@@ -253,6 +253,43 @@ export async function loadAda(svc: SupabaseClient, depts: { id: string; name: st
   }
 }
 
+// School full-site scans (Sean, 2026-10-22: Application Services works on
+// schools, so their ADA numbers are schools, not department sites). A
+// school's score is its most recent full-site batch averaged, the same way
+// /api/bcps/school-scores does it; single-page scans are not counted.
+export async function loadSchoolAda(svc: SupabaseClient) {
+  const [{ data }, { data: schools }] = await Promise.all([
+    svc.from('bcps_audit_results')
+      .select('school_id, scan_batch_id, ada_score, audited_at')
+      .not('school_id', 'is', null).not('scan_batch_id', 'is', null)
+      .order('audited_at', { ascending: false }).limit(5000),
+    svc.from('bcps_schools').select('id, name'),
+  ])
+  const rows = data ?? []
+  const latestBatch = new Map<string, string>()
+  for (const r of rows) if (!latestBatch.has(r.school_id)) latestBatch.set(r.school_id, r.scan_batch_id)
+  const sums = new Map<string, { total: number; n: number; at: string }>()
+  for (const r of rows) {
+    if (r.scan_batch_id !== latestBatch.get(r.school_id) || r.ada_score === null) continue
+    const cur = sums.get(r.school_id) ?? { total: 0, n: 0, at: r.audited_at }
+    cur.total += Number(r.ada_score); cur.n += 1
+    sums.set(r.school_id, cur)
+  }
+  const scored = Array.from(sums.entries()).map(([id, v]) => [id, Math.round(v.total / v.n)] as [string, number])
+  const monthAgo = Date.now() - 30 * 24 * 3600 * 1000
+  const batches30 = new Set(rows.filter((r) => Date.parse(r.audited_at) > monthAgo).map((r) => r.scan_batch_id))
+  const names = new Map((schools ?? []).map((s) => [s.id as string, s.name as string]))
+  return {
+    sites_scanned: latestBatch.size,
+    average_score: scored.length ? Math.round(scored.reduce((n, [, v]) => n + v, 0) / scored.length) : null,
+    scans_30d: batches30.size,
+    last_scan: rows[0]?.audited_at ?? null,
+    lowest: scored.filter(([id]) => names.has(id)).sort((a, b) => a[1] - b[1]).slice(0, 5)
+      .map(([id, score]) => ({ department: names.get(id)!, score })),
+    schools_total: (schools ?? []).length,
+  }
+}
+
 // ── Banners ─────────────────────────────────────────────────────────────
 export async function loadBanners(svc: SupabaseClient) {
   const { data } = await svc.from('bcps_banner_submissions')

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { MODULES, COURSE_ID } from '@/lib/cert-data'
 import {
-  loadAssignments, assignmentsFor, loadProgram, loadAda, loadBanners, loadProudPoints, loadWidgets, loadDecisions,
+  loadAssignments, assignmentsFor, loadProgram, loadAda, loadSchoolAda, loadBanners, loadProudPoints, loadWidgets, loadDecisions,
   type TeamMemberWork,
 } from '@/lib/bcps-team-home'
 import { hasSeriesGrant } from '@/lib/bcps-doc-access'
@@ -315,9 +315,10 @@ export async function GET(req: NextRequest) {
 
   let teamHome: Record<string, unknown> | null = null
   if (isDwt) {
-    const [program, ada, banners, proudPoints, rows] = await Promise.all([
+    const [program, ada, schoolAda, banners, proudPoints, rows] = await Promise.all([
       loadProgram(svc, departments),
       loadAda(svc, departments),
+      loadSchoolAda(svc).catch((e) => { console.error('home: school ada failed', e); return null }),
       loadBanners(svc),
       loadProudPoints(svc).catch((e) => { console.error('home: proud points failed', e); return { pending: 0, approved: 0, rejected: 0, ready: 0 } }),
       // Assignments are a bonus on the dashboard: if they cannot be read,
@@ -331,6 +332,7 @@ export async function GET(req: NextRequest) {
     teamHome = {
       program,
       ada,
+      school_ada: schoolAda,
       banners,
       proud_points: proudPoints,
       kb_articles: kb ?? [],
