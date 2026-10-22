@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase-admin'
-import { requireBcpsPageAccess } from '@/lib/bcps-auth'
+import { requireBcpsPageAccess, requirePlaybookTranscriptAccess } from '@/lib/bcps-auth'
 import { loadAssignments } from '@/lib/bcps-team-home'
+import { PLAYBOOK_PROPOSAL_SCHEMA, PLAYBOOK_SYSTEM, loadPlaybook, playbookPrompt, playbookPayload, filePlaybookNotes } from '@/lib/playbook-meeting-transcript'
 import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadMarcommRows, marcommPrompt, attachCurrent, marcommPayload } from '@/lib/marcomm-meeting-transcript'
 
 // Meeting transcript upload for Web Team Assignments (Sean, 2026-10-21).
@@ -21,6 +22,9 @@ import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadM
 // ?tracker=marcomm (GET) or tracker: 'marcomm' (POST) does the same for
 // MarComm Assignments (Sean, 2026-10-21), under the 'marcomm-edit'
 // grant; see lib/marcomm-meeting-transcript.
+// ?tracker=playbook&playbook=<slug> (GET) or tracker: 'playbook', playbook
+// (POST) files meeting notes under that Playbook, for its designated leads
+// only (Sean, 2026-10-22); see lib/playbook-meeting-transcript.
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
@@ -140,8 +144,18 @@ interface Proposal {
   new_items: Array<Record<string, unknown> & { title: string }>
 }
 
-type Tracker = 'web-team' | 'marcomm'
-const trackerOf = (v: unknown): Tracker => (v === 'marcomm' ? 'marcomm' : 'web-team')
+type Tracker = 'web-team' | 'marcomm' | 'playbook'
+const trackerOf = (v: unknown): Tracker => (v === 'marcomm' ? 'marcomm' : v === 'playbook' ? 'playbook' : 'web-team')
+const SLUG = /^[a-z0-9][a-z0-9-]{0,120}$/
+
+// Who may upload: the tracker's page grant, or for a Playbook its own leads.
+function authFor(req: NextRequest, tracker: Tracker, playbook: string) {
+  if (tracker === 'playbook') {
+    if (!SLUG.test(playbook)) return Promise.resolve({ ok: false as const, status: 404, error: 'That Playbook was not found.' })
+    return requirePlaybookTranscriptAccess(req, playbook)
+  }
+  return requireBcpsPageAccess(req, tracker === 'marcomm' ? MARCOMM_TRANSCRIPT_PAGE : PAGE)
+}
 
 async function ask(schema: Record<string, unknown>, system: string, content: string): Promise<Proposal> {
   const key = await anthropicKey()
@@ -170,6 +184,15 @@ async function proposeMarcomm(transcript: string, meetingDate: string, meetingLa
   const parsed = await ask(MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM,
     `Meeting: ${meetingLabel}\nMeeting date: ${meetingDate}\n\n<tracker>\n${marcommPrompt(rows, team)}\n</tracker>\n\n<transcript>\n${transcript}\n</transcript>`)
   attachCurrent(parsed, rows)
+  parsed.new_items = parsed.new_items || []
+  return parsed
+}
+
+async function proposePlaybook(slug: string, transcript: string, meetingDate: string, meetingLabel: string): Promise<Proposal> {
+  const pb = await loadPlaybook(svc, slug)
+  if (!pb) throw new Error('That Playbook was not found.')
+  const parsed = await ask(PLAYBOOK_PROPOSAL_SCHEMA, PLAYBOOK_SYSTEM, playbookPrompt(pb, meetingLabel, meetingDate, transcript))
+  parsed.changes = []
   parsed.new_items = parsed.new_items || []
   return parsed
 }
@@ -220,31 +243,35 @@ function toPayload(p: Proposal, meetingDate: string, meetingLabel: string) {
 
 export async function GET(req: NextRequest) {
   const tracker = trackerOf(req.nextUrl.searchParams.get('tracker'))
-  const auth = await requireBcpsPageAccess(req, tracker === 'marcomm' ? MARCOMM_TRANSCRIPT_PAGE : PAGE)
+  const playbook = String(req.nextUrl.searchParams.get('playbook') || '')
+  const auth = await authFor(req, tracker, playbook)
   if (!auth.ok) return NextResponse.json({ allowed: false }, { status: auth.status === 401 ? 401 : 200 })
-  const { data } = await svc.from('bcps_meeting_uploads')
+  let q = svc.from('bcps_meeting_uploads')
     .select('id, meeting_date, meeting_label, status, uploaded_by_name, created_at, applied_at, result')
-    .eq('tracker', tracker).order('created_at', { ascending: false }).limit(10)
+    .eq('tracker', tracker)
+  if (tracker === 'playbook') q = q.eq('playbook_slug', playbook)
+  const { data } = await q.order('created_at', { ascending: false }).limit(10)
   return NextResponse.json({ allowed: true, uploads: data ?? [] })
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const tracker = trackerOf(body.tracker)
-  const auth = await requireBcpsPageAccess(req, tracker === 'marcomm' ? MARCOMM_TRANSCRIPT_PAGE : PAGE)
+  const playbook = tracker === 'playbook' ? String(body.playbook || '') : ''
+  const auth = await authFor(req, tracker, playbook)
   if (!auth.ok) return NextResponse.json({ error: auth.status === 401 ? auth.error : 'You have not been designated to upload meeting transcripts.' }, { status: auth.status })
   const name = await displayName(auth.user.userId, auth.user.email)
 
   if (body.action === 'propose') {
     const transcript = String(body.transcript || '').trim()
     const meetingDate = String(body.meeting_date || '')
-    const meetingLabel = String(body.meeting_label || '').trim().slice(0, 120) || (tracker === 'marcomm' ? 'Marcomm Meeting' : 'District Web Team Meeting')
+    const meetingLabel = String(body.meeting_label || '').trim().slice(0, 120) || (tracker === 'marcomm' ? 'Marcomm Meeting' : tracker === 'playbook' ? 'Project Meeting' : 'District Web Team Meeting')
     if (transcript.length < 200) return NextResponse.json({ error: 'Paste or upload the transcript first.' }, { status: 400 })
     if (transcript.length > MAX_TRANSCRIPT) return NextResponse.json({ error: 'That transcript is too long for one upload. Split it in two.' }, { status: 400 })
     if (!DATE.test(meetingDate)) return NextResponse.json({ error: 'Choose the meeting date.' }, { status: 400 })
 
     const { data: up, error: insErr } = await svc.from('bcps_meeting_uploads').insert({
-      tracker, meeting_date: meetingDate, meeting_label: meetingLabel, transcript,
+      tracker, playbook_slug: playbook || null, meeting_date: meetingDate, meeting_label: meetingLabel, transcript,
       uploaded_by_email: auth.user.email, uploaded_by_name: name,
     }).select('id').single()
     if (insErr || !up) return NextResponse.json({ error: 'Could not save the upload.' }, { status: 500 })
@@ -252,7 +279,9 @@ export async function POST(req: NextRequest) {
     try {
       const proposal = tracker === 'marcomm'
         ? await proposeMarcomm(transcript, meetingDate, meetingLabel)
-        : await propose(transcript, meetingDate, meetingLabel, req.nextUrl.origin)
+        : tracker === 'playbook'
+          ? await proposePlaybook(playbook, transcript, meetingDate, meetingLabel)
+          : await propose(transcript, meetingDate, meetingLabel, req.nextUrl.origin)
       await svc.from('bcps_meeting_uploads').update({ proposal }).eq('id', up.id)
       return NextResponse.json({ upload_id: up.id, proposal })
     } catch (e) {
@@ -264,13 +293,32 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.action === 'apply' || body.action === 'discard') {
-    const { data: up } = await svc.from('bcps_meeting_uploads').select('id, status, meeting_date, meeting_label, tracker').eq('id', String(body.upload_id || '')).maybeSingle()
-    if (!up || up.tracker !== tracker) return NextResponse.json({ error: 'That upload was not found.' }, { status: 404 })
+    const { data: up } = await svc.from('bcps_meeting_uploads').select('id, status, meeting_date, meeting_label, tracker, playbook_slug').eq('id', String(body.upload_id || '')).maybeSingle()
+    if (!up || up.tracker !== tracker || (tracker === 'playbook' && up.playbook_slug !== playbook)) return NextResponse.json({ error: 'That upload was not found.' }, { status: 404 })
     if (up.status !== 'proposed') return NextResponse.json({ error: `That upload was already ${up.status}.` }, { status: 409 })
 
     if (body.action === 'discard') {
       await svc.from('bcps_meeting_uploads').update({ status: 'discarded' }).eq('id', up.id)
       return NextResponse.json({ ok: true })
+    }
+
+    if (tracker === 'playbook') {
+      const pb = await loadPlaybook(svc, playbook)
+      if (!pb) return NextResponse.json({ error: 'That Playbook was not found.' }, { status: 404 })
+      const notes = playbookPayload(body.payload || {})
+      if (!notes.summary && !notes.decisions.length && !notes.actions.length && !notes.open_questions.length) {
+        return NextResponse.json({ error: 'Nothing is selected to file.' }, { status: 400 })
+      }
+      try {
+        const result = await filePlaybookNotes(svc, pb, up.meeting_label as string, up.meeting_date as string, name, up.id as string, notes)
+        await svc.from('bcps_meeting_uploads').update({
+          status: 'applied', applied_payload: notes, result, applied_by_email: auth.user.email, applied_at: new Date().toISOString(),
+        }).eq('id', up.id)
+        return NextResponse.json({ result })
+      } catch (e) {
+        console.error('meeting-transcript: playbook notes failed', e)
+        return NextResponse.json({ error: (e as Error).message }, { status: 500 })
+      }
     }
 
     const payload = tracker === 'marcomm'

@@ -278,3 +278,35 @@ export async function requireBcpsPageAccess(req: NextRequest, pageSlug: string):
   if (!allowed) return { ok: false, status: 403, error: 'Forbidden' }
   return { ok: true, user }
 }
+
+// Meeting transcript upload on a Playbook (Sean, 2026-10-22): only the
+// project's designated leads see it, so two people are not uploading the same
+// meeting. The leads are the Playbook's own metadata.transcript_admins
+// (emails), set when the Playbook is built from the template; a superadmin
+// always has it. Anyone else gets a 403 and the bar stays hidden.
+export async function requirePlaybookTranscriptAccess(req: NextRequest, playbookSlug: string): Promise<AuthResult> {
+  const user = await userFromRequest(req)
+  if (!user) return { ok: false, status: 401, error: 'Sign in with your BCPS account to continue.' }
+
+  const { data: doc } = await service
+    .from('briefings')
+    .select('metadata')
+    .eq('brand_slug', BRAND)
+    .eq('type', 'playbook')
+    .eq('slug', playbookSlug)
+    .maybeSingle()
+  if (!doc) return { ok: false, status: 404, error: 'That Playbook was not found.' }
+
+  const { data: roleRow } = await service
+    .from('acl_member_roles')
+    .select('role')
+    .eq('user_id', user.userId)
+    .eq('brand', BRAND)
+    .maybeSingle()
+  if (roleRow?.role === 'superadmin') return { ok: true, user }
+
+  const admins = (doc.metadata as Record<string, unknown> | null)?.transcript_admins
+  const listed = Array.isArray(admins) && admins.some((e) => typeof e === 'string' && e.toLowerCase() === user.email.toLowerCase())
+  if (!listed) return { ok: false, status: 403, error: 'Only this project\'s leads upload meeting transcripts here.' }
+  return { ok: true, user }
+}

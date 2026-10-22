@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase'
 // Shown only to people granted the 'meeting-transcripts' page (or admins).
 // tracker 'marcomm' does the same for MarComm Assignments, for people granted
 // the 'marcomm-edit' page, the MarComm Assignments editors (Sean, 2026-10-21).
+// tracker 'playbook' sits on top of a Playbook for that project's leads only
+// and files the reviewed meeting notes under it (Sean, 2026-10-22).
 // Paste or upload the transcript, Claude proposes the changes, the person
 // unticks anything wrong and applies. Data: /api/bcps/meeting-transcript.
 
@@ -22,15 +24,23 @@ const STATUS_LABELS: Record<string, string> = {
   new: 'New', needs_info: 'Needs Info', assigned: 'Assigned', in_progress: 'In Progress', in_review: 'In Review',
   scheduled: 'Scheduled', on_hold: 'On Hold', declined: 'Declined',
 }
-type Tracker = 'web-team' | 'marcomm'
+type Tracker = 'web-team' | 'marcomm' | 'playbook'
 const FIELDS: Record<Tracker, [string, string][]> = {
   'web-team': [
     ['status', 'Status'], ['lead', 'Lead'], ['support', 'Support'], ['start_date', 'Start'],
     ['deadline_date', 'Deadline'], ['priority', 'Priority'], ['ooc', 'OOC'], ['description', 'Description'],
   ],
   marcomm: [['status', 'Status'], ['lead', 'Lead'], ['support', 'Support'], ['deadline_date', 'Date needed'], ['priority', 'Priority']],
+  playbook: [],
 }
-const COPY: Record<Tracker, { label: string; help: string; summary: string }> = {
+const COPY: Record<Tracker, { label: string; help: string; summary: string; bar?: string; newItems?: string }> = {
+  playbook: {
+    label: 'Project Meeting',
+    help: 'Claude reads the transcript against this Playbook and drafts the meeting notes: a summary, decisions, action items and open questions. Nothing is filed until you review it and press File. The notes are saved as a document under this Playbook.',
+    summary: 'Meeting summary',
+    bar: 'Were you in a meeting about this project? File the notes from its transcript.',
+    newItems: 'Action items',
+  },
   'web-team': {
     label: 'District Web Team Meeting',
     help: 'Claude reads the transcript against the tracker and proposes changes: deadlines, leads, statuses and new action items. Nothing changes until you review them and press Apply.',
@@ -51,8 +61,8 @@ interface Change {
   [k: string]: unknown
 }
 interface NewItem { title: string; description: string; lead: string | null; support: string[] | null; deadline_date: string | null; priority: string | null; ooc: boolean; note: string; evidence: string }
-interface Proposal { summary: string; changes: Change[]; new_items: NewItem[] }
-interface Upload { id: string; meeting_date: string; meeting_label: string; status: string; uploaded_by_name: string | null; created_at: string; result: { changed?: number; added?: number } | null }
+interface Proposal { summary: string; changes: Change[]; new_items: NewItem[]; decisions?: { decision: string; evidence: string }[]; open_questions?: { question: string; evidence: string }[] }
+interface Upload { id: string; meeting_date: string; meeting_label: string; status: string; uploaded_by_name: string | null; created_at: string; result: { changed?: number; added?: number; path?: string } | null }
 
 function today(): string {
   const d = new Date()
@@ -102,7 +112,7 @@ function currentOf(c: Change, field: string): unknown {
   return (c.current as unknown as Record<string, unknown>)[field]
 }
 
-export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team' }: { onApplied: () => void; tracker?: Tracker }) {
+export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team', playbook = '' }: { onApplied: () => void; tracker?: Tracker; playbook?: string }) {
   const copy = COPY[tracker]
   const [allowed, setAllowed] = useState(false)
   const [uploads, setUploads] = useState<Upload[]>([])
@@ -116,10 +126,14 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [keepChange, setKeepChange] = useState<boolean[]>([])
   const [keepNew, setKeepNew] = useState<boolean[]>([])
+  const [keepDecision, setKeepDecision] = useState<boolean[]>([])
+  const [keepQuestion, setKeepQuestion] = useState<boolean[]>([])
   const [done, setDone] = useState('')
+  const [doneLink, setDoneLink] = useState('')
+  const scope = tracker === 'playbook' ? { tracker, playbook } : { tracker }
 
   const loadUploads = async () => {
-    const get = async () => fetch(`/api/bcps/meeting-transcript?tracker=${tracker}`, { headers: await authHeaders(), cache: 'no-store' })
+    const get = async () => fetch(`/api/bcps/meeting-transcript?tracker=${tracker}${tracker === 'playbook' ? `&playbook=${encodeURIComponent(playbook)}` : ''}`, { headers: await authHeaders(), cache: 'no-store' })
     let res = await get()
     // A stale access token answers 401 and hid the bar for good (Sean,
     // 2026-10-21: "I don't see it"). Refresh the session once and ask again.
@@ -138,13 +152,13 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') loadUploads().catch(() => {})
     })
     return () => data.subscription.unsubscribe()
-  }, [])
+  }, [tracker, playbook])
 
   if (!allowed) return null
 
   const reset = () => {
     setTranscript(''); setProposal(null); setUploadId(''); setError(''); setDone('')
-    setKeepChange([]); setKeepNew([])
+    setKeepChange([]); setKeepNew([]); setKeepDecision([]); setKeepQuestion([]); setDoneLink('')
   }
 
   const onFile = async (f: File | undefined) => {
@@ -155,11 +169,11 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
   }
 
   const read = async () => {
-    setBusy('reading'); setError(''); setDone('')
+    setBusy('reading'); setError(''); setDone(''); setDoneLink('')
     try {
       const res = await fetch('/api/bcps/meeting-transcript', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ tracker, action: 'propose', transcript: cleanTranscript(transcript), meeting_date: date, meeting_label: label }),
+        body: JSON.stringify({ ...scope, action: 'propose', transcript: cleanTranscript(transcript), meeting_date: date, meeting_label: label }),
       })
       const j = await res.json().catch(() => ({ error: 'The server did not answer. Try again.' }))
       if (!res.ok) throw new Error(j.error || 'Something went wrong.')
@@ -167,6 +181,8 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
       setProposal(j.proposal)
       setKeepChange(j.proposal.changes.map(() => true))
       setKeepNew(j.proposal.new_items.map(() => true))
+      setKeepDecision((j.proposal.decisions ?? []).map(() => true))
+      setKeepQuestion((j.proposal.open_questions ?? []).map(() => true))
     } catch (e) { setError((e as Error).message) } finally { setBusy('') }
   }
 
@@ -178,15 +194,22 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
         summary: proposal.summary,
         changes: proposal.changes.filter((_, i) => keepChange[i]),
         new_items: proposal.new_items.filter((_, i) => keepNew[i]),
+        decisions: (proposal.decisions ?? []).filter((_, i) => keepDecision[i]),
+        open_questions: (proposal.open_questions ?? []).filter((_, i) => keepQuestion[i]),
       }
       const res = await fetch('/api/bcps/meeting-transcript', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ tracker, action: 'apply', upload_id: uploadId, payload }),
+        body: JSON.stringify({ ...scope, action: 'apply', upload_id: uploadId, payload }),
       })
       const j = await res.json().catch(() => ({ error: 'The server did not answer. Try again.' }))
       if (!res.ok) throw new Error(j.error || 'Something went wrong.')
       const r = j.result || {}
-      setDone(`Updated ${r.changed ?? 0} row${r.changed === 1 ? '' : 's'} and added ${r.added ?? 0} new item${r.added === 1 ? '' : 's'}. Each one has a note naming this meeting.`)
+      if (tracker === 'playbook') {
+        setDone(`Meeting notes filed under this Playbook: ${r.decisions ?? 0} decision${r.decisions === 1 ? '' : 's'}, ${r.actions ?? 0} action item${r.actions === 1 ? '' : 's'}, ${r.questions ?? 0} open question${r.questions === 1 ? '' : 's'}.`)
+        setDoneLink(r.path || '')
+      } else {
+        setDone(`Updated ${r.changed ?? 0} row${r.changed === 1 ? '' : 's'} and added ${r.added ?? 0} new item${r.added === 1 ? '' : 's'}. Each one has a note naming this meeting.`)
+      }
       setProposal(null); setTranscript(''); setUploadId('')
       onApplied()
       loadUploads().catch(() => {})
@@ -197,20 +220,20 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
     if (uploadId) {
       await fetch('/api/bcps/meeting-transcript', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ tracker, action: 'discard', upload_id: uploadId }),
+        body: JSON.stringify({ ...scope, action: 'discard', upload_id: uploadId }),
       }).catch(() => {})
     }
     reset()
     loadUploads().catch(() => {})
   }
 
-  const kept = keepChange.filter(Boolean).length + keepNew.filter(Boolean).length
+  const kept = keepChange.filter(Boolean).length + keepNew.filter(Boolean).length + keepDecision.filter(Boolean).length + keepQuestion.filter(Boolean).length
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div className="mtu-bar">
-        <span>Were you in a meeting? Update this tracker from its transcript.</span>
+        <span>{copy.bar ?? 'Were you in a meeting? Update this tracker from its transcript.'}</span>
         <button type="button" className="mtu-btn" onClick={() => { setOpen(true); setDone('') }}>Upload meeting transcript</button>
       </div>
 
@@ -222,7 +245,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
               <button type="button" className="mtu-x" aria-label="Close" disabled={!!busy} onClick={() => setOpen(false)}>&times;</button>
             </div>
 
-            {done && <div className="mtu-done">{done}</div>}
+            {done && <div className="mtu-done">{done}{doneLink && <> <a href={doneLink} target="_top">Open the meeting notes</a></>}</div>}
             {error && <div className="mtu-error" role="alert">{error}</div>}
 
             {!proposal && (
@@ -253,7 +276,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
                       <div key={u.id} className="mtu-recent-row">
                         <span>{fmtDate(u.meeting_date)} {u.meeting_label}</span>
                         <span>{u.uploaded_by_name || ''}</span>
-                        <span className={`mtu-st ${u.status}`}>{u.status === 'applied' && u.result ? `Applied: ${u.result.changed ?? 0} updated, ${u.result.added ?? 0} added` : u.status}</span>
+                        <span className={`mtu-st ${u.status}`}>{u.status === 'applied' && u.result?.path ? <a href={u.result.path} target="_top">Notes filed</a> : u.status === 'applied' && u.result ? `Applied: ${u.result.changed ?? 0} updated, ${u.result.added ?? 0} added` : u.status}</span>
                       </div>
                     ))}
                   </div>
@@ -268,8 +291,24 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
                   <textarea rows={3} value={proposal.summary} onChange={(e) => setProposal({ ...proposal, summary: e.target.value })} />
                 </label>
 
-                <h3>Changes to existing rows ({proposal.changes.length})</h3>
-                {!proposal.changes.length && <p className="mtu-help">None found.</p>}
+                {tracker === 'playbook' && (
+                  <>
+                    <h3>Decisions ({proposal.decisions?.length ?? 0})</h3>
+                    {!proposal.decisions?.length && <p className="mtu-help">None found.</p>}
+                    {(proposal.decisions ?? []).map((d, i) => (
+                      <div key={'d' + i} className={`mtu-card${keepDecision[i] ? '' : ' off'}`}>
+                        <label className="mtu-check">
+                          <input type="checkbox" checked={keepDecision[i]} onChange={(e) => setKeepDecision(keepDecision.map((k, j) => (j === i ? e.target.checked : k)))} />
+                          <strong>{d.decision}</strong>
+                        </label>
+                        <p className="mtu-ev">From the transcript: &ldquo;{d.evidence}&rdquo;</p>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {tracker !== 'playbook' && <h3>Changes to existing rows ({proposal.changes.length})</h3>}
+                {tracker !== 'playbook' && !proposal.changes.length && <p className="mtu-help">None found.</p>}
                 {proposal.changes.map((c, i) => (
                   <div key={c.slug + i} className={`mtu-card${keepChange[i] ? '' : ' off'}`}>
                     <label className="mtu-check">
@@ -289,7 +328,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
                   </div>
                 ))}
 
-                <h3>New items ({proposal.new_items.length})</h3>
+                <h3>{copy.newItems ?? 'New items'} ({proposal.new_items.length})</h3>
                 {!proposal.new_items.length && <p className="mtu-help">None found.</p>}
                 {proposal.new_items.map((n, i) => (
                   <div key={n.title + i} className={`mtu-card${keepNew[i] ? '' : ' off'}`}>
@@ -309,10 +348,26 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
                   </div>
                 ))}
 
+                {tracker === 'playbook' && (
+                  <>
+                    <h3>Open questions ({proposal.open_questions?.length ?? 0})</h3>
+                    {!proposal.open_questions?.length && <p className="mtu-help">None found.</p>}
+                    {(proposal.open_questions ?? []).map((q, i) => (
+                      <div key={'q' + i} className={`mtu-card${keepQuestion[i] ? '' : ' off'}`}>
+                        <label className="mtu-check">
+                          <input type="checkbox" checked={keepQuestion[i]} onChange={(e) => setKeepQuestion(keepQuestion.map((k, j) => (j === i ? e.target.checked : k)))} />
+                          <strong>{q.question}</strong>
+                        </label>
+                        <p className="mtu-ev">From the transcript: &ldquo;{q.evidence}&rdquo;</p>
+                      </div>
+                    ))}
+                  </>
+                )}
+
                 <div className="mtu-actions sticky">
                   <button type="button" className="mtu-btn ghost" disabled={!!busy} onClick={discard}>Discard</button>
                   <button type="button" className="mtu-btn" disabled={!!busy || (!kept && !proposal.summary.trim())} onClick={apply}>
-                    {busy === 'applying' ? 'Applying...' : `Apply ${kept} change${kept === 1 ? '' : 's'}`}
+                    {busy === 'applying' ? (tracker === 'playbook' ? 'Filing...' : 'Applying...') : tracker === 'playbook' ? 'File meeting notes' : `Apply ${kept} change${kept === 1 ? '' : 's'}`}
                   </button>
                 </div>
               </>
