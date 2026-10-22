@@ -20,6 +20,7 @@ import SiteAudit from '@/components/bcps/SiteAudit'
 import { SAMPLE_SUPERADMIN_ID, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
 import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
+import { downloadSchoolsCsv, csvDateStamp } from '@/lib/school-list-csv'
 import {
   REVIEW_CYCLE, REVIEW_WINDOWS, NEXT_CYCLE_START, windowForDivision, windowState,
   formatWindowDate, formatWindowRange, type ReviewWindow,
@@ -1609,6 +1610,70 @@ function MyWorkPanel({ items, who, onNavigate }: { items: Assignment[]; who?: st
 
 const STATUS_LABELS: Record<string, string> = { 'in-progress': 'In Progress', pending: 'Pending', ongoing: 'Ongoing', completed: 'Completed' }
 
+// My Schools: a District Web Team Lead's assigned schools with a CSV export
+// (Vanessa, 2026-10-13). It lived only on the old dashboard tile, which leads
+// stopped seeing when this home replaced it (found live 2026-10-22). Renders
+// nothing for anyone who is not a lead, and only on their own login.
+type MySchool = { loc_no: string; display_name: string; school_level: string | null; region: string | null; no_wcm: boolean }
+function MySchoolsPanel() {
+  const [lead, setLead] = useState('')
+  const [schools, setSchools] = useState<MySchool[] | null>(null)
+  const [all, setAll] = useState(false)
+  const [query, setQuery] = useState('')
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      const email = user?.email?.toLowerCase()
+      if (!email) return
+      const { data: l } = await supabase.from('bcps_support_leads').select('full_name').eq('email', email).maybeSingle()
+      if (!l) return
+      const { data } = await supabase.from('bcps_school_assignments')
+        .select('loc_no, display_name, school_level, region, no_wcm').eq('lead_email', email).order('display_name')
+      setLead(l.full_name)
+      setSchools(data ?? [])
+    })
+  }, [])
+  if (schools === null) return null
+  const q = query.trim().toLowerCase()
+  const matches = q ? schools.filter((s) => s.display_name.toLowerCase().includes(q) || s.loc_no.includes(q)) : schools
+  const shown = all || q ? matches : matches.slice(0, 10)
+  const exportCsv = () => downloadSchoolsCsv(schools, `my-schools-${lead.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${csvDateStamp()}.csv`)
+  return (
+    <>
+      <h3 className="home-grp">My Schools ({schools.length})</h3>
+      {!schools.length ? <div className="wcm-hub2-empty">No schools are assigned to you yet.</div> : (
+        <div className="home-dept">
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search my schools"
+            placeholder="Search by school name or location number"
+            style={{ font: 'inherit', fontSize: 13, padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 6, width: '100%', maxWidth: 360, boxSizing: 'border-box', marginBottom: 10 }} />
+          {q && !matches.length && <div className="wcm-hub2-empty">No school matches &ldquo;{query}&rdquo;.</div>}
+          <div className="home-table-wrap">
+            <table className="home-table">
+              <thead><tr><th>Location</th><th>School</th><th>Level</th><th>WCM</th></tr></thead>
+              <tbody>
+                {shown.map((s) => (
+                  <tr key={s.loc_no}>
+                    <td>{s.loc_no}</td>
+                    <td>{s.display_name}</td>
+                    <td>{s.school_level || ''}</td>
+                    <td>{s.no_wcm ? <span className="home-tag late">No WCM</span> : 'On file'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="home-actions">
+            <button type="button" className="home-btn" onClick={exportCsv}>Export to CSV</button>
+            {!q && schools.length > 10 && (
+              <button type="button" className="wcm-hub2-card-btn" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${schools.length}`}</button>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 // Audits: every department site's audit in one place, so the team can track
 // it (Sean, 2026-10-01; replaced the Review Window tab). Status comes from
 // the audit workflow (bcps_departments.audit_status), findings from
@@ -2224,6 +2289,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         <StatTile label="Proud Points to review" value={th.proud_points?.pending ?? 0} note={th.proud_points?.ready ? `${th.proud_points.ready} approved, not posted yet` : 'Proud Points'} tone={th.proud_points?.pending ? 'warn' : undefined} />
       </div>
       <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />
+      {!previewNote && <MySchoolsPanel />}
       <h3 className="home-grp">Program</h3>
       <ProgramPanel p={p} />
       </>}
