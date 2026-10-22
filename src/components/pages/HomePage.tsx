@@ -1703,9 +1703,12 @@ const playbookHref = (url: string) => {
 function AssignmentDialog({ a, onClose }: { a: Assignment; onClose: () => void }) {
   const [notes, setNotes] = useState<{ author: string; note_text: string; created_at: string }[] | null>(null)
   useEffect(() => {
-    createClient().from('bcps_assignment_notes').select('author, note_text, created_at')
-      .eq('assignment_slug', a.slug).order('created_at', { ascending: false }).limit(25)
-      .then(({ data }) => setNotes(data ?? []))
+    ;(async () => {
+      const token = (await createClient().auth.getSession()).data.session?.access_token
+      const r = await fetch(`/api/bcps/assignment-notes?slug=${encodeURIComponent(a.slug)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: 'no-store' })
+      const j = r.ok ? await r.json().catch(() => ({})) : {}
+      setNotes((j.notes ?? []).slice(0, 25))
+    })().catch(() => setNotes([]))
   }, [a.slug])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }

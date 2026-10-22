@@ -282,6 +282,7 @@ const SAMPLE_DOCUMENTS: Record<string, CatalogDoc[]> = {
 export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPageProps) {
   const [notes, setNotes] = useState<AssignmentNote[]>([])
   const [notesLoading, setNotesLoading] = useState(true)
+  const [notesAllowed, setNotesAllowed] = useState(false)
   const [certProgress, setCertProgress] = useState<{ pct: number; completed: number; total: number; allDone: boolean; hasAnyProgress: boolean } | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
   const [openNote, setOpenNote] = useState<AssignmentNote | null>(null)
@@ -491,17 +492,17 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     })
   }, [viewAsUserId])
 
+  // Team notes are for people who can open Web Team Assignments (2026-10-22);
+  // anyone else gets a 403 and the tile stays hidden.
   useEffect(() => {
-    const supabase = createClient()
-    supabase
-      .from('bcps_assignment_notes')
-      .select('id, assignment_slug, note_text, author, created_at')
-      .order('created_at', { ascending: false })
-      .limit(3)
-      .then(({ data }) => {
-        setNotes(data ?? [])
-        setNotesLoading(false)
-      })
+    (async () => {
+      const token = (await createClient().auth.getSession()).data.session?.access_token
+      const r = await fetch('/api/bcps/assignment-notes?recent=3', { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: 'no-store' })
+      const j = r.ok ? await r.json().catch(() => ({})) : {}
+      setNotesAllowed(r.ok)
+      setNotes(j.notes ?? [])
+      setNotesLoading(false)
+    })().catch(() => setNotesLoading(false))
   }, [viewAsUserId])
 
   async function loadMessages() {
@@ -860,7 +861,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     meetingnotes: !showDeptTiles,
     documents: !showDeptTiles,
     accessrequests: effectiveCanManageMessages && accessRequests.length > 0,
-    recentnotes: true,
+    recentnotes: notesAllowed,
     // Formerly one locked group (Team / My Department / Quick Actions /
     // Consoles) that always moved together. Split into four independently
     // draggable/resizable tiles per Sean 2026-09-10, same as wcmnotes/
