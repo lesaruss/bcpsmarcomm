@@ -349,3 +349,42 @@ export async function requirePlaybookEditAccess(req: NextRequest, slug: string):
   if (!listed) return { ok: false, status: 403, error: 'Only this project\'s leads edit it here.' }
   return { ok: true, user, doc: ref }
 }
+
+// A feature given to people by name only (Sean, 2026-10-22: "it should be
+// its own permission; we specifically assign it to a person"). Like
+// requireBcpsPageAccess, but only grants made to the person themselves
+// count: belonging to a group that was granted the page does not, so a
+// group grant never has to be removed to keep a feature to a few people.
+// A superadmin always has it.
+export async function requireNamedPageGrant(req: NextRequest, pageSlug: string): Promise<AuthResult> {
+  const user = await userFromRequest(req)
+  if (!user) return { ok: false, status: 401, error: 'Sign in with your BCPS account to continue.' }
+
+  const { data: roleRow } = await service
+    .from('acl_member_roles')
+    .select('role')
+    .eq('user_id', user.userId)
+    .eq('brand', BRAND)
+    .maybeSingle()
+  if (roleRow?.role === 'superadmin') return { ok: true, user }
+
+  const { data: page } = await service
+    .from('acl_objects')
+    .select('id')
+    .eq('brand', BRAND)
+    .eq('kind', 'page')
+    .eq('slug', pageSlug)
+    .maybeSingle()
+  if (!page) return { ok: false, status: 403, error: 'Forbidden' }
+
+  const { data: grant } = await service
+    .from('acl_grants')
+    .select('id')
+    .eq('object_id', page.id)
+    .eq('subject_type', 'user')
+    .eq('subject_id', user.userId)
+    .limit(1)
+    .maybeSingle()
+  if (!grant) return { ok: false, status: 403, error: 'Forbidden' }
+  return { ok: true, user }
+}

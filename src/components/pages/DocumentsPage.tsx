@@ -21,6 +21,7 @@ interface Doc {
   can_edit: boolean
   featured: boolean
   project?: string | null
+  transcript_leads?: string[]
   series_id: string | null
   series_title: string | null
   effective_object_id: string
@@ -457,6 +458,20 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
                             <input name="project" list="docs-projects" defaultValue={doc.project || ''} placeholder="e.g. BCPS Central" style={{ ...A.sel, flex: 1 }} />
                             <button type="submit" style={A.btn} disabled={busy}>Save</button>
                           </form>
+                          {doc.transcript_leads !== undefined && (
+                            <form style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}
+                              onSubmit={async (e) => {
+                                e.preventDefault()
+                                const emails = String(new FormData(e.currentTarget).get('leads') || '').split(/[\s,;]+/).filter(Boolean)
+                                if (await act({ action: 'transcript_leads', slug: doc.doc_url.replace(/^\/playbooks\//, '').replace(/\/$/, ''), emails })) {
+                                  showToast(emails.length ? `Transcript leads saved for ${doc.title}.` : `No transcript leads on ${doc.title} now.`); await load()
+                                }
+                              }}>
+                              <span style={A.sublabel} title="Named people who see Upload meeting transcript and Edit this page on this Playbook">Transcript leads</span>
+                              <input name="leads" defaultValue={doc.transcript_leads.join(', ')} placeholder="name@browardschools.com, ..." style={{ ...A.sel, flex: 1, minWidth: 220 }} />
+                              <button type="submit" style={A.btn} disabled={busy}>Save</button>
+                            </form>
+                          )}
                           <datalist id="docs-projects">{Array.from(new Set(docs.map(d => d.project).filter(Boolean) as string[])).map(pr => <option key={pr} value={pr} />)}</datalist>
                           <div style={A.sublabel}>Who can access {doc.title}</div>
                           {doc.series_id && (

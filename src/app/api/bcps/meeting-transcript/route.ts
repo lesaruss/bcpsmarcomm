@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase-admin'
-import { requireBcpsPageAccess, requirePlaybookTranscriptAccess } from '@/lib/bcps-auth'
+import { requireBcpsPageAccess, requireNamedPageGrant, requirePlaybookTranscriptAccess } from '@/lib/bcps-auth'
 import { loadAssignments } from '@/lib/bcps-team-home'
 import { PLAYBOOK_PROPOSAL_SCHEMA, PLAYBOOK_SYSTEM, loadPlaybook, playbookPrompt, playbookPayload, filePlaybookNotes } from '@/lib/playbook-meeting-transcript'
 import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadMarcommRows, marcommPrompt, attachCurrent, marcommPayload } from '@/lib/marcomm-meeting-transcript'
 
 // Meeting transcript upload for Web Team Assignments (Sean, 2026-10-21).
-// A designated person (granted the 'meeting-transcripts' page, or a BCPS
-// admin) pastes or uploads a transcript; Claude reads it against the current
+// A designated person (granted the 'meeting-transcripts' page by name, or the
+// superadmin; a group grant does not count, Sean 2026-10-22) pastes or uploads a transcript; Claude reads it against the current
 // tracker under canon-bcps-web-team-assignments-meeting-updates and proposes
 // changes; the person reviews them and applies. Nothing is written to the
 // tracker until they press Apply.
@@ -154,7 +154,9 @@ function authFor(req: NextRequest, tracker: Tracker, playbook: string) {
     if (!SLUG.test(playbook)) return Promise.resolve({ ok: false as const, status: 404, error: 'That Playbook was not found.' })
     return requirePlaybookTranscriptAccess(req, playbook)
   }
-  return requireBcpsPageAccess(req, tracker === 'marcomm' ? MARCOMM_TRANSCRIPT_PAGE : PAGE)
+  // Web Team transcripts go to people named on the page, never a whole group
+  // (Sean, 2026-10-22); MarComm keeps its editors' grant.
+  return tracker === 'marcomm' ? requireBcpsPageAccess(req, MARCOMM_TRANSCRIPT_PAGE) : requireNamedPageGrant(req, PAGE)
 }
 
 async function ask(schema: Record<string, unknown>, system: string, content: string): Promise<Proposal> {
