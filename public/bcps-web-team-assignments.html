@@ -170,6 +170,8 @@
   .playbook-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; color: var(--bcps-blue-dark); background: rgba(22,114,167,0.08); border: 1px solid rgba(22,114,167,0.25); border-radius: 6px; padding: 5px 10px; cursor: pointer; transition: all 0.15s; white-space: nowrap; width: fit-content; margin-top: 8px; text-decoration: none; }
   .playbook-btn:hover { background: rgba(22,114,167,0.14); border-color: var(--bcps-blue); }
   .playbook-icon { font-size: 12px; line-height: 1; }
+  .playbook-btn-beside { margin-left: 6px; }
+  .notes-btn:not(.notes-btn-stacked) + .playbook-btn-beside { margin-top: 0; }
 
   /* COMPLETED TABLE */
   .completed-grid { display: grid; grid-template-columns: 1fr 120px 140px; gap: 0; }
@@ -5187,10 +5189,13 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   function renderPlaybookButton(slug){
     var ef = efCache[slug];
     document.querySelectorAll('.assignment-row[data-slug="' + slug + '"]').forEach(function(row){
+      // Sits right beside the Notes button (Sean, 2026-10-22), whichever
+      // column that button is in; rows without one keep it under the description.
+      var notesBtn = row.querySelector('.notes-btn');
       var descEl = row.querySelector('.assignment-desc');
-      var wrap = descEl ? descEl.parentElement : null;
+      var wrap = notesBtn ? notesBtn.parentElement : (descEl ? descEl.parentElement : null);
       if (!wrap) return;
-      var existing = wrap.querySelector('.playbook-btn');
+      var existing = row.querySelector('.playbook-btn');
       if (!ef || !ef.playbook_url) {
         if (existing) existing.remove();
         return;
@@ -5203,7 +5208,8 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
       a.rel = 'noopener';
       a.onclick = function(evt){ evt.stopPropagation(); };
       a.innerHTML = '<span class="playbook-icon">&#128214;</span> Playbook';
-      wrap.appendChild(a);
+      if (notesBtn) { a.classList.add('playbook-btn-beside'); notesBtn.insertAdjacentElement('afterend', a); }
+      else wrap.appendChild(a);
     });
   }
   window.refreshOverdueBadges = function(){
