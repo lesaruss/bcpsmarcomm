@@ -73,22 +73,35 @@
   .hero .signin-label { margin: 0; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--primary-dark); }
   .signin-label svg { width: 16px; height: 16px; }
   .signin-links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
-  /* Things to know: every title visible at once, the chosen one shown in full */
-  .ticker { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px; min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; }
-  .ticker > h2 { font-size: 18px; line-height: 1.1; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
-  .know { flex: 1; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); grid-template-areas: "panel list"; gap: 16px; }
-  .know-list { grid-area: list; display: flex; flex-direction: column; border-left: 1px solid var(--line); padding-left: 12px; }
-  .know-tab { font: inherit; text-align: left; background: none; border: 0; border-radius: 6px; padding: 5px 10px; font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; cursor: pointer; position: relative; }
-  .know-tab:hover { background: var(--soft); color: var(--primary-dark); }
-  .know-tab[aria-selected="true"] { background: #e8f1f7; color: var(--primary-dark); font-weight: 700; }
-  .know-tab[aria-selected="true"]:before { content: ""; position: absolute; left: -13px; top: 5px; bottom: 5px; width: 3px; border-radius: 2px; background: var(--primary); }
-  .know-panels { grid-area: panel; min-width: 0; }
-  .know-item { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-  .know-item[hidden] { display: none; }
+  /* Things to know: a list of full-width titles; each opens a pop-up.
+     The list scrolls inside its box when there are more items than fit. */
+  .ticker { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .know-head { display: flex; align-items: baseline; gap: 10px; }
+  .know-count { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .know-count[hidden] { display: none; }
+  .ticker h2 { font-size: 18px; line-height: 1.1; color: var(--ink); font-variation-settings: "wdth" 75, "wght" 800; text-transform: uppercase; }
+  .know-list { list-style: none; flex: 1 1 0; min-height: 190px; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 6px; margin: 0 -6px; padding: 2px 6px; }
+  .know-list { scrollbar-width: thin; }
+  /* Fades out at the bottom while there is more to scroll to */
+  .know-list.more { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), rgba(0,0,0,.25)); mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), rgba(0,0,0,.25)); }
+  .know-row { width: 100%; display: flex; align-items: center; gap: 12px; font: inherit; text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; cursor: pointer; }
+  .know-row:hover { border-color: var(--primary); background: #f5f9fc; }
+  .know-row .ic { width: 22px; height: 22px; flex-shrink: 0; color: var(--primary); }
+  .know-row .kt { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+  .know-row .chev { width: 18px; height: 18px; flex-shrink: 0; color: var(--muted); }
+  .know-src { display: none; }
   .ticker-tag { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); background: var(--gold); border-radius: 4px; padding: 2px 8px; }
-  .know-item h3 { font-size: 17px; line-height: 1.3; color: var(--ink); }
-  .hero .know-item p { margin: 0; font-size: 15px; color: var(--text); max-width: none; }
-  .know-item .btn { margin-top: 4px; }
+  .know-dialog { border: 0; padding: 0; border-radius: 16px; width: min(520px, calc(100vw - 32px)); max-width: none; margin: auto; box-shadow: 0 20px 60px rgba(0,0,0,.35); color: var(--text); }
+  .know-dialog::backdrop { background: rgba(8,20,30,.6); }
+  .kd-inner { position: relative; padding: 24px 24px 22px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+  .kd-top { display: flex; align-items: center; gap: 10px; }
+  .kd-top .ic { width: 26px; height: 26px; color: var(--primary); }
+  .kd-inner h3 { font-size: 21px; line-height: 1.25; color: var(--ink); padding-right: 36px; }
+  .kd-inner p { font-size: 16px; }
+  .kd-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+  .kd-close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer; }
+  .kd-close:hover { border-color: var(--primary); }
+  .kd-done { font: inherit; font-weight: 700; font-size: 14px; padding: 8px 16px; border-radius: 6px; border: 2px solid var(--primary); background: #fff; color: var(--primary-dark); cursor: pointer; }
   .signin-link { font-size: 14px; font-weight: 700; color: var(--primary-dark); }
   .btn.small { padding: 7px 14px; font-size: 13px; }
   #s-tasks { background: var(--soft); border-radius: 24px; padding: 28px 32px 32px; }
@@ -265,9 +278,10 @@
 
   /* Extra-wide screens: cap the video so the two columns stay in proportion */
   @media (min-width: 1600px) { .hero { grid-template-columns: minmax(0, 1fr) 720px; } }
-  @media (min-width: 1101px) and (max-width: 1439px) { .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .know { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); } .know-tab { font-size: 13.5px; } }
+  @media (min-width: 1101px) and (max-width: 1439px) { .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
   @media (max-width: 1100px) {
     .hero { grid-template-columns: minmax(0, 1fr); }
+    .know-list { flex: none; min-height: 0; max-height: 352px; }
     .chips { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .hero-video { max-width: 720px; }
     .tasks, .cards, .dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -308,10 +322,8 @@
     .task .t-label { font-size: 15px; }
     .task .t-tool { font-size: 12px; }
     .ticker { padding: 14px; }
-    .know { grid-template-columns: minmax(0, 1fr); grid-template-areas: "panel" "list"; gap: 14px; }
-    .know-list { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 10px; }
-    .know-tab[aria-selected="true"]:before { left: 0; }
-    .know-tab { padding-left: 12px; }
+    .kd-inner { padding: 20px 18px 18px; }
+    .know-list { max-height: 470px; }
     .hero h1:before { width: 30px; margin-right: 10px; }
     #s-tasks { padding: 20px 16px 24px; border-radius: 18px; }
     .tour-card { right: 16px; bottom: 16px; }
@@ -402,26 +414,24 @@
       </div>
       <section class="ticker" id="s-ticker" aria-labelledby="h-ticker">
         <span class="bn native">Finalsite native or embed: things to know. Editors choose up to 10 items and can schedule each one on and off; these are examples</span>
-        <h2 id="h-ticker">Things to know</h2>
-        <div class="know">
-          <div class="know-list" role="tablist" aria-label="Things to know" aria-orientation="vertical">
-            <button type="button" class="know-tab" role="tab" id="know-tab-1" aria-controls="know-1" aria-selected="true" tabindex="0">Report cards are out</button>
-            <button type="button" class="know-tab" role="tab" id="know-tab-2" aria-controls="know-2" aria-selected="false" tabindex="-1">Keep your child safe online</button>
-            <button type="button" class="know-tab" role="tab" id="know-tab-3" aria-controls="know-3" aria-selected="false" tabindex="-1">Free and reduced meals</button>
-            <button type="button" class="know-tab" role="tab" id="know-tab-4" aria-controls="know-4" aria-selected="false" tabindex="-1">Finish your back to school forms</button>
-            <button type="button" class="know-tab" role="tab" id="know-tab-5" aria-controls="know-5" aria-selected="false" tabindex="-1">Help for your child's well-being</button>
-            <button type="button" class="know-tab" role="tab" id="know-tab-6" aria-controls="know-6" aria-selected="false" tabindex="-1">See something, say something</button>
-            <button type="button" class="know-tab" role="tab" id="know-tab-7" aria-controls="know-7" aria-selected="false" tabindex="-1">Volunteer at your school</button>
-          </div>
-          <div class="know-panels">
-            <article class="know-item" role="tabpanel" id="know-1" aria-labelledby="know-tab-1"><span class="ticker-tag">This week</span><h3>Report cards are out</h3><p>First-quarter report cards were issued October 21. Sign in to FOCUS to see grades, attendance and teacher comments.</p><a class="btn primary small" href="https://www.browardschools.com/fs/pages/83139">Check grades</a></article>
-            <article class="know-item" role="tabpanel" id="know-2" aria-labelledby="know-tab-2" hidden><span class="ticker-tag">Parent University</span><h3>Keep your child safe online</h3><p>Join the free Linewize Parent session tonight, 6:30 to 7:30 PM, online. Learn how to set up the parent app at home.</p><a class="btn primary small" href="https://www.browardschools.com/calendar-e3">See the details</a></article>
-            <article class="know-item" role="tabpanel" id="know-3" aria-labelledby="know-tab-3" hidden><span class="ticker-tag">Meals</span><h3>Free and reduced meals</h3><p>You can apply for free and reduced meals at any time during the school year. This month's menus are online too.</p><a class="btn primary small" href="https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus">Menus and meals</a></article>
-            <article class="know-item" role="tabpanel" id="know-4" aria-labelledby="know-tab-4" hidden><span class="ticker-tag">Forms</span><h3>Finish your back to school forms</h3><p>Complete your child's required forms online so your school has up-to-date contacts and permissions.</p><a class="btn primary small" href="https://www.browardschools.com/back-to-school-online-forms">Go to the forms</a></article>
-            <article class="know-item" role="tabpanel" id="know-5" aria-labelledby="know-tab-5" hidden><span class="ticker-tag">Support</span><h3>Help for your child's well-being</h3><p>Counselors, social workers and mental health services are available at every school, at no cost to families.</p><a class="btn primary small" href="https://www.browardschools.com/bcps-departments/office-of-student-services/student-services-mental-health/mental-health-services">Find support</a></article>
-            <article class="know-item" role="tabpanel" id="know-6" aria-labelledby="know-tab-6" hidden><span class="ticker-tag">Safety</span><h3>See something, say something</h3><p>Report a safety concern any time. Tips can be anonymous and go straight to the people who can help.</p><a class="btn primary small" href="https://www.browardschools.com/anonymous-tips">Report a tip</a></article>
-            <article class="know-item" role="tabpanel" id="know-7" aria-labelledby="know-tab-7" hidden><span class="ticker-tag">Get involved</span><h3>Volunteer at your school</h3><p>Help in classrooms, at events and on field trips. Register once and you are ready to volunteer at any school.</p><a class="btn primary small" href="https://www.browardschools.com/community/volunteer">Become a volunteer</a></article>
-          </div>
+        <div class="know-head"><h2 id="h-ticker">Things to know</h2><span class="know-count" id="know-count" hidden></span></div>
+        <ul class="know-list" aria-labelledby="h-ticker">
+          <li><button type="button" class="know-row" data-know="1" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span class="kt">Report cards are out</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+          <li><button type="button" class="know-row" data-know="2" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg><span class="kt">Keep your child safe online</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+          <li><button type="button" class="know-row" data-know="3" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 2 2v8"/><path d="M11 3v8"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/></svg><span class="kt">Free and reduced meals</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+          <li><button type="button" class="know-row" data-know="4" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg><span class="kt">Finish your back to school forms</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+          <li><button type="button" class="know-row" data-know="5" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.8 8.3a4.5 4.5 0 0 0-7.6-3.1L12 6.4l-1.2-1.2A4.5 4.5 0 1 0 4.3 11.6L12 19l7.7-7.4a4.5 4.5 0 0 0 1.1-3.3z"/></svg><span class="kt">Help for your child's well-being</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+          <li><button type="button" class="know-row" data-know="6" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12a8 8 0 0 1 16 0v4a2 2 0 0 1-2 2h-2v-6h4"/><path d="M4 12v4a2 2 0 0 0 2 2h2v-6H4"/></svg><span class="kt">See something, say something</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+          <li><button type="button" class="know-row" data-know="7" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.8 8.3a4.5 4.5 0 0 0-7.6-3.1L12 6.4l-1.2-1.2A4.5 4.5 0 1 0 4.3 11.6L12 19l7.7-7.4a4.5 4.5 0 0 0 1.1-3.3z"/></svg><span class="kt">Volunteer at your school</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>
+        </ul>
+        <div class="know-src" hidden>
+          <article id="know-1"><span class="ticker-tag">This week</span><h3>Report cards are out</h3><p>First-quarter report cards were issued October 21. Sign in to FOCUS to see grades, attendance and teacher comments.</p><a class="btn primary small" href="https://www.browardschools.com/fs/pages/83139">Check grades</a></article>
+          <article id="know-2"><span class="ticker-tag">Parent University</span><h3>Keep your child safe online</h3><p>Join the free Linewize Parent session tonight, 6:30 to 7:30 PM, online. Learn how to set up the parent app at home.</p><a class="btn primary small" href="https://www.browardschools.com/calendar-e3">See the details</a></article>
+          <article id="know-3"><span class="ticker-tag">Meals</span><h3>Free and reduced meals</h3><p>You can apply for free and reduced meals at any time during the school year. This month's menus are online too.</p><a class="btn primary small" href="https://www.browardschools.com/bcps-departments/food-and-nutrition-services/power-up-menus">Menus and meals</a></article>
+          <article id="know-4"><span class="ticker-tag">Forms</span><h3>Finish your back to school forms</h3><p>Complete your child's required forms online so your school has up-to-date contacts and permissions.</p><a class="btn primary small" href="https://www.browardschools.com/back-to-school-online-forms">Go to the forms</a></article>
+          <article id="know-5"><span class="ticker-tag">Support</span><h3>Help for your child's well-being</h3><p>Counselors, social workers and mental health services are available at every school, at no cost to families.</p><a class="btn primary small" href="https://www.browardschools.com/bcps-departments/office-of-student-services/student-services-mental-health/mental-health-services">Find support</a></article>
+          <article id="know-6"><span class="ticker-tag">Safety</span><h3>See something, say something</h3><p>Report a safety concern any time. Tips can be anonymous and go straight to the people who can help.</p><a class="btn primary small" href="https://www.browardschools.com/anonymous-tips">Report a tip</a></article>
+          <article id="know-7"><span class="ticker-tag">Get involved</span><h3>Volunteer at your school</h3><p>Help in classrooms, at events and on field trips. Register once and you are ready to volunteer at any school.</p><a class="btn primary small" href="https://www.browardschools.com/community/volunteer">Become a volunteer</a></article>
         </div>
       </section>
     </div>
@@ -445,6 +455,16 @@
       </div>
     </div>
   </section>
+
+  <dialog class="know-dialog" id="know-dialog" aria-labelledby="kd-title">
+    <div class="kd-inner">
+      <div class="kd-top"><span id="kd-icon"></span><span class="ticker-tag" id="kd-tag"></span></div>
+      <h3 id="kd-title"></h3>
+      <p id="kd-text"></p>
+      <div class="kd-actions"><span id="kd-link"></span><button type="button" class="kd-done" id="kd-done">Close</button></div>
+      <button type="button" class="kd-close" id="kd-close" aria-label="Close">&times;</button>
+    </div>
+  </dialog>
 
   <section class="section" id="s-tasks" data-bn aria-labelledby="h-tasks">
     <span class="bn embed">Embed: search, topic buttons and tasks, powered by Find It Fast data edited live in BCPS MarComm</span>
@@ -866,34 +886,52 @@
   poster.addEventListener('click', playPlaceholder);
 
 
-  // Things to know: click a title to show it in full. Arrow keys move
-  // through the titles, the usual pattern for tabs.
-  var knowTabs = Array.prototype.slice.call(document.querySelectorAll('.know-tab'));
-  function pickKnow(i, focus) {
-    knowTabs.forEach(function (t, k) {
-      var on = k === i;
-      t.setAttribute('aria-selected', String(on));
-      t.tabIndex = on ? 0 : -1;
-      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
-    });
-    if (focus) knowTabs[i].focus();
+  // Things to know: each title opens a pop-up with the details and one button.
+  var knowList = document.querySelector('.know-list');
+  var knowCount = document.getElementById('know-count');
+  function knowFade() {
+    knowList.classList.toggle('more', knowList.scrollTop + knowList.clientHeight < knowList.scrollHeight - 2);
+    // Say so when the list scrolls, so nobody thinks the visible rows are all of it.
+    knowCount.hidden = knowList.scrollHeight <= knowList.clientHeight + 2;
+    knowCount.textContent = 'Scroll for all ' + knowList.children.length;
   }
-  knowTabs.forEach(function (t, k) {
-    t.addEventListener('click', function () {
-      pickKnow(k);
-      // On phones the item opens above the list; bring it into view.
-      var panel = document.getElementById(t.getAttribute('aria-controls'));
-      if (panel.getBoundingClientRect().top < 0) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    t.addEventListener('keydown', function (e) {
-      var n = knowTabs.length, to = null;
-      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') to = (k + 1) % n;
-      if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') to = (k - 1 + n) % n;
-      if (e.key === 'Home') to = 0;
-      if (e.key === 'End') to = n - 1;
-      if (to !== null) { e.preventDefault(); pickKnow(to, true); }
-    });
+  knowList.addEventListener('scroll', knowFade);
+  window.addEventListener('resize', knowFade);
+  knowFade();
+  var kd = document.getElementById('know-dialog'), kdFrom = null;
+  function openKnow(row) {
+    var src = document.getElementById('know-' + row.getAttribute('data-know'));
+    document.getElementById('kd-icon').innerHTML = row.querySelector('.ic').outerHTML;
+    document.getElementById('kd-tag').textContent = src.querySelector('.ticker-tag').textContent;
+    document.getElementById('kd-title').textContent = src.querySelector('h3').textContent;
+    document.getElementById('kd-text').textContent = src.querySelector('p').textContent;
+    var link = src.querySelector('a').cloneNode(true);
+    link.className = 'btn primary';
+    var slot = document.getElementById('kd-link');
+    slot.innerHTML = ''; slot.appendChild(link);
+    kdFrom = row;
+    kd.showModal();
+    // Inside a Finalsite iframe the frame is as tall as the whole page, so a
+    // centered pop-up could open far off screen. Center it on the title the
+    // person just clicked, which is where they are looking.
+    if (window.self !== window.top) {
+      var r = row.getBoundingClientRect();
+      kd.style.position = 'absolute';
+      kd.style.margin = '0 auto';
+      kd.style.top = Math.max(16, r.top + window.scrollY + r.height / 2 - kd.offsetHeight / 2) + 'px';
+      // If that still runs past the edge of the screen, nudge the page.
+      kd.scrollIntoView({ block: 'nearest' });
+    }
+    link.focus({ preventScroll: true });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.know-row'), function (row) {
+    row.addEventListener('click', function () { openKnow(row); });
   });
+  document.getElementById('kd-close').addEventListener('click', function () { kd.close(); });
+  document.getElementById('kd-done').addEventListener('click', function () { kd.close(); });
+  // A click on the dark area around the pop-up closes it.
+  kd.addEventListener('click', function (e) { if (e.target === kd) kd.close(); });
+  kd.addEventListener('close', function () { if (kdFrom) kdFrom.focus(); });
 
   /* mock-only:start */
   var notesBtn = document.getElementById('notes-toggle');
@@ -907,7 +945,7 @@
   var STEPS = [
     { id: 's-hero', title: 'What you are looking at', text: 'A proposed Parents & Families page in the browardschools.com look. The header, navigation and footer match the live site; the content below is reorganized.', why: 'The live page opens with a welcome message, a video and ten stories before the resources families come for. This version welcomes families, then gets them to their task.' },
     { id: 's-signin', title: 'Sign in, right at the top', text: 'FOCUS and Family Access, with Sign in, Create an account and Trouble signing in? together, so the most common task is the first thing families see.', why: 'Login is one of the main reasons families visit and call. Help belongs next to the button.' },
-    { id: 's-ticker', title: 'Things to know', text: 'Every title is listed at once. Click one to read it: a sentence or two and one button. Editors pick up to 10 items and can schedule each one to come on and off.', why: 'Nothing important hides behind a slide. A family scans the list in a second and opens only what matters to them.' },
+    { id: 's-ticker', title: 'Things to know', text: 'A list of titles, each with its topic icon. Click one and a pop-up gives the details and one button. Editors pick up to 10 items and can schedule each one on and off; past what fits, the list scrolls inside its box.', why: 'Nothing important hides behind a slide, and the section never pushes the page down. A family scans the list in a second and opens only what matters to them.' },
     { id: 's-video', title: 'Videos for families', text: 'A short captioned video player with a few videos to choose from: a welcome, checking grades in FOCUS, and school meals.', why: 'Seeing it done once is faster than reading instructions, and the same videos can be shared on social media. These titles are examples.' },
     { id: 's-tasks', title: 'Get it done: search, topics and results in one place', text: 'Type what you need or pick a topic, and the results change right below. Before anyone searches, it shows the eight tasks families do most. Try "report card", "bus", "lunch" or "shots".', why: 'Search, topics and results live together, so it is obvious the buttons work. Resources come from Find It Fast, edited live in BCPS MarComm; the eight top tasks still show if that list cannot load.' },
     { id: 's-dates', title: 'Coming up', text: 'The next few dates families need, pulled from the District calendar.', why: 'Deadlines and events sit next to the tasks they affect.' },
