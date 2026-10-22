@@ -178,7 +178,7 @@ export default function NotesPage() {
   }
 
   const toggleFeatured = async (d: Doc) => {
-    const j = await act({ action: 'meta_update', slug: d.slug, featured: !d.featured })
+    const j = await act({ action: 'favorite', slug: d.slug, on: !d.featured })
     if (j) await load()
   }
 
@@ -322,23 +322,18 @@ export default function NotesPage() {
                 const dgrants = grantsFor(doc.effective_object_id)
                 return (
                   <div key={doc.id} className="doc-card">
-                    {(isAdmin || doc.featured || isExternal(doc.doc_url)) && (
-                      <div className="doc-badge-row">
-                        {isAdmin && <span className="doc-access-badge">{badge.icon} {badge.label}</span>}
-                        {isExternal(doc.doc_url) && <span className="doc-access-badge">&#8599; Opens on another site</span>}
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            className={doc.featured ? 'doc-star-btn doc-star-btn-active' : 'doc-star-btn'}
-                            onClick={() => toggleFeatured(doc)}
-                            title={doc.featured ? 'Remove from featured' : 'Feature this note'}
-                          >
-                            {doc.featured ? '★' : '☆'}
-                          </button>
-                        )}
-                        {!isAdmin && doc.featured && <span className="doc-featured-badge">&#9733; Featured</span>}
-                      </div>
-                    )}
+                    <div className="doc-badge-row">
+                      {isAdmin && <span className="doc-access-badge">{badge.icon} {badge.label}</span>}
+                      {isExternal(doc.doc_url) && <span className="doc-access-badge">&#8599; Opens on another site</span>}
+                      <button
+                        type="button"
+                        className={doc.featured ? 'doc-star-btn doc-star-btn-active' : 'doc-star-btn'}
+                        onClick={() => toggleFeatured(doc)}
+                        title={doc.featured ? 'Remove from my favorites' : 'Add to my favorites'}
+                      >
+                        {doc.featured ? '★' : '☆'}
+                      </button>
+                    </div>
 
                     <button
                       onClick={() => isExternal(doc.doc_url) ? window.open(doc.doc_url, '_blank', 'noopener,noreferrer') : setPreview(doc)}
