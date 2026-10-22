@@ -2284,8 +2284,8 @@ function InboxSection({ onOpenOps, onOpenInbox }: { onOpenOps: () => void; onOpe
 
 // The full Departments page (scores, traffic, audit), the same one the
 // menu opens, so the tab never shows less than the page (Sean, 2026-10-01).
-function DepartmentsPanel({ onNavigate }: { onNavigate: Navigate }) {
-  return <DepartmentsPage onNavigate={onNavigate} />
+function DepartmentsPanel({ onNavigate, depts }: { onNavigate: Navigate; depts?: DepartmentSummary[] }) {
+  return <DepartmentsPage onNavigate={onNavigate} findings={depts} />
 }
 
 function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, page }: { data: HomeData; onNavigate: Navigate; viewAsUserId?: string; preview?: boolean; onShowToast?: (msg: string) => void; page?: React.ReactNode }) {
@@ -2352,7 +2352,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, 
           division or group away (Sean, 2026-10-20). */}
       {tab === 'team' && <MembersPage defaultDivision="Chief of Staff" />}
       {tab === 'schools' && <SchoolsPage />}
-      {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
+      {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} depts={data.departments} />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
       {tab === 'admin' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
@@ -2452,7 +2452,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'program' && <ProgramPanel p={p} />}
-      {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
+      {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} depts={data.departments} />}
       {tab === 'banners' && <BannersPanel b={th.banners} pp={th.proud_points} onNavigate={onNavigate} />}
       {tab === 'ada' && (kind === 'appsvc' && th.school_ada
         ? <AdaPanel ada={th.school_ada} onNavigate={onNavigate} schools onOpenSchools={() => setTab('schools')} />

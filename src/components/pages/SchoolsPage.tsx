@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { downloadSchoolsCsv, csvDateStamp } from '@/lib/school-list-csv'
+import { SchoolAuditPages, type SchoolScore } from './ADAManagerPage'
 
 interface Row {
   loc_no: string
@@ -23,7 +24,7 @@ interface Row {
   no_wcm: boolean
 }
 interface Provisioned { id: string; school_location_nbr: string | null; site_url: string | null; wcm_name: string | null; wcm_email: string | null }
-interface Score { school_id: string; avg_ada_score: number | null; page_count: number; last_audited_at: string }
+type Score = SchoolScore
 
 const key = (n: string | null | undefined) => (n || '').replace(/^0+/, '')
 
@@ -61,6 +62,53 @@ export default function SchoolsPage() {
   const [lead, setLead] = useState('')
   const [query, setQuery] = useState('')
   const [error, setError] = useState('')
+  // Run Audit on a school is the full-site scan, named people only for now
+  // (Sean, 2026-10-22: Vanessa); /api/bcps/school-sitemap enforces it too.
+  const [canScan, setCanScan] = useState(false)
+  const [scanning, setScanning] = useState<{ loc: string; current: number; total: number } | null>(null)
+  const [openAudit, setOpenAudit] = useState<string | null>(null)
+  const [notice, setNotice] = useState('')
+
+  const authHeader = async (): Promise<Record<string, string>> => {
+    const t = (await createClient().auth.getSession()).data.session?.access_token
+    return t ? { Authorization: `Bearer ${t}` } : {}
+  }
+  const reloadScores = async () => {
+    const r = await fetch('/api/bcps/school-scores', { headers: await authHeader(), cache: 'no-store' })
+    const j = r.ok ? await r.json().catch(() => ({})) : {}
+    setScores((j as { scores?: Score[] }).scores ?? [])
+  }
+  useEffect(() => {
+    (async () => {
+      const r = await fetch('/api/bcps/school-sitemap?check=1', { headers: await authHeader(), cache: 'no-store' })
+      const j = await r.json().catch(() => ({}))
+      setCanScan(!!j.allowed)
+    })().catch(() => {})
+  }, [])
+  // Same steps as ADA Manager's Scan Full Site: discover the pages, then scan
+  // each one into one batch so the school gets one averaged score.
+  const runAudit = async (loc: string, schoolId: string) => {
+    setNotice('')
+    const headers = await authHeader()
+    const sm = await fetch(`/api/bcps/school-sitemap?school_id=${encodeURIComponent(schoolId)}`, { headers })
+    const smj = await sm.json().catch(() => ({}))
+    if (!sm.ok) { setNotice(smj.error || "Could not find this school's pages."); return }
+    const urls: string[] = smj.urls ?? []
+    if (!urls.length) { setNotice('No pages were found to scan.'); return }
+    const batch = crypto.randomUUID()
+    for (let i = 0; i < urls.length; i++) {
+      setScanning({ loc, current: i + 1, total: urls.length })
+      try {
+        await fetch('/api/bcps/ada-scan', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...headers },
+          body: JSON.stringify({ url: urls[i], school_id: schoolId, scan_batch_id: batch }),
+        })
+      } catch { /* one page failing does not stop the batch */ }
+    }
+    setScanning(null)
+    await reloadScores()
+    setOpenAudit(loc)
+  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -145,16 +193,17 @@ export default function SchoolsPage() {
         </div>
 
         {error && <div className="sv-empty">{error}</div>}
+        {notice && <div className="sv-notice" role="status">{notice}</div>}
         {!list.length ? <div className="sv-empty">{q ? `No school matches "${query}".` : 'No schools here yet.'}</div> : (
           <div className="sv-grid">
             {list.map((r) => (
-              <article key={r.loc_no} className="sv-card">
+              <article key={r.loc_no} className={`sv-card${openAudit === r.loc_no ? ' wide' : ''}`}>
                 <div className="sv-card-header">
                   <div>
                     <div className="sv-name">{r.display_name}</div>
                     <div className="sv-meta">{r.loc_no}{r.school_level ? ` · ${r.school_level}` : ''}{r.region ? ` · ${r.region}` : ''}</div>
                   </div>
-                  <ScoreRing score={r.score?.avg_ada_score} />
+                  <div className="sv-ring-col"><ScoreRing score={r.score?.avg_ada_score} /><span className="sv-ring-label">ADA</span></div>
                 </div>
                 <div className="sv-people">
                   <div><span className="sv-label">WCM</span>{r.no_wcm ? <span className="sv-chip-late">No WCM</span>
@@ -163,9 +212,31 @@ export default function SchoolsPage() {
                   <div><span className="sv-label">District Web Team</span>{r.leadName || <span className="sv-muted">Not assigned</span>}</div>
                 </div>
                 <div className="sv-links">
+                  <a className="sv-link green" href={`/?page=school-profiles&loc=${encodeURIComponent(r.loc_no)}`}>Visit profile</a>
                   {r.p?.site_url && <a className="sv-link" href={r.p.site_url} target="_blank" rel="noopener noreferrer">Visit website</a>}
-                  {r.p ? <a className="sv-link green" href={`/?page=ada-manager&school=${encodeURIComponent(r.p.id)}`}>ADA detail</a> : null}
-                  <span className="sv-scan">{r.score ? `${r.score.page_count} pages · ${new Date(r.score.last_audited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Not scanned yet'}</span>
+                  <span className={`sv-status${r.score ? ' done' : ''}`}>{r.score ? 'Audited' : r.p ? 'Not audited' : 'Not set up'}</span>
+                </div>
+                <div className="sv-audit">
+                  <div className="sv-audit-nums">
+                    <span><b>{r.score ? r.score.critical_count + r.score.serious_count : '–'}</b> serious issues</span>
+                    <span><b>{r.score ? r.score.page_count : '–'}</b> pages</span>
+                    <span>Last audit <b>{r.score ? new Date(r.score.last_audited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '–'}</b></span>
+                  </div>
+                  <div className="sv-audit-actions">
+                    {r.score && <button type="button" className="sv-action ghost" onClick={() => setOpenAudit(openAudit === r.loc_no ? null : r.loc_no)}>{openAudit === r.loc_no ? 'Hide audit results' : 'View audit results'}</button>}
+                    {canScan && r.p?.site_url && (
+                      <button type="button" className="sv-action" disabled={!!scanning} onClick={() => runAudit(r.loc_no, r.p!.id)}>
+                        {scanning?.loc === r.loc_no ? `Auditing ${scanning.current}/${scanning.total}…` : r.score ? 'Re-run audit' : 'Run audit'}
+                      </button>
+                    )}
+                    {canScan && !r.p?.site_url && <a className="sv-link" href="/?page=ada-manager">{r.p ? 'Add its website in ADA Manager' : 'Set up in ADA Manager'}</a>}
+                  </div>
+                  {scanning?.loc === r.loc_no && (
+                    <div className="sv-progress"><div style={{ width: `${(scanning.current / scanning.total) * 100}%` }} /></div>
+                  )}
+                  {openAudit === r.loc_no && r.score && r.p && (
+                    <div className="sv-results"><SchoolAuditPages schoolId={r.p.id} score={r.score} onChanged={reloadScores} /></div>
+                  )}
                 </div>
               </article>
             ))}
@@ -192,6 +263,7 @@ const CSS = `
 .sv-count{font-size:12px;color:var(--sv-text-m);font-weight:600;margin-left:auto;white-space:nowrap}
 .sv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .sv-card{background:var(--sv-card);border:1px solid var(--sv-border);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:10px;transition:box-shadow .15s,border-color .15s}
+.sv-card.wide{grid-column:1/-1}
 .sv-card:hover{box-shadow:0 4px 20px rgba(22,114,167,.13);border-color:var(--sv-blue)}
 .sv-card-header{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
 .sv-name{font-size:13.5px;font-weight:800;color:var(--sv-text);line-height:1.3}
@@ -207,6 +279,21 @@ const CSS = `
 .sv-link:hover{text-decoration:underline}
 .sv-scan{font-size:10.5px;color:var(--sv-text-m);margin-left:auto}
 .sv-empty{text-align:center;padding:48px 20px;color:var(--sv-text-m)}
+.sv-notice{background:#fff7ed;border-left:4px solid #c2410c;padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:14px}
+.sv-ring-col{display:flex;flex-direction:column;align-items:center;gap:3px}
+.sv-ring-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--sv-text-m)}
+.sv-status{margin-left:auto;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:999px;background:#f3f4f6;color:var(--sv-text-m)}
+.sv-status.done{background:#dcfce7;color:#16a34a}
+.sv-audit{border-top:1px solid var(--sv-border);padding-top:10px;display:grid;gap:8px}
+.sv-audit-nums{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--sv-text-m)}
+.sv-audit-nums b{color:var(--sv-text);font-weight:800}
+.sv-audit-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sv-action{font:inherit;font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:6px;border:1px solid var(--sv-blue);background:var(--sv-blue);color:#fff;cursor:pointer}
+.sv-action.ghost{background:#fff;color:var(--sv-blue)}
+.sv-action:disabled{opacity:.5;cursor:default}
+.sv-progress{height:6px;background:#f3f4f6;border-radius:999px;overflow:hidden}
+.sv-progress div{height:100%;background:var(--sv-blue);transition:width .3s}
+.sv-results{border-top:1px solid #f3f4f6;padding-top:8px;max-height:420px;overflow:auto}
 @media(max-width:900px){.sv-grid{grid-template-columns:repeat(2,1fr)}.sv-stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.sv-grid{grid-template-columns:1fr}.sv-label{min-width:0;margin-right:6px}}
 `

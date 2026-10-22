@@ -183,7 +183,9 @@ function DepartmentContent() {
   const [expandedIssues, setExpandedIssues] = useState<Set<number>>(new Set())
   const [expandedAda, setExpandedAda] = useState<Set<number>>(new Set())
   // Sean, 2026-10-07: Overview (analytics + contact + history) | Web Review | ADA Accessibility.
+  // ?tab=review opens on the audit (the Departments tiles' View audit results).
   const [activeTab, setActiveTab] = useState<'overview' | 'review'>('overview')
+  useEffect(() => { if (new URLSearchParams(window.location.search).get('tab') === 'review') setActiveTab('review') }, [])
   const [adaScope, setAdaScope] = useState<'wcm' | 'finalsite'>('wcm')
 
   // Analytics period state

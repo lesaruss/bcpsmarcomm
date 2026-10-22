@@ -95,9 +95,14 @@ function TrafficRing({ rank }: { rank: number | null | undefined }) {
 interface DepartmentsPageProps {
   subPage?: string
   onNavigate?: (page: PageId, breadcrumb?: BreadcrumbItem, subPage?: string) => void
+  // Open and fixed findings per department, from the dashboard (findings
+  // are server-only). With them, each tile carries what the Run Audit tab
+  // showed (Sean, 2026-10-22); without them the tile skips those counts.
+  findings?: { id: string; findings_open: number; findings_fixed: number }[]
 }
 
-export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavigate }: DepartmentsPageProps = {}) {
+export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavigate, findings }: DepartmentsPageProps = {}) {
+  const findingsBy = new Map((findings ?? []).map(f => [f.id, f]))
   const { role, viewAs } = useBCPSShell()
   // Same view-as-aware admin check as the department profile page: a
   // previewed WCM must only ever see listings, never audit/admin actions.
@@ -268,6 +273,8 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
         .dv-profile-link:hover{color:#145f2f;text-decoration:underline}
         .dv-website-link{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--dv-blue);text-transform:uppercase;letter-spacing:.1em;text-decoration:none;transition:color .12s}
         .dv-website-link:hover{color:var(--dv-blue-dark);text-decoration:underline}
+        .dv-auditline{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--dv-text-m);border-top:1px solid var(--dv-border);padding-top:8px;margin-top:2px}
+        .dv-auditline b{color:var(--dv-text);font-weight:800}
         .dv-subscores{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--dv-border);margin-top:auto;padding-top:10px}
         .dv-subscore{display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 4px}
         .dv-subscore+.dv-subscore{border-left:1px solid var(--dv-border)}
@@ -383,6 +390,16 @@ export default function DepartmentsPage({ subPage: _subPage, onNavigate: _onNavi
                       </a>
                     )}
                     <span className={`dv-chip ${auditChipClass(status)}`} style={{ marginLeft: 'auto' }}>{auditLabel(status)}</span>
+                  </div>
+
+                  {/* The Run Audit tab, on the tile (Sean, 2026-10-22). */}
+                  <div className="dv-auditline">
+                    {findingsBy.has(dept.id) && <>
+                      <span><b>{findingsBy.get(dept.id)!.findings_open}</b> open</span>
+                      <span><b>{findingsBy.get(dept.id)!.findings_fixed}</b> fixed</span>
+                    </>}
+                    <span>Last audit <b>{dept.audit_date ? new Date(dept.audit_date + (dept.audit_date.length <= 10 ? 'T12:00:00' : '')).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '–'}</b></span>
+                    <a className="dv-website-link" style={{ marginLeft: 'auto' }} href={`/department?id=${dept.id}&tab=review`}>View audit results</a>
                   </div>
 
                   {/* Audit workflow action row */}
