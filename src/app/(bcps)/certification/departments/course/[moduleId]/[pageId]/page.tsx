@@ -87,6 +87,11 @@ export default function CoursePlayerPage({ params }: Props) {
   // the same file-attach UI and /api/cert/upload route as assignments,
   // just with image types allowed and no text submission box.
   const isBadgeEvidencePage = moduleId === 'final' && pageId === 'badge'
+  // An attached file counts as the assignment submission on its own (Sean,
+  // 2026-10-22): a WCM who wrote their summary in a PDF was stuck behind the
+  // 20-character text minimum with "Doc attached." in the box. The minimum
+  // only applies when nothing is attached.
+  const assignmentNeedsMore = page?.type === 'assignment' && submissionDraft.trim().length < 20 && !submissionFiles[pageKey]
   const pageIndex = mod ? mod.pages.findIndex((p: CoursePage) => p.id === pageId) : 0
   const totalPages = mod ? mod.pages.length : 0
   // Where-am-I overall progress (per Sean, Hot Lab 2026-07-28: WCMs need to
@@ -697,7 +702,7 @@ export default function CoursePlayerPage({ params }: Props) {
                     <p style={{ margin: 0, fontSize: 14, color: '#1a1a1a' }}>
                       <strong>Request sent.</strong> Sean and Felicia have been notified that you need a Composer account
                       {accessRequestedAt ? ` (requested ${new Date(accessRequestedAt).toLocaleDateString('en-US')})` : ''}.
-                      Once your account is created, come back and continue with this step.
+                      You don&apos;t need to wait for it - you can finish this step and keep going with the course while your account is set up.
                     </p>
                   ) : (
                     <>
@@ -780,7 +785,7 @@ export default function CoursePlayerPage({ params }: Props) {
                     {fileError && (
                       <p role="alert" style={{ margin: '8px 0 0', fontSize: 12.5, color: '#b3261e', fontWeight: 600 }}>{fileError}</p>
                     )}
-                    <p style={{ margin: '8px 0 0', fontSize: 11.5, color: '#888' }}>PDF or Word, up to 15MB. Attaching a file is optional - your written summary above is still the required submission.</p>
+                    <p style={{ margin: '8px 0 0', fontSize: 11.5, color: '#888' }}>PDF or Word, up to 15MB. You can write your summary in the box above or attach it here - either one counts as your submission.</p>
                   </div>
 
                   <p style={{ margin: '14px 0 0', fontSize: 12, color: '#888' }}>Marking this assignment complete saves your submission and sends it to the Office of Communications for review.</p>
@@ -831,15 +836,15 @@ export default function CoursePlayerPage({ params }: Props) {
                   )}
                   <div className="course-actions-row" style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 28 }}>
                     <button
-                      style={{ ...S.completeBtn, opacity: (page.type === 'assignment' && submissionDraft.trim().length < 20) || (isBadgeEvidencePage && !submissionFiles[pageKey]) ? 0.5 : 1 }}
-                      disabled={(page.type === 'assignment' && submissionDraft.trim().length < 20) || (isBadgeEvidencePage && !submissionFiles[pageKey])}
+                      style={{ ...S.completeBtn, opacity: assignmentNeedsMore || (isBadgeEvidencePage && !submissionFiles[pageKey]) ? 0.5 : 1 }}
+                      disabled={assignmentNeedsMore || (isBadgeEvidencePage && !submissionFiles[pageKey])}
                       onClick={markCompleteOnly}
                     >
                       Mark Complete
                     </button>
                     <button style={S.saveExitBtn} onClick={saveAndExit}>Save &amp; Exit</button>
-                    {page.type === 'assignment' && submissionDraft.trim().length < 20 && (
-                      <span style={{ fontSize: 12, color: '#888' }}>Write at least a few sentences before marking this complete.</span>
+                    {assignmentNeedsMore && (
+                      <span style={{ fontSize: 12, color: '#888' }}>Write a few sentences or attach your file before marking this complete.</span>
                     )}
                     {isBadgeEvidencePage && !submissionFiles[pageKey] && (
                       <span style={{ fontSize: 12, color: '#888' }}>Attach your evidence above before marking this complete.</span>
