@@ -20,6 +20,7 @@ interface Doc {
   is_dynamic: boolean
   can_edit: boolean
   featured: boolean
+  project?: string | null
   series_id: string | null
   series_title: string | null
   effective_object_id: string
@@ -119,6 +120,11 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
   const [activeTab, setActiveTab] = useState<string>('documents')
   const [sortMode, setSortMode] = useState<SortMode>('date_desc')
   const [query, setQuery] = useState('')
+  // Quick filters (Sean and Vanessa, 2026-10-22), like Find It Fast: by
+  // project (BCPS Central, School Websites, ...) and by type (Playbook,
+  // Plan, Guide, Tracker, ...). Empty means all.
+  const [projectFilter, setProjectFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
 
   // View-as aware, per Sean 2026-09-10: previewing a WCM must not leave
   // the real admin's controls on screen. Server-side access is unchanged.
@@ -252,7 +258,7 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
   }
 
   const toggleFeatured = async (d: Doc) => {
-    const j = await act({ action: 'meta_update', slug: d.slug, featured: !d.featured })
+    const j = await act({ action: 'favorite', slug: d.slug, on: !d.featured })
     if (j) await load()
   }
 
@@ -270,6 +276,10 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
         .docs-section { padding: 32px; background: #ffffff; }
         .docs-section.embedded { padding: 0; background: transparent; }
         .docs-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+        .docs-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+        .docs-chips-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; color: rgba(26,26,26,0.5); margin-right: 4px; min-width: 64px; }
+        .docs-chip { font: inherit; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 99px; border: 1px solid rgba(22,114,167,0.3); background: #fff; color: #0e4e73; cursor: pointer; }
+        .docs-chip.on { background: #1672A7; border-color: #1672A7; color: #fff; }
         .docs-search { flex: 1; min-width: 220px; font: inherit; font-size: 14px; padding: 10px 14px; border: 1px solid rgba(0,0,0,0.15); border-radius: 8px; background: #fff; }
         .docs-header h1 { font-size: 32px; font-weight: 900; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: -0.02em; }
         .docs-header p { font-size: 14px; color: rgba(26,26,26,0.55); margin: 0 0 32px 0; line-height: 1.6; }
@@ -333,7 +343,13 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
         {SECTIONS.filter(section => section.key === activeTab).map(section => {
           const q = query.trim().toLowerCase()
           const sectionDocs = sortDocs(docs.filter(d => (d.section || 'documents') === section.key && (!APP_TRACKERS.includes(d.slug) || !!trackers[d.slug]))
-            .filter(d => !q || [d.title, d.description, d.type, d.date].some(v => (v || '').toLowerCase().includes(q))), sortMode)
+            .filter(d => !q || [d.title, d.description, d.type, d.date, d.project].some(v => (v || '').toLowerCase().includes(q)))
+            .filter(d => !projectFilter || (projectFilter === '__favorites' ? d.featured : d.project === projectFilter))
+            .filter(d => !typeFilter || (d.type || '').toLowerCase() === typeFilter), sortMode)
+          const listed = docs.filter(d => (d.section || 'documents') === section.key && (!APP_TRACKERS.includes(d.slug) || !!trackers[d.slug]))
+          const projects = Array.from(new Set(listed.map(d => d.project).filter(Boolean) as string[])).sort()
+          const types = Array.from(new Set(listed.map(d => (d.type || '').toLowerCase()).filter(Boolean))).sort()
+          const typeLabel = (t: string) => listed.find(d => (d.type || '').toLowerCase() === t)?.type || t
 
           return (
             <div key={section.key} className="docs-section-group">
@@ -352,10 +368,30 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
                 </div>
               )}
 
+              {section.key === 'documents' && (
+                <>
+                  <div className="docs-chips" role="group" aria-label="Filter by project">
+                    <span className="docs-chips-label">Project</span>
+                    <button type="button" className={`docs-chip${!projectFilter ? ' on' : ''}`} aria-pressed={!projectFilter} onClick={() => setProjectFilter('')}>All</button>
+                    <button type="button" className={`docs-chip${projectFilter === '__favorites' ? ' on' : ''}`} aria-pressed={projectFilter === '__favorites'} onClick={() => setProjectFilter(projectFilter === '__favorites' ? '' : '__favorites')}>{'\u2605'} My favorites</button>
+                    {projects.map(pr => (
+                      <button key={pr} type="button" className={`docs-chip${projectFilter === pr ? ' on' : ''}`} aria-pressed={projectFilter === pr} onClick={() => setProjectFilter(projectFilter === pr ? '' : pr)}>{pr}</button>
+                    ))}
+                  </div>
+                  <div className="docs-chips" role="group" aria-label="Filter by type">
+                    <span className="docs-chips-label">Type</span>
+                    <button type="button" className={`docs-chip${!typeFilter ? ' on' : ''}`} aria-pressed={!typeFilter} onClick={() => setTypeFilter('')}>All</button>
+                    {types.map(t => (
+                      <button key={t} type="button" className={`docs-chip${typeFilter === t ? ' on' : ''}`} aria-pressed={typeFilter === t} onClick={() => setTypeFilter(typeFilter === t ? '' : t)}>{typeLabel(t)}</button>
+                    ))}
+                  </div>
+                </>
+              )}
+
               <div className="docs-section-divider" />
 
               {sectionDocs.length === 0 ? (
-                <div style={{ fontSize: 13, color: '#9ca3af' }}>{query.trim() ? 'No document matches that search.' : 'Nothing here yet.'}</div>
+                <div style={{ fontSize: 13, color: '#9ca3af' }}>{query.trim() || projectFilter || typeFilter ? 'No document matches those filters.' : 'Nothing here yet.'}</div>
               ) : (
               <div className="docs-grid">
                 {sectionDocs.map(doc => {
@@ -364,23 +400,18 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
                   const dgrants = grantsFor(doc.effective_object_id)
                   return (
                     <div key={doc.id} className="doc-card">
-                      {(isAdmin || doc.featured || isExternal(doc.doc_url)) && (
-                        <div className="doc-badge-row">
-                          {isAdmin && <span className="doc-access-badge">{badge.icon} {badge.label}</span>}
-                          {isExternal(doc.doc_url) && <span className="doc-access-badge">↗ Opens on another site</span>}
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              className={doc.featured ? 'doc-star-btn doc-star-btn-active' : 'doc-star-btn'}
-                              onClick={() => toggleFeatured(doc)}
-                              title={doc.featured ? 'Remove from featured' : 'Feature this document'}
-                            >
-                              {doc.featured ? '\u2605' : '\u2606'}
-                            </button>
-                          )}
-                          {!isAdmin && doc.featured && <span className="doc-featured-badge">{'\u2605'} Featured</span>}
-                        </div>
-                      )}
+                      <div className="doc-badge-row">
+                        {isAdmin && <span className="doc-access-badge">{badge.icon} {badge.label}</span>}
+                        {isExternal(doc.doc_url) && <span className="doc-access-badge">↗ Opens on another site</span>}
+                        <button
+                          type="button"
+                          className={doc.featured ? 'doc-star-btn doc-star-btn-active' : 'doc-star-btn'}
+                          onClick={() => toggleFeatured(doc)}
+                          title={doc.featured ? 'Remove from my favorites' : 'Add to my favorites'}
+                        >
+                          {doc.featured ? '\u2605' : '\u2606'}
+                        </button>
+                      </div>
 
                       <button
                         onClick={() => openDoc(doc)}
@@ -416,6 +447,17 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
 
                       {openPanel === 'access' && isAdmin && (
                         <div className="doc-panel">
+                          <form style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12 }}
+                            onSubmit={async (e) => {
+                              e.preventDefault()
+                              const v = String(new FormData(e.currentTarget).get('project') || '').trim()
+                              if (await act({ action: 'meta_update', slug: doc.slug, project: v || null })) { showToast(v ? `Filed under ${v}.` : 'Removed from its project.'); await load() }
+                            }}>
+                            <span style={A.sublabel}>Project</span>
+                            <input name="project" list="docs-projects" defaultValue={doc.project || ''} placeholder="e.g. BCPS Central" style={{ ...A.sel, flex: 1 }} />
+                            <button type="submit" style={A.btn} disabled={busy}>Save</button>
+                          </form>
+                          <datalist id="docs-projects">{Array.from(new Set(docs.map(d => d.project).filter(Boolean) as string[])).map(pr => <option key={pr} value={pr} />)}</datalist>
                           <div style={A.sublabel}>Who can access {doc.title}</div>
                           {doc.series_id && (
                             <div className="doc-series-note">

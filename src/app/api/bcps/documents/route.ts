@@ -78,9 +78,9 @@ export async function GET(req: NextRequest) {
   }
 
   const { data: docs, error } = await svc.from('acl_objects')
-    .select('id, slug, title, description, doc_type, doc_date, doc_date_sort, icon, section, visibility, sensitive, owner_id, doc_url, series_id, featured')
+    .select('id, slug, title, description, doc_type, doc_date, doc_date_sort, icon, section, visibility, sensitive, owner_id, doc_url, series_id, project')
     .eq('brand', BRAND).eq('kind', 'document')
-    .order('featured', { ascending: false }).order('section').order('title')
+    .order('section').order('title')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const all = docs ?? []
@@ -135,6 +135,12 @@ export async function GET(req: NextRequest) {
     return isAdmin || eff.visibility === 'public' || !!myGrant(eff.objectId)
   })
 
+  // Favorites are each person's own short list (Sean, 2026-10-22: "what I
+  // feature shouldn't be featured for everybody"). `featured` in the response
+  // now means "this person starred it"; acl_objects.featured is no longer read.
+  const { data: favRows } = await svc.from('bcps_document_favorites').select('slug').eq('user_id', user.id)
+  const favorites = new Set((favRows ?? []).map(f => f.slug as string))
+
   const result = visible.map(d => {
     const eff = effectiveOf(d)
     const grant = myGrant(eff.objectId)
@@ -143,7 +149,7 @@ export async function GET(req: NextRequest) {
       id: d.id, slug: d.slug, title: d.title, description: d.description,
       type: d.doc_type, date: d.doc_date, date_sort: d.doc_date_sort, icon: d.icon, section: d.section || 'documents',
       visibility: eff.visibility, sensitive: eff.sensitive, doc_url: d.doc_url,
-      is_dynamic: isDynamic(d.doc_url), can_edit, featured: !!d.featured,
+      is_dynamic: isDynamic(d.doc_url), can_edit, featured: favorites.has(d.slug), project: d.project ?? null,
       series_id: d.series_id || null, series_title: eff.seriesTitle, effective_object_id: eff.objectId,
       content_text: '',
     }
@@ -273,16 +279,27 @@ export async function GET(req: NextRequest) {
   return res
 }
 
-// POST /api/bcps/documents - { action, ...fields }. Admin/superadmin only.
+// POST /api/bcps/documents - { action, ...fields }. Admin/superadmin only,
+// except 'favorite', which anyone signed in uses for their own list.
 export async function POST(req: NextRequest) {
   const user = await authedUser(req)
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const body = await req.json().catch(() => ({}))
+  const a = body.action as string
+
+  if (a === 'favorite') {
+    const slug = typeof body.slug === 'string' ? body.slug : ''
+    if (!slug) return NextResponse.json({ error: 'slug required.' }, { status: 400 })
+    const { error } = body.on
+      ? await svc.from('bcps_document_favorites').upsert({ user_id: user.id, slug }, { onConflict: 'user_id,slug', ignoreDuplicates: true })
+      : await svc.from('bcps_document_favorites').delete().eq('user_id', user.id).eq('slug', slug)
+    if (error) return NextResponse.json({ error: 'Could not save your favorite.' }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
+
   const role = await roleFor(user.id)
   const isAdmin = role === 'admin' || role === 'superadmin'
   if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
-  const body = await req.json().catch(() => ({}))
-  const a = body.action as string
 
   try {
     switch (a) {
@@ -295,7 +312,7 @@ export async function POST(req: NextRequest) {
         for (const [bodyKey, col] of [
           ['title', 'title'], ['description', 'description'], ['doc_type', 'doc_type'],
           ['doc_date', 'doc_date'], ['doc_date_sort', 'doc_date_sort'], ['icon', 'icon'], ['section', 'section'],
-          ['visibility', 'visibility'], ['sensitive', 'sensitive'], ['featured', 'featured'],
+          ['visibility', 'visibility'], ['sensitive', 'sensitive'], ['featured', 'featured'], ['project', 'project'],
         ] as const) {
           if (body[bodyKey] !== undefined) row[col] = body[bodyKey]
         }
