@@ -321,6 +321,7 @@
 </head>
 <body>
 
+<!-- mock-only:start (removed in the /embeds/ version: review bar and the copied site chrome) -->
 <div class="mock-bar" role="region" aria-label="Mockup review controls">
   <span><strong>Mockup for review.</strong> <span class="mock-sub">Proposed Parents &amp; Families page. Not the live site.</span></span>
   <div class="mock-actions">
@@ -377,9 +378,12 @@
     </ul>
   </div>
 </nav>
+<!-- mock-only:end -->
 
 <main class="wrap" id="main">
+  <!-- mock-only:start -->
   <p class="crumbs"><a href="https://www.browardschools.com">Home</a> &rsaquo; Parents &amp; Families</p>
+  <!-- mock-only:end -->
 
   <section class="hero" id="s-hero" data-bn aria-labelledby="h-page">
     <span class="bn native">Finalsite native: text, sign-in links and a content slider</span>
@@ -590,6 +594,7 @@
   </section>
 </main>
 
+<!-- mock-only:start -->
 <footer class="site-footer">
   <div class="inner">
     <div>
@@ -621,14 +626,17 @@
   </div>
   <div class="tour-dots" id="tour-dots" aria-hidden="true"></div>
 </aside>
+<!-- mock-only:end -->
 
 <script>
 (function () {
+  /* mock-only:start */
   var menu = document.getElementById('menu-toggle'), nav = document.getElementById('nav-main');
   menu.addEventListener('click', function () {
     var open = nav.classList.toggle('open');
     menu.setAttribute('aria-expanded', String(open));
   });
+  /* mock-only:end */
 
   // Search, topic buttons and Get it done are one experience (Sean, 2026-10-21:
   // fold Find It Fast into the top of the page instead of embedding it
@@ -887,6 +895,7 @@
     });
   });
 
+  /* mock-only:start */
   var notesBtn = document.getElementById('notes-toggle');
   notesBtn.addEventListener('click', function () {
     var on = document.body.classList.toggle('show-notes');
@@ -951,6 +960,7 @@
   });
   var m = /^#tour=(\d+)$/.exec(location.hash);
   if (m) show(Math.min(STEPS.length, Math.max(1, parseInt(m[1], 10))) - 1, true);
+  /* mock-only:end */
 })();
 </script>
 </body>
