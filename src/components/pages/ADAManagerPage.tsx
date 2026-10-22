@@ -95,7 +95,7 @@ interface WaveViolation {
   selectors?: string[]
 }
 
-interface SchoolPage {
+export interface SchoolPage {
   page_url: string
   ada_score: number | null
   ada_violations: Violation[]
@@ -106,7 +106,7 @@ interface SchoolPage {
   ada_violations_minor: number
 }
 
-interface SchoolScore {
+export interface SchoolScore {
   school_id: string
   scan_batch_id: string
   page_count: number
@@ -446,6 +446,66 @@ function PageIssueDetail({ page, overrides, onReclassify, onRescan, rescanning }
 }
 
 type ScanProgress = { schoolId: string; current: number; total: number; url: string } | null
+
+// One school's latest full-site results, page by page, with the same issue
+// detail, owner tabs and single-page re-scan as below. Used on the Schools
+// tab tiles (Sean, 2026-10-22: see the audit results where the school is),
+// so ADA Manager can be retired once Schools is approved.
+export function SchoolAuditPages({ schoolId, score, onChanged }: { schoolId: string; score: SchoolScore; onChanged: () => void }) {
+  const supabase = createClient()
+  const [overrides, setOverrides] = useState<OwnerOverrideMap>({})
+  const [openPage, setOpenPage] = useState<string | null>(null)
+  const [rescanning, setRescanning] = useState<Set<string>>(new Set())
+  const [error, setError] = useState('')
+  const token = useCallback(async () => (await supabase.auth.getSession()).data.session?.access_token || '', [supabase])
+  useEffect(() => { token().then(fetchOwnerOverrides).then(setOverrides).catch(() => {}) }, [token])
+  const reclassify = async (glossaryKey: string, owner: GlossaryOwner) => {
+    try { setOverrides(await setOwnerOverride(await token(), glossaryKey, owner)) }
+    catch (e) { setError(e instanceof Error ? e.message : 'Could not save reclassification.') }
+  }
+  const rescan = async (pageUrl: string) => {
+    setRescanning(prev => new Set(prev).add(pageUrl))
+    try {
+      await fetch('/api/bcps/ada-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` },
+        body: JSON.stringify({ url: pageUrl, school_id: schoolId, scan_batch_id: score.scan_batch_id }),
+      })
+      onChanged()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not re-scan this page.')
+    } finally {
+      setRescanning(prev => { const next = new Set(prev); next.delete(pageUrl); return next })
+    }
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {error && <div style={{ fontSize: 12, color: '#b91c1c' }}>{error}</div>}
+      {score.pages.map(p => {
+        const totalIssues = p.ada_violations_critical + p.ada_violations_serious + p.ada_violations_moderate + p.ada_violations_minor + (p.wave_violations?.length ?? 0)
+        const isOpen = openPage === p.page_url
+        return (
+          <div key={p.page_url} style={{ padding: '4px 0' }}>
+            <button type="button" onClick={() => setOpenPage(isOpen ? null : p.page_url)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 12, cursor: 'pointer', width: '100%', background: 'none', border: 0, padding: 0, font: 'inherit', textAlign: 'left' }}>
+              <span style={{ color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                <span style={{ fontSize: 10, color: '#9ca3af', transform: isOpen ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▸</span>
+                {p.page_url.replace(/^https?:\/\//, '')}
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: totalIssues > 0 ? '#6b7280' : '#16a34a' }}>{totalIssues} issue{totalIssues === 1 ? '' : 's'}</span>
+                <span style={{ fontWeight: 800, color: scoreColor(p.ada_score) }}>{p.ada_score ?? '—'}</span>
+              </span>
+            </button>
+            {isOpen && (
+              <PageIssueDetail page={p} overrides={overrides} onReclassify={reclassify} onRescan={() => rescan(p.page_url)} rescanning={rescanning.has(p.page_url)} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function ADAManagerPage() {
   const supabase = createClient()

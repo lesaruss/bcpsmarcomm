@@ -104,7 +104,10 @@ export default function SchoolProfile() {
 
   const [schools, setSchools] = useState<Array<{ loc_no: string; school_name: string }>>([])
   const [schoolsLoading, setSchoolsLoading] = useState(true)
+  // ?loc=<location number> opens one school straight away (the Schools tab
+  // tiles' Visit Profile link, 2026-10-22).
   const [selectedLocNo, setSelectedLocNo] = useState('')
+  useEffect(() => { const loc = new URLSearchParams(window.location.search).get('loc'); if (loc) setSelectedLocNo(loc) }, [])
 
   const [school, setSchool] = useState<School | null>(null)
   const [submissions, setSubmissions] = useState<ProfileSubmission[]>([])
