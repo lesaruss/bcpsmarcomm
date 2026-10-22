@@ -908,17 +908,39 @@ function useDocParam(): [string | null, (slug: string | null) => void] {
 
 // A Playbook served by /api/bcps/doc-raw?embed=1, grown to its full height so
 // the dashboard scrolls as one page. Playbook links inside it open here too.
+// Project leads can edit it in place (Sean, 2026-10-22): Edit turns the page
+// itself editable with every section open; Save posts the page back to
+// /api/bcps/playbook-edit, which keeps the previous version first.
 function DocFrame({ slug, title, onOpen }: { slug: string; title: string; onOpen: (slug: string) => void }) {
   const ref = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(900)
+  const [canEdit, setCanEdit] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [note, setNote] = useState('')
+  const [reload, setReload] = useState(0)
+  const opened = useRef<HTMLDetailsElement[]>([])
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.data?.type !== 'bcps-open-doc' || typeof e.data.slug !== 'string') return
+      if (editing) return
       onOpen(e.data.slug)
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
-  }, [onOpen])
+  }, [onOpen, editing])
+  useEffect(() => {
+    let live = true
+    setCanEdit(false); setEditing(false); setNote('')
+    ;(async () => {
+      const token = (await createClient().auth.getSession()).data.session?.access_token
+      if (!token) return
+      const r = await fetch(`/api/bcps/playbook-edit?slug=${encodeURIComponent(slug)}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
+      const j = await r.json().catch(() => ({}))
+      if (live) setCanEdit(!!j.can_edit)
+    })().catch(() => {})
+    return () => { live = false }
+  }, [slug])
   const fit = () => {
     const d = ref.current?.contentDocument
     if (!d?.documentElement) return
@@ -926,8 +948,58 @@ function DocFrame({ slug, title, onOpen }: { slug: string; title: string; onOpen
     measure()
     try { new ResizeObserver(measure).observe(d.body) } catch { /* older browsers keep the first height */ }
   }
-  return <iframe ref={ref} key={slug} src={`/api/bcps/doc-raw/${encodeURIComponent(slug)}?embed=1`} title={title} onLoad={fit}
-    style={{ display: 'block', width: '100%', height, border: '1px solid var(--border)', borderRadius: 12, background: '#fff' }} />
+  const startEdit = () => {
+    const d = ref.current?.contentDocument
+    if (!d) return
+    // Open every closed section so all of it can be edited; they close again on save.
+    opened.current = Array.from(d.querySelectorAll('details:not([open])')) as HTMLDetailsElement[]
+    opened.current.forEach((el) => { el.open = true })
+    d.designMode = 'on'
+    setEditing(true); setNote('')
+  }
+  const cancel = () => { setEditing(false); setReload((n) => n + 1) }
+  const save = async () => {
+    const d = ref.current?.contentDocument
+    if (!d) return
+    setSaving(true); setNote('')
+    try {
+      d.designMode = 'off'
+      opened.current.forEach((el) => { el.open = false })
+      const root = d.documentElement.cloneNode(true) as HTMLElement
+      root.querySelectorAll('#bcps-embed-script').forEach((el) => el.remove())
+      const html = '<!DOCTYPE html>\n' + root.outerHTML
+      const token = (await createClient().auth.getSession()).data.session?.access_token
+      const r = await fetch('/api/bcps/playbook-edit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ slug, html }),
+      })
+      const j = await r.json().catch(() => ({ error: 'The server did not answer. Nothing was saved.' }))
+      if (!r.ok) throw new Error(j.error || 'The page could not be saved.')
+      setEditing(false); setNote(j.unchanged ? 'No changes to save.' : 'Saved. The previous version is kept.')
+      setReload((n) => n + 1)
+    } catch (e) {
+      d.designMode = 'on'
+      opened.current.forEach((el) => { el.open = true })
+      setNote((e as Error).message)
+    } finally { setSaving(false) }
+  }
+  return (
+    <>
+      {(canEdit || note) && (
+        <div className="home-actions" style={{ marginBottom: 8 }}>
+          {canEdit && !editing && <button type="button" className="wcm-hub2-card-btn" onClick={startEdit}>Edit this page</button>}
+          {editing && <>
+            <button type="button" className="home-btn" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+            <button type="button" className="wcm-hub2-card-btn" onClick={cancel} disabled={saving}>Cancel</button>
+            <span className="home-hint">Editing: click into the page and type. Every section is open while you edit.</span>
+          </>}
+          {note && <span className="home-hint" role="status">{note}</span>}
+        </div>
+      )}
+      <iframe ref={ref} key={`${slug}-${reload}`} src={`/api/bcps/doc-raw/${encodeURIComponent(slug)}?embed=1`} title={title} onLoad={fit}
+        style={{ display: 'block', width: '100%', height, border: editing ? '2px solid var(--blue, #1672A7)' : '1px solid var(--border)', borderRadius: 12, background: '#fff' }} />
+    </>
+  )
 }
 
 function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm'; team?: boolean; canMarcomm?: boolean }) {
