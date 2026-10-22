@@ -10,6 +10,9 @@ export interface SchoolCsvRow {
   region: string | null
   lead_name?: string
   no_wcm?: boolean
+  // The school's WCM where we have one on file (My Schools tab, 2026-10-22).
+  wcm_name?: string | null
+  wcm_email?: string | null
 }
 
 function cell(v: string) {
@@ -18,7 +21,8 @@ function cell(v: string) {
 
 export function downloadSchoolsCsv(rows: SchoolCsvRow[], filename: string) {
   const withLead = rows.some(r => r.lead_name !== undefined)
-  const header = ['Location Number', 'School', 'Level', 'Region', ...(withLead ? ['District Web Team Lead'] : []), 'WCM on file']
+  const withWcm = rows.some(r => r.wcm_name !== undefined)
+  const header = ['Location Number', 'School', 'Level', 'Region', ...(withLead ? ['District Web Team Lead'] : []), 'WCM on file', ...(withWcm ? ['WCM', 'WCM Email'] : [])]
   const lines = rows.map(r => [
     // ="0131" keeps the leading zero when Excel opens the file.
     `="${r.loc_no}"`,
@@ -27,6 +31,7 @@ export function downloadSchoolsCsv(rows: SchoolCsvRow[], filename: string) {
     cell(r.region ?? ''),
     ...(withLead ? [cell(r.lead_name ?? '')] : []),
     cell(r.no_wcm ? 'No' : 'Yes'),
+    ...(withWcm ? [cell(r.wcm_name ?? ''), cell(r.wcm_email ?? '')] : []),
   ].join(','))
   // BOM so Excel reads names with accents correctly.
   const blob = new Blob(['﻿' + [header.map(cell).join(','), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' })
