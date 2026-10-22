@@ -73,6 +73,10 @@ const nextConfig = {
       '/mockups/parents-families': [
         './src/mockups/**',
       ],
+      // The public test-page embed reads the same file (2026-10-22).
+      '/embeds/parents-families': [
+        './src/mockups/**',
+      ],
     },
   },
   async rewrites() {
