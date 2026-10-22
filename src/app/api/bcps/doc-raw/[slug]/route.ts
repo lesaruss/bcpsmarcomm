@@ -60,7 +60,8 @@ export async function GET(
   })
 }
 
-const EMBED_SCRIPT = `<script>
+// id lets the in-place editor strip it before saving (2026-10-22).
+const EMBED_SCRIPT = `<script id="bcps-embed-script">
 document.addEventListener('click', function (e) {
   var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
   if (!a || a.getAttribute('href').charAt(0) === '#') return;

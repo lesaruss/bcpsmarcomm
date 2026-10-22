@@ -310,3 +310,42 @@ export async function requirePlaybookTranscriptAccess(req: NextRequest, playbook
   if (!listed) return { ok: false, status: 403, error: 'Only this project\'s leads upload meeting transcripts here.' }
   return { ok: true, user }
 }
+
+// Editing a Playbook in place (Sean, 2026-10-22): the same project leads who
+// upload its meeting transcripts (metadata.transcript_admins), or a
+// superadmin. A doc filed under a Playbook follows its Playbook's leads.
+// Returns the Playbook-or-doc row the caller may edit.
+export async function requirePlaybookEditAccess(req: NextRequest, slug: string): Promise<AuthResult & { doc?: { slug: string; type: string; parent: string | null } }> {
+  const user = await userFromRequest(req)
+  if (!user) return { ok: false, status: 401, error: 'Sign in with your BCPS account to continue.' }
+
+  const { data: doc } = await service
+    .from('briefings')
+    .select('slug, type, metadata')
+    .eq('brand_slug', BRAND)
+    .eq('slug', slug)
+    .in('type', ['playbook', 'record'])
+    .maybeSingle()
+  if (!doc) return { ok: false, status: 404, error: 'That document was not found.' }
+  const meta = (doc.metadata ?? {}) as Record<string, unknown>
+  const parent = doc.type === 'record' && typeof meta.parent_playbook_slug === 'string' ? meta.parent_playbook_slug : null
+  const ref = { slug: doc.slug as string, type: doc.type as string, parent }
+
+  const { data: roleRow } = await service
+    .from('acl_member_roles')
+    .select('role')
+    .eq('user_id', user.userId)
+    .eq('brand', BRAND)
+    .maybeSingle()
+  if (roleRow?.role === 'superadmin') return { ok: true, user, doc: ref }
+
+  let leadsMeta = meta
+  if (parent) {
+    const { data: pb } = await service.from('briefings').select('metadata').eq('brand_slug', BRAND).eq('type', 'playbook').eq('slug', parent).maybeSingle()
+    leadsMeta = (pb?.metadata ?? {}) as Record<string, unknown>
+  }
+  const admins = leadsMeta.transcript_admins
+  const listed = Array.isArray(admins) && admins.some((e) => typeof e === 'string' && e.toLowerCase() === user.email.toLowerCase())
+  if (!listed) return { ok: false, status: 403, error: 'Only this project\'s leads edit it here.' }
+  return { ok: true, user, doc: ref }
+}
