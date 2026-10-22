@@ -4851,13 +4851,10 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   // Load all note counts on page load
   async function loadAllCounts() {
     try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/bcps_assignment_notes?select=assignment_slug`,
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
-      );
-      const rows = await res.json();
-      const counts = {};
-      rows.forEach(r => { counts[r.assignment_slug] = (counts[r.assignment_slug] || 0) + 1; });
+      // Notes come through the signed-in API, not the public key (2026-10-22).
+      const res = await fetch('/api/bcps/assignment-notes?counts=1', { credentials: 'same-origin', cache: 'no-store' });
+      if (!res.ok) return;
+      const counts = (await res.json()).counts || {};
       noteCounts = counts;
       Object.entries(counts).forEach(([slug, count]) => {
         NC_PREFIXES.forEach(prefix => {
@@ -4910,11 +4907,9 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
     const body = document.getElementById('modal-notes-body');
     body.innerHTML = '<div class="notes-loading">Loading...</div>';
     try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/bcps_assignment_notes?assignment_slug=eq.${currentSlug}&order=created_at.desc`,
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
-      );
-      const notes = await res.json();
+      const res = await fetch('/api/bcps/assignment-notes?slug=' + encodeURIComponent(currentSlug), { credentials: 'same-origin', cache: 'no-store' });
+      if (!res.ok) throw new Error('notes ' + res.status);
+      const notes = (await res.json()).notes || [];
       if (!notes.length) {
         body.innerHTML = '<div class="notes-empty">No notes yet. Add the first one below.</div>';
         return;
@@ -4942,16 +4937,13 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
     btn.disabled = true;
     btn.textContent = 'Saving...';
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/bcps_assignment_notes`, {
+      const saved = await fetch('/api/bcps/assignment-notes', {
         method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({ assignment_slug: currentSlug, note_text: text, author: author })
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: currentSlug, note_text: text, author: author })
       });
+      if (!saved.ok) throw new Error('save ' + saved.status);
       document.getElementById('note-input').value = '';
       // Update count badges across all snapshots
       noteCounts[currentSlug] = (noteCounts[currentSlug] || 0) + 1;
@@ -5576,7 +5568,7 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   });
   function updateLastUpdatedFromData(){
     var tagsReq = fetch(SUPABASE_URL + '/rest/v1/bcps_assignment_tags?select=updated_at&order=updated_at.desc&limit=1', { headers: efHeaders() }).then(function(r){ return r.json(); }).catch(function(){ return []; });
-    var notesReq = fetch(SUPABASE_URL + '/rest/v1/bcps_assignment_notes?select=created_at&order=created_at.desc&limit=1', { headers: efHeaders() }).then(function(r){ return r.json(); }).catch(function(){ return []; });
+    var notesReq = fetch('/api/bcps/assignment-notes?recent=1', { credentials: 'same-origin', cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : { notes: [] }; }).then(function(j){ return j.notes || []; }).catch(function(){ return []; });
     var metaReq = fetch(SUPABASE_URL + '/rest/v1/bcps_tracker_meta?select=version_number,meeting_update_summary&limit=1', { headers: efHeaders() }).then(function(r){ return r.json(); }).catch(function(){ return []; });
     Promise.all([tagsReq, notesReq, metaReq]).then(function(results){
       var dates = [];
