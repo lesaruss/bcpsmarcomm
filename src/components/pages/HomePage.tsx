@@ -2351,6 +2351,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, 
           of Communications); Application Services and everyone else are a
           division or group away (Sean, 2026-10-20). */}
       {tab === 'team' && <MembersPage defaultDivision="Chief of Staff" />}
+      {tab === 'schools' && <SchoolsPage />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
