@@ -28,6 +28,12 @@ export interface Assignment {
   date_iso: string | null
   past_date: boolean
   priority: 'high' | 'medium' | 'low' | null
+  // For the assignment pop-up on the dashboard (Sean, 2026-10-22).
+  desc: string
+  lead: string
+  support: string
+  playbook_url: string | null
+  widget_url: string | null
 }
 
 export interface TeamMemberWork {
@@ -114,7 +120,7 @@ function personMatches(entry: string, first: string, full: string): boolean {
   return e === first.toLowerCase() || e === full.toLowerCase() || e.split(/\s+/)[0] === first.toLowerCase()
 }
 
-type LoadedRow = RawRow & { date_iso: string | null; priority: 'high' | 'medium' | 'low' | null }
+type LoadedRow = RawRow & { date_iso: string | null; priority: 'high' | 'medium' | 'low' | null; playbook_url: string | null; widget_url: string | null }
 
 export async function loadAssignments(svc: SupabaseClient, origin: string): Promise<LoadedRow[]> {
   // trackerHtml includes rows added by meeting transcript uploads (2026-10-21).
@@ -125,7 +131,7 @@ export async function loadAssignments(svc: SupabaseClient, origin: string): Prom
   const rows = parseAssignmentsHtml(html)
   if (!rows.length) return []
   const { data: tags } = await svc.from('bcps_assignment_tags')
-    .select('assignment_slug, status, lead_override, support_override, deadline_date, title_override, is_ongoing, priority')
+    .select('assignment_slug, status, lead_override, support_override, deadline_date, title_override, is_ongoing, priority, playbook_url, widget_url')
     .in('assignment_slug', rows.map((r) => r.slug))
   const bySlug = new Map((tags ?? []).map((t) => [t.assignment_slug as string, t]))
   return rows.map((r) => {
@@ -141,6 +147,8 @@ export async function loadAssignments(svc: SupabaseClient, origin: string): Prom
       deadline: t?.deadline_date ? null : r.deadline,
       date_iso: deadlineIso,
       priority: (['high', 'medium', 'low'].includes(t?.priority) ? t!.priority : null) as LoadedRow['priority'],
+      playbook_url: asText(t?.playbook_url) || null,
+      widget_url: asText(t?.widget_url) || null,
     }
   })
 }
@@ -165,6 +173,11 @@ export function assignmentsFor(rows: LoadedRow[], first: string, full: string): 
       date_iso: r.date_iso,
       past_date: !!r.date_iso && r.date_iso < today && r.status !== 'ongoing',
       priority: r.priority,
+      desc: r.desc,
+      lead: r.lead,
+      support: r.support,
+      playbook_url: r.playbook_url,
+      widget_url: r.widget_url,
     })
   }
   // Soonest dated first, then undated, ongoing last.

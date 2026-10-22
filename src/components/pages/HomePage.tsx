@@ -152,6 +152,11 @@ interface Assignment {
   date_iso: string | null
   past_date: boolean
   priority: 'high' | 'medium' | 'low' | null
+  desc?: string
+  lead?: string
+  support?: string
+  playbook_url?: string | null
+  widget_url?: string | null
 }
 
 interface TeamMemberWork {
@@ -1577,13 +1582,14 @@ function BannersPanel({ b, pp, onNavigate }: { b: TeamBanners; pp?: TeamBanners 
 
 function MyWorkPanel({ items, who, onNavigate }: { items: Assignment[]; who?: string; onNavigate: (page: PageId) => void }) {
   const [all, setAll] = useState(false)
+  const [open, setOpen] = useState<Assignment | null>(null)
   const shown = all ? items : items.slice(0, 10)
   if (!items.length) {
     return <div className="wcm-hub2-empty">{who ? `${who} has` : 'You have'} no open rows on the Web Team Assignments page.</div>
   }
   return (
     <>
-      <p className="wcm-hub2-intro">{who ? `${who}’s` : 'Your'} rows from the Web Team Assignments page, soonest date first.</p>
+      <p className="wcm-hub2-intro">{who ? `${who}’s` : 'Your'} rows from the Web Team Assignments page, soonest date first. Click one for its notes, Playbook and widget.</p>
       <div className="home-dept">
         <div className="home-table-wrap">
           <table className="home-table">
@@ -1591,7 +1597,7 @@ function MyWorkPanel({ items, who, onNavigate }: { items: Assignment[]; who?: st
             <tbody>
               {shown.map((a) => (
                 <tr key={a.slug}>
-                  <td>{a.title}</td>
+                  <td><button type="button" className="home-asg-link" onClick={() => setOpen(a)}>{a.title}</button>{a.playbook_url && <span className="home-tag" title="Has a Playbook" style={{ marginLeft: 6 }}>Playbook</span>}</td>
                   <td><span className={`home-tag ${a.role}`}>{a.role === 'lead' ? 'Lead' : 'Support'}</span></td>
                   <td>{STATUS_LABELS[a.status] || a.status}</td>
                   <td>{a.date_label || 'Not set'}{a.past_date && <span className="home-tag late">Past date</span>}</td>
@@ -1607,11 +1613,70 @@ function MyWorkPanel({ items, who, onNavigate }: { items: Assignment[]; who?: st
           <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
         </div>
       </div>
+      {open && <AssignmentDialog a={open} onClose={() => setOpen(null)} />}
     </>
   )
 }
 
 const STATUS_LABELS: Record<string, string> = { 'in-progress': 'In Progress', pending: 'Pending', ongoing: 'Ongoing', completed: 'Completed' }
+
+// An assignment at a glance (Sean and Vanessa, 2026-10-22): its description
+// and notes trail, then the Playbook (first, since more work has one) and the
+// Widget. Nothing new is created; it shows what the tracker already holds.
+// The Playbook is where transcripts and longer work live.
+const playbookHref = (url: string) => {
+  const m = url.match(/\/playbooks\/(?:[^/?#]+\/)?([^/?#]+)\/?$/)
+  return m ? `/?page=dashboard&tab=documents&doc=${encodeURIComponent(m[1])}` : url
+}
+function AssignmentDialog({ a, onClose }: { a: Assignment; onClose: () => void }) {
+  const [notes, setNotes] = useState<{ author: string; note_text: string; created_at: string }[] | null>(null)
+  useEffect(() => {
+    createClient().from('bcps_assignment_notes').select('author, note_text, created_at')
+      .eq('assignment_slug', a.slug).order('created_at', { ascending: false }).limit(25)
+      .then(({ data }) => setNotes(data ?? []))
+  }, [a.slug])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  return (
+    <div className="home-modal-back" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="home-modal" role="dialog" aria-modal="true" aria-labelledby="asg-title">
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+          <h2 id="asg-title">{a.title}</h2>
+          <button type="button" className="home-link-btn" aria-label="Close" onClick={onClose} style={{ fontSize: 22, lineHeight: 1 }}>&times;</button>
+        </div>
+        <p className="home-card-text" style={{ margin: '4px 0 10px' }}>
+          <span className={`home-tag ${a.role}`}>{a.role === 'lead' ? 'Lead' : 'Support'}</span>{' '}
+          {STATUS_LABELS[a.status] || a.status} &middot; {a.date_label || 'No date'}
+          {a.lead && <> &middot; Lead: {a.lead}</>}{a.support && <> &middot; Support: {a.support}</>}
+        </p>
+        {a.desc && <p className="home-card-text">{a.desc}</p>}
+        {(a.playbook_url || a.widget_url) && (
+          <div className="home-actions">
+            {a.playbook_url && <a className="home-btn" href={playbookHref(a.playbook_url)}>&#128214; Playbook</a>}
+            {a.widget_url && <a className="wcm-hub2-card-btn" href={a.widget_url}>Widget</a>}
+          </div>
+        )}
+        <h3 className="home-grp" style={{ marginTop: 18 }}>Notes</h3>
+        {notes === null ? <p className="home-card-text">Loading...</p> : !notes.length ? <p className="home-card-text">No notes yet.</p> : (
+          <div style={{ display: 'grid', gap: 10 }}>
+            {notes.map((n, i) => (
+              <div key={i} style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)' }}>{n.author} &middot; {new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                <div className="home-card-text" style={{ margin: '2px 0 0' }}>{n.note_text}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="home-actions" style={{ marginTop: 16 }}>
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => openAssignment(a.slug)}>Add a note in Web Team Assignments</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // My Schools: a District Web Team Lead's assigned schools with a CSV export
 // (Vanessa, 2026-10-13). It lived only on the old dashboard tile, which leads
@@ -2017,6 +2082,7 @@ function TopTasks({ items, onNavigate }: { items: Assignment[]; onNavigate: Navi
   const high = items.filter((a) => a.priority === 'high')
   const late = items.filter((a) => a.priority !== 'high' && a.past_date)
   const top = [...high, ...late].slice(0, 5)
+  const [open, setOpen] = useState<Assignment | null>(null)
   return (
     <div className="home-dept home-dbox">
       <div className="home-dscroll">
@@ -2027,7 +2093,7 @@ function TopTasks({ items, onNavigate }: { items: Assignment[]; onNavigate: Navi
           <ul className="home-tasks">
             {top.map((a) => (
               <li key={a.slug}>
-                <button type="button" className="home-task" onClick={() => openAssignment(a.slug)}>
+                <button type="button" className="home-task" onClick={() => setOpen(a)}>
                   <span className="home-task-title">{a.title}</span>
                   <span className="home-task-meta">
                     {a.priority === 'high' && <span className="home-tag late">High</span>}
@@ -2043,6 +2109,7 @@ function TopTasks({ items, onNavigate }: { items: Assignment[]; onNavigate: Navi
       <div className="home-dfoot">
         <button type="button" className="home-btn" onClick={() => onNavigate('bcps-assignments')}>Open Web Team Assignments</button>
       </div>
+      {open && <AssignmentDialog a={open} onClose={() => setOpen(null)} />}
     </div>
   )
 }

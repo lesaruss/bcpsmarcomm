@@ -50,3 +50,21 @@ join public.acl_groups g on g.brand = 'bcps' and g.slug = 'dwt'
 where o.brand = 'bcps' and o.kind = 'document'
   and o.slug in ('bcps-central-v2', 'school-website-service-model', 'bcps-school-assignments-2026-27')
   and not exists (select 1 from public.acl_grants x where x.object_id = o.id and x.subject_type = 'group' and x.subject_id = g.id);
+
+-- Assignment pop-up (2026-10-22): a Widget link beside the Playbook link.
+alter table public.bcps_assignment_tags add column if not exists widget_url text;
+insert into public.bcps_assignment_tags (assignment_slug, widget_url, updated_at)
+select v.slug, v.url, now() from (values
+  ('automate-rejected-banners', '/?page=banner-submissions'),
+  ('pride-points-submission-form', '/?page=proud-points'),
+  ('audioeye', '/?page=ada-scanner'),
+  ('wcm-dept-roster', '/?page=wcm-roster'),
+  ('widget-iidl-services', '/?page=widgets'),
+  ('widget-program-directory', '/?page=widgets'),
+  ('dept-programs-directory', '/?page=widgets'),
+  ('charter-schools', '/?page=widgets')
+) as v(slug, url)
+on conflict (assignment_slug) do update set widget_url = excluded.widget_url, updated_at = excluded.updated_at
+where public.bcps_assignment_tags.widget_url is null;
+update public.bcps_assignment_tags set playbook_url = 'https://bcpsmarcomm.com/playbooks/banner-submission-app', updated_at = now()
+where assignment_slug = 'automate-rejected-banners' and playbook_url is null;
