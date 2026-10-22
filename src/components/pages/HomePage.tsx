@@ -1680,65 +1680,98 @@ function AssignmentDialog({ a, onClose }: { a: Assignment; onClose: () => void }
 
 // My Schools: a District Web Team Lead's assigned schools with a CSV export
 // (Vanessa, 2026-10-13). It lived only on the old dashboard tile, which leads
-// stopped seeing when this home replaced it (found live 2026-10-22). Renders
-// nothing for anyone who is not a lead, and only on their own login.
-type MySchool = { loc_no: string; display_name: string; school_level: string | null; region: string | null; no_wcm: boolean }
-function MySchoolsPanel() {
+// stopped seeing when this home replaced it (found live 2026-10-22). Since
+// Vanessa's ask the same day it is its own tab, so school work reads apart
+// from project work; Overview keeps a one-line summary. Leads only, and only
+// on their own login. WCM names come from bcps_schools where we have one; the
+// full list lives in BCPS Central until that data is brought in.
+type MySchool = { loc_no: string; display_name: string; school_level: string | null; region: string | null; no_wcm: boolean; wcm_name?: string | null; wcm_email?: string | null }
+function useMySchools(enabled: boolean): { lead: string; schools: MySchool[] | null } {
   const [lead, setLead] = useState('')
   const [schools, setSchools] = useState<MySchool[] | null>(null)
-  const [all, setAll] = useState(false)
-  const [query, setQuery] = useState('')
   useEffect(() => {
+    if (!enabled) return
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       const email = user?.email?.toLowerCase()
       if (!email) return
       const { data: l } = await supabase.from('bcps_support_leads').select('full_name').eq('email', email).maybeSingle()
       if (!l) return
-      const { data } = await supabase.from('bcps_school_assignments')
-        .select('loc_no, display_name, school_level, region, no_wcm').eq('lead_email', email).order('display_name')
+      const [{ data }, { data: wcms }] = await Promise.all([
+        supabase.from('bcps_school_assignments').select('loc_no, display_name, school_level, region, no_wcm').eq('lead_email', email).order('display_name'),
+        supabase.from('bcps_schools').select('school_location_nbr, wcm_name, wcm_email').not('wcm_name', 'is', null),
+      ])
+      const key = (n: string | null) => (n || '').replace(/^0+/, '')
+      const byLoc = new Map((wcms ?? []).map((w) => [key(w.school_location_nbr as string), w]))
       setLead(l.full_name)
-      setSchools(data ?? [])
+      setSchools((data ?? []).map((s) => {
+        const w = byLoc.get(key(s.loc_no))
+        return { ...s, wcm_name: (w?.wcm_name as string) ?? null, wcm_email: (w?.wcm_email as string) ?? null }
+      }))
     })
-  }, [])
-  if (schools === null) return null
-  const q = query.trim().toLowerCase()
-  const matches = q ? schools.filter((s) => s.display_name.toLowerCase().includes(q) || s.loc_no.includes(q)) : schools
-  const shown = all || q ? matches : matches.slice(0, 10)
-  const exportCsv = () => downloadSchoolsCsv(schools, `my-schools-${lead.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${csvDateStamp()}.csv`)
+  }, [enabled])
+  return { lead, schools }
+}
+
+function MySchoolsSummary({ schools, onOpen }: { schools: MySchool[]; onOpen: () => void }) {
+  const noWcm = schools.filter((s) => s.no_wcm).length
   return (
     <>
-      <h3 className="home-grp">My Schools ({schools.length})</h3>
+      <h3 className="home-grp">My Schools</h3>
+      <div className="home-dept">
+        <p className="home-card-text">You are the District Web Team Lead for {schools.length} school{schools.length === 1 ? '' : 's'}{noWcm ? `; ${noWcm} ha${noWcm === 1 ? 's' : 've'} no WCM on file` : ''}.</p>
+        <div className="home-actions"><button type="button" className="home-btn" onClick={onOpen}>Open My Schools</button></div>
+      </div>
+    </>
+  )
+}
+
+function MySchoolsTab({ lead, schools }: { lead: string; schools: MySchool[] }) {
+  const [query, setQuery] = useState('')
+  const q = query.trim().toLowerCase()
+  const matches = q
+    ? schools.filter((s) => [s.display_name, s.loc_no, s.region, s.school_level, s.wcm_name].some((v) => (v || '').toLowerCase().includes(q)))
+    : schools
+  const noWcm = schools.filter((s) => s.no_wcm).length
+  const exportCsv = () => downloadSchoolsCsv(schools, `my-schools-${lead.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${csvDateStamp()}.csv`)
+  return (
+    <div className="home-section">
+      <div className="home-hero">
+        <div className="home-hero-label">My Schools</div>
+        <h1 className="home-title">{schools.length} school{schools.length === 1 ? '' : 's'}</h1>
+        <p>The schools you lead for the District Web Team{noWcm ? `. ${noWcm} ha${noWcm === 1 ? 's' : 've'} no WCM on file` : ''}. Export the list for Excel any time.</p>
+        <div className="home-actions">
+          <button type="button" className="home-btn" onClick={exportCsv} disabled={!schools.length}>Export to CSV</button>
+        </div>
+      </div>
       {!schools.length ? <div className="wcm-hub2-empty">No schools are assigned to you yet.</div> : (
         <div className="home-dept">
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search my schools"
-            placeholder="Search by school name or location number"
-            style={{ font: 'inherit', fontSize: 13, padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 6, width: '100%', maxWidth: 360, boxSizing: 'border-box', marginBottom: 10 }} />
-          {q && !matches.length && <div className="wcm-hub2-empty">No school matches &ldquo;{query}&rdquo;.</div>}
-          <div className="home-table-wrap">
-            <table className="home-table">
-              <thead><tr><th>Location</th><th>School</th><th>Level</th><th>WCM</th></tr></thead>
-              <tbody>
-                {shown.map((s) => (
-                  <tr key={s.loc_no}>
-                    <td>{s.loc_no}</td>
-                    <td>{s.display_name}</td>
-                    <td>{s.school_level || ''}</td>
-                    <td>{s.no_wcm ? <span className="home-tag late">No WCM</span> : 'On file'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="home-actions">
-            <button type="button" className="home-btn" onClick={exportCsv}>Export to CSV</button>
-            {!q && schools.length > 10 && (
-              <button type="button" className="wcm-hub2-card-btn" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${schools.length}`}</button>
-            )}
-          </div>
+            placeholder="Search by school, location number, region or WCM"
+            style={{ font: 'inherit', fontSize: 13, padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 6, width: '100%', maxWidth: 380, boxSizing: 'border-box', marginBottom: 10 }} />
+          {q && !matches.length ? <div className="wcm-hub2-empty">No school matches &ldquo;{query}&rdquo;.</div> : (
+            <div className="home-table-wrap">
+              <table className="home-table">
+                <thead><tr><th>Location</th><th>School</th><th>Level</th><th>Region</th><th>WCM</th></tr></thead>
+                <tbody>
+                  {matches.map((s) => (
+                    <tr key={s.loc_no}>
+                      <td>{s.loc_no}</td>
+                      <td>{s.display_name}</td>
+                      <td>{s.school_level || ''}</td>
+                      <td>{s.region || ''}</td>
+                      <td>{s.no_wcm ? <span className="home-tag late">No WCM</span>
+                        : s.wcm_name ? (s.wcm_email ? <a href={`mailto:${s.wcm_email}`}>{s.wcm_name}</a> : s.wcm_name)
+                        : <span style={{ color: 'var(--text-muted)' }}>In BCPS Central</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
-    </>
+    </div>
   )
 }
 
@@ -2305,9 +2338,12 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   const lead = assignments.filter((a) => a.role === 'lead').length
   const past = assignments.filter((a) => a.past_date).length
   const greet = who ? who.split(/\s+/)[0] : firstName(data)
+  const mine = useMySchools(!previewNote)
+  const schoolsTab = mine.schools ? [{ id: 'myschools', label: 'My Schools' }] : []
   const tabs = kind === 'comms'
     ? [
         { id: 'overview', label: 'Overview' },
+        ...schoolsTab,
         { id: 'documents', label: 'Documents' },
         { id: 'audits', label: 'Run Audit' },
         { id: 'departments', label: 'Departments' },
@@ -2318,6 +2354,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       ]
     : [
         { id: 'overview', label: 'Overview' },
+        ...schoolsTab,
         { id: 'documents', label: 'Documents' },
         { id: 'ada', label: 'ADA' },
         { id: 'banners', label: 'Banners' },
@@ -2359,10 +2396,11 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         <StatTile label="Proud Points to review" value={th.proud_points?.pending ?? 0} note={th.proud_points?.ready ? `${th.proud_points.ready} approved, not posted yet` : 'Proud Points'} tone={th.proud_points?.pending ? 'warn' : undefined} />
       </div>
       <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />
-      {!previewNote && <MySchoolsPanel />}
+      {mine.schools && <MySchoolsSummary schools={mine.schools} onOpen={() => setTab('myschools')} />}
       <h3 className="home-grp">Program</h3>
       <ProgramPanel p={p} />
       </>}
+      {tab === 'myschools' && mine.schools && <MySchoolsTab lead={mine.lead} schools={mine.schools} />}
       {tab === 'documents' && <DocumentsTab kind="dwt" team canMarcomm={kind === 'comms' || canMarcomm} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
