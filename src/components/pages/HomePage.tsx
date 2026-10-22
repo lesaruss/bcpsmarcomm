@@ -1619,6 +1619,7 @@ function MySchoolsPanel() {
   const [lead, setLead] = useState('')
   const [schools, setSchools] = useState<MySchool[] | null>(null)
   const [all, setAll] = useState(false)
+  const [query, setQuery] = useState('')
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -1633,13 +1634,19 @@ function MySchoolsPanel() {
     })
   }, [])
   if (schools === null) return null
-  const shown = all ? schools : schools.slice(0, 10)
+  const q = query.trim().toLowerCase()
+  const matches = q ? schools.filter((s) => s.display_name.toLowerCase().includes(q) || s.loc_no.includes(q)) : schools
+  const shown = all || q ? matches : matches.slice(0, 10)
   const exportCsv = () => downloadSchoolsCsv(schools, `my-schools-${lead.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${csvDateStamp()}.csv`)
   return (
     <>
       <h3 className="home-grp">My Schools ({schools.length})</h3>
       {!schools.length ? <div className="wcm-hub2-empty">No schools are assigned to you yet.</div> : (
         <div className="home-dept">
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search my schools"
+            placeholder="Search by school name or location number"
+            style={{ font: 'inherit', fontSize: 13, padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 6, width: '100%', maxWidth: 360, boxSizing: 'border-box', marginBottom: 10 }} />
+          {q && !matches.length && <div className="wcm-hub2-empty">No school matches &ldquo;{query}&rdquo;.</div>}
           <div className="home-table-wrap">
             <table className="home-table">
               <thead><tr><th>Location</th><th>School</th><th>Level</th><th>WCM</th></tr></thead>
@@ -1657,7 +1664,7 @@ function MySchoolsPanel() {
           </div>
           <div className="home-actions">
             <button type="button" className="home-btn" onClick={exportCsv}>Export to CSV</button>
-            {schools.length > 10 && (
+            {!q && schools.length > 10 && (
               <button type="button" className="wcm-hub2-card-btn" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${schools.length}`}</button>
             )}
           </div>
