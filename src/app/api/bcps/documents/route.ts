@@ -37,6 +37,12 @@ function isDynamic(docUrl: string | null) {
   return !!docUrl && docUrl.startsWith('/briefs/') && !docUrl.endsWith('.html')
 }
 
+// /playbooks/<slug> (a Playbook itself, not a doc under one) -> <slug>.
+function playbookSlugOf(url: string | null | undefined): string | null {
+  const m = (url || '').match(/^\/playbooks\/([a-z0-9-]+)\/?$/)
+  return m ? m[1] : null
+}
+
 async function audit(actor: string, action: string, object_id: string | null, detail: unknown) {
   await svc.from('acl_audit').insert({ brand: BRAND, actor_id: actor, action, object_id, detail })
 }
@@ -274,6 +280,24 @@ export async function GET(req: NextRequest) {
     extra.grants = grants ?? []
   }
 
+  // Admins see and set each Playbook's transcript leads from its Access panel
+  // (Sean, 2026-10-22): the named people who upload its meeting transcripts
+  // and edit it in place (briefings.metadata.transcript_admins).
+  if (isAdmin) {
+    const pbSlugs = result.map(d => playbookSlugOf(d.doc_url)).filter(Boolean) as string[]
+    if (pbSlugs.length) {
+      const { data: pbs } = await svc.from('briefings').select('slug, metadata').eq('brand_slug', 'bcps').eq('type', 'playbook').in('slug', pbSlugs)
+      const leads = new Map((pbs ?? []).map(b => {
+        const list = (b.metadata as Record<string, unknown> | null)?.transcript_admins
+        return [b.slug as string, Array.isArray(list) ? list.filter(e => typeof e === 'string') as string[] : []]
+      }))
+      for (const d of result as Array<Record<string, unknown>>) {
+        const pb = playbookSlugOf(d.doc_url as string)
+        if (pb && leads.has(pb)) d.transcript_leads = leads.get(pb)
+      }
+    }
+  }
+
   const res = NextResponse.json({ ok: true, role, documents: result, ...extra })
   res.headers.set('Cache-Control', 'no-store')
   return res
@@ -305,6 +329,22 @@ export async function POST(req: NextRequest) {
     switch (a) {
       // Update a document's display metadata (title/description/type/date/
       // icon/section) and, optionally, its visibility/sensitive flags.
+      // Set a Playbook's transcript leads by email (Sean, 2026-10-22).
+      case 'transcript_leads': {
+        const pb = typeof body.slug === 'string' ? body.slug : ''
+        const emails = Array.isArray(body.emails)
+          ? Array.from(new Set((body.emails as unknown[]).map(e => String(e).trim().toLowerCase()).filter(e => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))))
+          : null
+        if (!pb || !emails) return NextResponse.json({ error: 'slug and emails required.' }, { status: 400 })
+        const { data: row } = await svc.from('briefings').select('metadata').eq('brand_slug', 'bcps').eq('type', 'playbook').eq('slug', pb).maybeSingle()
+        if (!row) return NextResponse.json({ error: 'That Playbook was not found.' }, { status: 404 })
+        const metadata = { ...((row.metadata ?? {}) as Record<string, unknown>), transcript_admins: emails }
+        const { error } = await svc.from('briefings').update({ metadata }).eq('brand_slug', 'bcps').eq('type', 'playbook').eq('slug', pb)
+        if (error) throw error
+        await audit(user.id, 'playbook_transcript_leads', null, { slug: pb, emails })
+        return NextResponse.json({ ok: true, emails })
+      }
+
       case 'meta_update': {
         const { slug } = body
         if (!slug) return NextResponse.json({ error: 'slug required.' }, { status: 400 })

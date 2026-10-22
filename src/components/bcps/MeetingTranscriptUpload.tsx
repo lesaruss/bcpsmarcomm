@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 
 // Update Web Team Assignments from a meeting transcript (Sean, 2026-10-21).
-// Shown only to people granted the 'meeting-transcripts' page (or admins).
+// Shown only to people granted the 'meeting-transcripts' page by name (a
+// group grant does not count) and the superadmin.
 // tracker 'marcomm' does the same for MarComm Assignments, for people granted
 // the 'marcomm-edit' page, the MarComm Assignments editors (Sean, 2026-10-21).
 // tracker 'playbook' sits on top of a Playbook for that project's leads only
