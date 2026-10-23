@@ -571,7 +571,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
     ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets' as DirectorTab, label: 'Widgets' }] : []),
     // A director who is also their department's WCM keeps the WCM cards.
     ...(data.is_wcm ? [{ id: 'wcm' as DirectorTab, label: 'My WCM Work' }] : []),
-    { id: 'tools', label: 'Tools & Resources' },
+    { id: 'tools', label: 'My Resources' },
   ]
   if (page) return <PageUnderTabs tabs={tabs} onChange={(t) => setTab(t as DirectorTab)}>{page}</PageUnderTabs>
 
@@ -1104,7 +1104,7 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 // Overview opens with the first steps and Hot Labs; My Department holds the
 // audit, the site's visitors and the review; Widgets is a view-only
 // showroom. Maintain was dropped, Build Kit became Widgets, WCMs got the
-// director's Website Review tab, and Learn folded into Tools & Resources
+// director's Website Review tab, and Learn folded into My Resources (was Tools & Resources)
 // (its Hot Labs tile and knowledge base) (Sean, Oct 6).
 // Oct 7 (Sean): Overview is the consolidated dashboard (My Department folded
 // in); Run Audit is only the audit and ADA results; Website Review is the
@@ -1136,7 +1136,7 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
     { id: 'documents', label: 'Documents' },
     ...(mine.length ? [{ id: 'audit' as WcmTab, label: 'Run Audit' }] : []),
     { id: 'widgets', label: 'Widgets' },
-    { id: 'tools', label: 'Tools & Resources' },
+    { id: 'tools', label: 'My Resources' },
   ]
   if (page) return <PageUnderTabs tabs={tabs} onChange={(x) => setTab(x as WcmTab)}>{page}</PageUnderTabs>
   return (
@@ -1374,7 +1374,7 @@ function MemberHome({ data, onNavigate }: { data: HomeData; onNavigate: Navigate
           <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback()}>Send a message</button>
         </div>
       </div>
-      <h2 className="home-grp">Tools &amp; Resources</h2>
+      <h2 className="home-grp">My Resources</h2>
       <ToolsPanel kind="member" onNavigate={onNavigate} hotLabs={data.hot_labs ?? []} />
     </div>
   )
@@ -2007,40 +2007,71 @@ type HotLabLink = { title: string; date: string; url: string }
 // with this browser's copy as the fallback; until someone stars anything,
 // their role's usual tools (TOP_TOOLS) start out starred. Admin consoles only
 // appear for people who can open them.
-const STAR_KEY = 'bcps-tool-stars'
+// My Resources (Sean, 2026-10-23): renamed, and stars are personal. The
+// browser copy is kept per account, so a second person on the same computer
+// never inherits the first one's stars, and View as shows the role's starting
+// stars instead of the viewer's own; anything changed while previewing stays
+// in the preview. A hide button tucks away tiles someone doesn't need, and
+// "Show hidden" brings them back to unhide.
+type ToolPrefs = { stars: string[] | null; hidden: string[] }
+const prefsKey = (userId: string) => `bcps-tool-prefs:${userId}`
 function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof typeof TOP_TOOLS; onNavigate: (page: PageId) => void; kb?: KbArticle[]; hotLabs?: HotLabLink[] }) {
   const router = useRouter()
   const { pages, role, viewAs } = useBCPSShell()
   const [q, setQ] = useState('')
   const [group, setGroup] = useState('All')
   const [showHotLabs, setShowHotLabs] = useState(false)
-  const [stars, setStars] = useState<string[] | null>(null)
-  const saveStars = async (next: string[]) => {
-    try { localStorage.setItem(STAR_KEY, JSON.stringify(next)) } catch { /* the account copy still saves */ }
+  const [showHidden, setShowHidden] = useState(false)
+  const [prefs, setPrefs] = useState<ToolPrefs>({ stars: null, hidden: [] })
+  const userIdRef = useRef<string | null>(null)
+  const previewing = !!viewAs
+  const savePrefs = async (next: ToolPrefs, changed: Partial<ToolPrefs>) => {
+    setPrefs(next)
+    const uid = userIdRef.current
+    if (previewing || !uid) return
+    try { localStorage.setItem(prefsKey(uid), JSON.stringify(next)) } catch { /* the account copy still saves */ }
     try {
-      await fetch('/api/bcps/tool-stars', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify({ stars: next }) })
+      await fetch('/api/bcps/tool-stars', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify(changed) })
     } catch { /* kept in this browser until the next save */ }
   }
   useEffect(() => {
-    let local: string[] | null = null
-    try { const v = localStorage.getItem(STAR_KEY); local = v ? JSON.parse(v) : null } catch { local = null }
-    setStars(local)
+    setPrefs({ stars: null, hidden: [] })
+    setShowHidden(false)
+    if (previewing) return
     let cancelled = false
     ;(async () => {
+      const { data } = await supabase.auth.getSession()
+      const uid = data.session?.user.id ?? null
+      if (cancelled || !uid) return
+      userIdRef.current = uid
+      // The old browser copy wasn't tied to an account. It moves to the
+      // first account that opens this page without stars of its own, then
+      // goes, so it can't reach anyone else on this computer.
+      let legacy: string[] | null = null
+      try {
+        const v = localStorage.getItem('bcps-tool-stars')
+        legacy = v ? JSON.parse(v) as string[] : null
+        localStorage.removeItem('bcps-tool-stars')
+      } catch { legacy = null }
+      try {
+        const v = localStorage.getItem(prefsKey(uid))
+        if (v) setPrefs(JSON.parse(v) as ToolPrefs)
+      } catch { /* the account copy below */ }
       try {
         const r = await fetch('/api/bcps/tool-stars', { headers: await authHeaders(), cache: 'no-store' })
-        if (!r.ok) return
-        const j = (await r.json()) as { stars: string[] | null }
+        if (!r.ok || cancelled) return
+        const j = (await r.json()) as { stars: string[] | null; hidden?: string[] | null }
         if (cancelled) return
-        // Stars starred in this browser before they were saved to the
-        // account move up the first time.
-        if (j.stars === null && local) saveStars(local)
-        else { setStars(j.stars); try { localStorage.setItem(STAR_KEY, JSON.stringify(j.stars)) } catch { /* fine */ } }
-      } catch { /* keep this browser's stars */ }
+        const next = { stars: j.stars ?? legacy, hidden: j.hidden ?? [] }
+        setPrefs(next)
+        try { localStorage.setItem(prefsKey(uid), JSON.stringify(next)) } catch { /* fine */ }
+        if (j.stars === null && legacy) {
+          await fetch('/api/bcps/tool-stars', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify({ stars: legacy }) })
+        }
+      } catch { /* keep this browser's copy */ }
     })()
     return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [previewing, viewAs?.id])
   const isSA = role === 'superadmin' && (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID)
   // Same rule as the left menu: the page set in force decides, and a
   // SuperAdmin always reaches the SuperAdmin-only consoles.
@@ -2059,37 +2090,54 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
   type Item = { key: string; group: string; title: string; desc: string; text: string; icon?: React.ReactNode; go: () => void }
   const items: Item[] = [
     ...mine.map((t) => ({ key: `t:${t.label}`, group: t.group === 'SuperAdmin' ? 'Admin' : t.group, title: t.label, desc: t.desc, text: `${t.label} ${t.desc} ${t.group}`, icon: Icons[t.icon ?? t.page ?? t.gate] ?? t.label[0], go: () => open(t) })),
-    { key: 'x:hotlabs', group: 'Hot Labs & guides', title: 'Hot Labs', desc: hotLabs.length ? `Every session, with notes and the recording. Latest: ${hotLabs[0].date}.` : 'Every session, with notes and the recording.', text: 'hot lab hot labs sessions recordings notes', icon: Icons['minutes'] ?? 'H', go: () => setShowHotLabs(true) },
-    ...kb.filter((a) => a.topic !== 'Tools and apps').map((a) => ({ key: `a:${a.id}`, group: 'Hot Labs & guides', title: a.title, desc: a.summary, text: `${a.title} ${a.summary} ${a.topic} guide`, icon: Icons['documents'] ?? 'G', go: () => { window.location.href = a.href } })),
-    { key: 'x:ask', group: 'Ask', title: 'Ask a question', desc: 'Can’t find it? Ask, and the answer can become the next article.', text: 'ask a question help support', icon: '?', go: () => openFeedback('Question for the knowledge base: ') },
-    { key: 'x:topic', group: 'Ask', title: 'Suggest a Hot Lab topic', desc: 'Something to walk through together.', text: 'suggest a hot lab topic idea', icon: '+', go: () => openFeedback('Hot Lab topic suggestion: ') },
+    { key: 'x:hotlabs', group: 'Learn', title: 'Hot Labs', desc: hotLabs.length ? `Every session, with notes and the recording. Latest: ${hotLabs[0].date}.` : 'Every session, with notes and the recording.', text: 'hot lab hot labs sessions recordings notes', icon: Icons['minutes'] ?? 'H', go: () => setShowHotLabs(true) },
+    ...kb.filter((a) => a.topic !== 'Tools and apps').map((a) => ({ key: `a:${a.id}`, group: 'Learn', title: a.title, desc: a.summary, text: `${a.title} ${a.summary} ${a.topic} guide`, icon: Icons['documents'] ?? 'G', go: () => { window.location.href = a.href } })),
+    { key: 'x:ask', group: 'Learn', title: 'Ask a question', desc: 'Can’t find it? Ask, and the answer can become the next article.', text: 'ask a question help support', icon: '?', go: () => openFeedback('Question for the knowledge base: ') },
+    { key: 'x:topic', group: 'Learn', title: 'Suggest a Hot Lab topic', desc: 'Something to walk through together.', text: 'suggest a hot lab topic idea', icon: '+', go: () => openFeedback('Hot Lab topic suggestion: ') },
   ]
-  const starred = new Set(stars ?? TOP_TOOLS[kind].map((l) => `t:${l}`))
+  const starred = new Set(prefs.stars ?? TOP_TOOLS[kind].map((l) => `t:${l}`))
+  const hidden = new Set(prefs.hidden)
   const toggleStar = (key: string) => {
-    const next = starred.has(key) ? Array.from(starred).filter((k) => k !== key) : [...Array.from(starred), key]
-    setStars(next)
-    saveStars(next)
+    const stars = starred.has(key) ? Array.from(starred).filter((k) => k !== key) : [...Array.from(starred), key]
+    savePrefs({ ...prefs, stars }, { stars })
   }
-  const groups = ['All', 'Starred', ...[...TOOL_GROUPS.map((g) => (g === 'SuperAdmin' ? 'Admin' : g)), 'Hot Labs & guides', 'Ask'].filter((g) => items.some((i) => i.group === g))]
+  const toggleHidden = (key: string) => {
+    const next = hidden.has(key) ? prefs.hidden.filter((k) => k !== key) : [...prefs.hidden, key]
+    savePrefs({ ...prefs, hidden: next }, { hidden: next })
+  }
+  const visible = items.filter((i) => showHidden || !hidden.has(i.key))
+  const hiddenCount = items.filter((i) => hidden.has(i.key)).length
+  const groups = ['All', 'Starred', ...TOOL_GROUPS.map((g) => (g === 'SuperAdmin' ? 'Admin' : g)).filter((g) => visible.some((i) => i.group === g))]
+
+  // Hiding the last tile in a group drops its chip; fall back to All.
+  useEffect(() => { if (!groups.includes(group)) setGroup('All') }, [groups.join('|'), group])
 
   const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
   const matches = (i: Item) => words.every((w) => i.text.toLowerCase().includes(w))
-  const shown = items
+  const shown = visible
     .filter((i) => group === 'All' || (group === 'Starred' ? starred.has(i.key) : i.group === group))
     .filter((i) => !words.length || matches(i))
-    // Starred first, then the catalog's own order.
-    .sort((a, b) => Number(starred.has(b.key)) - Number(starred.has(a.key)))
+    // Starred first, then the catalog's own order; hidden ones last while shown.
+    .sort((a, b) => Number(hidden.has(a.key)) - Number(hidden.has(b.key)) || Number(starred.has(b.key)) - Number(starred.has(a.key)))
 
   const tile = (i: Item) => (
-    <div key={i.key} className="home-ptile-wrap">
+    <div key={i.key} className={`home-ptile-wrap${hidden.has(i.key) ? ' is-hidden' : ''}`}>
       <button type="button" className="home-ptile" onClick={i.go}>
         {i.icon && <span className="home-tool-ic" aria-hidden="true">{i.icon}</span>}
-        <span><small className="home-ptile-kind">{i.group}</small><b>{i.title}</b><small>{i.desc}</small></span>
+        <span><small className="home-ptile-kind">{hidden.has(i.key) ? `${i.group} · Hidden` : i.group}</small><b>{i.title}</b><small>{i.desc}</small></span>
       </button>
       {i.key !== 'x:ask' && i.key !== 'x:topic' && (
-        <button type="button" className={`home-star${starred.has(i.key) ? ' on' : ''}`} aria-pressed={starred.has(i.key)}
-          aria-label={starred.has(i.key) ? `Unstar ${i.title}` : `Star ${i.title}`} title={starred.has(i.key) ? 'Starred: pinned to the top' : 'Star to pin to the top'}
-          onClick={() => toggleStar(i.key)}>{starred.has(i.key) ? '★' : '☆'}</button>
+        <div className="home-tile-acts">
+          {!hidden.has(i.key) && (
+            <button type="button" className={`home-star${starred.has(i.key) ? ' on' : ''}`} aria-pressed={starred.has(i.key)}
+              aria-label={starred.has(i.key) ? `Unstar ${i.title}` : `Star ${i.title}`} title={starred.has(i.key) ? 'Starred: pinned to the top' : 'Star to pin to the top'}
+              onClick={() => toggleStar(i.key)}>{starred.has(i.key) ? '★' : '☆'}</button>
+          )}
+          <button type="button" className="home-hide" onClick={() => toggleHidden(i.key)}
+            aria-label={hidden.has(i.key) ? `Unhide ${i.title}` : `Hide ${i.title}`} title={hidden.has(i.key) ? 'Put it back on your page' : 'Hide it from your page'}>
+            {hidden.has(i.key) ? 'Unhide' : 'Hide'}
+          </button>
+        </div>
       )}
     </div>
   )
@@ -2097,7 +2145,7 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
   if (showHotLabs) {
     return (
       <>
-        <p className="home-hint"><button type="button" className="home-link-btn" onClick={() => setShowHotLabs(false)}>Tools &amp; Resources</button> / Hot Labs</p>
+        <p className="home-hint"><button type="button" className="home-link-btn" onClick={() => setShowHotLabs(false)}>My Resources</button> / Hot Labs</p>
         <h3 className="home-grp">Hot Labs</h3>
         {hotLabs.length === 0 && <p className="home-hint">No Hot Labs yet.</p>}
         <div className="home-tiles4">
@@ -2120,10 +2168,16 @@ function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof t
       </div>
       <div className="home-tgroups" role="group" aria-label="Sort by group">
         {groups.map((g) => {
-          const n = g === 'All' ? items.length : g === 'Starred' ? items.filter((i) => starred.has(i.key)).length : items.filter((i) => i.group === g).length
+          const n = g === 'All' ? visible.length : g === 'Starred' ? visible.filter((i) => starred.has(i.key)).length : visible.filter((i) => i.group === g).length
           return <button key={g} type="button" className={`home-tgroup${group === g ? ' on' : ''}`} aria-pressed={group === g} onClick={() => setGroup(g)}>{g === 'Starred' ? '★ Starred' : g} <b>{n}</b></button>
         })}
+        {(hiddenCount > 0 || showHidden) && (
+          <button type="button" className="home-tgroup home-tgroup-hidden" aria-pressed={showHidden} onClick={() => setShowHidden((v) => !v)}>
+            {showHidden ? 'Done unhiding' : <>Show hidden <b>{hiddenCount}</b></>}
+          </button>
+        )}
       </div>
+      {previewing && <p className="home-hint">Stars and hidden tiles are personal. This preview shows the role&rsquo;s starting stars, and nothing you change here is saved to anyone.</p>}
       <div className="home-tiles4" aria-live="polite">{shown.map(tile)}</div>
       {shown.length === 0 && (
         <p className="home-hint">{group === 'Starred' && !words.length ? 'Nothing starred yet. Tap the star on any tile to pin it here.' : <>Nothing by that name. Try another word, or <button type="button" className="home-link-btn" onClick={() => openFeedback(`Looking for: ${q.trim()}. `)}>ask us</button>.</>}</p>
@@ -2353,10 +2407,10 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, 
     { id: 'schools', label: 'Schools' },
     { id: 'audits', label: 'Run Audit' },
     { id: 'analytics', label: 'Analytics' },
-    { id: 'tools', label: 'Tools & Resources' },
+    { id: 'tools', label: 'My Resources' },
   ]
   // Off the tab bar (Sean, 2026-10-20): Program sits on Overview, the Admin
-  // consoles in Tools & Resources. Team Operations (the full inbox and
+  // consoles in My Resources. Team Operations (the full inbox and
   // account access requests) still opens from Overview's Decide and Inbox.
   if (page) return <PageUnderTabs tabs={tabs} onChange={setTab}>{page}</PageUnderTabs>
   return (
@@ -2438,7 +2492,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
         { id: 'banners', label: 'Banners' },
         { id: 'wcm', label: 'WCM View' },
-        { id: 'tools', label: 'Tools & Resources' },
+        { id: 'tools', label: 'My Resources' },
       ]
     : [
         { id: 'overview', label: 'Overview' },
@@ -2447,7 +2501,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         { id: 'ada', label: 'ADA' },
         { id: 'banners', label: 'Banners' },
         ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
-        { id: 'tools', label: 'Tools & Resources' },
+        { id: 'tools', label: 'My Resources' },
       ]
   if (page) return <PageUnderTabs tabs={tabs} onChange={setTab}>{page}</PageUnderTabs>
   return (
