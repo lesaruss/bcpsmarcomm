@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { deptAccessFor, identifyCaller } from '@/lib/bcps-audit-auth'
+import { requireNamedPageGrant } from '@/lib/bcps-auth'
 import { sendEmail } from '@/lib/resend'
 
 // Full-site audit, read and queue (Sean, 2026-10-07).
@@ -389,7 +390,11 @@ export async function POST(req: NextRequest) {
   if (!owner.department_id && !owner.school_id) return NextResponse.json({ error: 'department_id or school_id required' }, { status: 400 })
   const ok = await access(req, owner)
   if (!ok.ok) return NextResponse.json({ error: 'Not allowed' }, { status: ok.status })
-  if (!ok.caller.admin) return NextResponse.json({ error: 'Only the District Web Team can start a full-site audit.' }, { status: 403 })
+  // A school's audit can also be started by the people given the full-site
+  // scan by name (Sean, 2026-10-23: the Schools tiles' Run audit now queues
+  // this free audit instead of the WAVE page-by-page scan).
+  const mayStart = ok.caller.admin || (!!owner.school_id && (await requireNamedPageGrant(req, 'ada-full-site-scan')).ok)
+  if (!mayStart) return NextResponse.json({ error: 'Only the District Web Team can start a full-site audit.' }, { status: 403 })
   const col = owner.department_id ? 'department_id' : 'school_id'
   const { data: busy } = await supabase.from('bcps_audit_queue').select('id').eq(col, (owner.department_id ?? owner.school_id) as string).in('status', ['queued', 'running']).limit(1).maybeSingle()
   if (busy) return NextResponse.json({ ok: true, already: true })

@@ -135,31 +135,17 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
 
   const openBatch = (id: string) => { setBatch(id); setTab('review'); load(id).catch(() => {}) }
 
-  // Same steps as the Schools tile's Run audit: discover the pages, then scan
-  // each one into one batch so the school gets one averaged score.
+  // Run audit queues the free site audit (2026-10-23), the one on Web
+  // Review; the audit worker runs it in the background, about 20 seconds a page.
   const runAudit = async () => {
     if (!data?.school.school_id) return
-    const headers = await authHeader()
-    const sm = await fetch(`/api/bcps/school-sitemap?school_id=${encodeURIComponent(data.school.school_id)}`, { headers })
-    const smj = await sm.json().catch(() => ({}))
-    if (!sm.ok) { showToast(smj.error || "Could not find this school's pages.", 'error'); return }
-    const urls: string[] = smj.urls ?? []
-    if (!urls.length) { showToast('No pages were found to scan.', 'error'); return }
-    const id = crypto.randomUUID()
-    for (let i = 0; i < urls.length; i++) {
-      setScanning({ current: i + 1, total: urls.length })
-      try {
-        await fetch('/api/bcps/ada-scan', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', ...headers },
-          body: JSON.stringify({ url: urls[i], school_id: data.school.school_id, scan_batch_id: id }),
-        })
-      } catch { /* one page failing does not stop the batch */ }
-    }
-    setScanning(null)
-    setBatch(null)
-    await load(null)
-    setTab('review')
-    showToast('Audit complete.', 'success')
+    setScanning({ current: 0, total: 0 })
+    try {
+      const r = await fetch('/api/bcps/site-audit', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeader()) }, body: JSON.stringify({ school_id: data.school.school_id }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) showToast(j.error || 'Could not start the audit.', 'error')
+      else { showToast(j.already ? 'An audit is already running for this school.' : 'Audit started. Pages show on Web Review as they finish.', 'success'); setTab('review') }
+    } finally { setScanning(null) }
   }
 
   const post = async (body: Record<string, unknown>) => {
@@ -235,7 +221,7 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
 
   const runButton = canScan && school.site_url && school.school_id && (
     <button type="button" className="sp-btn-primary" disabled={!!scanning} onClick={runAudit}>
-      {scanning ? `Auditing ${scanning.current}/${scanning.total}…` : latest ? 'Re-run audit' : 'Run audit'}
+      {scanning ? 'Starting…' : latest ? 'Re-run audit' : 'Run audit'}
     </button>
   )
 
@@ -256,7 +242,6 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
               {!embedded && <a className="sp-btn-secondary" href="/?page=dashboard&tab=schools">‹ Back</a>}
               {runButton}
             </div>
-            {scanning && <div className="sp-progress" role="progressbar" aria-valuenow={scanning.current} aria-valuemax={scanning.total}><div style={{ width: `${(scanning.current / scanning.total) * 100}%` }} /></div>}
           </div>
         </div>
 
@@ -453,8 +438,6 @@ const CSS = `
 .sp-btn-primary:hover{background:var(--bcps-blue-dark)}.sp-btn-primary:disabled{opacity:.5;cursor:default}
 .sp-btn-secondary{background:#fff;color:var(--lr-text);border:1px solid var(--lr-border);border-radius:8px;padding:9px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center}
 .sp-btn-secondary:hover{border-color:var(--bcps-blue);background:#f0f7fd}.sp-btn-secondary:disabled{opacity:.5;cursor:default}
-.sp-progress{height:6px;background:#f3f4f6;border-radius:999px;overflow:hidden;margin-top:12px}
-.sp-progress div{height:100%;background:var(--bcps-blue);transition:width .3s}
 .sp-scores{display:grid;grid-template-columns:180px repeat(4,1fr);gap:14px;margin-bottom:20px}
 .sp-score-card{background:#fff;border:1px solid var(--lr-border);border-radius:12px;padding:20px 18px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .sp-score-label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.2em;color:var(--lr-text-50);margin-bottom:12px}
