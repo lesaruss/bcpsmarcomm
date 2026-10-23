@@ -1678,9 +1678,17 @@ body {
 /* Tools & Resources (Sean, 2026-10-20): one grid, group chips, a star on each tile. */
 .home-ptile-wrap { position: relative; min-width: 0; display: flex; }
 .home-ptile-wrap > .home-ptile { flex: 1; padding-right: 44px; }
-.home-star { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border: 0; border-radius: 6px; background: transparent; color: rgba(26,26,26,0.35); font-size: 20px; line-height: 1; cursor: pointer; }
+.home-tile-acts { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.home-star { width: 32px; height: 32px; border: 0; border-radius: 6px; background: transparent; color: rgba(26,26,26,0.35); font-size: 20px; line-height: 1; cursor: pointer; }
 .home-star:hover { background: rgba(22,114,167,0.08); color: #0e4e73; }
 .home-star.on { color: #C55326; }
+.home-hide { border: 0; border-radius: 6px; background: transparent; color: rgba(26,26,26,0.55); font: inherit; font-size: 12px; padding: 2px 6px; cursor: pointer; opacity: 0; }
+.home-ptile-wrap:hover .home-hide, .home-ptile-wrap:focus-within .home-hide, .home-ptile-wrap.is-hidden .home-hide { opacity: 1; }
+.home-hide:hover, .home-hide:focus-visible { background: rgba(22,114,167,0.08); color: #0e4e73; opacity: 1; }
+@media (hover: none) { .home-hide { opacity: 1; } }
+.home-ptile-wrap.is-hidden > .home-ptile { opacity: 0.55; border-style: dashed; }
+.home-ptile-wrap.is-hidden .home-hide { color: #0e4e73; font-weight: 600; }
+.home-tgroup-hidden { margin-left: auto; }
 .home-tgroups { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 18px; }
 .home-tgroup { font: inherit; font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); background: #fff; color: rgba(26,26,26,0.75); cursor: pointer; }
 .home-tgroup b { margin-left: 4px; font-weight: 800; color: rgba(26,26,26,0.45); }
