@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(payload, { status })
   }
   if (blob.size > BANNER_MAX_BYTES) {
-    return refuse({ error: `File too large (max ${Math.round(BANNER_MAX_BYTES / 1024 / 1024)}MB).` }, 400)
+    return refuse({ error: `File is over the ${Math.round(BANNER_MAX_BYTES / 1024 / 1024)} MB limit. Export video at 1080p (not 4K) and try again.` }, 400)
   }
 
   let contentScan: Awaited<ReturnType<typeof analyzeBannerImage>> | null = null

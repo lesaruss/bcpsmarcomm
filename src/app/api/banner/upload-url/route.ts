@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   if (!file_name || !mime_type) return NextResponse.json({ error: 'file_name and mime_type are required' }, { status: 400 })
   if (!BANNER_ALLOWED_MIME[mime_type]) return NextResponse.json({ error: 'File must be PNG, JPG, or MP4.' }, { status: 400 })
   if (typeof size === 'number' && size > BANNER_MAX_BYTES) {
-    return NextResponse.json({ error: `File too large (max ${Math.round(BANNER_MAX_BYTES / 1024 / 1024)}MB).` }, { status: 400 })
+    return NextResponse.json({ error: `File is over the ${Math.round(BANNER_MAX_BYTES / 1024 / 1024)} MB limit. Export video at 1080p (not 4K) and try again.` }, { status: 400 })
   }
 
   const safeName = file_name.replace(/[^a-zA-Z0-9._-]/g, '_')

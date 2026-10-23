@@ -149,6 +149,9 @@ const VALIDATION_CHECKLIST = [
   // out because no school was picked, and nothing said why).
   { key: 'school', label: 'School selected' },
   { key: 'files', label: 'Up to three files' },
+  // Its own row (Sean, 2026-10-23): a WCM's video was over the limit and the
+  // only signal was folded into the dims row, whose label never says MB.
+  { key: 'filesize', label: 'File size 50 MB or less (video exported at 1080p, not 4K)' },
   { key: 'dims', label: 'Media meets size requirements (photo 1920 × 800 px, video up to 30 seconds)' },
   { key: 'no_overlays', label: 'Image is free of graphics, borders, text overlays' },
   { key: 'nav_clearance', label: 'Homepage navigation face-clearance (flagged for manual review)' },
@@ -217,6 +220,10 @@ const MAX_FILES = 3
 // Byte ceiling matches BANNER_MAX_BYTES in lib/bannerFiles.ts.
 const VIDEO_MAX_SECONDS = 30
 const MAX_BYTES = 50 * 1024 * 1024
+const MAX_MB = MAX_BYTES / 1024 / 1024
+// One decimal, never rounded down to the limit: a 50.3 MB file used to read
+// "File is 50 MB - over the 50 MB limit".
+const fileMB = (f: File) => (Math.ceil(f.size / 1024 / 1024 * 10) / 10).toFixed(1)
 // The pre-submit scan still posts the image through a Vercel function (4.5 MB
 // body cap, base64 adds a third), so a large photo is scanned as a smaller
 // copy. The full original is uploaded and re-scanned server-side at submit.
@@ -303,6 +310,49 @@ function CharCount({ value, max }: { value: string; max: number }) {
   return (
     <div style={{ fontSize: 11, marginTop: 3, textAlign: 'right', color: n >= max ? '#a13a2f' : 'var(--text-muted)' }}>
       {n}/{max} characters
+    </div>
+  )
+}
+
+// Over-limit alert with the fix, right under the file input (Sean,
+// 2026-10-23: the one-line red note was missed, and WCMs did not know how to
+// make a file smaller). Clipchamp is the District-supported editor; Stream
+// cannot shrink a file (its trim only hides parts from viewers), so a Stream
+// video is downloaded and re-exported in Clipchamp.
+function OversizeAlert({ file, kind }: { file: File; kind: 'image' | 'video' | null }) {
+  return (
+    <div role="alert" style={{ marginTop: 8, background: '#fbe9e7', color: '#a13a2f', border: '2px solid #a13a2f', borderRadius: 6, padding: '10px 12px', fontSize: 12.5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 13.5 }}>
+        <span style={{ background: '#a13a2f', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 999 }}>Error</span>
+        File is over the {MAX_MB} MB limit
+      </div>
+      <div style={{ marginTop: 6, fontWeight: 600 }}>
+        This file is {fileMB(file)} MB. It cannot be submitted until it is {MAX_MB} MB or less.
+      </div>
+      <details open style={{ marginTop: 8, color: '#1f2937' }}>
+        <summary style={{ fontWeight: 700, cursor: 'pointer', color: '#a13a2f' }}>How to make this file smaller</summary>
+        {kind === 'video' ? (
+          <div style={{ marginTop: 6, lineHeight: 1.5 }}>
+            <div style={{ fontWeight: 700 }}>In Clipchamp (sign in with your District Microsoft account):</div>
+            <ol style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+              <li>Open Clipchamp and select <strong>Create a new video</strong>.</li>
+              <li>Select <strong>Import media</strong>, choose this video, and drag it onto the timeline.</li>
+              <li>Trim it to {VIDEO_MAX_SECONDS} seconds or less if it is longer. A shorter clip is also a smaller file.</li>
+              <li>Select <strong>Export</strong> (top right) and choose <strong>1080p</strong>. Do not choose 4K.</li>
+              <li>Upload the new file here. If it is still over {MAX_MB} MB, shorten the clip, or export again at <strong>720p</strong>.</li>
+            </ol>
+            <div style={{ marginTop: 6 }}>
+              <strong>Video saved in Stream?</strong> Stream cannot make a file smaller. Download the video from Stream
+              (select <strong>...</strong> then <strong>Download</strong>), then follow the Clipchamp steps above.
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginTop: 6, lineHeight: 1.5 }}>
+            Save the photo as a <strong>JPG</strong> instead of PNG (open it in Photos or Paint and use <strong>Save as</strong>),
+            or resize it to about 2400 px wide. Upload the new copy here.
+          </div>
+        )}
+      </details>
     </div>
   )
 }
@@ -810,7 +860,7 @@ export default function BannerWidget() {
   const allChecked = CHECKLIST.every(c => checks[c.key])
   const sizeOk = (i: BannerItem) => !i.file || i.file.size <= MAX_BYTES
   const lengthOk = (i: BannerItem) => i.duration === null || i.duration <= VIDEO_MAX_SECONDS + 0.5
-  const dimsOk = (i: BannerItem) => sizeOk(i) && (i.kind === 'video' ? lengthOk(i) : !!(i.dims && i.dims.width >= MIN_WIDTH && i.dims.height >= MIN_HEIGHT))
+  const dimsOk = (i: BannerItem) => (i.kind === 'video' ? lengthOk(i) : !!(i.dims && i.dims.width >= MIN_WIDTH && i.dims.height >= MIN_HEIGHT))
   const overlaysOk = (i: BannerItem) => !!i.scanResult?.no_overlays_pass && (!i.scanResult?.text_detected || i.inSceneText)
   const needsConfirm = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult?.no_overlays_pass && !!i.scanResult?.text_detected && !i.inSceneText
   const scanFailed = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult && !i.scanResult.no_overlays_pass
@@ -822,6 +872,7 @@ export default function BannerWidget() {
   const validationStatus: Record<string, boolean> = {
     school: !!selectedSchool,
     files: filled.length > 0,
+    filesize: all(sizeOk),
     dims: all(dimsOk),
     no_overlays: all(overlaysOk),
     nav_clearance: all(i => !!i.scanResult?.nav_clearance_pass),
@@ -839,9 +890,9 @@ export default function BannerWidget() {
   const validationState: Record<string, ValidationState> = {
     school: validationStatus.school ? 'pass' : 'pending',
     files: validationStatus.files ? 'pass' : 'pending',
-    // A video is exempt from the pixel minimum but not the 30-second limit;
-    // a file over the byte ceiling fails either way.
-    dims: validationStatus.dims ? 'pass' : (filled.some(i => !sizeOk(i) || (i.kind === 'video' ? !lengthOk(i) : !!i.dims && !dimsOk(i))) ? 'fail' : 'pending'),
+    filesize: validationStatus.filesize ? 'pass' : filled.length > 0 ? 'fail' : 'pending',
+    // A video is exempt from the pixel minimum but not the 30-second limit.
+    dims: validationStatus.dims ? 'pass' : (filled.some(i => (i.kind === 'video' ? !lengthOk(i) : !!i.dims && !dimsOk(i))) ? 'fail' : 'pending'),
     no_overlays: validationStatus.no_overlays ? 'pass'
       : filled.some(scanFailed) ? 'fail'
       : filled.some(needsConfirm) ? 'confirm'
@@ -854,6 +905,14 @@ export default function BannerWidget() {
     final_ack: validationStatus.final_ack ? 'pass' : 'pending',
   }
 
+  // Why a row failed, printed under it, so the checklist itself says what is
+  // blocking (Sean, 2026-10-23).
+  const validationReason: Record<string, string> = {
+    filesize: filled
+      .map((i, n) => sizeOk(i) ? null : `${filled.length > 1 ? `Banner ${n + 1}: ` : ''}file is ${fileMB(i.file!)} MB, over the ${MAX_MB} MB limit. Export at 1080p (not 4K). Steps are under the file.`)
+      .filter(Boolean).join(' '),
+  }
+
   async function handleSubmitUpload() {
     setUploadNotice(null)
     if (!selectedSchool) { setUploadNotice('Select your school first.'); return }
@@ -863,7 +922,7 @@ export default function BannerWidget() {
       const name = filled.length > 1 ? `Banner ${n + 1}: ` : ''
       if (!i.title.trim()) { setUploadNotice(`${name}Banner title is required.`); return }
       if (!i.alt.trim()) { setUploadNotice(`${name}Alternative text is required.`); return }
-      if (!sizeOk(i)) { setUploadNotice(`${name}This file is over ${MAX_BYTES / 1024 / 1024} MB. Export it at 1080p (not 4K) and try again.`); return }
+      if (!sizeOk(i)) { setUploadNotice(`${name}This file is ${fileMB(i.file!)} MB, over the ${MAX_MB} MB limit. Export it at 1080p (not 4K) and try again.`); return }
       if (i.kind === 'video' && !lengthOk(i)) { setUploadNotice(`${name}This video is ${Math.round(i.duration!)} seconds. Videos can be up to ${VIDEO_MAX_SECONDS} seconds.`); return }
       if (i.scanState === 'scanning') { setUploadNotice(`${name}Still running the automated content scan - one moment.`); return }
       if (i.scanState === 'error') { setUploadNotice(`${name}${i.scanError || 'The automated content scan failed - please try re-selecting the file.'}`); return }
@@ -1267,11 +1326,7 @@ export default function BannerWidget() {
                       {lengthOk(it) ? ` - within the ${VIDEO_MAX_SECONDS}-second limit.` : ` - over the ${VIDEO_MAX_SECONDS}-second limit.`}
                     </div>
                   )}
-                  {it.file && !sizeOk(it) && (
-                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: '#a13a2f' }}>
-                      File is {Math.round(it.file.size / 1024 / 1024)} MB - over the {MAX_BYTES / 1024 / 1024} MB limit. Export at 1080p (not 4K).
-                    </div>
-                  )}
+                  {it.file && !sizeOk(it) && <OversizeAlert file={it.file} kind={it.kind} />}
                   {it.kind === 'image' && it.dims && (it.orientation ?? 1) >= 5 && (
                     <div style={{ fontSize: 12, marginTop: 4, background: '#fdf3e0', color: '#8a5a00', padding: '6px 10px', borderRadius: 5 }}>
                       This photo has a rotation setting from the camera. Browsers and school websites apply it, so it
@@ -1285,7 +1340,7 @@ export default function BannerWidget() {
                 {/* Automated Photo Content Requirements scan - shown right
                     where it runs, per Sean 2026-09-03. Only once a real file
                     is selected. */}
-                {it.file && (
+                {it.file && sizeOk(it) && (
                   <div style={{
                     borderRadius: 6, padding: '10px 12px', fontSize: 12.5,
                     background: it.scanState === 'scanning' ? '#f3f4f6'
@@ -1419,7 +1474,12 @@ export default function BannerWidget() {
                     background: chip.bg, color: chip.fg, boxShadow: chip.ring,
                     borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: 12.5, fontWeight: 600,
                   }}>
-                    <span>{v.label}</span>
+                    <span>
+                      {v.label}
+                      {validationState[v.key] === 'fail' && validationReason[v.key] && (
+                        <span style={{ display: 'block', fontWeight: 500, fontSize: 12, marginTop: 3 }}>{validationReason[v.key]}</span>
+                      )}
+                    </span>
                     <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{chip.label}</span>
                   </div>
                 )
