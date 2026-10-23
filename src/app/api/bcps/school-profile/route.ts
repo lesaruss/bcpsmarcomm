@@ -156,14 +156,52 @@ export async function GET(req: NextRequest) {
       last_audited_at: pages.reduce((d, p) => (p.audited_at > d ? p.audited_at : d), pages[0].audited_at),
     }
   }
-  const history = Array.from(batches.entries()).map(([id, pages]) => summarize(id, pages))
+  const scanHistory: (ReturnType<typeof summarize> & { to_fix?: number })[] = Array.from(batches.entries()).map(([id, pages]) => summarize(id, pages))
+
+  // The site audit (the screenshot view on Web Review, audit v3), when the
+  // school has one, is what the tiles and Audit History show (Sean,
+  // 2026-10-23): one row per run, and the current score worked out the way
+  // Web Review works it out, from each active page's latest result.
+  const [siteRes, sitePagesRes] = school ? await Promise.all([
+    svc.from('bcps_audit_results')
+      .select('id, run_id, site_page_id, overall_score, checks_failed, ada_violations_critical, ada_violations_serious, ada_violations_moderate, ada_violations_minor, audited_at')
+      .eq('school_id', school.id).gte('audit_version', 3).order('audited_at', { ascending: false }).limit(2000),
+    svc.from('bcps_site_pages').select('id').eq('school_id', school.id).eq('active', true),
+  ]) : [{ data: [] }, { data: [] }]
+  type SiteRow = { id: string; run_id: string | null; site_page_id: string | null; overall_score: number | null; checks_failed: number | null; ada_violations_critical: number | null; ada_violations_serious: number | null; ada_violations_moderate: number | null; ada_violations_minor: number | null; audited_at: string }
+  const siteRows = (siteRes.data ?? []) as SiteRow[]
+  const sumRows = (id: string, list: SiteRow[]) => {
+    const scored = list.filter((r) => r.overall_score != null)
+    return {
+      scan_batch_id: id,
+      page_count: list.length,
+      avg_ada_score: scored.length ? Math.round(scored.reduce((n, r) => n + (r.overall_score as number), 0) / scored.length) : null,
+      critical_count: list.reduce((n, r) => n + (r.ada_violations_critical ?? 0), 0),
+      serious_count: list.reduce((n, r) => n + (r.ada_violations_serious ?? 0), 0),
+      moderate_count: list.reduce((n, r) => n + (r.ada_violations_moderate ?? 0), 0),
+      minor_count: list.reduce((n, r) => n + (r.ada_violations_minor ?? 0), 0),
+      to_fix: list.reduce((n, r) => n + (r.checks_failed ?? 0), 0),
+      last_audited_at: list.reduce((d, r) => (r.audited_at > d ? r.audited_at : d), list[0].audited_at),
+    }
+  }
+  let history = scanHistory
+  if (siteRows.length) {
+    const active = new Set((sitePagesRes.data ?? []).map((p) => p.id as string))
+    const latestPerPage = new Map<string, SiteRow>()
+    for (const r of siteRows) if (r.site_page_id && active.has(r.site_page_id) && !latestPerPage.has(r.site_page_id)) latestPerPage.set(r.site_page_id, r)
+    const runs = new Map<string, SiteRow[]>()
+    for (const r of siteRows) { const k = r.run_id || r.id; runs.set(k, [...(runs.get(k) ?? []), r]) }
+    const runRows = Array.from(runs.entries()).map(([id, list]) => sumRows(id, list))
+    if (latestPerPage.size) runRows[0] = { ...sumRows(runRows[0].scan_batch_id, Array.from(latestPerPage.values())), last_audited_at: runRows[0].last_audited_at }
+    history = runRows
+  }
   const wanted = req.nextUrl.searchParams.get('batch')
-  const chosenId = wanted && batches.has(wanted) ? wanted : history[0]?.scan_batch_id
+  const chosenId = wanted && batches.has(wanted) ? wanted : scanHistory[0]?.scan_batch_id
   // The chosen batch in the shape ADA Manager's SchoolAuditPages reads.
   const audit = chosenId && school ? {
     school_id: school.id,
     ...summarize(chosenId, batches.get(chosenId)!),
-    latest: chosenId === history[0]?.scan_batch_id,
+    latest: chosenId === scanHistory[0]?.scan_batch_id,
     pages: batches.get(chosenId)!.map((p) => ({
       page_url: p.page_url,
       ada_score: p.ada_score,

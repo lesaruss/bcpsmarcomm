@@ -29,6 +29,8 @@ interface BatchSummary {
   moderate_count: number
   minor_count: number
   last_audited_at: string
+  // Site audit runs (the Web Review view): red checks to fix across the site.
+  to_fix?: number
 }
 type Audit = SchoolScore & BatchSummary & { latest: boolean }
 interface Submission { id: string; type?: string; kind?: string; status: string; banner_title?: string | null; file_name?: string | null; wcm_email?: string | null; submitter_name?: string | null; rejection_reason?: string | null; submitted_at?: string | null; created_at?: string; reviewed_at?: string | null; posted_at?: string | null; is_test?: boolean }
@@ -59,6 +61,9 @@ interface Profile {
 const fmtDate = (ts?: string | null) => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'
 const fmtDateTime = (ts?: string | null) => ts ? `${fmtDate(ts)} ${new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : ''
 const scoreTone = (n?: number | null) => n == null ? 'na' : n >= 80 ? 'green' : n >= 65 ? 'yellow' : 'red'
+// Issues to fix: the site audit's red checks, or for an older ADA scan its
+// critical and serious findings.
+const issueCount = (h: { to_fix?: number; critical_count: number; serious_count: number }) => h.to_fix ?? h.critical_count + h.serious_count
 const scoreStatus = (n?: number | null) => n == null ? 'Not audited' : n >= 80 ? 'Passing' : n >= 65 ? 'Needs Work' : 'Critical Issues'
 
 // Where a banner or Proud Points submission stands, in the words Your
@@ -209,7 +214,7 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
       detail: a.kind === 'note' ? `${a.subject || ''}${a.body ? `: ${a.body}` : ''}${a.email_sent === false ? ` (email not sent: ${a.email_error || 'error'})` : a.sent_to ? ` (sent to ${a.sent_to})` : ''}` : a.subject || '',
       who: a.actor_email || '',
     })),
-    ...data.history.map((h) => ({ at: h.last_audited_at, what: 'ADA audit', detail: `Score ${h.avg_ada_score ?? 'N/A'} across ${h.page_count} pages, ${h.critical_count + h.serious_count} serious issues`, who: '' })),
+    ...data.history.map((h) => ({ at: h.last_audited_at, what: 'ADA audit', detail: `Score ${h.avg_ada_score ?? 'N/A'} across ${h.page_count} pages, ${issueCount(h)} ${h.to_fix != null ? 'to fix' : 'serious issues'}`, who: '' })),
     ...subs.flatMap((s) => {
       const title = s.banner_title || s.file_name || ''
       const out = [{ at: s.submitted_at || s.created_at || '', what: `${s.what} submitted`, detail: title, who: s.wcm_email || s.submitter_name || '' }]
@@ -262,7 +267,7 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
             <ScoreRing score={latest?.avg_ada_score} />
             <div className="sp-score-sub">{latest ? `${latest.page_count} pages, full site` : 'Not audited yet'}</div>
           </div>
-          <div className="sp-score-card"><div className="sp-score-label">Serious Issues</div><div className="sp-score-num red">{latest ? latest.critical_count + latest.serious_count : '–'}</div><div className="sp-score-sub">critical and serious</div></div>
+          <div className="sp-score-card"><div className="sp-score-label">{latest?.to_fix != null ? 'Issues to Fix' : 'Serious Issues'}</div><div className="sp-score-num red">{latest ? issueCount(latest) : '–'}</div><div className="sp-score-sub">{latest?.to_fix != null ? 'on Web Review' : 'critical and serious'}</div></div>
           <div className="sp-score-card"><div className="sp-score-label">Pages Audited</div><div className="sp-score-num">{latest?.page_count ?? '–'}</div><div className="sp-score-sub">{latest ? fmtDate(latest.last_audited_at) : 'No audit yet'}</div></div>
           <div className="sp-score-card"><div className="sp-score-label">Waiting for Review</div><div className="sp-score-num yellow">{waiting}</div><div className="sp-score-sub">banners and Proud Points</div></div>
           <div className="sp-score-card"><div className="sp-score-label">Live on Site</div><div className="sp-score-num green">{live}</div><div className="sp-score-sub">banners and Proud Points</div></div>
@@ -273,7 +278,7 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
           <div className="sp-tab-bar" role="tablist">
             <button role="tab" aria-selected={tab === 'overview'} className={`sp-tab${tab === 'overview' ? ' active' : ''}`} onClick={() => setTab('overview')}>Overview</button>
             <button role="tab" aria-selected={tab === 'review'} className={`sp-tab${tab === 'review' ? ' active' : ''}`} onClick={() => setTab('review')}>
-              Web Review {latest && latest.critical_count + latest.serious_count > 0 && <span className="sp-tab-badge">{latest.critical_count + latest.serious_count}</span>}
+              Web Review {latest && issueCount(latest) > 0 && <span className="sp-tab-badge">{issueCount(latest)}</span>}
             </button>
             {team && <button role="tab" aria-selected={tab === 'activity'} className={`sp-tab${tab === 'activity' ? ' active' : ''}`} onClick={() => setTab('activity')}>Activity</button>}
           </div>
@@ -322,7 +327,7 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
                     <button key={h.scan_batch_id} type="button" className="sp-history" onClick={() => openBatch(h.scan_batch_id)}>
                       <span className="sp-history-date">{fmtDateTime(h.last_audited_at)}</span>
                       <span className={`sp-pill ${scoreTone(h.avg_ada_score)}`}>{h.avg_ada_score ?? 'N/A'}</span>
-                      <span className="sp-history-meta">{h.page_count} pages · {h.critical_count + h.serious_count} serious · {h.moderate_count} moderate · {h.minor_count} minor</span>
+                      <span className="sp-history-meta">{h.page_count} pages · {h.to_fix != null ? `${h.to_fix} to fix` : `${h.critical_count + h.serious_count} serious · ${h.moderate_count} moderate · ${h.minor_count} minor`}</span>
                       <span className="sp-history-go">View ›</span>
                     </button>
                   ))}
