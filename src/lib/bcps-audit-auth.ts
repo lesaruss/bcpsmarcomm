@@ -15,7 +15,7 @@
 import type { NextRequest } from 'next/server'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-export type AuditCaller = { ok: true; email: string; admin: boolean } | { ok: false; status: number }
+export type AuditCaller = { ok: true; email: string; admin: boolean; userId: string } | { ok: false; status: number }
 
 export async function identifyCaller(req: NextRequest, svc: SupabaseClient): Promise<AuditCaller> {
   const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
@@ -29,7 +29,7 @@ export async function identifyCaller(req: NextRequest, svc: SupabaseClient): Pro
   if (!user) return { ok: false, status: 401 }
   const { data: roleRow } = await svc.from('acl_member_roles').select('role').eq('user_id', user.id).eq('brand', 'bcps').maybeSingle()
   const role = roleRow?.role || 'user'
-  return { ok: true, email: (user.email || '').toLowerCase(), admin: role === 'admin' || role === 'superadmin' }
+  return { ok: true, email: (user.email || '').toLowerCase(), admin: role === 'admin' || role === 'superadmin', userId: user.id }
 }
 
 const same = (a: string | null | undefined, b: string) => !!a && a.trim().toLowerCase() === b
