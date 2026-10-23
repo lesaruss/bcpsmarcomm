@@ -45,7 +45,7 @@ function HomeInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
-  const { role, viewAs, canManageMessages, isSchoolWcm } = useBCPSShell()
+  const { role, viewAs, canManageMessages } = useBCPSShell()
   // The fictitious Superadmin sample identity previews the real superadmin
   // experience instead of collapsing to 'user' like every other viewAs pick.
   const effectiveRole: UserRole = viewAs ? (viewAs.id === SAMPLE_SUPERADMIN_ID ? 'superadmin' : 'user') : role
@@ -90,15 +90,9 @@ function HomeInner() {
     }
   }, [nav.page, router])
 
-  // School WCMs land on Banner Submissions, the way a new department WCM lands
-  // on certification (Sean + Vanessa Deslandes, 2026-10-05). Only a bare "/"
-  // (sign-in, signup, a typed address) is sent there; the Dashboard button
-  // goes to ?page=dashboard, so their school home stays one click away.
-  useEffect(() => {
-    if (isSchoolWcm && !viewAs && !searchParams.get('page') && pathname === '/') {
-      router.replace('/?page=banner-submissions', { scroll: false })
-    }
-  }, [isSchoolWcm, viewAs, searchParams, pathname, router])
+  // School WCMs used to land on Banner Submissions (2026-10-05). Since
+  // 2026-10-23 (Sean + Vanessa Deslandes) their dashboard is their school's
+  // profile, with banners and Proud Points on it, so they land there.
 
   // Old /?page=marcomm-assignments links move to the page's own address.
   useEffect(() => {

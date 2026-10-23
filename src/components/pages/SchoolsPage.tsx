@@ -6,14 +6,15 @@
 // side of ADA Manager showed. It opens on the signed-in lead's own schools;
 // a chip per District Web Team Lead (or All) shows anyone else's, A to Z.
 // Each tile names the school's WCM with its District Web Team Lead under
-// it, and the latest full-site ADA score where one exists. The ADA detail
-// and the full-site scan stay in ADA Manager (?page=ada-manager&school=),
-// where the scan is limited to named people for now.
+// it, and the latest full-site ADA score where one exists. Visit profile and
+// View audit results open the school's own profile (/school?loc=, 2026-10-23),
+// where the audit lives page by page; the full-site scan is limited to named
+// people for now.
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { downloadSchoolsCsv, csvDateStamp } from '@/lib/school-list-csv'
-import { SchoolAuditPages, type SchoolScore } from './ADAManagerPage'
+import type { SchoolScore } from './ADAManagerPage'
 
 interface Row {
   loc_no: string
@@ -66,7 +67,6 @@ export default function SchoolsPage() {
   // (Sean, 2026-10-22: Vanessa); /api/bcps/school-sitemap enforces it too.
   const [canScan, setCanScan] = useState(false)
   const [scanning, setScanning] = useState<{ loc: string; current: number; total: number } | null>(null)
-  const [openAudit, setOpenAudit] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
 
   const authHeader = async (): Promise<Record<string, string>> => {
@@ -107,7 +107,6 @@ export default function SchoolsPage() {
     }
     setScanning(null)
     await reloadScores()
-    setOpenAudit(loc)
   }
 
   useEffect(() => {
@@ -197,7 +196,7 @@ export default function SchoolsPage() {
         {!list.length ? <div className="sv-empty">{q ? `No school matches "${query}".` : 'No schools here yet.'}</div> : (
           <div className="sv-grid">
             {list.map((r) => (
-              <article key={r.loc_no} className={`sv-card${openAudit === r.loc_no ? ' wide' : ''}`}>
+              <article key={r.loc_no} className="sv-card">
                 <div className="sv-card-header">
                   <div>
                     <div className="sv-name">{r.display_name}</div>
@@ -212,7 +211,7 @@ export default function SchoolsPage() {
                   <div><span className="sv-label">District Web Team</span>{r.leadName || <span className="sv-muted">Not assigned</span>}</div>
                 </div>
                 <div className="sv-links">
-                  <a className="sv-link green" href={`/?page=school-profiles&loc=${encodeURIComponent(r.loc_no)}`}>Visit profile</a>
+                  <a className="sv-link green" href={`/school?loc=${encodeURIComponent(r.loc_no)}`}>Visit profile</a>
                   {r.p?.site_url && <a className="sv-link" href={r.p.site_url} target="_blank" rel="noopener noreferrer">Visit website</a>}
                   <span className={`sv-status${r.score ? ' done' : ''}`}>{r.score ? 'Audited' : r.p ? 'Not audited' : 'Not set up'}</span>
                 </div>
@@ -223,7 +222,7 @@ export default function SchoolsPage() {
                     <span>Last audit <b>{r.score ? new Date(r.score.last_audited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '–'}</b></span>
                   </div>
                   <div className="sv-audit-actions">
-                    {r.score && <button type="button" className="sv-action ghost" onClick={() => setOpenAudit(openAudit === r.loc_no ? null : r.loc_no)}>{openAudit === r.loc_no ? 'Hide audit results' : 'View audit results'}</button>}
+                    {r.score && <a className="sv-action ghost" href={`/school?loc=${encodeURIComponent(r.loc_no)}&tab=review`}>View audit results</a>}
                     {canScan && r.p?.site_url && (
                       <button type="button" className="sv-action" disabled={!!scanning} onClick={() => runAudit(r.loc_no, r.p!.id)}>
                         {scanning?.loc === r.loc_no ? `Auditing ${scanning.current}/${scanning.total}…` : r.score ? 'Re-run audit' : 'Run audit'}
@@ -233,9 +232,6 @@ export default function SchoolsPage() {
                   </div>
                   {scanning?.loc === r.loc_no && (
                     <div className="sv-progress"><div style={{ width: `${(scanning.current / scanning.total) * 100}%` }} /></div>
-                  )}
-                  {openAudit === r.loc_no && r.score && r.p && (
-                    <div className="sv-results"><SchoolAuditPages schoolId={r.p.id} score={r.score} onChanged={reloadScores} /></div>
                   )}
                 </div>
               </article>
@@ -263,7 +259,6 @@ const CSS = `
 .sv-count{font-size:12px;color:var(--sv-text-m);font-weight:600;margin-left:auto;white-space:nowrap}
 .sv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .sv-card{background:var(--sv-card);border:1px solid var(--sv-border);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:10px;transition:box-shadow .15s,border-color .15s}
-.sv-card.wide{grid-column:1/-1}
 .sv-card:hover{box-shadow:0 4px 20px rgba(22,114,167,.13);border-color:var(--sv-blue)}
 .sv-card-header{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
 .sv-name{font-size:13.5px;font-weight:800;color:var(--sv-text);line-height:1.3}
@@ -289,11 +284,10 @@ const CSS = `
 .sv-audit-nums b{color:var(--sv-text);font-weight:800}
 .sv-audit-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .sv-action{font:inherit;font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:6px;border:1px solid var(--sv-blue);background:var(--sv-blue);color:#fff;cursor:pointer}
-.sv-action.ghost{background:#fff;color:var(--sv-blue)}
+.sv-action.ghost{background:#fff;color:var(--sv-blue);text-decoration:none}
 .sv-action:disabled{opacity:.5;cursor:default}
 .sv-progress{height:6px;background:#f3f4f6;border-radius:999px;overflow:hidden}
 .sv-progress div{height:100%;background:var(--sv-blue);transition:width .3s}
-.sv-results{border-top:1px solid #f3f4f6;padding-top:8px;max-height:420px;overflow:auto}
 @media(max-width:900px){.sv-grid{grid-template-columns:repeat(2,1fr)}.sv-stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.sv-grid{grid-template-columns:1fr}.sv-label{min-width:0;margin-right:6px}}
 `

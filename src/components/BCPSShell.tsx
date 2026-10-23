@@ -83,6 +83,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   minibase:                 { title: 'Minibase',                    sub: 'Document Library' },
   'bcps-certification':     { title: 'Department Certification',sub: 'WCM Certification Program' },
   department:               { title: 'Department Profile',      sub: 'Audit & Analytics' },
+  school:                   { title: 'School Profile',          sub: 'Audit, Banners & Proud Points' },
   'pulse-approvals':        { title: 'Note Approvals',          sub: 'Pulse Feedback Queue' },
   'department-audit':       { title: 'Department Name Audit',  sub: 'Profiles vs. Roster Consistency' },
   'find-it-fast':           { title: 'Find It Fast',          sub: 'Back to School Widget Content' },
@@ -270,6 +271,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const activePage = useMemo<PageId>(() => {
     if (pathname.startsWith('/certification')) return 'bcps-certification'
     if (pathname.startsWith('/department')) return 'department'
+    if (pathname === '/school') return 'school'
     if (pathname === MARCOMM_PATH) return 'marcomm-assignments'
     return (searchParams.get('page') as PageId) || 'dashboard'
   }, [pathname, searchParams])
@@ -307,7 +309,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   // Engine-driven page enforcement: if the user lands on a page they may not reach, send to dashboard.
   useEffect(() => {
     if (!allowedPages || viewAs) return
-    const pathRouted = pathname.startsWith('/certification') || pathname.startsWith('/department')
+    const pathRouted = pathname.startsWith('/certification') || pathname.startsWith('/department') || pathname === '/school'
     // Hardcoded admin-tier pages (SUPERADMIN_PAGES) are gated by role alone and
     // don't depend on the acl_objects registry, since that registry has shown
     // eventual-consistency lag right after a new page is registered (also true
