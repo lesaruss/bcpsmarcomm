@@ -39,10 +39,38 @@ const supabase = createClient(process.env.LESARUSS_SUPABASE_URL!, process.env.LE
 const FULL = 'id, department_id, school_id, site_page_id, run_id, audited_at, page_url, audit_version, overall_score, ada_score, checks, checks_passed, checks_failed, checks_review, screenshots, ada_violations, run_by'
 const SUMMARY = 'id, site_page_id, run_id, audited_at, page_url, overall_score, ada_score, checks_passed, checks_failed, checks_review'
 
+// The District Web Team (its group, a District Web Team Lead or a banner
+// reviewer) or one of the school's WCMs (bcps_schools.wcm_email or the BCPS
+// Central roster).
+async function canViewSchool(caller: { email: string; userId?: string }, schoolId: string): Promise<boolean> {
+  const email = caller.email
+  if (!email) return false
+  const { data: school } = await supabase.from('bcps_schools').select('wcm_email, school_location_nbr').eq('id', schoolId).maybeSingle()
+  if (!school) return false
+  if ((school.wcm_email || '').trim().toLowerCase() === email) return true
+  const loc = (school.school_location_nbr || '').replace(/^0+/, '')
+  const [roster, lead, banner, gm] = await Promise.all([
+    loc ? supabase.from('bcps_school_wcm_roster').select('p_number').eq('email', email).in('loc_no', [loc, loc.padStart(4, '0')]).limit(1) : Promise.resolve({ data: [] }),
+    supabase.from('bcps_support_leads').select('email').eq('email', email).maybeSingle(),
+    caller.userId ? supabase.from('bcps_banner_admins').select('role').eq('user_id', caller.userId).maybeSingle() : Promise.resolve({ data: null }),
+    caller.userId ? supabase.from('acl_group_members').select('group_id').eq('user_id', caller.userId) : Promise.resolve({ data: [] }),
+  ])
+  if ((roster.data ?? []).length || lead.data || banner.data) return true
+  const gids = (gm.data ?? []).map((g) => g.group_id as string)
+  if (!gids.length) return false
+  const { data: groups } = await supabase.from('acl_groups').select('name').eq('brand', 'bcps').in('id', gids)
+  return (groups ?? []).some((g) => g.name === 'District Web Team')
+}
+
 async function access(req: NextRequest, owner: { department_id?: string | null; school_id?: string | null }) {
   const caller = await identifyCaller(req, supabase)
   if (!caller.ok) return { ok: false as const, status: caller.status }
-  if (owner.school_id) return caller.admin ? { ok: true as const, caller, run: true, wcm: false } : { ok: false as const, status: 403 }
+  if (owner.school_id) {
+    if (caller.admin) return { ok: true as const, caller, run: true, wcm: false }
+    // The School Profile's Web Review (2026-10-23): the District Web Team and
+    // the school's own WCMs see the school's audit. Running it stays admin.
+    return (await canViewSchool(caller, owner.school_id)) ? { ok: true as const, caller, run: false, wcm: false } : { ok: false as const, status: 403 }
+  }
   const { data: dept } = await supabase.from('bcps_departments').select('id, wcm_email, director_email').eq('id', owner.department_id).maybeSingle()
   if (!dept) return { ok: false as const, status: 404 }
   const a = await deptAccessFor(supabase, caller, dept)

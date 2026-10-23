@@ -17,7 +17,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { SchoolAuditPages, type SchoolScore } from '@/components/pages/ADAManagerPage'
+import { type SchoolScore } from '@/components/pages/ADAManagerPage'
+import SiteAudit from '@/components/bcps/SiteAudit'
 
 interface BatchSummary {
   scan_batch_id: string
@@ -395,30 +396,12 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
           </div>
         )}
 
-        {tab === 'review' && (
-          <div className="sp-panel">
-            <div className="sp-panel-header">
-              <span className="sp-panel-title">ADA Accessibility, Full Site</span>
-              {audit && <span className="sp-panel-count">{fmtDateTime(audit.last_audited_at)} · {audit.page_count} pages</span>}
-            </div>
-            <div className="sp-panel-body">
-              {audit ? <>
-                {!audit.latest && (
-                  <div className="sp-notice">Viewing an earlier audit. <button type="button" className="sp-link-btn" onClick={() => { setBatch(null); load(null).catch(() => {}) }}>Show the latest</button></div>
-                )}
-                <div className="sp-sev">
-                  {([['critical', 'Critical', audit.critical_count], ['serious', 'Serious', audit.serious_count], ['moderate', 'Moderate', audit.moderate_count], ['minor', 'Minor', audit.minor_count]] as const).map(([cls, label, n]) => (
-                    <div key={cls} className={`sp-sev-tile ${cls}`}><b>{n}</b><span>{label}</span></div>
-                  ))}
-                </div>
-                <SchoolAuditPages schoolId={audit.school_id} score={audit} canReclassify={team} onChanged={() => { load(batch).catch(() => {}) }} />
-              </> : (
-                <div className="sp-empty">
-                  {school.site_url ? 'No full-site audit on record yet.' : 'This school has no website on file yet.'} {canScan && school.site_url ? 'Use Run audit above.' : 'The District Web Team runs the audit.'}
-                </div>
-              )}
-            </div>
-          </div>
+        {/* Web Review (Sean, 2026-10-23): the same view as the department
+            profile, each page's screenshot on the left with every issue pinned
+            on it and the steps on the right. */}
+        {tab === 'review' && (school.school_id
+          ? <SiteAudit owner={{ school_id: school.school_id }} adaOnly isAdmin={canScan} />
+          : <div className="sp-panel"><div className="sp-panel-body"><div className="sp-empty">This school is not set up for the audit yet. The District Web Team adds its website in ADA Manager.</div></div></div>
         )}
 
         {tab === 'activity' && team && (
