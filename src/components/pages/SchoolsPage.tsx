@@ -27,6 +27,15 @@ interface Row {
 }
 interface Provisioned { id: string; school_location_nbr: string | null; site_url: string | null; wcm_name: string | null; wcm_email: string | null }
 type Score = SchoolScore
+// The site audit (the School Profile's Web Review) for a school, from
+// /api/bcps/school-scores (2026-10-23).
+interface SiteScore { school_id: string; page_count: number; score: number | null; to_fix: number; last_audited_at: string }
+// What a tile shows: the site audit where there is one, else the older
+// full-site ADA scan.
+interface TileAudit { score: number | null; issues: number; issuesLabel: string; pages: number; last: string }
+const tileAudit = (site?: SiteScore, scan?: Score): TileAudit | undefined => site
+  ? { score: site.score, issues: site.to_fix, issuesLabel: 'to fix', pages: site.page_count, last: site.last_audited_at }
+  : scan ? { score: scan.avg_ada_score, issues: scan.critical_count + scan.serious_count, issuesLabel: 'serious issues', pages: scan.page_count, last: scan.last_audited_at } : undefined
 // A WCM on the BCPS Central roster (/api/bcps/school-wcm-roster, 2026-10-23).
 interface RosterWcm { loc_no: string; full_name: string | null; email: string | null; cert_status: string | null; site_access: string | null; cert_due_on: string | null; designated_by: string | null }
 type EmailList = 'all' | 'certified' | 'not-certified' | 'overdue' | 'sandbox'
@@ -66,6 +75,7 @@ export default function SchoolsPage() {
   const [leads, setLeads] = useState<{ email: string; full_name: string }[]>([])
   const [provisioned, setProvisioned] = useState<Provisioned[]>([])
   const [scores, setScores] = useState<Score[]>([])
+  const [sites, setSites] = useState<SiteScore[]>([])
   const [me, setMe] = useState('')
   const [lead, setLead] = useState('')
   const [query, setQuery] = useState('')
@@ -104,6 +114,7 @@ export default function SchoolsPage() {
     const r = await fetch('/api/bcps/school-scores', { headers: await authHeader(), cache: 'no-store' })
     const j = r.ok ? await r.json().catch(() => ({})) : {}
     setScores((j as { scores?: Score[] }).scores ?? [])
+    setSites((j as { sites?: SiteScore[] }).sites ?? [])
   }
   useEffect(() => {
     (async () => {
@@ -155,6 +166,7 @@ export default function SchoolsPage() {
       setLeads(leadList)
       setProvisioned(((p as { schools?: Provisioned[] }).schools ?? []))
       setScores(((sc as { scores?: Score[] }).scores ?? []))
+      setSites(((sc as { sites?: SiteScore[] }).sites ?? []))
       setMe(email)
       setLead(leadList.some((x) => x.email.toLowerCase() === email) ? email : 'all')
       setRows((a.data ?? []) as Row[])
@@ -163,6 +175,7 @@ export default function SchoolsPage() {
 
   const byLoc = useMemo(() => new Map(provisioned.map((p) => [key(p.school_location_nbr), p])), [provisioned])
   const scoreBy = useMemo(() => new Map(scores.map((s) => [s.school_id, s])), [scores])
+  const siteBy = useMemo(() => new Map(sites.map((s) => [s.school_id, s])), [sites])
   const leadName = useMemo(() => new Map(leads.map((x) => [x.email.toLowerCase(), x.full_name])), [leads])
   const counts = useMemo(() => {
     const c: Record<string, number> = {}
@@ -177,10 +190,10 @@ export default function SchoolsPage() {
     .filter((r) => lead === 'all' || (r.lead_email || '').toLowerCase() === lead)
     .map((r) => {
       const p = byLoc.get(key(r.loc_no))
-      return { ...r, p, score: p ? scoreBy.get(p.id) : undefined, leadName: leadName.get((r.lead_email || '').toLowerCase()) || '' }
+      return { ...r, p, score: p ? scoreBy.get(p.id) : undefined, a: p ? tileAudit(siteBy.get(p.id), scoreBy.get(p.id)) : undefined, leadName: leadName.get((r.lead_email || '').toLowerCase()) || '' }
     })
     .filter((r) => !q || [r.display_name, r.loc_no, r.region, r.school_level, r.p?.wcm_name, r.leadName].some((v) => (v || '').toLowerCase().includes(q)))
-  const scored = list.filter((r) => r.score?.avg_ada_score != null)
+  const scored = list.filter((r) => r.a?.score != null)
   const rosterBy = new Map<string, RosterWcm[]>()
   for (const w of roster) { const k = key(w.loc_no); rosterBy.set(k, [...(rosterBy.get(k) ?? []), w]) }
   const inList = new Set(list.map((r) => key(r.loc_no)))
@@ -191,7 +204,7 @@ export default function SchoolsPage() {
   }).map((w) => w.email).filter((e): e is string => !!e)))
   const copyList = () => navigator.clipboard?.writeText(emailsFor(emailList).join('; ')).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
   const noCertified = list.filter((r) => !(rosterBy.get(key(r.loc_no)) ?? []).some((w) => w.cert_status === 'Certified')).length
-  const avg = scored.length ? Math.round(scored.reduce((n, r) => n + (r.score!.avg_ada_score as number), 0) / scored.length) : null
+  const avg = scored.length ? Math.round(scored.reduce((n, r) => n + (r.a!.score as number), 0) / scored.length) : null
   const label = lead === 'all' ? 'All schools' : lead === me ? 'My schools' : `${leadName.get(lead) || lead}'s schools`
   const exportCsv = () => downloadSchoolsCsv(
     list.map((r) => ({ loc_no: r.loc_no, display_name: r.display_name, school_level: r.school_level, region: r.region, no_wcm: r.no_wcm, lead_name: r.leadName, wcm_name: r.p?.wcm_name ?? null, wcm_email: r.p?.wcm_email ?? null })),
@@ -253,7 +266,7 @@ export default function SchoolsPage() {
                     <div className="sv-name">{r.display_name}</div>
                     <div className="sv-meta">{r.loc_no}{r.school_level ? ` · ${r.school_level}` : ''}{r.region ? ` · ${r.region}` : ''}</div>
                   </div>
-                  <div className="sv-ring-col"><ScoreRing score={r.score?.avg_ada_score} /><span className="sv-ring-label">ADA</span></div>
+                  <div className="sv-ring-col"><ScoreRing score={r.a?.score} /><span className="sv-ring-label">ADA</span></div>
                 </div>
                 <div className="sv-people">
                   {(rosterBy.get(key(r.loc_no)) ?? []).length > 0 ? (rosterBy.get(key(r.loc_no)) ?? []).map((w) => {
@@ -267,19 +280,19 @@ export default function SchoolsPage() {
                 <div className="sv-links">
                   <a className="sv-link green" href={`/school?loc=${encodeURIComponent(r.loc_no)}`}>Visit profile</a>
                   {r.p?.site_url && <a className="sv-link" href={r.p.site_url} target="_blank" rel="noopener noreferrer">Visit website</a>}
-                  <span className={`sv-status${r.score ? ' done' : ''}`}>{r.score ? 'Audited' : r.p ? 'Not audited' : 'Not set up'}</span>
+                  <span className={`sv-status${r.a ? ' done' : ''}`}>{r.a ? 'Audited' : r.p ? 'Not audited' : 'Not set up'}</span>
                 </div>
                 <div className="sv-audit">
                   <div className="sv-audit-nums">
-                    <span><b>{r.score ? r.score.critical_count + r.score.serious_count : '–'}</b> serious issues</span>
-                    <span><b>{r.score ? r.score.page_count : '–'}</b> pages</span>
-                    <span>Last audit <b>{r.score ? new Date(r.score.last_audited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '–'}</b></span>
+                    <span><b>{r.a ? r.a.issues : '–'}</b> {r.a?.issuesLabel ?? 'issues'}</span>
+                    <span><b>{r.a ? r.a.pages : '–'}</b> pages</span>
+                    <span>Last audit <b>{r.a ? new Date(r.a.last).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '–'}</b></span>
                   </div>
                   <div className="sv-audit-actions">
-                    {r.score && <a className="sv-action ghost" href={`/school?loc=${encodeURIComponent(r.loc_no)}&tab=review`}>View audit results</a>}
+                    {r.a && <a className="sv-action ghost" href={`/school?loc=${encodeURIComponent(r.loc_no)}&tab=review`}>View audit results</a>}
                     {canScan && r.p?.site_url && (
                       <button type="button" className="sv-action" disabled={!!scanning} onClick={() => runAudit(r.loc_no, r.p!.id)}>
-                        {scanning?.loc === r.loc_no ? `Auditing ${scanning.current}/${scanning.total}…` : r.score ? 'Re-run audit' : 'Run audit'}
+                        {scanning?.loc === r.loc_no ? `Auditing ${scanning.current}/${scanning.total}…` : r.a ? 'Re-run audit' : 'Run audit'}
                       </button>
                     )}
                     {canScan && !r.p?.site_url && <a className="sv-link" href="/?page=ada-manager">{r.p ? 'Add its website in ADA Manager' : 'Set up in ADA Manager'}</a>}

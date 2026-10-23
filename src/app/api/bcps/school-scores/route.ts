@@ -150,5 +150,30 @@ export async function GET(req: NextRequest) {
     agg.avg_ada_score = scored.length ? Math.round(scored.reduce((s, p) => s + p.ada_score, 0) / scored.length) : null
   }
 
-  return NextResponse.json({ ok: true, scores: Array.from(aggBySchool.values()) })
+  // The site audit (audit v3, the School Profile's Web Review), per school,
+  // worked out the way Web Review works it out: each active page's latest
+  // result. The Schools tiles show it where a school has one (Sean,
+  // 2026-10-23), so the tile, the profile and Web Review agree.
+  const [{ data: siteRows }, { data: activePages }] = await Promise.all([
+    svc.from('bcps_audit_results').select('school_id, site_page_id, overall_score, checks_failed, audited_at')
+      .not('school_id', 'is', null).not('site_page_id', 'is', null).gte('audit_version', 3)
+      .order('audited_at', { ascending: false }).limit(10000),
+    svc.from('bcps_site_pages').select('id').not('school_id', 'is', null).eq('active', true).limit(10000),
+  ])
+  const active = new Set((activePages ?? []).map((p) => p.id as string))
+  const seen = new Set<string>()
+  const siteBySchool = new Map<string, { school_id: string; page_count: number; score_sum: number; scored: number; to_fix: number; last_audited_at: string }>()
+  for (const r of (siteRows ?? []) as { school_id: string; site_page_id: string; overall_score: number | null; checks_failed: number | null; audited_at: string }[]) {
+    if (!active.has(r.site_page_id) || seen.has(r.site_page_id)) continue
+    seen.add(r.site_page_id)
+    const s = siteBySchool.get(r.school_id) ?? { school_id: r.school_id, page_count: 0, score_sum: 0, scored: 0, to_fix: 0, last_audited_at: r.audited_at }
+    s.page_count += 1
+    s.to_fix += r.checks_failed ?? 0
+    if (r.overall_score != null) { s.score_sum += r.overall_score; s.scored += 1 }
+    if (r.audited_at > s.last_audited_at) s.last_audited_at = r.audited_at
+    siteBySchool.set(r.school_id, s)
+  }
+  const sites = Array.from(siteBySchool.values()).map(({ score_sum, scored, ...s }) => ({ ...s, score: scored ? Math.round(score_sum / scored) : null }))
+
+  return NextResponse.json({ ok: true, scores: Array.from(aggBySchool.values()), sites })
 }
