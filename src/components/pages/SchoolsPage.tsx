@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { downloadSchoolsCsv, csvDateStamp } from '@/lib/school-list-csv'
 import type { SchoolScore } from './ADAManagerPage'
+import { wcmStanding } from '@/components/bcps/SchoolProfileView'
 
 interface Row {
   loc_no: string
@@ -26,6 +27,12 @@ interface Row {
 }
 interface Provisioned { id: string; school_location_nbr: string | null; site_url: string | null; wcm_name: string | null; wcm_email: string | null }
 type Score = SchoolScore
+// A WCM on the BCPS Central roster (/api/bcps/school-wcm-roster, 2026-10-23).
+interface RosterWcm { loc_no: string; full_name: string | null; email: string | null; cert_status: string | null; site_access: string | null; cert_due_on: string | null; designated_by: string | null }
+type EmailList = 'all' | 'certified' | 'not-certified' | 'overdue' | 'sandbox'
+const EMAIL_LISTS: { id: EmailList; label: string }[] = [
+  { id: 'all', label: 'All WCMs' }, { id: 'certified', label: 'Certified' }, { id: 'not-certified', label: 'Not certified' }, { id: 'overdue', label: 'Overdue' }, { id: 'sandbox', label: 'Sandbox only' },
+]
 
 const key = (n: string | null | undefined) => (n || '').replace(/^0+/, '')
 
@@ -68,6 +75,26 @@ export default function SchoolsPage() {
   const [canScan, setCanScan] = useState(false)
   const [scanning, setScanning] = useState<{ loc: string; current: number; total: number } | null>(null)
   const [notice, setNotice] = useState('')
+  const [roster, setRoster] = useState<RosterWcm[]>([])
+  const [emailList, setEmailList] = useState<EmailList>('all')
+  const [copied, setCopied] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const loadRoster = async () => {
+    const r = await fetch('/api/bcps/school-wcm-roster', { headers: await authHeader(), cache: 'no-store' })
+    const j = r.ok ? await r.json().catch(() => ({})) : {}
+    setRoster((j as { roster?: RosterWcm[] }).roster ?? [])
+  }
+  useEffect(() => { loadRoster().catch(() => {}) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // The BCPS Central "WCM List" export, as downloaded (an HTML table saved as .xls).
+  const uploadRoster = async (file: File) => {
+    setUploading(true); setNotice('')
+    try {
+      const r = await fetch('/api/bcps/school-wcm-roster', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeader()) }, body: JSON.stringify({ html: await file.text() }) })
+      const j = await r.json().catch(() => ({}))
+      setNotice(r.ok ? `WCM list loaded: ${j.wcms} WCMs at ${j.schools} schools.` : j.error || 'Could not load that file.')
+      if (r.ok) await loadRoster()
+    } finally { setUploading(false) }
+  }
 
   const authHeader = async (): Promise<Record<string, string>> => {
     const t = (await createClient().auth.getSession()).data.session?.access_token
@@ -154,6 +181,16 @@ export default function SchoolsPage() {
     })
     .filter((r) => !q || [r.display_name, r.loc_no, r.region, r.school_level, r.p?.wcm_name, r.leadName].some((v) => (v || '').toLowerCase().includes(q)))
   const scored = list.filter((r) => r.score?.avg_ada_score != null)
+  const rosterBy = new Map<string, RosterWcm[]>()
+  for (const w of roster) { const k = key(w.loc_no); rosterBy.set(k, [...(rosterBy.get(k) ?? []), w]) }
+  const inList = new Set(list.map((r) => key(r.loc_no)))
+  const shownWcms = roster.filter((w) => inList.has(key(w.loc_no)))
+  const emailsFor = (id: EmailList) => Array.from(new Set(shownWcms.filter((w) => {
+    const st = wcmStanding(w).label
+    return id === 'all' || (id === 'certified' && st === 'Certified') || (id === 'not-certified' && st !== 'Certified') || (id === 'overdue' && st === 'Overdue') || (id === 'sandbox' && w.site_access !== 'School Website')
+  }).map((w) => w.email).filter((e): e is string => !!e)))
+  const copyList = () => navigator.clipboard?.writeText(emailsFor(emailList).join('; ')).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
+  const noCertified = list.filter((r) => !(rosterBy.get(key(r.loc_no)) ?? []).some((w) => w.cert_status === 'Certified')).length
   const avg = scored.length ? Math.round(scored.reduce((n, r) => n + (r.score!.avg_ada_score as number), 0) / scored.length) : null
   const label = lead === 'all' ? 'All schools' : lead === me ? 'My schools' : `${leadName.get(lead) || lead}'s schools`
   const exportCsv = () => downloadSchoolsCsv(
@@ -169,7 +206,7 @@ export default function SchoolsPage() {
           <div className="sv-tile"><div className="sv-tile-label">{label}</div><div className="sv-tile-val">{list.length}</div></div>
           <div className="sv-tile"><div className="sv-tile-label">Full-site scanned</div><div className="sv-tile-val">{scored.length}</div></div>
           <div className="sv-tile"><div className="sv-tile-label">Avg ADA score</div><div className="sv-tile-val" style={{ color: scoreColor(avg) }}>{avg ?? '–'}</div></div>
-          <div className="sv-tile"><div className="sv-tile-label">No WCM on file</div><div className="sv-tile-val">{list.filter((r) => r.no_wcm).length}</div></div>
+          <div className="sv-tile"><div className="sv-tile-label">{roster.length ? 'No certified WCM' : 'No WCM on file'}</div><div className="sv-tile-val">{roster.length ? noCertified : list.filter((r) => r.no_wcm).length}</div></div>
         </div>
 
         <div className="sv-chips" role="group" aria-label="District Web Team Lead">
@@ -188,9 +225,23 @@ export default function SchoolsPage() {
           <input type="search" className="sv-search" value={query} onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by school, location number, region, WCM or District Web Team Lead" aria-label="Search schools" />
           <button type="button" className="sv-btn" onClick={exportCsv} disabled={!list.length}>Export to CSV</button>
+          <label className="sv-btn ghost" title="The WCM List export from BCPS Central">
+            {uploading ? 'Loading...' : 'Upload WCM list'}
+            <input type="file" accept=".xls,.html,.htm" hidden disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadRoster(f) }} />
+          </label>
           <span className="sv-count">{list.length} of {rows.length} schools</span>
         </div>
 
+        {roster.length > 0 && (
+          <div className="sv-emails">
+            <span className="sv-label">Email list</span>
+            {EMAIL_LISTS.map((x) => (
+              <button key={x.id} type="button" className={`sv-chip${emailList === x.id ? ' on' : ''}`} aria-pressed={emailList === x.id} onClick={() => setEmailList(x.id)}>{x.label} ({emailsFor(x.id).length})</button>
+            ))}
+            <button type="button" className="sv-btn" disabled={!emailsFor(emailList).length} onClick={copyList}>{copied ? 'Copied' : 'Copy for BCC'}</button>
+            <span className="sv-count">WCMs at the schools shown</span>
+          </div>
+        )}
         {error && <div className="sv-empty">{error}</div>}
         {notice && <div className="sv-notice" role="status">{notice}</div>}
         {!list.length ? <div className="sv-empty">{q ? `No school matches "${query}".` : 'No schools here yet.'}</div> : (
@@ -205,9 +256,12 @@ export default function SchoolsPage() {
                   <div className="sv-ring-col"><ScoreRing score={r.score?.avg_ada_score} /><span className="sv-ring-label">ADA</span></div>
                 </div>
                 <div className="sv-people">
-                  <div><span className="sv-label">WCM</span>{r.no_wcm ? <span className="sv-chip-late">No WCM</span>
+                  {(rosterBy.get(key(r.loc_no)) ?? []).length > 0 ? (rosterBy.get(key(r.loc_no)) ?? []).map((w) => {
+                    const st = wcmStanding(w)
+                    return <div key={w.email || w.full_name || ''}><span className="sv-label">WCM</span>{w.email ? <a href={`mailto:${w.email}`}>{w.full_name}</a> : w.full_name} <span className={`sv-st ${st.tone}`}>{st.label}</span></div>
+                  }) : <div><span className="sv-label">WCM</span>{r.no_wcm ? <span className="sv-chip-late">No WCM</span>
                     : r.p?.wcm_name ? (r.p.wcm_email ? <a href={`mailto:${r.p.wcm_email}`}>{r.p.wcm_name}</a> : r.p.wcm_name)
-                    : <span className="sv-muted">In BCPS Central</span>}</div>
+                    : <span className="sv-muted">In BCPS Central</span>}</div>}
                   <div><span className="sv-label">District Web Team</span>{r.leadName || <span className="sv-muted">Not assigned</span>}</div>
                 </div>
                 <div className="sv-links">
@@ -256,6 +310,10 @@ const CSS = `
 .sv-search{flex:1;min-width:220px;border:1.5px solid var(--sv-border);border-radius:8px;padding:9px 14px;font-size:13px;font-family:inherit;background:#fff;color:var(--sv-text)}
 .sv-btn{font:inherit;font-size:12px;font-weight:800;padding:9px 14px;border-radius:8px;border:1px solid var(--sv-blue);background:var(--sv-blue);color:#fff;cursor:pointer}
 .sv-btn:disabled{opacity:.5;cursor:default}
+.sv-btn.ghost{background:#fff;color:var(--sv-blue)}
+.sv-emails{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding:10px 12px;background:#fff;border:1.5px solid var(--sv-border);border-radius:10px}
+.sv-st{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:1px 6px;border-radius:99px;margin-left:4px}
+.sv-st.green{background:#dcfce7;color:#16a34a}.sv-st.red{background:#fdf0f0;color:#A32D2D}.sv-st.yellow{background:#fef3e2;color:#854F0B}
 .sv-count{font-size:12px;color:var(--sv-text-m);font-weight:600;margin-left:auto;white-space:nowrap}
 .sv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .sv-card{background:var(--sv-card);border:1px solid var(--sv-border);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:10px;transition:box-shadow .15s,border-color .15s}

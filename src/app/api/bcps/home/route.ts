@@ -193,6 +193,16 @@ export async function GET(req: NextRequest) {
   const mySchools = (schoolRows ?? [])
     .filter((r) => (r.wcm_email || '').trim().toLowerCase() === email)
     .map((r) => ({ name: r.name as string, loc_no: (r.school_location_nbr as string | null) ?? null }))
+  // Every WCM on the BCPS Central roster gets their school's dashboard too,
+  // certified or not (Sean + Vanessa Deslandes, 2026-10-23); only Finalsite
+  // access depends on certification, and that is granted in BCPS Central.
+  const { data: rosterRows } = await svc.from('bcps_school_wcm_roster').select('loc_no').eq('email', email)
+  const rosterLocs = Array.from(new Set((rosterRows ?? []).map((r) => r.loc_no as string)))
+    .filter((loc) => !mySchools.some((m) => (m.loc_no || '').replace(/^0+/, '') === loc.replace(/^0+/, '')))
+  if (rosterLocs.length) {
+    const { data: names } = await svc.from('bcps_school_assignments').select('loc_no, display_name').in('loc_no', rosterLocs)
+    for (const loc of rosterLocs) mySchools.push({ name: (names ?? []).find((n) => n.loc_no === loc)?.display_name ?? `Location ${loc}`, loc_no: loc })
+  }
   const isSchoolWcm = mySchools.length > 0 && !isDwt && !isDirector
 
   // MarComm Meeting members (Sean, 2026-10-16) whose only role here is

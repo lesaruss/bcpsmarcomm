@@ -32,6 +32,16 @@ interface BatchSummary {
 type Audit = SchoolScore & BatchSummary & { latest: boolean }
 interface Submission { id: string; type?: string; kind?: string; status: string; banner_title?: string | null; file_name?: string | null; wcm_email?: string | null; submitter_name?: string | null; rejection_reason?: string | null; submitted_at?: string | null; created_at?: string; reviewed_at?: string | null; posted_at?: string | null; is_test?: boolean }
 interface Activity { id: string; kind: string; actor_email: string | null; subject: string | null; body: string | null; sent_to: string | null; email_sent: boolean | null; email_error: string | null; created_at: string }
+interface RosterWcm { full_name: string | null; email: string | null; cert_status: string | null; site_access: string | null; cert_due_on: string | null; designated_by: string | null; access_end: string | null }
+
+// Where a WCM stands in BCPS Central: certified, overdue (not certified and
+// past their due date) or still in the course.
+export function wcmStanding(r: { cert_status: string | null; cert_due_on: string | null }): { label: string; tone: string } {
+  if (r.cert_status === 'Certified') return { label: 'Certified', tone: 'green' }
+  if (r.cert_due_on && r.cert_due_on < new Date().toISOString().slice(0, 10)) return { label: 'Overdue', tone: 'red' }
+  return { label: r.cert_status || 'Not registered', tone: 'yellow' }
+}
+
 interface Profile {
   viewer: { team: boolean; wcm: boolean }
   school: { loc_no: string; name: string; school_level: string | null; region: string | null; no_wcm: boolean; provisioned: boolean; school_id: string | null; site_url: string | null; wcm_name: string | null; wcm_email: string | null }
@@ -42,6 +52,7 @@ interface Profile {
   banners: Submission[]
   proud_points: Submission[]
   activity: Activity[]
+  roster: RosterWcm[]
 }
 
 const fmtDate = (ts?: string | null) => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'
@@ -83,6 +94,9 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
   const [scanning, setScanning] = useState<{ current: number; total: number } | null>(null)
   const [toast, setToast] = useState<{ msg: string; type?: string } | null>(null)
   const [noteOpen, setNoteOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [myEmail, setMyEmail] = useState('')
+  useEffect(() => { createClient().auth.getUser().then(({ data: u }) => setMyEmail((u.user?.email || '').toLowerCase())).catch(() => {}) }, [])
   const [note, setNote] = useState({ subject: '', body: '' })
   const [sending, setSending] = useState(false)
   const [editContacts, setEditContacts] = useState(false)
@@ -152,7 +166,7 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
     try {
       await post({ action: 'note', ...note })
       setNote({ subject: '', body: '' }); setNoteOpen(false)
-      showToast(`Sent to ${data?.school.wcm_email}.`, 'success')
+      showToast('Sent.', 'success')
     } catch (e) { showToast(e instanceof Error ? e.message : 'Could not send.', 'error') }
     finally { setSending(false); load(batch).catch(() => {}) }
   }
@@ -170,6 +184,13 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
 
   const { school, audit, viewer } = data
   const team = viewer.team
+  // The roster's WCMs, plus the one stored on the school if it is not on the roster.
+  const wcms: RosterWcm[] = [...data.roster]
+  if (school.wcm_email && !wcms.some((w) => w.email === school.wcm_email!.toLowerCase())) {
+    wcms.unshift({ full_name: school.wcm_name || school.wcm_email, email: school.wcm_email.toLowerCase(), cert_status: null, site_access: null, cert_due_on: null, designated_by: null, access_end: null })
+  }
+  const recipients = Array.from(new Set(wcms.map((w) => w.email).filter((e): e is string => !!e)))
+  const copyEmails = () => { navigator.clipboard?.writeText(recipients.join('; ')).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {}) }
   const latest = data.history[0] ?? null
   const subs = [...data.banners.map((s) => ({ ...s, what: s.type === 'removal' ? 'Banner removal' : 'Banner' })), ...data.proud_points.map((s) => ({ ...s, what: 'Proud Points' }))]
     .filter((s) => s.status !== 'draft')
@@ -312,12 +333,23 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
             <div>
               <div className="sp-info">
                 <div className="sp-info-section">
-                  <div className="sp-info-label">WCM Contact</div>
-                  <div className="sp-info-row"><span>Name</span><b className={school.wcm_name ? '' : 'unset'}>{school.no_wcm ? 'No WCM' : school.wcm_name || 'Not on file'}</b></div>
-                  <div className="sp-info-row"><span>Email</span><b className={school.wcm_email ? '' : 'unset'}>{school.wcm_email ? <a href={`mailto:${school.wcm_email}`}>{school.wcm_email}</a> : 'Not on file'}</b></div>
-                  {team && (school.wcm_email
-                    ? <button type="button" className="sp-btn-block" onClick={() => setNoteOpen((o) => !o)}>{noteOpen ? 'Close' : 'Send a note to the WCM'}</button>
-                    : <div className="sp-hint">Add the WCM in ADA Manager to send them notes.</div>)}
+                  <div className="sp-info-label">WCM Contact{data.roster.length > 0 && <button type="button" className="sp-edit" onClick={() => copyEmails()}>{copied ? 'Copied' : 'Copy emails'}</button>}</div>
+                  {wcms.length ? wcms.map((w) => {
+                    const st = wcmStanding(w)
+                    return (
+                      <div key={w.email || w.full_name || ''} className="sp-wcm">
+                        <div className="sp-wcm-top"><b>{w.full_name}</b><span className={`sp-pill ${st.tone}`}>{st.label}</span></div>
+                        {w.email && <a href={`mailto:${w.email}`}>{w.email}</a>}
+                        <div className="sp-sub">{w.site_access === 'School Website' ? 'Live site access' : w.site_access === 'Sandbox Only' ? 'Sandbox only' : 'No site access yet'}{w.designated_by ? ` · Designated by ${w.designated_by}` : ''}</div>
+                      </div>
+                    )
+                  }) : <div className="sp-info-row"><span>WCM</span><b className="unset">{school.no_wcm ? 'No WCM' : 'Not on file'}</b></div>}
+                  {viewer.wcm && !team && data.roster.some((w) => w.email === myEmail && w.cert_status !== 'Certified') && (
+                    <div className="sp-notice" style={{ marginTop: 10 }}>Finish the WCM Certification course to get access to edit your school website in Finalsite. Everything on this page is open to you now.</div>
+                  )}
+                  {team && (recipients.length
+                    ? <button type="button" className="sp-btn-block" onClick={() => setNoteOpen((o) => !o)}>{noteOpen ? 'Close' : `Send a note to ${recipients.length > 1 ? `all ${recipients.length} WCMs` : 'the WCM'}`}</button>
+                    : <div className="sp-hint">No WCM on file to send notes to.</div>)}
                   {team && noteOpen && (
                     <div className="sp-form">
                       <label>Subject<input value={note.subject} maxLength={160} onChange={(e) => setNote({ ...note, subject: e.target.value })} /></label>
@@ -481,6 +513,9 @@ const CSS = `
 .sp-info-row b{text-align:right;word-break:break-word}.sp-info-row b.unset{color:var(--lr-text-50);font-style:italic;font-weight:600}
 .sp-info-row a{color:var(--bcps-blue)}
 .sp-edit{background:none;border:none;color:var(--bcps-blue);font:inherit;font-size:9px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
+.sp-wcm{padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:11.5px;display:grid;gap:2px}.sp-wcm:last-of-type{border-bottom:none}
+.sp-wcm-top{display:flex;justify-content:space-between;gap:6px;align-items:center}
+.sp-wcm a{color:var(--bcps-blue);word-break:break-all}
 .sp-btn-block{margin-top:10px;width:100%;padding:9px;border-radius:8px;border:1px solid var(--lr-border);background:#fff;color:#0e4e73;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
 .sp-btn-block:hover{border-color:var(--bcps-blue)}
 .sp-hint{font-size:10.5px;color:var(--lr-text-50);margin-top:8px;line-height:1.4}

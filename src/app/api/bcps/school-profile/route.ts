@@ -72,8 +72,19 @@ async function loadSchool(loc: string) {
   return { assign: assignRes.data, school: schoolRes.data as School | null }
 }
 
-function canSee(caller: Caller, school: School | null) {
-  return caller.team || (!!school?.wcm_email && school.wcm_email.trim().toLowerCase() === caller.email)
+type RosterRow = { p_number: string; full_name: string | null; email: string | null; cert_status: string | null; site_access: string | null; cert_due_on: string | null; designated_by: string | null; access_end: string | null }
+
+// The school's WCMs on the BCPS Central roster (2026-10-23).
+async function loadRoster(loc: string): Promise<RosterRow[]> {
+  const { data } = await svc.from('bcps_school_wcm_roster')
+    .select('p_number, full_name, email, cert_status, site_access, cert_due_on, designated_by, access_end')
+    .in('loc_no', variants(loc)).order('full_name')
+  return (data ?? []) as RosterRow[]
+}
+
+function isSchoolWcm(caller: Caller, school: School | null, roster: RosterRow[]) {
+  return (!!school?.wcm_email && school.wcm_email.trim().toLowerCase() === caller.email)
+    || roster.some((r) => (r.email || '').toLowerCase() === caller.email)
 }
 
 type AuditRow = {
@@ -97,7 +108,9 @@ export async function GET(req: NextRequest) {
 
   const { assign, school } = await loadSchool(loc)
   if (!assign && !school) return NextResponse.json({ error: 'School not found.' }, { status: 404 })
-  if (!canSee(caller, school)) return NextResponse.json({ error: 'This school profile is for its WCM and the District Web Team.' }, { status: 403 })
+  const roster = await loadRoster(loc)
+  const viewerWcm = isSchoolWcm(caller, school, roster)
+  if (!caller.team && !viewerWcm) return NextResponse.json({ error: 'This school profile is for its WCMs and the District Web Team.' }, { status: 403 })
 
   const locs = variants(loc)
   const [leadRes, contactsRes, auditRes, bannerRes, ppRes, activityRes] = await Promise.all([
@@ -165,7 +178,9 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    viewer: { team: caller.team, wcm: !!school?.wcm_email && school.wcm_email.trim().toLowerCase() === caller.email },
+    viewer: { team: caller.team, wcm: viewerWcm },
+    // P-numbers stay on the server.
+    roster: roster.map(({ p_number: _p, ...r }) => r),
     school: {
       loc_no: assign?.loc_no ?? school?.school_location_nbr ?? loc,
       name: assign?.display_name ?? school?.name ?? '',
@@ -222,15 +237,17 @@ export async function POST(req: NextRequest) {
     const subject = clean(body.subject, 160)
     const text = clean(body.body, 5000)
     if (!subject || !text) return NextResponse.json({ error: 'Add a subject and a message.' }, { status: 400 })
-    const to = school?.wcm_email?.trim().toLowerCase()
-    if (!to) return NextResponse.json({ error: 'This school has no WCM on file to send to.' }, { status: 400 })
+    const roster = await loadRoster(loc)
+    const recipients = Array.from(new Set([school?.wcm_email, ...roster.map((r) => r.email)].map((e) => (e || '').trim().toLowerCase()).filter(Boolean)))
+    if (!recipients.length) return NextResponse.json({ error: 'This school has no WCM on file to send to.' }, { status: 400 })
+    const to = recipients.join(', ')
     const name = assign?.display_name ?? school?.name ?? 'your school'
     const origin = req.nextUrl.origin
     const html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#262626;line-height:1.5">
 <p>${esc(text).replace(/\n/g, '<br>')}</p>
 <p style="color:#767676;font-size:12px;margin-top:24px">Sent by ${esc(caller.email)} of the District Web Team about ${esc(name)}. Reply to this email to answer them.<br>
 <a href="${origin}/?page=dashboard" style="color:#1672A7">Open your school in BCPS MarComm</a></p></div>`
-    const sent = await sendEmail({ to, subject, html, replyTo: caller.email, kind: 'school-profile-note', context: { loc_no: key } })
+    const sent = await sendEmail({ to: recipients, subject, html, replyTo: caller.email, kind: 'school-profile-note', context: { loc_no: key } })
     const { error } = await svc.from('bcps_school_activity').insert({
       loc_no: key, kind: 'note', actor_email: caller.email, subject, body: text, sent_to: to,
       email_sent: sent.ok, email_error: sent.ok ? null : sent.error ?? 'Send failed',
