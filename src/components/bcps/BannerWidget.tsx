@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useBCPSShell } from '@/components/BCPSShell'
 import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
+import type { CompressHandle } from '@/lib/bannerCompress'
 
 type SubmissionType = 'upload' | 'removal'
 type SubmissionStatus = 'pending' | 'approved' | 'rejected'
@@ -149,6 +150,9 @@ const VALIDATION_CHECKLIST = [
   // out because no school was picked, and nothing said why).
   { key: 'school', label: 'School selected' },
   { key: 'files', label: 'Up to three files' },
+  // Its own row (Sean, 2026-10-23): a WCM's video was over the limit and the
+  // only signal was folded into the dims row, whose label never says MB.
+  { key: 'filesize', label: 'File size 50 MB or less (video exported at 1080p, not 4K)' },
   { key: 'dims', label: 'Media meets size requirements (photo 1920 × 800 px, video up to 30 seconds)' },
   { key: 'no_overlays', label: 'Image is free of graphics, borders, text overlays' },
   { key: 'nav_clearance', label: 'Homepage navigation face-clearance (flagged for manual review)' },
@@ -217,6 +221,11 @@ const MAX_FILES = 3
 // Byte ceiling matches BANNER_MAX_BYTES in lib/bannerFiles.ts.
 const VIDEO_MAX_SECONDS = 30
 const MAX_BYTES = 50 * 1024 * 1024
+const MAX_MB = MAX_BYTES / 1024 / 1024
+// One decimal, never rounded down to the limit: a 50.3 MB file used to read
+// "File is 50 MB - over the 50 MB limit".
+const MB = (bytes: number) => (Math.ceil(bytes / 1024 / 1024 * 10) / 10).toFixed(1)
+const fileMB = (f: File) => MB(f.size)
 // The pre-submit scan still posts the image through a Vercel function (4.5 MB
 // body cap, base64 adds a third), so a large photo is scanned as a smaller
 // copy. The full original is uploaded and re-scanned server-side at submit.
@@ -253,6 +262,14 @@ interface BannerItem {
   // JPEG EXIF orientation (1-8), null if none. 5-8 means the camera saved
   // the pixels sideways with a "rotate on display" flag.
   orientation: number | null
+  // Automatic in-browser compression of an over-limit video, and the
+  // one-click trim offered for one over 30 seconds. See lib/bannerCompress.ts.
+  compress: {
+    state: 'running' | 'done' | 'failed' | 'trimOffer'
+    progress: number
+    fromBytes: number
+    trimmed: boolean
+  } | null
 }
 
 function newBannerItem(): BannerItem {
@@ -260,7 +277,7 @@ function newBannerItem(): BannerItem {
     key: Math.random().toString(36).slice(2),
     file: null, previewUrl: null, kind: null, dims: null, duration: null,
     scanState: 'idle', scanResult: null, scanError: null,
-    title: '', caption: '', alt: '', inSceneText: false, orientation: null,
+    title: '', caption: '', alt: '', inSceneText: false, orientation: null, compress: null,
   }
 }
 
@@ -303,6 +320,67 @@ function CharCount({ value, max }: { value: string; max: number }) {
   return (
     <div style={{ fontSize: 11, marginTop: 3, textAlign: 'right', color: n >= max ? '#a13a2f' : 'var(--text-muted)' }}>
       {n}/{max} characters
+    </div>
+  )
+}
+
+// Over-limit alert with the fix, right under the file input (Sean,
+// 2026-10-23: the one-line red note was missed, and WCMs did not know how to
+// make a file smaller). Clipchamp is the District-supported editor; Stream
+// cannot shrink a file (its trim only hides parts from viewers), so a Stream
+// video is downloaded and re-exported in Clipchamp.
+function OversizeAlert({ file, kind, autoFailed }: { file: File; kind: 'image' | 'video' | null; autoFailed?: boolean }) {
+  return (
+    <div role="alert" style={{ marginTop: 8, background: '#fbe9e7', color: '#a13a2f', border: '2px solid #a13a2f', borderRadius: 6, padding: '10px 12px', fontSize: 12.5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 13.5 }}>
+        <span style={{ background: '#a13a2f', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 999 }}>Error</span>
+        File is over the {MAX_MB} MB limit
+      </div>
+      <div style={{ marginTop: 6, fontWeight: 600 }}>
+        This file is {fileMB(file)} MB. It cannot be submitted until it is {MAX_MB} MB or less.
+        {autoFailed && ' We tried to shrink it automatically, but this browser could not. Use Microsoft Edge or Chrome, or follow the steps below.'}
+      </div>
+      <details open style={{ marginTop: 8, color: '#1f2937' }}>
+        <summary style={{ fontWeight: 700, cursor: 'pointer', color: '#a13a2f' }}>How to make this file smaller</summary>
+        {kind === 'video' ? (
+          <div style={{ marginTop: 6, lineHeight: 1.5 }}>
+            <div style={{ fontWeight: 700 }}>In Clipchamp (sign in with your District Microsoft account):</div>
+            <ol style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+              <li>Open Clipchamp and select <strong>Create a new video</strong>.</li>
+              <li>Select <strong>Import media</strong>, choose this video, and drag it onto the timeline.</li>
+              <li>Trim it to {VIDEO_MAX_SECONDS} seconds or less if it is longer. A shorter clip is also a smaller file.</li>
+              <li>Select <strong>Export</strong> (top right) and choose <strong>1080p</strong>. Do not choose 4K.</li>
+              <li>Upload the new file here. If it is still over {MAX_MB} MB, shorten the clip, or export again at <strong>720p</strong>.</li>
+            </ol>
+            <div style={{ marginTop: 6 }}>
+              <strong>Video saved in Stream?</strong> Stream cannot make a file smaller. Download the video from Stream
+              (select <strong>...</strong> then <strong>Download</strong>), then follow the Clipchamp steps above.
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginTop: 6, lineHeight: 1.5 }}>
+            Save the photo as a <strong>JPG</strong> instead of PNG (open it in Photos or Paint and use <strong>Save as</strong>),
+            or resize it to about 2400 px wide. Upload the new copy here.
+          </div>
+        )}
+      </details>
+    </div>
+  )
+}
+
+function CompressProgress({ fromBytes, progress, trimming }: { fromBytes: number; progress: number; trimming: boolean }) {
+  const pct = Math.round(progress * 100)
+  return (
+    <div role="status" style={{ marginTop: 8, background: '#eaf1f8', color: '#0a3764', border: '1px solid #b9cfe6', borderRadius: 6, padding: '10px 12px', fontSize: 12.5 }}>
+      <div style={{ fontWeight: 700 }}>
+        {trimming
+          ? `Trimming to the first ${VIDEO_MAX_SECONDS} seconds and fitting it under ${MAX_MB} MB...`
+          : `This video is ${MB(fromBytes)} MB, over the ${MAX_MB} MB limit. Shrinking it to fit...`}
+      </div>
+      <div style={{ height: 8, background: '#d3e1ef', borderRadius: 999, marginTop: 8, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: '#0a3764', transition: 'width 0.2s' }} />
+      </div>
+      <div style={{ fontSize: 11, marginTop: 4 }}>{pct}% - keep this page open. Your video stays on this computer while it is compressed.</div>
     </div>
   )
 }
@@ -490,6 +568,9 @@ export default function BannerWidget() {
   const active = items.find(i => i.key === activeKey) ?? items[0]
   const itemsRef = useRef(items)
   itemsRef.current = items
+  // Running compressions by banner slot, so a new pick or Remove stops one.
+  const compressRef = useRef<Record<string, CompressHandle>>({})
+  useEffect(() => () => { Object.values(compressRef.current).forEach(h => h.cancel()) }, [])
   useEffect(() => () => { itemsRef.current.forEach(i => { if (i.previewUrl) URL.revokeObjectURL(i.previewUrl) }) }, [])
   const [checks, setChecks] = useState<Record<string, boolean>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -723,17 +804,62 @@ export default function BannerWidget() {
     setItems(prev => prev.map(i => i.key === key && i.file === f ? { ...i, ...patch } : i))
   }
 
-  function chooseFile(key: string, f: File | null) {
+  function cancelCompress(key: string) {
+    compressRef.current[key]?.cancel()
+    delete compressRef.current[key]
+  }
+
+  // Sean, 2026-10-23: an over-limit video is compressed automatically, with
+  // no request from the WCM. The result replaces the file in the slot and
+  // goes through the same checklist and Web Team review as any other.
+  async function startCompress(key: string, f: File, trimSeconds?: number) {
+    cancelCompress(key)
+    const base = { fromBytes: f.size, trimmed: !!trimSeconds }
+    patchIfSameFile(key, f, { compress: { state: 'running', progress: 0, ...base } })
+    let handle: CompressHandle | null = null
+    try {
+      const { compressBannerVideo } = await import('@/lib/bannerCompress')
+      if (itemsRef.current.find(i => i.key === key)?.file !== f) return
+      let shown = 0
+      handle = compressBannerVideo(f, {
+        maxBytes: MAX_BYTES,
+        trimSeconds,
+        onProgress: p => {
+          if (p - shown < 0.01 && p < 1) return
+          shown = p
+          patchIfSameFile(key, f, { compress: { state: 'running', progress: p, ...base } })
+        },
+      })
+      compressRef.current[key] = handle
+      const out = await handle.done
+      if (compressRef.current[key] !== handle) return
+      delete compressRef.current[key]
+      if (itemsRef.current.find(i => i.key === key)?.file !== f) return
+      chooseFile(key, out, base)
+    } catch {
+      if (handle && compressRef.current[key] === handle) delete compressRef.current[key]
+      // A new pick or Remove already moved the slot on; patchIfSameFile drops it.
+      patchIfSameFile(key, f, { compress: { state: 'failed', progress: 0, ...base } })
+    }
+  }
+
+  function chooseFile(key: string, f: File | null, compressed?: { fromBytes: number; trimmed: boolean }) {
+    cancelCompress(key)
     const prevUrl = itemsRef.current.find(i => i.key === key)?.previewUrl
     if (prevUrl) URL.revokeObjectURL(prevUrl)
     setActiveKey(key)
     if (!f) {
-      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, duration: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false, orientation: null })
+      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, duration: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false, orientation: null, compress: null })
       return
     }
     const url = URL.createObjectURL(f)
     const kind: 'image' | 'video' = f.type.startsWith('video') ? 'video' : 'image'
-    patchItem(key, { file: f, previewUrl: url, kind, dims: null, duration: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false, orientation: null })
+    // An over-limit video shows "Shrinking" straight away; the length check
+    // below decides whether it compresses or offers the trim first.
+    const compress: BannerItem['compress'] = compressed
+      ? { state: 'done', progress: 1, ...compressed }
+      : kind === 'video' && f.size > MAX_BYTES ? { state: 'running', progress: 0, fromBytes: f.size, trimmed: false } : null
+    patchItem(key, { file: f, previewUrl: url, kind, dims: null, duration: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false, orientation: null, compress })
 
     if (kind === 'image') {
       const img = new Image()
@@ -743,7 +869,18 @@ export default function BannerWidget() {
     } else {
       const v = document.createElement('video')
       v.preload = 'metadata'
-      v.onloadedmetadata = () => { if (isFinite(v.duration)) patchIfSameFile(key, f, { duration: v.duration }) }
+      v.onloadedmetadata = () => {
+        const d = isFinite(v.duration) ? v.duration : null
+        if (d !== null) patchIfSameFile(key, f, { duration: d })
+        if (compressed) return
+        // Over 30 seconds: the WCM picks what to cut, so offer the trim
+        // rather than cutting on their behalf. Otherwise shrink if needed.
+        if (d !== null && d > VIDEO_MAX_SECONDS + 0.5) patchIfSameFile(key, f, { compress: { state: 'trimOffer', progress: 0, fromBytes: f.size, trimmed: false } })
+        else if (f.size > MAX_BYTES) startCompress(key, f)
+      }
+      // The browser cannot play it (e.g. an unusual codec): still try, and
+      // the compressor's own check falls back to the Clipchamp steps.
+      v.onerror = () => { if (!compressed && f.size > MAX_BYTES) startCompress(key, f) }
       v.src = url
     }
 
@@ -795,6 +932,7 @@ export default function BannerWidget() {
   }
 
   function removeItem(key: string) {
+    cancelCompress(key)
     const gone = items.find(i => i.key === key)
     if (gone?.previewUrl) URL.revokeObjectURL(gone.previewUrl)
     setItems(prev => {
@@ -810,11 +948,12 @@ export default function BannerWidget() {
   const allChecked = CHECKLIST.every(c => checks[c.key])
   const sizeOk = (i: BannerItem) => !i.file || i.file.size <= MAX_BYTES
   const lengthOk = (i: BannerItem) => i.duration === null || i.duration <= VIDEO_MAX_SECONDS + 0.5
-  const dimsOk = (i: BannerItem) => sizeOk(i) && (i.kind === 'video' ? lengthOk(i) : !!(i.dims && i.dims.width >= MIN_WIDTH && i.dims.height >= MIN_HEIGHT))
+  const dimsOk = (i: BannerItem) => (i.kind === 'video' ? lengthOk(i) : !!(i.dims && i.dims.width >= MIN_WIDTH && i.dims.height >= MIN_HEIGHT))
   const overlaysOk = (i: BannerItem) => !!i.scanResult?.no_overlays_pass && (!i.scanResult?.text_detected || i.inSceneText)
   const needsConfirm = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult?.no_overlays_pass && !!i.scanResult?.text_detected && !i.inSceneText
   const scanFailed = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult && !i.scanResult.no_overlays_pass
   const all = (pred: (i: BannerItem) => boolean) => filled.length > 0 && filled.every(pred)
+  const compressing = filled.some(i => i.compress?.state === 'running')
 
   // Live Validation checklist status (right-hand panel) - each row derived
   // from current form state across every banner in the request, matching
@@ -822,6 +961,7 @@ export default function BannerWidget() {
   const validationStatus: Record<string, boolean> = {
     school: !!selectedSchool,
     files: filled.length > 0,
+    filesize: all(sizeOk),
     dims: all(dimsOk),
     no_overlays: all(overlaysOk),
     nav_clearance: all(i => !!i.scanResult?.nav_clearance_pass),
@@ -839,9 +979,9 @@ export default function BannerWidget() {
   const validationState: Record<string, ValidationState> = {
     school: validationStatus.school ? 'pass' : 'pending',
     files: validationStatus.files ? 'pass' : 'pending',
-    // A video is exempt from the pixel minimum but not the 30-second limit;
-    // a file over the byte ceiling fails either way.
-    dims: validationStatus.dims ? 'pass' : (filled.some(i => !sizeOk(i) || (i.kind === 'video' ? !lengthOk(i) : !!i.dims && !dimsOk(i))) ? 'fail' : 'pending'),
+    filesize: validationStatus.filesize ? 'pass' : filled.length > 0 && !compressing ? 'fail' : 'pending',
+    // A video is exempt from the pixel minimum but not the 30-second limit.
+    dims: validationStatus.dims ? 'pass' : compressing ? 'pending' : (filled.some(i => (i.kind === 'video' ? !lengthOk(i) : !!i.dims && !dimsOk(i))) ? 'fail' : 'pending'),
     no_overlays: validationStatus.no_overlays ? 'pass'
       : filled.some(scanFailed) ? 'fail'
       : filled.some(needsConfirm) ? 'confirm'
@@ -854,6 +994,14 @@ export default function BannerWidget() {
     final_ack: validationStatus.final_ack ? 'pass' : 'pending',
   }
 
+  // Why a row failed, printed under it, so the checklist itself says what is
+  // blocking (Sean, 2026-10-23).
+  const validationReason: Record<string, string> = {
+    filesize: filled
+      .map((i, n) => sizeOk(i) ? null : `${filled.length > 1 ? `Banner ${n + 1}: ` : ''}file is ${fileMB(i.file!)} MB, over the ${MAX_MB} MB limit. Export at 1080p (not 4K). Steps are under the file.`)
+      .filter(Boolean).join(' '),
+  }
+
   async function handleSubmitUpload() {
     setUploadNotice(null)
     if (!selectedSchool) { setUploadNotice('Select your school first.'); return }
@@ -863,7 +1011,8 @@ export default function BannerWidget() {
       const name = filled.length > 1 ? `Banner ${n + 1}: ` : ''
       if (!i.title.trim()) { setUploadNotice(`${name}Banner title is required.`); return }
       if (!i.alt.trim()) { setUploadNotice(`${name}Alternative text is required.`); return }
-      if (!sizeOk(i)) { setUploadNotice(`${name}This file is over ${MAX_BYTES / 1024 / 1024} MB. Export it at 1080p (not 4K) and try again.`); return }
+      if (i.compress?.state === 'running') { setUploadNotice(`${name}Still compressing this video - one moment.`); return }
+      if (!sizeOk(i)) { setUploadNotice(`${name}This file is ${fileMB(i.file!)} MB, over the ${MAX_MB} MB limit. Export it at 1080p (not 4K) and try again.`); return }
       if (i.kind === 'video' && !lengthOk(i)) { setUploadNotice(`${name}This video is ${Math.round(i.duration!)} seconds. Videos can be up to ${VIDEO_MAX_SECONDS} seconds.`); return }
       if (i.scanState === 'scanning') { setUploadNotice(`${name}Still running the automated content scan - one moment.`); return }
       if (i.scanState === 'error') { setUploadNotice(`${name}${i.scanError || 'The automated content scan failed - please try re-selecting the file.'}`); return }
@@ -1267,10 +1416,41 @@ export default function BannerWidget() {
                       {lengthOk(it) ? ` - within the ${VIDEO_MAX_SECONDS}-second limit.` : ` - over the ${VIDEO_MAX_SECONDS}-second limit.`}
                     </div>
                   )}
-                  {it.file && !sizeOk(it) && (
-                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: '#a13a2f' }}>
-                      File is {Math.round(it.file.size / 1024 / 1024)} MB - over the {MAX_BYTES / 1024 / 1024} MB limit. Export at 1080p (not 4K).
+                  {it.file && it.compress?.state === 'running' && (
+                    <CompressProgress fromBytes={it.compress.fromBytes} progress={it.compress.progress} trimming={it.compress.trimmed} />
+                  )}
+                  {it.file && it.compress?.state === 'trimOffer' && (
+                    <div role="alert" style={{ marginTop: 8, background: '#fdf3e0', color: '#5c4300', border: '1px solid #f0d9a8', borderRadius: 6, padding: '10px 12px', fontSize: 12.5 }}>
+                      <div style={{ fontWeight: 700 }}>
+                        Banner videos can be up to {VIDEO_MAX_SECONDS} seconds
+                        {!sizeOk(it) && ` and ${MAX_MB} MB (this one is ${fileMB(it.file)} MB)`}.
+                      </div>
+                      <div style={{ marginTop: 4 }}>
+                        Use the first {VIDEO_MAX_SECONDS} seconds and we will fit it to the limit for you, or trim it
+                        yourself in Clipchamp and upload it again.
+                      </div>
+                      <button type="button" className="btn-primary" style={{ marginTop: 8, fontSize: 12, padding: '6px 12px' }}
+                        onClick={() => startCompress(it.key, it.file!, VIDEO_MAX_SECONDS)}>
+                        Use the first {VIDEO_MAX_SECONDS} seconds
+                      </button>
                     </div>
+                  )}
+                  {it.file && it.compress?.state === 'done' && (
+                    <div style={{ marginTop: 8, background: '#e6f4ea', color: '#1e6b3a', borderRadius: 6, padding: '10px 12px', fontSize: 12.5 }}>
+                      <div style={{ fontWeight: 700 }}>
+                        {it.compress.trimmed ? `Trimmed to the first ${VIDEO_MAX_SECONDS} seconds and compressed` : 'Compressed'} from{' '}
+                        {MB(it.compress.fromBytes)} MB to {fileMB(it.file)} MB. Ready to submit.
+                      </div>
+                      <div style={{ marginTop: 2 }}>Play the preview to check it looks right before you submit.</div>
+                    </div>
+                  )}
+                  {it.file && sizeOk(it) && it.compress?.state === 'failed' && (
+                    <div role="alert" style={{ marginTop: 8, background: '#fbe9e7', color: '#a13a2f', borderRadius: 6, padding: '8px 12px', fontSize: 12.5, fontWeight: 600 }}>
+                      This browser could not trim the video. Trim it to {VIDEO_MAX_SECONDS} seconds in Clipchamp (or try Microsoft Edge or Chrome) and upload it again.
+                    </div>
+                  )}
+                  {it.file && !sizeOk(it) && (!it.compress || it.compress.state === 'failed') && (
+                    <OversizeAlert file={it.file} kind={it.kind} autoFailed={it.compress?.state === 'failed'} />
                   )}
                   {it.kind === 'image' && it.dims && (it.orientation ?? 1) >= 5 && (
                     <div style={{ fontSize: 12, marginTop: 4, background: '#fdf3e0', color: '#8a5a00', padding: '6px 10px', borderRadius: 5 }}>
@@ -1285,7 +1465,7 @@ export default function BannerWidget() {
                 {/* Automated Photo Content Requirements scan - shown right
                     where it runs, per Sean 2026-09-03. Only once a real file
                     is selected. */}
-                {it.file && (
+                {it.file && sizeOk(it) && (
                   <div style={{
                     borderRadius: 6, padding: '10px 12px', fontSize: 12.5,
                     background: it.scanState === 'scanning' ? '#f3f4f6'
@@ -1419,7 +1599,12 @@ export default function BannerWidget() {
                     background: chip.bg, color: chip.fg, boxShadow: chip.ring,
                     borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: 12.5, fontWeight: 600,
                   }}>
-                    <span>{v.label}</span>
+                    <span>
+                      {v.label}
+                      {validationState[v.key] === 'fail' && validationReason[v.key] && (
+                        <span style={{ display: 'block', fontWeight: 500, fontSize: 12, marginTop: 3 }}>{validationReason[v.key]}</span>
+                      )}
+                    </span>
                     <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{chip.label}</span>
                   </div>
                 )
