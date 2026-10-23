@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { MARCOMM_PATH, type PageId, type BreadcrumbItem } from '@/lib/types'
 import DepartmentsPage from './DepartmentsPage'
 import SchoolsPage from './SchoolsPage'
+import SchoolProfileView from '@/components/bcps/SchoolProfileView'
 import AnalyticsPage from './AnalyticsPage'
 import WidgetsPage from './WidgetsPage'
 import DashboardPage from './DashboardPage'
@@ -1428,6 +1429,46 @@ function SchoolWcmHome({ data, preview, onNavigate }: { data: HomeData; preview?
   const b = { pending: bn.pending + pp.pending, ready: bn.ready + pp.ready, posted: bn.posted + pp.posted, rejected: bn.rejected + pp.rejected }
   const openBanners = () => onNavigate('banner-submissions')
   const openProudPoints = () => onNavigate('proud-points')
+  // Their overview is their school's profile (Sean + Vanessa Deslandes,
+  // 2026-10-23): the same page the District Web Team opens from the Schools
+  // tab, with the audit, banners and Proud Points on it. Someone with more
+  // than one school picks which. The sample preview has no real school, so
+  // it keeps the cards below.
+  const located = (data.schools ?? []).filter((x): x is { name: string; loc_no: string } => !!x.loc_no)
+  const [loc, setLoc] = useState(located[0]?.loc_no ?? '')
+  if (!preview && loc) return (
+    <div className="home">
+      <div className="home-hero">
+        <div className="home-hero-label">BCPS MarComm School Web Content Manager</div>
+        <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome'}</h1>
+        <p>Everything for {located.length > 1 ? 'your schools' : located[0].name} in one place: your ADA audit, homepage banners and Proud Points, and who to reach.</p>
+        <div className="home-actions">
+          <button type="button" className="home-btn" onClick={openBanners}>Submit a banner</button>
+          <button type="button" className="home-btn" onClick={openProudPoints}>Submit Proud Points</button>
+        </div>
+      </div>
+      {located.length > 1 && (
+        <div className="home-actions" role="group" aria-label="Your schools" style={{ marginBottom: 16 }}>
+          {located.map((x) => (
+            <button key={x.loc_no} type="button" className={x.loc_no === loc ? 'home-btn' : 'home-link-btn'} aria-pressed={x.loc_no === loc} onClick={() => setLoc(x.loc_no)}>{x.name}</button>
+          ))}
+        </div>
+      )}
+      <SchoolProfileView key={loc} loc={loc} embedded />
+      <h2 className="home-grp">Quick Links</h2>
+      <div className="home-tools">
+        {SCHOOL_QUICK_LINKS.map((l) => (
+          <a key={l.href} className="home-tool" href={l.href} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+            <span className="home-tool-ic" aria-hidden="true">{l.ic}</span>
+            <span style={{ minWidth: 0 }}>
+              <b>{l.label}</b>
+              <small>{l.sub} <span aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span></small>
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
+  )
   return (
     <div className="home">
       {preview && <PreviewBanner who="School WCM">
@@ -2509,11 +2550,15 @@ function HomeTabs({ tabs, active, onChange }: { tabs: { id: string; label: strin
 }
 
 // A page opened from the dashboard, under the tab bar. Most open from Tools
-// & Resources, so that tab reads as the active one.
+// & Resources, so that tab reads as the active one; a school or department
+// profile reads as its Schools or Departments tab when there is one.
 function PageUnderTabs({ tabs, onChange, children }: { tabs: { id: string; label: string }[]; onChange: (id: string) => void; children: React.ReactNode }) {
+  const pathname = usePathname()
+  const own = pathname === '/school' ? 'schools' : pathname.startsWith('/department') ? 'departments' : null
+  const active = own && tabs.some((t) => t.id === own) ? own : 'tools'
   return (
     <>
-      <div className="home home-tabs-only"><HomeTabs tabs={tabs} active="tools" onChange={onChange} /></div>
+      <div className="home home-tabs-only"><HomeTabs tabs={tabs} active={active} onChange={onChange} /></div>
       {children}
     </>
   )

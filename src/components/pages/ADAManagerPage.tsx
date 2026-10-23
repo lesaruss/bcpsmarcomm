@@ -373,7 +373,7 @@ function bucketPage(page: SchoolPage, overrides: OwnerOverrideMap): Record<Gloss
 function PageIssueDetail({ page, overrides, onReclassify, onRescan, rescanning }: {
   page: SchoolPage
   overrides: OwnerOverrideMap
-  onReclassify: (glossaryKey: string, owner: GlossaryOwner) => void
+  onReclassify?: (glossaryKey: string, owner: GlossaryOwner) => void
   onRescan: () => void
   rescanning: boolean
 }) {
@@ -436,7 +436,7 @@ function PageIssueDetail({ page, overrides, onReclassify, onRescan, rescanning }
               escalationNote={f.escalationNote}
               sourceUrl={f.sourceUrl}
               ownerLabel={<OwnerBadge owner={f.owner} entryFound={f.entryFound} />}
-              onReclassify={tab === 'depends' && f.glossaryKey ? (o) => onReclassify(f.glossaryKey!, o) : undefined}
+              onReclassify={onReclassify && tab === 'depends' && f.glossaryKey ? (o) => onReclassify(f.glossaryKey!, o) : undefined}
             />
           ))}
         </div>
@@ -451,7 +451,9 @@ type ScanProgress = { schoolId: string; current: number; total: number; url: str
 // detail, owner tabs and single-page re-scan as below. Used on the Schools
 // tab tiles (Sean, 2026-10-22: see the audit results where the school is),
 // so ADA Manager can be retired once Schools is approved.
-export function SchoolAuditPages({ schoolId, score, onChanged }: { schoolId: string; score: SchoolScore; onChanged: () => void }) {
+// canReclassify: moving a finding between owners changes it for every school,
+// so the School Profile offers it to the District Web Team only.
+export function SchoolAuditPages({ schoolId, score, onChanged, canReclassify = true }: { schoolId: string; score: SchoolScore; onChanged: () => void; canReclassify?: boolean }) {
   const supabase = createClient()
   const [overrides, setOverrides] = useState<OwnerOverrideMap>({})
   const [openPage, setOpenPage] = useState<string | null>(null)
@@ -498,7 +500,7 @@ export function SchoolAuditPages({ schoolId, score, onChanged }: { schoolId: str
               </span>
             </button>
             {isOpen && (
-              <PageIssueDetail page={p} overrides={overrides} onReclassify={reclassify} onRescan={() => rescan(p.page_url)} rescanning={rescanning.has(p.page_url)} />
+              <PageIssueDetail page={p} overrides={overrides} onReclassify={canReclassify ? reclassify : undefined} onRescan={() => rescan(p.page_url)} rescanning={rescanning.has(p.page_url)} />
             )}
           </div>
         )

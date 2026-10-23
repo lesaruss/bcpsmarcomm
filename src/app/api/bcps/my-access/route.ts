@@ -58,8 +58,9 @@ export async function GET(req: NextRequest) {
       pAllowed = allPages.filter(p => p.visibility === 'public' || ids.has(p.id)).map(p => p.slug)
     }
     const { data: schoolRows } = await svc.from('bcps_schools').select('wcm_email').not('wcm_email', 'is', null)
+    const { data: pRoster } = await svc.from('bcps_school_wcm_roster').select('p_number').eq('email', person.email).limit(1)
     const pSchoolWcm = pRoleName === 'user' && !pGroups.includes('District Web Team')
-      && (schoolRows ?? []).some(r => (r.wcm_email || '').trim().toLowerCase() === person.email)
+      && ((schoolRows ?? []).some(r => (r.wcm_email || '').trim().toLowerCase() === person.email) || (pRoster ?? []).length > 0)
     const personRes = NextResponse.json({
       ok: true, role: pRoleName, pages: pAllowed, groups: pGroups, is_school_wcm: pSchoolWcm,
       as_email: person.email, has_account: person.hasAccount,
@@ -176,7 +177,9 @@ export async function GET(req: NextRequest) {
   if (role === 'user' && !groups.includes('District Web Team') && user.email) {
     const me = user.email.trim().toLowerCase()
     const { data: schoolRows } = await svc.from('bcps_schools').select('wcm_email').not('wcm_email', 'is', null)
-    isSchoolWcm = (schoolRows ?? []).some(r => (r.wcm_email || '').trim().toLowerCase() === me)
+    // Or on the BCPS Central WCM roster (2026-10-23), certified or not.
+    const { data: rosterRows } = await svc.from('bcps_school_wcm_roster').select('p_number').eq('email', me).limit(1)
+    isSchoolWcm = (schoolRows ?? []).some(r => (r.wcm_email || '').trim().toLowerCase() === me) || (rosterRows ?? []).length > 0
   }
 
   const res = NextResponse.json({ ok: true, role, pages: allowed, groups, view_as_groups: viewAsGroups, is_school_wcm: isSchoolWcm })

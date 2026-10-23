@@ -7,6 +7,7 @@ import { useBCPSShell } from '@/components/BCPSShell'
 import { SAMPLE_SUPERADMIN_ID } from '@/components/Sidebar'
 import { lookupAxeEntry } from '@/lib/ada-glossary'
 import SiteAudit from '@/components/bcps/SiteAudit'
+import UnderDashboardTabs from '@/components/UnderDashboardTabs'
 
 // ─── Period types ─────────────────────────────────────────────────────────────
 type PeriodMode = 'calendar' | 'school' | 'custom'
@@ -393,6 +394,7 @@ function DepartmentContent() {
         @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800;900&display=swap');
         :root{--bcps-blue:#1672A7;--bcps-blue-dark:#125e8a;--lr-bg:#f0f4f8;--lr-border:#dde3ea;--lr-text:#262626;--lr-text-75:#525252;--lr-text-50:#767676;--score-green:#16750C;--score-green-bg:#edf7ea;--score-yellow:#854F0B;--score-yellow-bg:#fef3e2;--score-red:#A32D2D;--score-red-bg:#fdf0f0;--sev-critical:#7C0E0E;--sev-critical-bg:#fce8e8;--sev-serious:#A32D2D;--sev-serious-bg:#fdf0f0;--sev-moderate:#854F0B;--sev-moderate-bg:#fef3e2;--sev-minor:#1a5276;--sev-minor-bg:#e8f1f8}
         .dept-page{padding:28px;background:var(--lr-bg);min-height:100%;width:100%;box-sizing:border-box}
+        .page-content .dept-page{padding:0;background:none}
         .dept-loading{display:flex;align-items:center;justify-content:center;min-height:300px}.dept-spinner{width:32px;height:32px;border:3px solid rgba(22,114,167,.15);border-top-color:var(--bcps-blue);border-radius:50%;animation:spin .7s linear infinite}
         .dept-error-state{text-align:center;padding:80px 20px;color:var(--lr-text-50)}.dept-error-state svg{width:36px;height:36px;margin:0 auto 12px;display:block;opacity:.4}.dept-error-state h3{font-size:15px;font-weight:700;color:var(--lr-text);margin-bottom:6px}.dept-error-state p{font-size:13px}.dept-error-state a{color:var(--bcps-blue)}
         @keyframes spin{to{transform:rotate(360deg)}}
@@ -962,7 +964,8 @@ function DepartmentContent() {
 export default function DepartmentPage() {
   return (
     <Suspense fallback={<div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:300}}><div style={{width:32,height:32,border:'3px solid rgba(22,114,167,.15)',borderTopColor:'#1672A7',borderRadius:'50%',animation:'spin .7s linear infinite'}} /></div>}>
-      <DepartmentContent />
+      {/* Under the dashboard tab bar (Sean, 2026-10-23: the profile had lost the main navigation). */}
+      <UnderDashboardTabs><DepartmentContent /></UnderDashboardTabs>
     </Suspense>
   )
 }

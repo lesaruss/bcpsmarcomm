@@ -16,6 +16,7 @@ export type PageId =
   | 'department-audit'
   | 'employee-records'
   | 'department'
+  | 'school'
   | 'reports'
   | 'documents'
   | 'permissions'
