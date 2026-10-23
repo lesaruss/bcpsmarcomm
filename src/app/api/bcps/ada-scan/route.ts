@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { runAxeScan } from '@/lib/axe-scan'
-import { runWaveScan } from '@/lib/wave-scan'
 
 export const dynamic = 'force-dynamic'
 // Raised 2026-08-19: this route now runs a real headless-Chromium axe-core
@@ -140,19 +139,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // The proven gold-standard pass: real axe-core (headless Chromium) and
-  // real WAVE, run in parallel. Lighthouse's own a11y % is kept alongside
-  // for context but axe-core's score is now the authoritative ada_score,
-  // matching the same combination already verified live in lesaruss-hq.
-  const [axe, wave] = await Promise.all([
-    runAxeScan(target),
-    runWaveScan(target),
-  ])
+  // axe-core (headless Chromium) is the scan; Lighthouse's a11y % is kept
+  // alongside for context. WAVE is off (Sean, 2026-10-23): it is paid per
+  // page, every call had failed since 2026-09-02, and the site audit covers
+  // the same WCAG checks with axe at no cost. lib/wave-scan.ts stays in place.
+  const axe = await runAxeScan(target)
+  const wave = { ok: false as const, waveScore: null, violations: null }
 
-  if (!axe.ok && !wave.ok) {
-    return NextResponse.json({
-      error: `Scan failed. axe-core: ${axe.error || 'unknown error'}. WAVE: ${wave.error || 'unknown error'}.`,
-    }, { status: 502 })
+  if (!axe.ok) {
+    return NextResponse.json({ error: `Scan failed. axe-core: ${axe.error || 'unknown error'}.` }, { status: 502 })
   }
 
   const ada_score = axe.ok ? axe.adaScore : null
@@ -199,7 +194,6 @@ export async function POST(req: NextRequest) {
       lighthouse_a11y_score: lighthouseA11yPct,
       issues: {
         axe_error: axe.ok ? null : axe.error,
-        wave_error: wave.ok ? null : wave.error,
       },
       audited_at: new Date().toISOString(),
     })

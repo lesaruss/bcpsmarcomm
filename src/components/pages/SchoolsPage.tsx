@@ -123,28 +123,19 @@ export default function SchoolsPage() {
       setCanScan(!!j.allowed)
     })().catch(() => {})
   }, [])
-  // Same steps as ADA Manager's Scan Full Site: discover the pages, then scan
-  // each one into one batch so the school gets one averaged score.
+  // Run audit queues the free site audit (Sean, 2026-10-23), the one Web
+  // Review shows: the audit worker finds the school's pages and audits them
+  // one at a time in the background, about 20 seconds a page. It replaced
+  // the page-by-page WAVE scan, which was paid per page.
   const runAudit = async (loc: string, schoolId: string) => {
     setNotice('')
-    const headers = await authHeader()
-    const sm = await fetch(`/api/bcps/school-sitemap?school_id=${encodeURIComponent(schoolId)}`, { headers })
-    const smj = await sm.json().catch(() => ({}))
-    if (!sm.ok) { setNotice(smj.error || "Could not find this school's pages."); return }
-    const urls: string[] = smj.urls ?? []
-    if (!urls.length) { setNotice('No pages were found to scan.'); return }
-    const batch = crypto.randomUUID()
-    for (let i = 0; i < urls.length; i++) {
-      setScanning({ loc, current: i + 1, total: urls.length })
-      try {
-        await fetch('/api/bcps/ada-scan', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', ...headers },
-          body: JSON.stringify({ url: urls[i], school_id: schoolId, scan_batch_id: batch }),
-        })
-      } catch { /* one page failing does not stop the batch */ }
-    }
-    setScanning(null)
-    await reloadScores()
+    setScanning({ loc, current: 0, total: 0 })
+    try {
+      const r = await fetch('/api/bcps/site-audit', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeader()) }, body: JSON.stringify({ school_id: schoolId }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) setNotice(j.error || 'Could not start the audit.')
+      else setNotice(j.already ? 'An audit is already running for this school. Results show on its Web Review as pages finish.' : 'Audit started. It runs in the background, about 20 seconds a page; results show on the school\'s Web Review as pages finish.')
+    } finally { setScanning(null) }
   }
 
   useEffect(() => {
@@ -292,14 +283,11 @@ export default function SchoolsPage() {
                     {r.a && <a className="sv-action ghost" href={`/school?loc=${encodeURIComponent(r.loc_no)}&tab=review`}>View audit results</a>}
                     {canScan && r.p?.site_url && (
                       <button type="button" className="sv-action" disabled={!!scanning} onClick={() => runAudit(r.loc_no, r.p!.id)}>
-                        {scanning?.loc === r.loc_no ? `Auditing ${scanning.current}/${scanning.total}…` : r.a ? 'Re-run audit' : 'Run audit'}
+                        {scanning?.loc === r.loc_no ? 'Starting…' : r.a ? 'Re-run audit' : 'Run audit'}
                       </button>
                     )}
                     {canScan && !r.p?.site_url && <a className="sv-link" href="/?page=ada-manager">{r.p ? 'Add its website in ADA Manager' : 'Set up in ADA Manager'}</a>}
                   </div>
-                  {scanning?.loc === r.loc_no && (
-                    <div className="sv-progress"><div style={{ width: `${(scanning.current / scanning.total) * 100}%` }} /></div>
-                  )}
                 </div>
               </article>
             ))}
@@ -357,8 +345,6 @@ const CSS = `
 .sv-action{font:inherit;font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:6px;border:1px solid var(--sv-blue);background:var(--sv-blue);color:#fff;cursor:pointer}
 .sv-action.ghost{background:#fff;color:var(--sv-blue);text-decoration:none}
 .sv-action:disabled{opacity:.5;cursor:default}
-.sv-progress{height:6px;background:#f3f4f6;border-radius:999px;overflow:hidden}
-.sv-progress div{height:100%;background:var(--sv-blue);transition:width .3s}
 @media(max-width:900px){.sv-grid{grid-template-columns:repeat(2,1fr)}.sv-stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.sv-grid{grid-template-columns:1fr}.sv-label{min-width:0;margin-right:6px}}
 `

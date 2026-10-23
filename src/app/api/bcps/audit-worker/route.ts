@@ -82,7 +82,48 @@ async function runSiteJob(job: Job): Promise<string> {
   for (const a of added ?? []) if (!found.has(a.id)) queued.push({ ...owner, site_page_id: a.id, run_id: runId, run_month: job.run_month, kind: 'page', requested_by: job.requested_by ?? 'monthly' })
   if (queued.length) await supabase.from('bcps_audit_queue').insert(queued)
   await finish(job.id, { status: 'done', run_id: runId, last_error: null })
-  return `site: ${queued.length} pages queued`
+  const pruned = await pruneOldScreenshots(owner).catch((e) => { console.error('[audit] screenshot cleanup failed', e); return 0 })
+  return `site: ${queued.length} pages queued${pruned ? `, ${pruned} old screenshots removed` : ''}`
+}
+
+// Screenshot cleanup (Sean, 2026-10-23): a site keeps the screenshots of its
+// two most recent runs, so monthly audits do not pile up storage. Runs when a
+// new run starts, so the new run plus the two before it are on hand until the
+// next one. A page's latest result always keeps its screenshots, even from
+// an older run, because that is what Web Review shows. The result rows stay
+// (history and scores); only the image files go and screenshots is cleared.
+const SHOT_BUCKET = 'bcps-audit-shots'
+const KEEP_RUNS = 2
+async function pruneOldScreenshots(owner: { department_id?: string | null; school_id?: string | null }): Promise<number> {
+  const { data: rows } = await supabase.from('bcps_audit_results')
+    .select('id, run_id, site_page_id, screenshots')
+    .match(owner).not('run_id', 'is', null).not('screenshots', 'is', null)
+    .order('audited_at', { ascending: false }).limit(2000)
+  const keepRuns = new Set<string>()
+  const latestPerPage = new Set<string>()
+  const stale: { id: string; paths: string[] }[] = []
+  for (const r of rows ?? []) {
+    if (keepRuns.size < KEEP_RUNS) keepRuns.add(r.run_id as string)
+    const page = r.site_page_id as string | null
+    const isLatest = !!page && !latestPerPage.has(page)
+    if (page) latestPerPage.add(page)
+    if (keepRuns.has(r.run_id as string) || isLatest) continue
+    const shots = (r.screenshots ?? {}) as Record<string, { path?: string } | null>
+    const paths = Object.values(shots).map((x) => x?.path).filter((x): x is string => !!x)
+    stale.push({ id: r.id as string, paths })
+  }
+  let removed = 0
+  for (let i = 0; i < stale.length; i += 100) {
+    const batch = stale.slice(i, i + 100)
+    const paths = batch.flatMap((b) => b.paths)
+    if (paths.length) {
+      const { error } = await supabase.storage.from(SHOT_BUCKET).remove(paths)
+      if (error) throw error
+      removed += paths.length
+    }
+    await supabase.from('bcps_audit_results').update({ screenshots: null }).in('id', batch.map((b) => b.id))
+  }
+  return removed
 }
 
 async function runPageJob(job: Job): Promise<string> {
