@@ -47,7 +47,7 @@ export function wcmStanding(r: { cert_status: string | null; cert_due_on: string
 
 interface Profile {
   viewer: { team: boolean; wcm: boolean }
-  school: { loc_no: string; name: string; school_level: string | null; region: string | null; no_wcm: boolean; provisioned: boolean; school_id: string | null; site_url: string | null; wcm_name: string | null; wcm_email: string | null }
+  school: { loc_no: string; name: string; school_level: string | null; region: string | null; no_wcm: boolean; provisioned: boolean; school_id: string | null; audit_pilot?: boolean; site_url: string | null; wcm_name: string | null; wcm_email: string | null }
   lead: { email: string; full_name: string | null; title: string | null } | null
   contacts: { principal_name: string | null; principal_email: string | null; board_member_name: string | null; board_district: string | null; updated_at: string } | null
   history: BatchSummary[]
@@ -219,7 +219,8 @@ export default function SchoolProfileView({ loc, embedded = false }: { loc: stri
     URL.revokeObjectURL(a.href)
   }
 
-  const runButton = canScan && school.site_url && school.school_id && (
+  // Run audit shows only for schools on the audit pilot (Sean, 2026-10-26).
+  const runButton = canScan && school.site_url && school.school_id && school.audit_pilot && (
     <button type="button" className="sp-btn-primary" disabled={!!scanning} onClick={runAudit}>
       {scanning ? 'Starting…' : latest ? 'Re-run audit' : 'Run audit'}
     </button>

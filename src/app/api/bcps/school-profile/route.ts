@@ -61,13 +61,13 @@ async function identify(req: NextRequest): Promise<Caller | null> {
   return { email: (user.email || '').toLowerCase(), userId: user.id, team: role === 'admin' || role === 'superadmin' || dwt || !!bannerRes.data }
 }
 
-type School = { id: string; name: string; site_url: string | null; wcm_name: string | null; wcm_email: string | null; school_location_nbr: string | null }
+type School = { id: string; name: string; site_url: string | null; wcm_name: string | null; wcm_email: string | null; school_location_nbr: string | null; audit_pilot?: boolean }
 
 async function loadSchool(loc: string) {
   const locs = variants(loc)
   const [assignRes, schoolRes] = await Promise.all([
     svc.from('bcps_school_assignments').select('loc_no, display_name, school_level, region, lead_email, no_wcm').in('loc_no', locs).maybeSingle(),
-    svc.from('bcps_schools').select('id, name, site_url, wcm_name, wcm_email, school_location_nbr').in('school_location_nbr', locs).limit(1).maybeSingle(),
+    svc.from('bcps_schools').select('id, name, site_url, wcm_name, wcm_email, school_location_nbr, audit_pilot').in('school_location_nbr', locs).limit(1).maybeSingle(),
   ])
   return { assign: assignRes.data, school: schoolRes.data as School | null }
 }
@@ -227,6 +227,7 @@ export async function GET(req: NextRequest) {
       no_wcm: !!assign?.no_wcm,
       provisioned: !!school,
       school_id: school?.id ?? null,
+      audit_pilot: !!school?.audit_pilot,
       site_url: school?.site_url ?? null,
       wcm_name: school?.wcm_name ?? null,
       wcm_email: school?.wcm_email ?? null,

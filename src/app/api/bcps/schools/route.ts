@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await svc
     .from('bcps_schools')
-    .select('id, name, site_url, wcm_name, wcm_email, wcm_user_id, notes, school_location_nbr, created_at')
+    .select('id, name, site_url, wcm_name, wcm_email, wcm_user_id, notes, school_location_nbr, audit_pilot, created_at')
     .order('name', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
       notes,
       school_location_nbr: schoolLocationNbr,
     })
-    .select('id, name, site_url, wcm_name, wcm_email, wcm_user_id, notes, school_location_nbr, created_at')
+    .select('id, name, site_url, wcm_name, wcm_email, wcm_user_id, notes, school_location_nbr, audit_pilot, created_at')
     .single()
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })

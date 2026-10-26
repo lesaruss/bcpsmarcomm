@@ -395,6 +395,11 @@ export async function POST(req: NextRequest) {
   // this free audit instead of the WAVE page-by-page scan).
   const mayStart = ok.caller.admin || (!!owner.school_id && (await requireNamedPageGrant(req, 'ada-full-site-scan')).ok)
   if (!mayStart) return NextResponse.json({ error: 'Only the District Web Team can start a full-site audit.' }, { status: 403 })
+  // School audit pilot (Sean, 2026-10-26): only schools on the pilot list.
+  if (owner.school_id) {
+    const { data: pilot } = await supabase.from('bcps_schools').select('audit_pilot').eq('id', owner.school_id).maybeSingle()
+    if (!pilot?.audit_pilot) return NextResponse.json({ error: 'This school is not in the audit pilot yet.' }, { status: 403 })
+  }
   const col = owner.department_id ? 'department_id' : 'school_id'
   const { data: busy } = await supabase.from('bcps_audit_queue').select('id').eq(col, (owner.department_id ?? owner.school_id) as string).in('status', ['queued', 'running']).limit(1).maybeSingle()
   if (busy) return NextResponse.json({ ok: true, already: true })
