@@ -97,6 +97,17 @@ const TOP_PAGES_LIMIT = 200;
 // path segment made readable: "2024-25 School Calendar.pdf" ->
 // "2024-25 School Calendar (PDF)". The path is always shown under the name,
 // so a fallback never hides where the page lives.
+//
+// A path can carry several titles: GA4 records the translated title when a
+// visitor reads the site in another language, so the homepage arrives as both
+// "Broward County Public Schools" and "Inicio". The RAW title with the most
+// sessions is chosen BEFORE cleaning; choosing among cleaned titles let a
+// translation win whenever the English title was just the site name.
+//
+// A page that served the site's 404 is named as such, because a broken link
+// still drawing traffic is something the team needs to see, not a page
+// called "Oops! That Page Can't Be Found".
+const NOT_FOUND = /can.?t be found|page not found|^404\b/i;
 const SITE_NAME = /^(broward county public schools|browardschools|bcps|home)$/i;
 
 function cleanTitle(raw: string | undefined): string | null {
@@ -314,6 +325,7 @@ Deno.serve(async (req: Request) => {
     // A path can carry more than one title over the window (a page renamed
     // mid-month); the title with the most sessions wins.
     const topPagesBase = allPages.slice(0, TOP_PAGES_LIMIT);
+    const rawTitleByPath = new Map<string, { raw: string; sessions: number }>();
     const titleByPath = new Map<string, { title: string; sessions: number }>();
     let titleError: string | null = null;
     if (topPagesBase.length) {
@@ -328,11 +340,17 @@ Deno.serve(async (req: Request) => {
         });
         for (const r of (titleReport.rows || [])) {
           const path = r.dimensionValues[0].value as string;
-          const title = cleanTitle(r.dimensionValues[1].value);
+          const raw = (r.dimensionValues[1].value || '').trim();
           const sessions = parseInt(r.metricValues[0].value);
-          if (!title) continue;
-          const cur = titleByPath.get(path);
-          if (!cur || sessions > cur.sessions) titleByPath.set(path, { title, sessions });
+          if (!raw || raw === '(not set)') continue;
+          const cur = rawTitleByPath.get(path);
+          if (!cur || sessions > cur.sessions) rawTitleByPath.set(path, { raw, sessions });
+        }
+        for (const [path, { raw, sessions }] of rawTitleByPath) {
+          const title = NOT_FOUND.test(raw)
+            ? `${nameFromPath(path)} (page not found)`
+            : cleanTitle(raw);
+          if (title) titleByPath.set(path, { title, sessions });
         }
       } catch (err: any) {
         // Names are a nicety: a failed title lookup must not cost the sync.
