@@ -35,6 +35,21 @@ export function windowLabel(c: { start_date: string | null }, month: 'long' | 's
   return c.start_date ? `since ${fmtDate(c.start_date, month)}` : 'last 30 days'
 }
 
+// When the scan last wrote this campaign's numbers, in District time. Built
+// from parts so server and browser render the identical string (Intl puts a
+// narrow no-break space before AM/PM in some runtimes, which breaks hydration).
+export function fmtSyncedAt(iso: string): string | null {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true,
+    }).formatToParts(d).map(x => [x.type, x.value]),
+  )
+  return `${parts.month} ${parts.day}, ${parts.year} at ${parts.hour}:${parts.minute} ${parts.dayPeriod} ET`
+}
+
 export function fmt(n: number) {
   return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n)
 }
@@ -626,6 +641,12 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
       <div className="section-block" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: 0 }}>
         {tab === 'rundown' && (
           <div role="tabpanel" id="panel-rundown" aria-labelledby="tab-rundown">
+            {/* Stamped from the same row the rundown reads, so it moves on every scan. */}
+            {m?.synced_at && fmtSyncedAt(m.synced_at) && (
+              <p style={{ fontSize: 11, color: INK_MUTED, fontWeight: 600, margin: '0 0 12px' }}>
+                Last updated {fmtSyncedAt(m.synced_at)}
+              </p>
+            )}
             {notes.length ? notes.map(n => (
               <div key={n.title} style={{ background: toneBg[n.tone], borderLeft: `3px solid ${toneColor[n.tone]}`, borderRadius: '0 8px 8px 0', padding: '12px 16px', marginBottom: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: toneColor[n.tone], textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 5 }}>{n.title}</div>
