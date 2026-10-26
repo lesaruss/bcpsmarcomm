@@ -913,7 +913,10 @@ function useDocParam(): [string | null, (slug: string | null) => void] {
 // Project leads can edit it in place (Sean, 2026-10-22): Edit turns the page
 // itself editable with every section open; Save posts the page back to
 // /api/bcps/playbook-edit, which keeps the previous version first.
-function DocFrame({ slug, title, onOpen }: { slug: string; title: string; onOpen: (slug: string) => void }) {
+// Toolbar (Sean, 2026-10-26): the caller's buttons (All documents, Open full
+// page) and Edit this page share one row on top, equal widths on a phone;
+// `between` (the transcript upload bar) sits under that row, above the page.
+function DocFrame({ slug, title, onOpen, buttons, between }: { slug: string; title: string; onOpen: (slug: string) => void; buttons?: React.ReactNode; between?: React.ReactNode }) {
   const ref = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(900)
   const [canEdit, setCanEdit] = useState(false)
@@ -987,17 +990,20 @@ function DocFrame({ slug, title, onOpen }: { slug: string; title: string; onOpen
   }
   return (
     <>
-      {(canEdit || note) && (
-        <div className="home-actions" style={{ marginBottom: 8 }}>
-          {canEdit && !editing && <button type="button" className="wcm-hub2-card-btn" onClick={startEdit}>Edit this page</button>}
-          {editing && <>
-            <button type="button" className="home-btn" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
-            <button type="button" className="wcm-hub2-card-btn" onClick={cancel} disabled={saving}>Cancel</button>
-            <span className="home-hint">Editing: click into the page and type. Every section is open while you edit.</span>
-          </>}
-          {note && <span className="home-hint" role="status">{note}</span>}
-        </div>
+      <div className="doc-toolbar">
+        {!editing && buttons}
+        {canEdit && !editing && <button type="button" className="wcm-hub2-card-btn" onClick={startEdit}>Edit this page</button>}
+        {editing && <>
+          <button type="button" className="home-btn" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+          <button type="button" className="wcm-hub2-card-btn" onClick={cancel} disabled={saving}>Cancel</button>
+        </>}
+      </div>
+      {(editing || note) && (
+        <p className="home-hint doc-toolbar-note" role="status">
+          {editing ? 'Editing: click into the page and type. Every section is open while you edit.' : note}
+        </p>
       )}
+      {!editing && between}
       <iframe ref={ref} key={`${slug}-${reload}`} src={`/api/bcps/doc-raw/${encodeURIComponent(slug)}?embed=1`} title={title} onLoad={fit}
         style={{ display: 'block', width: '100%', height, border: editing ? '2px solid var(--blue, #1672A7)' : '1px solid var(--border)', borderRadius: 12, background: '#fff' }} />
     </>
@@ -1021,13 +1027,13 @@ function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'super
   if (doc) {
     return (
       <div className="home-section">
-        <div className="home-actions">
-          <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>
-          <a className="home-link-btn" href={`/api/bcps/doc-raw/${encodeURIComponent(doc)}`} target="_blank" rel="noopener noreferrer">Open full page</a>
-        </div>
-        {/* Shows only on a Playbook, and only for that project's leads (Sean, 2026-10-22). */}
-        <MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} onApplied={() => {}} />
-        <DocFrame slug={doc} title="Document" onOpen={(s) => openDoc(s)} />
+        {/* The upload bar shows only on a Playbook, and only for that project's leads (Sean, 2026-10-22). */}
+        <DocFrame slug={doc} title="Document" onOpen={(s) => openDoc(s)}
+          buttons={<>
+            <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>
+            <a className="wcm-hub2-card-btn" href={`/api/bcps/doc-raw/${encodeURIComponent(doc)}`} target="_blank" rel="noopener noreferrer">Open full page</a>
+          </>}
+          between={<MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} onApplied={() => {}} />} />
       </div>
     )
   }

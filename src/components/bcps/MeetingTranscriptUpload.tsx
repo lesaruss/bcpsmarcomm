@@ -34,12 +34,16 @@ const FIELDS: Record<Tracker, [string, string][]> = {
   marcomm: [['status', 'Status'], ['lead', 'Lead'], ['support', 'Support'], ['deadline_date', 'Date needed'], ['priority', 'Priority']],
   playbook: [],
 }
-const COPY: Record<Tracker, { label: string; help: string; summary: string; bar?: string; newItems?: string }> = {
+// barButton/oneLine: on a Playbook the bar is one short line with a short
+// button, so it never wraps to two rows on a phone (Sean, 2026-10-26).
+const COPY: Record<Tracker, { label: string; help: string; summary: string; bar?: string; barButton?: string; oneLine?: boolean; newItems?: string }> = {
   playbook: {
     label: 'Project Meeting',
     help: 'Claude reads the transcript against this Playbook and drafts the meeting notes: a summary, decisions, action items and open questions. Nothing is filed until you review it and press File. The notes are saved as a document under this Playbook.',
     summary: 'Meeting summary',
-    bar: 'Were you in a meeting about this project? File the notes from its transcript.',
+    bar: "Add this meeting's .vtt transcript.",
+    barButton: 'Upload',
+    oneLine: true,
     newItems: 'Action items',
   },
   'web-team': {
@@ -233,9 +237,9 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      <div className="mtu-bar">
+      <div className={`mtu-bar${copy.oneLine ? ' one-line' : ''}`}>
         <span>{copy.bar ?? 'Were you in a meeting? Update this tracker from its transcript.'}</span>
-        <button type="button" className="mtu-btn" onClick={() => { setOpen(true); setDone('') }}>Upload meeting transcript</button>
+        <button type="button" className="mtu-btn" onClick={() => { setOpen(true); setDone('') }}>{copy.barButton ?? 'Upload meeting transcript'}</button>
       </div>
 
       {open && (
@@ -382,6 +386,10 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
 
 const CSS = `
 .mtu-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0 10px; padding: 10px 20px; background: #fff; border: 1px solid rgba(0,0,0,0.09); border-radius: 8px; font-family: 'Montserrat', -apple-system, 'Segoe UI', sans-serif; font-size: 13px; color: rgba(26,26,26,0.7); }
+.mtu-bar.one-line { flex-wrap: nowrap; margin: 16px 0; padding: 8px 8px 8px 16px; }
+.mtu-bar.one-line > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mtu-bar.one-line .mtu-btn { flex-shrink: 0; }
+@media (max-width: 600px) { .mtu-bar.one-line { font-size: 12px; gap: 8px; padding: 6px 6px 6px 12px; } .mtu-bar.one-line .mtu-btn { padding: 8px 12px; } }
 .mtu-btn { font: inherit; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; padding: 9px 16px; border-radius: 6px; border: 1px solid #1672A7; background: #1672A7; color: #fff; cursor: pointer; }
 .mtu-btn.ghost { background: #fff; color: #0e4e73; }
 .mtu-btn:disabled { opacity: 0.5; cursor: default; }
