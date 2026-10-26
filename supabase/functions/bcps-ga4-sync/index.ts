@@ -6,7 +6,8 @@
 // feeds every number on the Analytics page. Per-campaign GA4 property,
 // whole-site "/" campaigns and start_date windows added 2026-09-25 (v21).
 // Caller check added 2026-10-05 (v24) but only in Supabase; brought back into
-// this file 2026-10-26 along with Top Pages (v25).
+// this file 2026-10-26 along with Top Pages (v25). Friendly page names for
+// Top Pages added 2026-10-26 (v26).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -86,6 +87,48 @@ const CAMPAIGN_LIMIT = 25;
 
 // Rows kept for the Top Pages tab; matches the largest page size it offers.
 const TOP_PAGES_LIMIT = 200;
+
+// Friendly name for a Top Pages row (added 2026-10-26, v26).
+//
+// Prefer the page's own <title> as GA4 recorded it, minus the site name the
+// District appends to every title ("About Us | Broward County Public
+// Schools" -> "About Us"). Files and pages GA4 has no real title for (PDFs,
+// "(not set)", a title that is just the site name) fall back to the last
+// path segment made readable: "2024-25 School Calendar.pdf" ->
+// "2024-25 School Calendar (PDF)". The path is always shown under the name,
+// so a fallback never hides where the page lives.
+const SITE_NAME = /^(broward county public schools|browardschools|bcps|home)$/i;
+
+function cleanTitle(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const t = raw.trim();
+  if (!t || t === '(not set)') return null;
+  // Drop a trailing " | Site" / " - Site" segment naming the District.
+  // The capture group keeps the separators, so a dash inside the title
+  // itself survives exactly as written.
+  const parts = t.split(/(\s+[|\u2013\u2014-]\s+)/);
+  while (parts.length > 1 && /broward|bcps/i.test(parts[parts.length - 1])) parts.splice(-2, 2);
+  const name = parts.join('').trim();
+  if (!name || SITE_NAME.test(name)) return null;
+  return name;
+}
+
+function nameFromPath(path: string): string {
+  if (path === '/' || path === '') return 'Homepage';
+  const last = path.replace(/\/+$/, '').split('/').pop() || path;
+  let seg = last;
+  try { seg = decodeURIComponent(last); } catch { /* keep raw */ }
+  const ext = seg.match(/\.([a-z0-9]{2,4})$/i);
+  if (ext) seg = seg.slice(0, -ext[0].length);
+  // A dash between digits is part of the name ("2024-25"); any other dash or
+  // underscore is a word break.
+  seg = seg.replace(/(?<!\d)[-_]+|[-_]+(?!\d)/g, ' ').replace(/\s+/g, ' ').trim();
+  // Title-case only words that are all lower case, so "2024-25" and "ESE"
+  // survive as written.
+  seg = seg.replace(/\b([a-z])([a-z]*)\b/g, (_m, a: string, b: string) => a.toUpperCase() + b);
+  if (!seg) return path;
+  return ext ? `${seg} (${ext[1].toUpperCase()})` : seg;
+}
 
 // Returns the GA4 dimensionFilter for a campaign, `undefined` for a
 // whole-site campaign, or null when nothing usable is configured.
@@ -265,7 +308,43 @@ Deno.serve(async (req: Request) => {
     // The 200 most visited individual pages, ungrouped. Read off the same
     // allPagesReport rows the programs use, which GA4 already returns sorted
     // by sessions, so every number here agrees with the other tabs.
-    const topPages = allPages.slice(0, TOP_PAGES_LIMIT);
+    //
+    // Names come from a separate pagePath x pageTitle report limited to those
+    // 200 paths, so allPagesReport (load-bearing for programs) is untouched.
+    // A path can carry more than one title over the window (a page renamed
+    // mid-month); the title with the most sessions wins.
+    const topPagesBase = allPages.slice(0, TOP_PAGES_LIMIT);
+    const titleByPath = new Map<string, { title: string; sessions: number }>();
+    let titleError: string | null = null;
+    if (topPagesBase.length) {
+      try {
+        const titleReport = await runGA4Report(accessToken, {
+          dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+          dimensions: [{ name: 'pagePath' }, { name: 'pageTitle' }],
+          metrics: [{ name: 'sessions' }],
+          dimensionFilter: { filter: { fieldName: 'pagePath', inListFilter: { values: topPagesBase.map(p => p.path) } } },
+          orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+          limit: 2000
+        });
+        for (const r of (titleReport.rows || [])) {
+          const path = r.dimensionValues[0].value as string;
+          const title = cleanTitle(r.dimensionValues[1].value);
+          const sessions = parseInt(r.metricValues[0].value);
+          if (!title) continue;
+          const cur = titleByPath.get(path);
+          if (!cur || sessions > cur.sessions) titleByPath.set(path, { title, sessions });
+        }
+      } catch (err: any) {
+        // Names are a nicety: a failed title lookup must not cost the sync.
+        // Every row still gets a path-derived name below, and the response
+        // reports the failure instead of hiding it.
+        titleError = err.message;
+      }
+    }
+    const topPages = topPagesBase.map(pg => ({
+      ...pg,
+      name: titleByPath.get(pg.path)?.title ?? nameFromPath(pg.path),
+    }));
 
     const topPrograms = (programs || []).map((p: any) => {
       const base = (p.path as string).replace(/\/$/, '');
@@ -494,6 +573,8 @@ Deno.serve(async (req: Request) => {
       departments_unmatched: topDepts.filter(d => !d.matched).map(d => d.url_slug),
       top_programs: topPrograms.length,
       top_pages: topPages.length,
+      top_pages_titled: topPages.filter(p => titleByPath.has(p.path)).length,
+      top_pages_title_error: titleError,
       programs_with_traffic: topPrograms.filter(p => p.sessions > 0).length,
       campaigns_synced: campaignResults.filter(c => !c.error && !c.skipped).length,
       campaigns: campaignResults

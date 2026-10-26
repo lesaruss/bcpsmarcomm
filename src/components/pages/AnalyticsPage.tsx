@@ -93,6 +93,12 @@ interface SubPage {
   new_users?: number
 }
 
+// name is the page's own title (or a readable fallback from its path),
+// written by bcps-ga4-sync v26. Rows synced before that carry only the path.
+interface TopPageRow extends SubPage {
+  name?: string
+}
+
 interface DeptRow {
   slug: string
   url_slug: string
@@ -136,7 +142,7 @@ interface Snapshot {
   top_project_pages?: ProgramRow[]
   // Added 2026-10-26: the 200 most visited pages, ungrouped. Absent on
   // snapshots written before then.
-  top_pages?: SubPage[]
+  top_pages?: TopPageRow[]
   traffic_sources: Record<string, number>
   synced_at: string
 }
@@ -651,7 +657,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   const prevDepts = prevSnapshot?.top_department_pages || []
 
   const q = query.trim().toLowerCase()
-  const topPages = q && activeTab === 'pages' ? allPages.filter(p => p.path.toLowerCase().includes(q)) : allPages
+  const topPages = q && activeTab === 'pages' ? allPages.filter(p => p.path.toLowerCase().includes(q) || (p.name ?? '').toLowerCase().includes(q)) : allPages
   const depts = q && activeTab === 'departments' ? allDepts.filter(d => d.name.toLowerCase().includes(q)) : allDepts
   const programs = q && activeTab === 'programs' ? allPrograms.filter(p => p.name.toLowerCase().includes(q)) : allPrograms
 
@@ -874,13 +880,16 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
               {pagedPages.map((pg, i) => (
                 <tr key={pg.path} style={{ borderBottom: '1px solid #f3f4f6' }}>
                   <td style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{pagesPage * pagesPageSize + i + 1}</td>
-                  <td style={{ padding: '10px 14px', wordBreak: 'break-all' }}>
+                  <td style={{ padding: '10px 14px' }}>
                     <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer"
                       style={{ fontSize: 12, fontWeight: 700, color: '#1672A7', textDecoration: 'none' }}
                       onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
                       onMouseOut={e => (e.currentTarget.style.textDecoration = 'none')}>
-                      {pg.path}
+                      {pg.name || pg.path}
                     </a>
+                    {pg.name && (
+                      <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2, wordBreak: 'break-all' }}>{pg.path}</div>
+                    )}
                   </td>
                   <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#1a1a1a' }}>{fmt(pg.sessions)}</td>
                   <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(pg.active_users)}</td>
