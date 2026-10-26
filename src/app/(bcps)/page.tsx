@@ -36,6 +36,7 @@ import RegistrationsPage from '@/components/pages/RegistrationsPage'
 import BannerSubmissionsPage from '@/components/pages/BannerSubmissionsPage'
 import ProudPointsPage from '@/components/pages/ProudPointsPage'
 import MySubmissionsPage from '@/components/pages/MySubmissionsPage'
+import MessagesPage from '@/components/pages/MessagesPage'
 import SchoolProfilesPage from '@/components/pages/SchoolProfilesPage'
 import { SAMPLE_SUPERADMIN_ID, type UserRole } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
@@ -145,6 +146,7 @@ function HomeInner() {
       {nav.page === 'banner-submissions'       && <BannerSubmissionsPage />}
       {nav.page === 'proud-points'             && <ProudPointsPage />}
       {nav.page === 'my-submissions'           && <MySubmissionsPage />}
+      {nav.page === 'messages'                 && <MessagesPage />}
       {nav.page === 'school-profiles'          && <SchoolProfilesPage />}
     </>
   )

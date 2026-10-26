@@ -2195,6 +2195,7 @@ interface InboxMessage {
   read_at: string | null
   admin_reply: string | null
   replied_at: string | null
+  closed_at: string | null
 }
 
 // Decisions: everything waiting on the SuperAdmin in three groups (Sean,
@@ -2235,7 +2236,7 @@ function DecisionsPanel({ th, team, onNavigate, onOpenOps, onOpenInbox }: { th: 
       </section>
       <section className="home-dcol" aria-label="Inbox">
       <h3 className="home-grp">Inbox</h3>
-      <InboxSection onOpenOps={onOpenOps} onOpenInbox={onOpenInbox} />
+      <InboxSection onOpenInbox={onOpenInbox} />
       </section>
       <section className="home-dcol" aria-label="Your tasks">
       <h3 className="home-grp">Your tasks</h3>
@@ -2287,8 +2288,11 @@ function TopTasks({ items, onNavigate }: { items: Assignment[]; onNavigate: Navi
 
 // The site inbox (wcm_pilot_feedback via /api/bcps/messages, the same one
 // Team Operations shows). Unanswered messages first; open one to read it and
-// reply in place. Voice replies and account access stay in Team Operations.
-function InboxSection({ onOpenOps, onOpenInbox }: { onOpenOps: () => void; onOpenInbox: () => void }) {
+// reply in place, or close it when it needs no reply (V, 2026-10-26). Closed
+// ones drop off this list. The whole conversation, voice replies and account
+// access are on the Messages page.
+function InboxSection({ onOpenInbox }: { onOpenInbox: () => void }) {
+  const router = useRouter()
   const [messages, setMessages] = useState<InboxMessage[] | null>(null)
   const [failed, setFailed] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -2320,12 +2324,19 @@ function InboxSection({ onOpenOps, onOpenInbox }: { onOpenOps: () => void; onOpe
     if (!m.read_at) { try { await post({ id: m.id, action: 'read' }); load() } catch { /* still readable */ } }
   }
 
+  async function close(m: InboxMessage) {
+    setSending(true); setNotice(null)
+    try { await post({ id: m.id, action: 'close' }); setOpenId(null); load() }
+    catch (e) { setNotice(e instanceof Error ? e.message : 'Could not close.') }
+    finally { setSending(false) }
+  }
+
   async function send(m: InboxMessage) {
     if (!reply.trim()) return
     setSending(true); setNotice(null)
     try {
       const j = await post({ id: m.id, action: 'reply', reply_text: reply.trim() })
-      setNotice(j.warning ? `Saved, but not emailed: ${j.warning}` : 'Reply sent.')
+      setNotice(j.warning ? `Saved, but not emailed: ${j.warning}` : `Sent. Emailed to ${m.email} and shown in their Messages.`)
       setReply(''); load()
     } catch (e) { setNotice(e instanceof Error ? e.message : 'Could not send.') }
     finally { setSending(false) }
@@ -2338,7 +2349,7 @@ function InboxSection({ onOpenOps, onOpenInbox }: { onOpenOps: () => void; onOpe
   )
   if (failed) return <div className="home-dept home-dbox"><div className="home-dscroll"><p className="home-card-text">The inbox could not load right now.</p></div>{foot}</div>
   if (!messages) return <div className="home-dept home-dbox"><div className="home-dscroll"><p className="home-card-text">Loading your inbox...</p></div>{foot}</div>
-  const sorted = [...messages].sort((a, b) => Number(!!a.replied_at) - Number(!!b.replied_at) || b.created_at.localeCompare(a.created_at))
+  const sorted = messages.filter((m) => !m.closed_at).sort((a, b) => Number(!!a.replied_at) - Number(!!b.replied_at) || b.created_at.localeCompare(a.created_at))
   const waiting = sorted.filter((m) => !m.replied_at).length
   const shown = all ? sorted : sorted.slice(0, 6)
   return (
@@ -2364,7 +2375,8 @@ function InboxSection({ onOpenOps, onOpenInbox }: { onOpenOps: () => void; onOpe
               <textarea id={`reply-${m.id}`} rows={3} value={reply} onChange={(e) => setReply(e.target.value)} placeholder={m.email ? `Reply to ${m.email}` : 'Reply'} />
               <div className="home-actions home-actions-tight">
                 <button type="button" className="home-btn" disabled={sending || !reply.trim() || !m.email} onClick={() => send(m)}>{sending ? 'Sending...' : 'Send reply'}</button>
-                <button type="button" className="wcm-hub2-card-btn" onClick={onOpenOps}>Voice reply or account access</button>
+                <button type="button" className="wcm-hub2-card-btn" disabled={sending} onClick={() => close(m)}>Close, no reply needed</button>
+                <button type="button" className="wcm-hub2-card-btn" onClick={() => router.push(`/?page=messages&thread=${m.id}`)}>Open conversation</button>
                 {notice && <span className="home-hint">{notice}</span>}
               </div>
             </div>
@@ -2386,11 +2398,8 @@ function DepartmentsPanel({ onNavigate, depts }: { onNavigate: Navigate; depts?:
 function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, page }: { data: HomeData; onNavigate: Navigate; viewAsUserId?: string; preview?: boolean; onShowToast?: (msg: string) => void; page?: React.ReactNode }) {
   const router = useRouter()
   const [tab, setTab] = useHomeTab()
-  // The full inbox lives in Team Operations (voice replies, account access).
-  const openInbox = () => {
-    setTab('ops')
-    setTimeout(() => document.getElementById('dashboard-messages-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400)
-  }
+  // The full inbox is the Messages page (V, 2026-10-26).
+  const openInbox = () => router.push('/?page=messages')
   const th = data.team_home!
   const p = th.program
   const decisions = (th.decisions?.roster_pending.length ?? 0) + th.banners.pending + (th.proud_points?.pending ?? 0) + (data.team?.messages_unread ?? 0) + (data.team?.access_requests ?? 0)

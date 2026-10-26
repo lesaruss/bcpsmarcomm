@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
+import { INBOX_NOTIFY_EMAILS, conversationUrl } from '@/lib/site-inbox'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,7 @@ const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 
 // Recipients for every new report, per Sean 2026-07-29: immediate email on
 // every submission for now (no digest yet - revisit if volume grows).
-const NOTIFY_EMAILS = ['sean.russell@browardschools.com', 'felicia.hicks@browardschools.com']
+const NOTIFY_EMAILS = INBOX_NOTIFY_EMAILS
 
 // Stores site-wide "report an issue" submissions (bugs, confusion,
 // suggestions) from the SiteFeedback widget, replacing Teams/email per
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
         <p><strong>From:</strong> ${emailToStore || 'not identified'}</p>
         <p><strong>Message:</strong></p>
         <p style="white-space:pre-wrap">${safeMessage}</p>
-        <p><a href="https://bcpsmarcomm.com/bcps?page=dashboard">Open in dashboard</a></p>
+        <p><a href="${conversationUrl(inserted.id)}">Open in Messages</a></p>
       `,
     })
 
