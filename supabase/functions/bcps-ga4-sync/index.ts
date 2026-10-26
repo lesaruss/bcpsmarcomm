@@ -5,6 +5,8 @@
 // only in Supabase until then, so there was no history for a function that
 // feeds every number on the Analytics page. Per-campaign GA4 property,
 // whole-site "/" campaigns and start_date windows added 2026-09-25 (v21).
+// Caller check added 2026-10-05 (v24) but only in Supabase; brought back into
+// this file 2026-10-26 along with Top Pages (v25).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -82,6 +84,9 @@ async function runGA4Report(accessToken: string, body: object, propertyId: strin
 // own dimension only, so none of them sum to the window total.
 const CAMPAIGN_LIMIT = 25;
 
+// Rows kept for the Top Pages tab; matches the largest page size it offers.
+const TOP_PAGES_LIMIT = 200;
+
 // Returns the GA4 dimensionFilter for a campaign, `undefined` for a
 // whole-site campaign, or null when nothing usable is configured.
 //
@@ -111,9 +116,30 @@ function campaignPathFilter(paths: string[], includeSubpages: boolean) {
   return { orGroup: { expressions } };
 }
 
-Deno.serve(async (_req: Request) => {
+// Who may run a sync (2026-10-05, service key rotation). This used to rely on
+// the gateway's verify_jwt, which accepts ANY valid project JWT (even the
+// public anon key) and rejects the new sb_secret_ keys. The function now runs
+// with verify_jwt off and checks the caller itself: the bearer must be the
+// project service key, either the one Supabase injects here or the current
+// copy in lesaruss_secrets.SUPABASE_SERVICE_ROLE_KEY. The HQ Key Room updates
+// that copy and the callers' Vercel env (LESARUSS_SUPABASE_SERVICE_KEY in
+// bcpsmarcomm and k12-unlocked) together, so a rotation never locks them out.
+async function callerAllowed(req: Request, supabase: ReturnType<typeof createClient>): Promise<boolean> {
+  const sent = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!sent) return false;
+  if (SUPABASE_SERVICE_KEY && sent === SUPABASE_SERVICE_KEY) return true;
+  const { data } = await supabase.from('lesaruss_secrets').select('value').eq('key', 'SUPABASE_SERVICE_ROLE_KEY').maybeSingle();
+  return !!data?.value && sent === data.value;
+}
+
+Deno.serve(async (req: Request) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    if (!(await callerAllowed(req, supabase))) {
+      return new Response(JSON.stringify({ success: false, error: 'unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     const { data: secretRows, error: secretErr } = await supabase
       .from('lesaruss_secrets').select('value').eq('key', 'GA4_SERVICE_ACCOUNT_BCPS').single();
@@ -235,6 +261,12 @@ Deno.serve(async (_req: Request) => {
       avg_session_duration: parseFloat(r.metricValues[3].value),
     }));
 
+    // ---- Top Pages (added 2026-10-26) ----
+    // The 200 most visited individual pages, ungrouped. Read off the same
+    // allPagesReport rows the programs use, which GA4 already returns sorted
+    // by sessions, so every number here agrees with the other tabs.
+    const topPages = allPages.slice(0, TOP_PAGES_LIMIT);
+
     const topPrograms = (programs || []).map((p: any) => {
       const base = (p.path as string).replace(/\/$/, '');
       const matched = allPages.filter(pg => pg.path === base || pg.path.startsWith(base + '/'));
@@ -261,6 +293,7 @@ Deno.serve(async (_req: Request) => {
       period,
       top_department_pages: topDepts,
       top_program_pages: topPrograms,
+      top_pages: topPages,
       top_school_pages: [],
       top_project_pages: [],
       traffic_sources: trafficSources,
@@ -460,6 +493,7 @@ Deno.serve(async (_req: Request) => {
       departments_matched: topDepts.filter(d => d.matched).length,
       departments_unmatched: topDepts.filter(d => !d.matched).map(d => d.url_slug),
       top_programs: topPrograms.length,
+      top_pages: topPages.length,
       programs_with_traffic: topPrograms.filter(p => p.sessions > 0).length,
       campaigns_synced: campaignResults.filter(c => !c.error && !c.skipped).length,
       campaigns: campaignResults

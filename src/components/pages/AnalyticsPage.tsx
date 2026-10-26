@@ -134,6 +134,9 @@ interface Snapshot {
   top_department_pages: DeptRow[]
   top_program_pages?: ProgramRow[]
   top_project_pages?: ProgramRow[]
+  // Added 2026-10-26: the 200 most visited pages, ungrouped. Absent on
+  // snapshots written before then.
+  top_pages?: SubPage[]
   traffic_sources: Record<string, number>
   synced_at: string
 }
@@ -481,7 +484,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'departments' | 'programs' | 'sources'>('departments')
+  const [activeTab, setActiveTab] = useState<'pages' | 'campaigns' | 'departments' | 'programs' | 'sources'>('pages')
 
   // Campaigns
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
@@ -502,10 +505,12 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
 
-  // Search (per tab, departments + programs only)
+  // Search (per tab, pages + departments + programs)
   const [query, setQuery] = useState('')
 
   // Pagination
+  const [pagesPage, setPagesPage] = useState(0)
+  const [pagesPageSize, setPagesPageSize] = useState(25)
   const [deptPage, setDeptPage] = useState(0)
   const [deptPageSize, setDeptPageSize] = useState(10)
   const [progPage, setProgPage] = useState(0)
@@ -606,7 +611,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   }, [onShowToast])
 
   // Reset paging + search when switching tabs
-  useEffect(() => { setQuery(''); setDeptPage(0); setProgPage(0) }, [activeTab])
+  useEffect(() => { setQuery(''); setPagesPage(0); setDeptPage(0); setProgPage(0) }, [activeTab])
 
   const handleApplyCustom = useCallback(() => {
     if (customFrom && customTo) {
@@ -640,14 +645,18 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   const toggleDept = toggle(setExpandedDepts)
   const toggleProgram = toggle(setExpandedPrograms)
 
+  const allPages = snapshot?.top_pages || []
   const allDepts = snapshot?.top_department_pages || []
   const allPrograms = snapshot?.top_program_pages || snapshot?.top_project_pages || []
   const prevDepts = prevSnapshot?.top_department_pages || []
 
   const q = query.trim().toLowerCase()
+  const topPages = q && activeTab === 'pages' ? allPages.filter(p => p.path.toLowerCase().includes(q)) : allPages
   const depts = q && activeTab === 'departments' ? allDepts.filter(d => d.name.toLowerCase().includes(q)) : allDepts
   const programs = q && activeTab === 'programs' ? allPrograms.filter(p => p.name.toLowerCase().includes(q)) : allPrograms
 
+  const matchCount = activeTab === 'pages' ? topPages.length : activeTab === 'departments' ? depts.length : programs.length
+  const pagedPages = topPages.slice(pagesPage * pagesPageSize, (pagesPage + 1) * pagesPageSize)
   const pagedDepts = depts.slice(deptPage * deptPageSize, (deptPage + 1) * deptPageSize)
   const pagedPrograms = programs.slice(progPage * progPageSize, (progPage + 1) * progPageSize)
 
@@ -762,6 +771,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
         {([
+          ['pages', 'Top Pages'],
           ['departments', 'Top Departments'],
           ['programs', 'Programs & Services'],
           ['sources', 'Traffic Sources'],
@@ -828,20 +838,61 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
         </div>
       )}
 
-      {/* Per-tab search (departments + programs only) */}
-      {(activeTab === 'departments' || activeTab === 'programs') && (
+      {/* Per-tab search (pages + departments + programs) */}
+      {(activeTab === 'pages' || activeTab === 'departments' || activeTab === 'programs') && (
         <div style={{ marginBottom: 16 }}>
           <input
             type="text"
             value={query}
-            onChange={e => { setQuery(e.target.value); setDeptPage(0); setProgPage(0) }}
-            placeholder={activeTab === 'departments' ? 'Search departments...' : 'Search programs & services...'}
+            onChange={e => { setQuery(e.target.value); setPagesPage(0); setDeptPage(0); setProgPage(0) }}
+            placeholder={activeTab === 'pages' ? 'Search pages...' : activeTab === 'departments' ? 'Search departments...' : 'Search programs & services...'}
             style={{ width: '100%', maxWidth: 360, fontSize: 12, fontFamily: 'Montserrat, sans-serif', padding: '8px 12px', border: '1px solid rgba(0,0,0,0.15)', borderRadius: 8, outline: 'none', color: '#1a1a1a' }}
           />
           {q && (
             <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 10 }}>
-              {(activeTab === 'departments' ? depts.length : programs.length)} match{(activeTab === 'departments' ? depts.length : programs.length) === 1 ? '' : 'es'}
+              {matchCount} match{matchCount === 1 ? '' : 'es'}
             </span>
+          )}
+        </div>
+      )}
+
+      {/* Top Pages Tab */}
+      {activeTab === 'pages' && (
+        <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+                {['#', 'Page', 'Total Sessions', 'Active Users', 'Engagement', 'Avg Duration'].map(h => (
+                  <th key={h} style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#94a3b8', textAlign: h === '#' ? 'center' : 'left', padding: '10px 14px' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {topPages.length === 0 && (
+                <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>{allPages.length === 0 ? `No page data yet.${syncHint}` : 'No pages match your search.'}</td></tr>
+              )}
+              {pagedPages.map((pg, i) => (
+                <tr key={pg.path} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{pagesPage * pagesPageSize + i + 1}</td>
+                  <td style={{ padding: '10px 14px', wordBreak: 'break-all' }}>
+                    <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 12, fontWeight: 700, color: '#1672A7', textDecoration: 'none' }}
+                      onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
+                      onMouseOut={e => (e.currentTarget.style.textDecoration = 'none')}>
+                      {pg.path}
+                    </a>
+                  </td>
+                  <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#1a1a1a' }}>{fmt(pg.sessions)}</td>
+                  <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(pg.active_users)}</td>
+                  <td style={{ padding: '10px 14px', minWidth: 120 }}><EngagementBar rate={pg.engagement_rate} /></td>
+                  <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#555' }}>{fmtTime(pg.avg_session_duration)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {topPages.length > 0 && (
+            <PaginationBar total={topPages.length} pageSize={pagesPageSize} page={pagesPage}
+              onPageSize={setPagesPageSize} onPage={setPagesPage} />
           )}
         </div>
       )}
