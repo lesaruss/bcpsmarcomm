@@ -36,6 +36,7 @@ export type PageId =
   | 'school-profiles'
   | 'wcm-roster'
   | 'marcomm-assignments'
+  | 'messages'
 
 // MarComm Assignments' own address (Sean, 2026-10-20); every link to the page
 // goes here rather than to /?page=marcomm-assignments or a dashboard tab.

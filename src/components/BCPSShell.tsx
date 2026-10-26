@@ -96,6 +96,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'banner-submissions':     { title: 'Banner Submissions',    sub: 'School Homepage Banners' },
   'proud-points':           { title: 'Proud Points',          sub: 'School Homepage Highlights' },
   'my-submissions':         { title: 'Your Submissions',      sub: 'Banners & Proud Points' },
+  messages:                 { title: 'Messages',              sub: 'Inbox & Conversations' },
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────
@@ -239,11 +240,13 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true }
   }, [viewAs])
 
-  // Notification bell: unread count of site reports (wcm_pilot_feedback),
-  // admin/superadmin inbox per Sean 2026-07-29. Poll every 45s so the bell
-  // reflects new reports without a full page reload.
+  // Notification bell: unread count from the site inbox (wcm_pilot_feedback),
+  // per Sean 2026-07-29. Since V, 2026-10-26 every signed-in account has a
+  // bell: staff count unread messages, a member counts unread replies in
+  // their own conversations (the route decides which). Polls every 45s so
+  // the bell catches up without a full page reload.
   useEffect(() => {
-    if (!canManageMessages) { setUnreadMessages(0); return }
+    if (!selfEmail) { setUnreadMessages(0); return }
     let cancelled = false
     async function poll() {
       const token = tokenRef.current
@@ -258,13 +261,12 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
     poll()
     const interval = setInterval(poll, 45000)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [canManageMessages])
+  }, [selfEmail, canManageMessages, pathname, searchParams])
 
+  // The bell opens Messages, its own page (V, 2026-10-26), not a panel on
+  // the dashboard.
   const handleBellClick = useCallback(() => {
-    router.push('/?page=dashboard', { scroll: false })
-    setTimeout(() => {
-      document.getElementById('dashboard-messages-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 250)
+    router.push('/?page=messages', { scroll: false })
   }, [router])
 
   // Active page: cert routes and department route use pathname; others read ?page=
@@ -315,7 +317,9 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
     // eventual-consistency lag right after a new page is registered (also true
     // for the pre-existing Minibase page, which isn't in acl_objects either).
     const roleGated = role === 'superadmin' && SUPERADMIN_PAGES.has(activePage)
-    if (!pathRouted && activePage !== 'dashboard' && !allowedPages.includes(activePage) && !roleGated) {
+    // Messages is open to every signed-in account; the route itself limits
+    // a non-staff viewer to their own conversations (V, 2026-10-26).
+    if (!pathRouted && activePage !== 'dashboard' && activePage !== 'messages' && !allowedPages.includes(activePage) && !roleGated) {
       router.replace('/?page=dashboard', { scroll: false })
     }
   }, [allowedPages, activePage, pathname, viewAs, router])
@@ -405,10 +409,11 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
               <div className="topbar-search">
                 <input type="text" placeholder="Search..." className="search-input" />
               </div>
-              {canManageMessages && (
+              {selfEmail && (
                 <button
                   className="topbar-notif"
-                  title={unreadMessages > 0 ? `${unreadMessages} unread message${unreadMessages === 1 ? '' : 's'}` : 'Notifications'}
+                  aria-label={unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'}
+                  title={unreadMessages > 0 ? `${unreadMessages} unread message${unreadMessages === 1 ? '' : 's'}` : 'Messages'}
                   onClick={handleBellClick}
                   style={{
                     position: 'relative', background: 'none',

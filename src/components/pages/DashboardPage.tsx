@@ -112,6 +112,7 @@ interface SiteMessage {
   replied_at: string | null
   notify_error: string | null
   user_id: string | null
+  closed_at: string | null
 }
 
 interface DeptDetail {
@@ -298,12 +299,6 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   const { canManageMessages } = useBCPSShell()
   const [messages, setMessages] = useState<SiteMessage[]>([])
   const [messagesLoading, setMessagesLoading] = useState(true)
-  const [openMessage, setOpenMessage] = useState<SiteMessage | null>(null)
-  const [replyText, setReplyText] = useState('')
-  const [replySending, setReplySending] = useState(false)
-  const [replyNotice, setReplyNotice] = useState<string | null>(null)
-  const [accessRequesting, setAccessRequesting] = useState(false)
-  const [accessNotice, setAccessNotice] = useState<string | null>(null)
   const [accessRequests, setAccessRequests] = useState<Array<{ id: string; target_name: string; status: string; requested_at: string; approved_at: string | null }>>([])
 
   // Dashboard grid layout (order + span per widget), per Sean 2026-08-29.
@@ -408,19 +403,6 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
   const [docMode, setDocMode] = useState<'newest' | 'favorites'>('newest')
   const profileRef = useRef<HTMLDivElement | null>(null)
 
-  // Voice input for replies (per Sean, 2026-07-29): admins are trusted
-  // professionals, so unlike GeekFon's Passport/Plus dictate-vs-record
-  // tier gate, both tools are just offered outright, no gate at all.
-  const [dictating, setDictating] = useState(false)
-  const [recording, setRecording] = useState(false)
-  const [micMenuOpen, setMicMenuOpen] = useState(false)
-  const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null)
-  const [voiceUrl, setVoiceUrl] = useState<string | null>(null)
-  const recognitionRef = useRef<any>(null)
-  const dictationBaseRef = useRef('')
-  const finalTranscriptRef = useRef('')
-  const recorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
 
   useEffect(() => {
     const supabase = createClient()
@@ -667,168 +649,10 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
     profileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  async function openAndMarkRead(msg: SiteMessage) {
-    setOpenMessage(msg)
-    setReplyText('')
-    setReplyNotice(null)
-    setAccessNotice(null)
-    if (!msg.read_at) {
-      const supabase = createClient()
-      const token = (await supabase.auth.getSession()).data.session?.access_token
-      if (!token) return
-      await fetch('/api/bcps/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: msg.id, action: 'read' }),
-      })
-      loadMessages()
-    }
-  }
-
-  function blobToBase64(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(blob)
-    })
-  }
-
-  async function sendReply() {
-    if (!openMessage || (!replyText.trim() && !voiceBlob)) return
-    setReplySending(true)
-    setReplyNotice(null)
-    try {
-      const supabase = createClient()
-      const token = (await supabase.auth.getSession()).data.session?.access_token
-      if (!token) return
-      const audio_base64 = voiceBlob ? await blobToBase64(voiceBlob) : undefined
-      const r = await fetch('/api/bcps/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: openMessage.id, action: 'reply', reply_text: replyText.trim(), audio_base64 }),
-      })
-      const j = await r.json()
-      if (!r.ok) throw new Error(j.error || 'Could not send reply.')
-      setReplyNotice(j.warning ? `Saved, but not emailed: ${j.warning}` : 'Reply sent.')
-      setReplyText('')
-      discardVoice()
-      loadMessages()
-    } catch (e: any) {
-      setReplyNotice(e.message || 'Something went wrong.')
-    } finally {
-      setReplySending(false)
-    }
-  }
-
-  // Dictation (Web Speech API): transcribes straight into the reply
-  // textarea. Only walks NEW results starting at e.resultIndex - this is
-  // the same fix already shipped on GeekFon's comment box (2026-07-28),
-  // walking from 0 every event in continuous mode re-adds committed text.
-  function startDictation() {
-    const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognitionCtor) {
-      setReplyNotice("Dictation isn't supported in this browser yet. Try typing, or use Chrome/Safari.")
-      return
-    }
-    dictationBaseRef.current = replyText ? replyText.trim() + ' ' : ''
-    finalTranscriptRef.current = ''
-    const recognition = new SpeechRecognitionCtor()
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.lang = 'en-US'
-    recognition.onresult = (e: any) => {
-      let interimText = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const transcript = e.results[i][0].transcript
-        if (e.results[i].isFinal) finalTranscriptRef.current += transcript + ' '
-        else interimText += transcript
-      }
-      setReplyText((dictationBaseRef.current + finalTranscriptRef.current).trimStart() + (interimText ? '…' + interimText : ''))
-    }
-    recognition.onerror = () => setDictating(false)
-    recognition.onend = () => {
-      setDictating(false)
-      setReplyText((dictationBaseRef.current + finalTranscriptRef.current).trimStart())
-    }
-    recognitionRef.current = recognition
-    recognition.start()
-    setDictating(true)
-  }
-
-  function stopDictation() {
-    recognitionRef.current?.stop()
-  }
-
-  // Voice-note recording (MediaRecorder): a real recorded clip, uploaded
-  // on send and attached to the outgoing email as a link, same tool
-  // GeekFon uses for its Plus/Pro voice comments - just no tier gate here.
-  async function startRecording() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setReplyNotice("Voice notes need microphone access, which isn't available here.")
-      return
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      chunksRef.current = []
-      const rec = new MediaRecorder(stream)
-      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
-      rec.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop())
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-        setVoiceBlob(blob)
-        setVoiceUrl(URL.createObjectURL(blob))
-        setRecording(false)
-      }
-      rec.start()
-      recorderRef.current = rec
-      setRecording(true)
-    } catch {
-      setReplyNotice('Microphone access was blocked or unavailable.')
-    }
-  }
-
-  function stopRecording() {
-    recorderRef.current?.stop()
-  }
-
-  function discardVoice() {
-    setVoiceBlob(null)
-    setVoiceUrl(null)
-  }
-
-  function handleMicClick() {
-    if (recording) { stopRecording(); return }
-    if (dictating) { stopDictation(); return }
-    setMicMenuOpen((v) => !v)
-  }
-
-  async function requestAccess() {
-    if (!openMessage) return
-    setAccessRequesting(true)
-    setAccessNotice(null)
-    try {
-      const supabase = createClient()
-      const token = (await supabase.auth.getSession()).data.session?.access_token
-      if (!token) return
-      const r = await fetch('/api/bcps/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: openMessage.id, action: 'request_access' }),
-      })
-      const j = await r.json()
-      if (!r.ok) throw new Error(j.error || 'Could not request access.')
-      if (j.already) {
-        setAccessNotice(j.status === 'approved' ? 'Access already granted for this person.' : 'A request is already pending with them.')
-      } else {
-        setAccessNotice(j.warning ? `Request saved, but not emailed: ${j.warning}` : 'Access request sent to them by email.')
-      }
-      loadAccessRequests()
-    } catch (e: any) {
-      setAccessNotice(e.message || 'Something went wrong.')
-    } finally {
-      setAccessRequesting(false)
-    }
+  // A message opens on the Messages page (V, 2026-10-26), where replies,
+  // voice notes, closing and account access now live.
+  function openMessage(msg: SiteMessage) {
+    router.push(`/?page=messages&thread=${msg.id}`)
   }
 
   // Which widgets are eligible to render at all right now (independent of
@@ -1095,17 +919,16 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
             // canManageMessages (bcps role admin or superadmin), not the
             // Sidebar's binary superadmin/user role. Click a message to
             // read it (marks read) and reply inline - the reply emails the
-            // reporter directly if we have their address.
+            // reporter directly if we have their address. Since V,
+            // 2026-10-26 a click opens the conversation on Messages.
             case 'messages':
               return dashCell('messages', (
                 <div className="dash-panel" id="dashboard-messages-panel">
                   <div className="dash-panel-header">
                     <h3>Recent Messages</h3>
-                    {messages.length > 0 && (
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {messages.filter(m => !m.read_at).length} unread
-                      </span>
-                    )}
+                    <button className="link-btn" onClick={() => onNavigate('messages')}>
+                      {messages.filter(m => !m.read_at && !m.closed_at).length} unread &middot; Open inbox &rarr;
+                    </button>
                   </div>
                   <div className="note-list">
                     {messagesLoading ? (
@@ -1115,7 +938,7 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                     ) : messages.slice(0, 6).map((m) => (
                       <button
                         key={m.id}
-                        onClick={() => openAndMarkRead(m)}
+                        onClick={() => openMessage(m)}
                         style={{
                           display: 'block', width: '100%', textAlign: 'left', background: 'none',
                           border: 'none', borderBottom: '1px solid var(--border)', padding: '10px 0',
@@ -1131,7 +954,9 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
                           </span>
                           <span className="dot">&middot;</span>
                           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{relativeTime(m.created_at)}</span>
-                          {m.status === 'replied' && (
+                          {m.closed_at ? (
+                            <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Closed</span>
+                          ) : m.replied_at && (
                             <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 800, color: '#16750C', textTransform: 'uppercase' }}>Replied</span>
                           )}
                         </div>
@@ -1652,127 +1477,6 @@ export default function DashboardPage({ onNavigate, viewAsUserId }: DashboardPag
         </div>
       )}
 
-      {openMessage && (
-        <div onClick={() => setOpenMessage(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 1000 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, maxWidth: 560, width: '100%', maxHeight: '85vh', overflow: 'auto', padding: 28 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{openMessage.email || 'Not identified'}</h2>
-              <button onClick={() => setOpenMessage(null)} style={{ background: 'none', border: 'none', fontSize: 24, lineHeight: 1, cursor: 'pointer' }} aria-label="Close">&times;</button>
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', margin: '6px 0 16px' }}>
-              {openMessage.page ? `${openMessage.page} · ` : ''}{relativeTime(openMessage.created_at)}
-            </div>
-            <p style={{ fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: '0 0 20px' }}>{openMessage.message}</p>
-
-            {(openMessage.admin_reply || openMessage.admin_reply_audio_url) && (
-              <div style={{ background: 'var(--bg, #f5f5f5)', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                  Your reply{openMessage.replied_at ? ` · ${relativeTime(openMessage.replied_at)}` : ''}
-                </div>
-                {openMessage.admin_reply && (
-                  <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{openMessage.admin_reply}</div>
-                )}
-                {openMessage.admin_reply_audio_url && (
-                  <audio controls src={openMessage.admin_reply_audio_url} style={{ height: 32, width: '100%', marginTop: openMessage.admin_reply ? 8 : 0 }} />
-                )}
-              </div>
-            )}
-
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-              {openMessage.admin_reply ? 'Send another reply' : 'Reply'}
-            </label>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, position: 'relative' }}>
-              <textarea
-                value={replyText}
-                onChange={e => setReplyText(e.target.value)}
-                rows={4}
-                placeholder={openMessage.email ? `Reply to ${openMessage.email}...` : 'No email on file — this will be saved but not sent.'}
-                style={{ flex: 1, width: '100%', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
-              />
-              {/* Dictation + voice-note recording, per Sean 2026-07-29: same
-                  tool as GeekFon's comment box, but no dictate/record gate -
-                  admins get both outright. */}
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-                <button
-                  type="button"
-                  onClick={handleMicClick}
-                  aria-label="Dictate or record a voice reply"
-                  title="Dictate or record a voice reply"
-                  style={{
-                    width: 36, height: 36, borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: recording || dictating ? 'none' : '1px solid var(--border)',
-                    background: recording || dictating ? '#c0392b' : '#fff',
-                    color: recording || dictating ? '#fff' : 'var(--text-muted)',
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" />
-                  </svg>
-                </button>
-                {micMenuOpen && (
-                  <div style={{ position: 'absolute', bottom: 44, right: 0, background: '#fff', border: '1px solid var(--border)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,.14)', padding: 6, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 180, zIndex: 5 }}>
-                    <button type="button" onClick={() => { setMicMenuOpen(false); startDictation() }} style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: 'var(--text)', background: 'none', border: 'none', borderRadius: 8, padding: '9px 10px', cursor: 'pointer', textAlign: 'left', whiteSpace: 'nowrap' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h10M4 18h7" /></svg>
-                      Dictate
-                    </button>
-                    <button type="button" onClick={() => { setMicMenuOpen(false); startRecording() }} style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: 'var(--text)', background: 'none', border: 'none', borderRadius: 8, padding: '9px 10px', cursor: 'pointer', textAlign: 'left', whiteSpace: 'nowrap' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /></svg>
-                      Record voice note
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-            {(dictating || recording) && (
-              <p style={{ fontSize: 11.5, color: '#c0392b', fontWeight: 700, margin: '6px 0 0' }}>
-                {dictating ? 'Listening…' : 'Recording…'} Click the mic to stop.
-              </p>
-            )}
-            {voiceUrl && !recording && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg, #f5f5f5)', border: '1px solid var(--border)', borderRadius: 100, padding: '6px 8px 6px 14px', marginTop: 8 }}>
-                <audio controls src={voiceUrl} style={{ height: 32, flex: 1, minWidth: 0 }} />
-                <button type="button" onClick={discardVoice} title="Discard" style={{ width: 26, height: 26, borderRadius: '50%', border: 'none', background: 'none', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 6l12 12M18 6L6 18" /></svg>
-                </button>
-              </div>
-            )}
-            {replyNotice && (
-              <p style={{ fontSize: 12.5, color: replyNotice.startsWith('Reply sent') ? '#16750C' : '#c0392b', margin: '8px 0 0' }}>{replyNotice}</p>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-              <button
-                onClick={sendReply}
-                disabled={replySending || (!replyText.trim() && !voiceBlob)}
-                style={{ padding: '10px 20px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: replySending ? 'default' : 'pointer', opacity: replySending || (!replyText.trim() && !voiceBlob) ? 0.6 : 1 }}
-              >
-                {replySending ? 'Sending...' : 'Send Reply'}
-              </button>
-
-              {/* Request Access: only offered when this report is tied to a
-                  real account (user_id) - per Sean 2026-07-29, this only
-                  ever fires off a specific ticket, never a standing button
-                  on every member's profile. Sends them a read-only,
-                  member-approved access request by email; nothing is
-                  visible until they say yes. Positioned right, Reply left,
-                  per Sean 2026-07-29. */}
-              {openMessage.user_id && (
-                <button
-                  onClick={requestAccess}
-                  disabled={accessRequesting}
-                  style={{ padding: '10px 20px', background: '#fff', color: 'var(--primary)', border: '1.5px solid var(--primary)', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: accessRequesting ? 'default' : 'pointer', opacity: accessRequesting ? 0.6 : 1 }}
-                >
-                  {accessRequesting ? 'Requesting...' : 'Request Access'}
-                </button>
-              )}
-            </div>
-            {accessNotice && (
-              <p style={{ fontSize: 12.5, color: accessNotice.includes('sent') || accessNotice.includes('already') ? '#16750C' : '#c0392b', margin: '8px 0 0' }}>{accessNotice}</p>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
