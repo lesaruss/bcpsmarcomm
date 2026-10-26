@@ -52,12 +52,14 @@ export async function GET(req: NextRequest) {
 
   const { data: school, error } = await svc
     .from('bcps_schools')
-    .select('id, name, site_url')
+    .select('id, name, site_url, audit_pilot')
     .eq('id', schoolId)
     .maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!school) return NextResponse.json({ error: 'School not found' }, { status: 404 })
+  // School audit pilot (Sean, 2026-10-26): full-site scans only for pilot schools.
+  if (!school.audit_pilot) return NextResponse.json({ error: `${school.name} is not in the audit pilot yet.` }, { status: 403 })
   if (!school.site_url) return NextResponse.json({ error: `${school.name} has no website URL on file yet. Add one on the School ADA Accounts page first.` }, { status: 400 })
 
   const discovery = await discoverSchoolPages(school.site_url)

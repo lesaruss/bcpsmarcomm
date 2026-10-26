@@ -25,7 +25,7 @@ interface Row {
   lead_email: string | null
   no_wcm: boolean
 }
-interface Provisioned { id: string; school_location_nbr: string | null; site_url: string | null; wcm_name: string | null; wcm_email: string | null }
+interface Provisioned { id: string; school_location_nbr: string | null; site_url: string | null; wcm_name: string | null; wcm_email: string | null; audit_pilot?: boolean }
 type Score = SchoolScore
 // The site audit (the School Profile's Web Review) for a school, from
 // /api/bcps/school-scores (2026-10-23).
@@ -281,7 +281,7 @@ export default function SchoolsPage() {
                   </div>
                   <div className="sv-audit-actions">
                     {r.a && <a className="sv-action ghost" href={`/school?loc=${encodeURIComponent(r.loc_no)}&tab=review`}>View audit results</a>}
-                    {canScan && r.p?.site_url && (
+                    {canScan && r.p?.site_url && r.p.audit_pilot && (
                       <button type="button" className="sv-action" disabled={!!scanning} onClick={() => runAudit(r.loc_no, r.p!.id)}>
                         {scanning?.loc === r.loc_no ? 'Starting…' : r.a ? 'Re-run audit' : 'Run audit'}
                       </button>
