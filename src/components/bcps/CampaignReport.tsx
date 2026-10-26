@@ -564,7 +564,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
     m?.new_users != null ? `New visitors: ${m.new_users}` : '',
     (m?.channels ?? []).length ? `Top source: ${m!.channels[0].name}` : '',
     '',
-    m ? `Source: GA4, ${windowLabel(campaign, 'long')}. Pulled ${new Date(m.synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.` : 'No data pulled yet.',
+    m ? `Source: GA4, ${windowLabel(campaign, 'long')}. Pulled ${new Date(m.synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' })}.` : 'No data pulled yet.',
   ].filter(Boolean).join('\n')
 
   const toneColor = { good: '#16750C', watch: '#854F0B', neutral: '#1672A7' }
@@ -586,7 +586,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
         <div className="meta-item"><span className="meta-label">Period</span><span className="meta-value">{m ? (campaign.start_date ? `Since ${fmtDate(campaign.start_date, 'short')}` : `${m.period} · last 30 days`) : 'Not yet pulled'}</span></div>
         <div className="meta-item"><span className="meta-label">Source</span><span className="meta-value">GA4 property {campaign.ga4_property_id || DISTRICT_GA4_PROPERTY}</span></div>
         <div className="meta-item"><span className="meta-label">Updated</span><span className="meta-value">
-          {m ? new Date(m.synced_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'}
+          {(m && fmtSyncedAt(m.synced_at)) || '—'}
         </span></div>
       </div>
 
