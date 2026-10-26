@@ -1,14 +1,4 @@
 'use client'
-import { createClient } from '@/lib/supabase'
-
-// Session token for the API calls below. These routes verify the caller
-// server-side as of 2026-09-15 (they previously had no auth at all).
-const supabaseClient = createClient()
-async function authHeaders(): Promise<Record<string, string>> {
-  const { data } = await supabaseClient.auth.getSession()
-  const token = data.session?.access_token
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
 
 import { useState, useEffect } from 'react'
 import type { UserRole } from '@/components/Sidebar'
@@ -19,13 +9,6 @@ interface PulseWidgetProps {
   // preview (BCPSShell setDocPreview), the same way the sidebar's inlineDoc
   // playbook links do, instead of hard-navigating out of the app.
   onOpenDoc?: (doc: { title: string; url: string }) => void
-}
-
-interface PulseStats {
-  totalDepts: number
-  healthy: number
-  pendingAudits: number
-  recentBriefs: number
 }
 
 // Ticker messages - Sean 2026-09-04: turn the Pulse bar into more than a
@@ -62,37 +45,24 @@ const TICKER_MESSAGES: TickerMessage[] = [
   },
 ]
 
-// Sean 2026-09-04 (revised from the first pass): the whole bar rotates now,
-// not just a ticker alongside fixed stats. Slide 0 is the stats line, every
-// slide after it is one ticker message. Each slide holds for 10s with a
-// crossfade. Only the "BCPS Pulse" label + dot stay put on the left.
+// Sean 2026-09-04 (revised from the first pass): the whole bar rotates, one
+// ticker message per slide, each held for 10s with a crossfade. Only the
+// "BCPS Pulse" label + dot stay put on the left. The stats slide
+// (departments / healthy / pending audits / briefs) was removed on
+// 2026-10-26 at Sean's request: news blips only.
 const SLIDE_HOLD_MS = 10000
 const SLIDE_FADE_MS = 300
 
 export default function PulseWidget({ role, onOpenDoc }: PulseWidgetProps) {
-  const [stats, setStats] = useState<PulseStats | null>(null)
-  const [loading, setLoading] = useState(true)
   const [collapsed, setCollapsed] = useState(false)
   const [slideIndex, setSlideIndex] = useState(0)
   const [slideVisible, setSlideVisible] = useState(true)
 
-  useEffect(() => {
-    if (role !== 'superadmin') return
-    setLoading(true)
-    authHeaders()
-      .then(headers => fetch('/api/pulse', { headers }))
-      .then(r => r.json())
-      .then((data: PulseStats) => setStats(data))
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [role])
-
-  // Slide 0 = stats, slides 1..n = ticker messages.
-  const slideCount = 1 + TICKER_MESSAGES.length
+  const slideCount = TICKER_MESSAGES.length
 
   // Rotate through slides every 10s with a quick crossfade.
   useEffect(() => {
-    if (role !== 'superadmin' || collapsed || loading || slideCount < 2) return
+    if (role !== 'superadmin' || collapsed || slideCount < 2) return
     const interval = setInterval(() => {
       setSlideVisible(false)
       setTimeout(() => {
@@ -101,7 +71,7 @@ export default function PulseWidget({ role, onOpenDoc }: PulseWidgetProps) {
       }, SLIDE_FADE_MS)
     }, SLIDE_HOLD_MS)
     return () => clearInterval(interval)
-  }, [role, collapsed, loading, slideCount])
+  }, [role, collapsed, slideCount])
 
   if (role !== 'superadmin') return null
 
@@ -137,15 +107,6 @@ export default function PulseWidget({ role, onOpenDoc }: PulseWidgetProps) {
   }
 
   // ── Expanded bar ──────────────────────────────────────────────────────────
-  const TILES = stats
-    ? [
-        { label: 'Departments',   val: stats.totalDepts,    color: 'rgba(255,255,255,0.9)' },
-        { label: 'Healthy',       val: stats.healthy,       color: '#4ade80' },
-        { label: 'Pending Audits', val: stats.pendingAudits, color: '#fbbf24' },
-        { label: 'Briefs (30d)',  val: stats.recentBriefs,  color: '#a5f3fc' },
-      ]
-    : []
-
   // Real <a href> either way (so open-in-new-tab still works); a plain
   // click on a doc link opens the in-shell preview when available.
   const docClick = (m: TickerMessage) => (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -195,41 +156,19 @@ export default function PulseWidget({ role, onOpenDoc }: PulseWidgetProps) {
         </span>
       </div>
 
-      {/* Rotating slide: stats line, then each ticker message, 10s apiece */}
-      {loading ? (
-        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Loading...</span>
-      ) : (
-        <div style={{
-          flex: 1, minWidth: 160, overflow: 'hidden',
-          display: 'flex', alignItems: 'center',
-          opacity: slideVisible ? 1 : 0, transition: `opacity ${SLIDE_FADE_MS}ms ease`,
+      {/* Rotating slide: one ticker message, 10s apiece */}
+      <div style={{
+        flex: 1, minWidth: 160, overflow: 'hidden',
+        display: 'flex', alignItems: 'center',
+        opacity: slideVisible ? 1 : 0, transition: `opacity ${SLIDE_FADE_MS}ms ease`,
+      }}>
+        <span style={{
+          fontSize: '11px', fontWeight: 700, color: 'white',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
-          {slideIndex === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-              {TILES.map(tile => (
-                <div key={tile.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '16px', fontWeight: 800, color: tile.color, lineHeight: 1 }}>
-                    {tile.val}
-                  </span>
-                  <span style={{
-                    fontSize: '10px', color: 'rgba(255,255,255,0.5)',
-                    textTransform: 'uppercase', letterSpacing: '0.1em',
-                  }}>
-                    {tile.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <span style={{
-              fontSize: '11px', fontWeight: 700, color: 'white',
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            }}>
-              {renderMessage(TICKER_MESSAGES[slideIndex - 1])}
-            </span>
-          )}
-        </div>
-      )}
+          {renderMessage(TICKER_MESSAGES[slideIndex % slideCount])}
+        </span>
+      </div>
 
       {/* Collapse button */}
       <button
