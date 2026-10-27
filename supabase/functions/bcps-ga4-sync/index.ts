@@ -8,7 +8,7 @@
 // Caller check added 2026-10-05 (v24) but only in Supabase; brought back into
 // this file 2026-10-26 along with Top Pages (v25). Friendly page names for
 // Top Pages added 2026-10-26 (v26). Dead Pages added 2026-10-27 (v28, match
-// tightened in v29).
+// tightened in v29). Backfill of a past calendar month added 2026-10-27 (v30).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -276,11 +276,28 @@ Deno.serve(async (req: Request) => {
     const { data: programs } = await supabase
       .from('bcps_programs').select('name, path').eq('active', true);
 
-    const period = new Date().toISOString().slice(0, 7);
+    // Backfill (v30, Sean Oct 27 Hot Lab: department Traffic charts need
+    // history). POST {"period":"YYYY-MM"} syncs that calendar month instead
+    // of the rolling 30 days, so a month's row covers that month. Campaigns
+    // are skipped on a backfill: they keep their own windows.
+    let backfill: string | null = null;
+    try {
+      const body = await req.json();
+      if (typeof body?.period === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(body.period)) backfill = body.period;
+    } catch { /* no body: the normal rolling sync */ }
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    if (backfill && backfill >= thisMonth) backfill = null;
+    const period = backfill ?? thisMonth;
+    let range = { startDate: '30daysAgo', endDate: 'today' };
+    if (backfill) {
+      const [y, m] = backfill.split('-').map(Number);
+      const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      range = { startDate: `${backfill}-01`, endDate: `${backfill}-${String(last).padStart(2, '0')}` };
+    }
 
     const [deptReport, overallReport, allPagesReport] = await Promise.all([
       runGA4Report(accessToken, {
-        dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+        dateRanges: [range],
         dimensions: [{ name: 'pagePath' }],
         metrics: [{ name: 'sessions' }, { name: 'activeUsers' }, { name: 'engagementRate' }, { name: 'averageSessionDuration' }, { name: 'newUsers' }],
         dimensionFilter: { filter: { fieldName: 'pagePath', stringFilter: { matchType: 'BEGINS_WITH', value: '/bcps-departments/' } } },
@@ -288,13 +305,13 @@ Deno.serve(async (req: Request) => {
         limit: 200
       }),
       runGA4Report(accessToken, {
-        dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+        dateRanges: [range],
         dimensions: [{ name: 'sessionDefaultChannelGroup' }],
         metrics: [{ name: 'sessions' }],
         orderBys: [{ metric: { metricName: 'sessions' }, desc: true }]
       }),
       runGA4Report(accessToken, {
-        dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+        dateRanges: [range],
         dimensions: [{ name: 'pagePath' }],
         metrics: [{ name: 'sessions' }, { name: 'activeUsers' }, { name: 'engagementRate' }, { name: 'averageSessionDuration' }],
         orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
@@ -373,7 +390,7 @@ Deno.serve(async (req: Request) => {
     if (topPagesBase.length) {
       try {
         const titleReport = await runGA4Report(accessToken, {
-          dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+          dateRanges: [range],
           dimensions: [{ name: 'pagePath' }, { name: 'pageTitle' }],
           metrics: [{ name: 'sessions' }],
           dimensionFilter: { filter: { fieldName: 'pagePath', inListFilter: { values: topPagesBase.map(p => p.path) } } },
@@ -417,7 +434,7 @@ Deno.serve(async (req: Request) => {
     let deadCapped = false;
     try {
       const deadReport = await runGA4Report(accessToken, {
-        dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+        dateRanges: [range],
         dimensions: [{ name: 'pagePath' }, { name: 'pageTitle' }],
         metrics: [{ name: 'sessions' }, { name: 'activeUsers' }],
         dimensionFilter: { orGroup: { expressions: [
@@ -510,7 +527,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ---- Campaigns --------------------------------------------------------
-    const { data: campaigns } = await supabase
+    const { data: campaigns } = backfill ? { data: [] as any[] } : await supabase
       .from('bcps_campaigns')
       .select('id, name, slug, page_paths, include_subpages, ga4_property_id, start_date, end_date')
       .eq('status', 'active')
@@ -683,7 +700,7 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(JSON.stringify({
-      success: true, period, departments_synced: results.length,
+      success: true, period, backfill: !!backfill, departments_synced: results.length,
       top_departments: topDepts.length,
       departments_matched: topDepts.filter(d => d.matched).length,
       departments_unmatched: topDepts.filter(d => !d.matched).map(d => d.url_slug),
