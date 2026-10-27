@@ -10,7 +10,8 @@
 // Top Pages added 2026-10-26 (v26). Dead Pages added 2026-10-27 (v28, match
 // tightened in v29). Backfill of a past calendar month added 2026-10-27 (v30).
 // Previous addresses (bcps_departments.previous_paths) added 2026-10-27 (v31).
-// Dead Pages suggestions screened and confirmed as real pages 2026-10-27 (v32).
+// Dead Pages suggestions screened and confirmed as real pages 2026-10-27 (v32,
+// same-address capital-letter variants kept without a title in v33).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -532,10 +533,15 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      // The same address in different capitals (/benefit vs /BENEFIT) is a
+      // short link that works and serves no title of its own, so it skips the
+      // title check: v32 dropped /BENEFIT and /AskBRIA for exactly that.
+      const sameAddress = (a: string, b: string) =>
+        a.toLowerCase().replace(/\/+$/, '') === b.toLowerCase().replace(/\/+$/, '');
       deadPages = Array.from(byPath, ([path, m]) => {
         const seg = lastSegment(path);
         const candidates = candidatesFor(path);
-        const suggested = HOMEPAGE_SEGMENTS.has(seg) ? '/' : (candidates.find(c => realPages.has(c)) ?? null);
+        const suggested = HOMEPAGE_SEGMENTS.has(seg) ? '/' : (candidates.find(c => sameAddress(c, path) || realPages.has(c)) ?? null);
         if (!suggested && candidates.length) deadSuggestDropped++;
         return { path, name: nameFromPath(path), ...m, suggested_path: suggested };
       }).sort((a, b) => b.sessions - a.sessions);
