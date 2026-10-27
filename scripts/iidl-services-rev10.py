@@ -5,6 +5,10 @@ Usage: python3 -I scripts/iidl-services-rev10.py <path-to-xlsx> > supabase/migra
 
 Every cleanup the sheet needed is an explicit entry in OVERRIDES / DROP below,
 so the diff between the sheet and the widget is reviewable in one place.
+
+Do not re-run against the live table: it deletes every service row. Since
+20261027_bcps_iidl_services_feedback.sql, II&DL edits the content in the
+Widgets hub editor, so the database (not the sheet) is the source of truth.
 """
 import re
 import sys

@@ -46,9 +46,10 @@ const EMPTY_NEW = {
   contact_phone: '', contact_address: '', booking_url: '', booking_note: '', audience: '', service_url: '',
 }
 
-// Matches the audience check constraint on bcps_iidl_services. 'all' services
-// show under every audience filter in the embed.
-const AUDIENCES = [['school', 'Schools'], ['district', 'District staff'], ['family', 'Families'], ['all', 'All audiences']]
+// Matches the audience check constraint on bcps_iidl_services: school is
+// support a school requests, staff is an individual employee's own question
+// (e.g. LAB). 'all' services show under every audience filter in the embed.
+const AUDIENCES = [['school', 'Schools'], ['staff', 'Employees'], ['all', 'Schools & employees']]
 
 const C = {
   card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, marginBottom: 12 } as React.CSSProperties,
