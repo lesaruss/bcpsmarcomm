@@ -9,6 +9,7 @@
 // this file 2026-10-26 along with Top Pages (v25). Friendly page names for
 // Top Pages added 2026-10-26 (v26). Dead Pages added 2026-10-27 (v28, match
 // tightened in v29). Backfill of a past calendar month added 2026-10-27 (v30).
+// Previous addresses (bcps_departments.previous_paths) added 2026-10-27 (v31).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -243,7 +244,7 @@ Deno.serve(async (req: Request) => {
     const accessToken = await getAccessToken(secretRows.value);
 
     const { data: depts } = await supabase
-      .from('bcps_departments').select('id, name, slug, website_url').not('website_url', 'is', null);
+      .from('bcps_departments').select('id, name, slug, website_url, previous_paths').not('website_url', 'is', null);
 
     // A department is matched to GA4 rows by FULL PATH PREFIX, not by a single
     // URL segment.
@@ -262,11 +263,21 @@ Deno.serve(async (req: Request) => {
     //
     // Longest path first, so a nested department wins over a shallower one
     // that shares its prefix.
-    const deptPaths: { path: string; id: string; name: string; slug: string }[] = [];
+    //
+    // A department's previous addresses (v31) match too, so traffic from
+    // before a page moved, or from old links that still reach it, is credited
+    // to the department and reported under its current path (Magnet moved
+    // from strategy-innovation to academics in summer 2026).
+    const deptPaths: { path: string; main: string; id: string; name: string; slug: string }[] = [];
     for (const d of (depts || [])) {
       try {
         const pathname = new URL(d.website_url).pathname.replace(/\/+$/, '');
-        if (pathname) deptPaths.push({ path: pathname, id: d.id, name: d.name, slug: d.slug });
+        if (!pathname) continue;
+        deptPaths.push({ path: pathname, main: pathname, id: d.id, name: d.name, slug: d.slug });
+        for (const old of (d.previous_paths || []) as string[]) {
+          const prev = String(old || '').trim().replace(/\/+$/, '');
+          if (prev.startsWith('/') && prev !== pathname) deptPaths.push({ path: prev, main: pathname, id: d.id, name: d.name, slug: d.slug });
+        }
       } catch { /* skip bad url */ }
     }
     deptPaths.sort((a, b) => b.path.length - a.path.length);
@@ -337,7 +348,7 @@ Deno.serve(async (req: Request) => {
       // pages that no department owns still appear in Top Departments.
       const key = matched ? matched.slug : segments[1];
       if (!deptAggMap.has(key)) {
-        const deptPath = matched ? matched.path : '/bcps-departments/' + segments[1];
+        const deptPath = matched ? matched.main : '/bcps-departments/' + segments[1];
         deptAggMap.set(key, {
           dept_id: matched?.id || null,
           name: matched?.name || segments[1].replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
