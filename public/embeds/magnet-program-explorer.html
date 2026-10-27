@@ -209,6 +209,27 @@
   .card-link:hover { color: var(--blue-dark); text-decoration: underline; }
   .card-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 2px; }
 
+  /* School cards are links (the whole card opens the profile). */
+  a.card-as-link { color: inherit; text-decoration: none; }
+  a.card-as-link:hover .card-name { color: var(--blue); text-decoration: underline; }
+  a.card-as-link:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+  a.tag { color: var(--blue-dark); text-decoration: none; display: inline-block; }
+  a.tag:hover { border-color: var(--blue); color: var(--blue); text-decoration: underline; }
+  a.tag:focus-visible, .name-link:focus-visible, .crumb a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .name-link { color: inherit; text-decoration: none; }
+  .name-link:hover { color: var(--blue); text-decoration: underline; }
+
+  /* SCHOOL PROFILE */
+  .crumb { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .crumb a { color: var(--blue); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+  .crumb a:hover { text-decoration: underline; }
+  .profile-head { padding: 20px 20px 18px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+  .profile-head h1 { font-family: var(--font-head); font-size: 24px; line-height: 1.25; color: var(--text); }
+  .profile-actions { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 4px; }
+  .profile-actions .toggle-btn { text-decoration: none; padding: 7px 13px; font-size: 13px; }
+  .profile-body { padding: 18px 20px 22px; display: grid; gap: 12px; background: var(--bg); }
+  .profile-body h2 { font-family: var(--font-head); font-size: 16px; color: var(--text); }
+
   /* EXPANDED DETAIL */
   .detail { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 12px; display: grid; gap: 10px; }
   .detail-item {
@@ -259,7 +280,8 @@
   @media (max-width: 560px) {
     .tabs { padding: 12px 12px 0; }
     .tab { flex: 1; padding: 9px 8px; }
-    .controls, .results-bar, .info { padding-left: 14px; padding-right: 14px; }
+    .controls, .results-bar, .info, .crumb, .profile-head, .profile-body { padding-left: 14px; padding-right: 14px; }
+    .profile-head h1 { font-size: 20px; }
     .search-row { flex-direction: column; align-items: stretch; }
     .filter-row select { flex: 1 1 100%; }
     .filter-row .spacer { display: none; }
@@ -269,6 +291,7 @@
 </head>
 <body>
 
+<div id="listView">
 <div class="tabs" role="tablist" aria-label="Browse magnet programs">
   <button type="button" class="tab" role="tab" id="tab-schools" aria-controls="results" aria-selected="true" data-mode="schools">Browse by School</button>
   <button type="button" class="tab" role="tab" id="tab-programs" aria-controls="results" aria-selected="false" data-mode="programs">Browse by Program</button>
@@ -280,7 +303,7 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
       </svg>
-      <input type="search" id="searchInput" aria-label="Search">
+      <input type="search" id="searchInput" aria-label="Search" autocomplete="off">
     </div>
     <select id="sortSelect" aria-label="Sort results"></select>
   </div>
@@ -303,6 +326,9 @@
 
 <div class="grid" id="results" role="tabpanel" aria-labelledby="tab-schools"></div>
 <div class="pagination" id="pagination"></div>
+</div>
+
+<main id="profileView" hidden></main>
 
 <div class="info">
   <section>
@@ -350,6 +376,8 @@ const ICON = {
   globe: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>',
   ext: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>',
   chev: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+  arrow: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  back: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>',
   search: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>',
 };
 
@@ -424,27 +452,15 @@ function tagList(items, max) {
   return `<ul class="tag-list">${shown.join('')}${more > 0 ? `<li class="tag-more">+${more} more</li>` : ''}</ul>`;
 }
 
+function profileHref(loc) {
+  return location.pathname + '?school=' + encodeURIComponent(loc);
+}
+
+// Each school card is one link to that school's profile page, the same way
+// the department directory's cards each open a department's own page.
 function schoolCard(s, q) {
-  const key = 'school-' + s.loc_nbr;
-  const open = openKey === key;
   const tags = s.offerings.map(o => `<li class="tag">${highlight(o.program.name, q)}</li>`);
-  const detail = !open ? '' : `<div class="detail" id="${key}-detail">
-    ${s.offerings.map(o => {
-      const p = o.program;
-      return `<div class="detail-item">
-        <div class="detail-head">
-          <h3>${highlight(p.name, q)}</h3>
-          <span class="eyebrow">${escapeHtml(THEMES[p.theme_slug]?.name)}</span>
-        </div>
-        ${p.grades_note ? `<div class="card-badges"><span class="badge badge-grade">${escapeHtml(p.grades_note)}</span></div>` : ''}
-        <p class="desc">${escapeHtml(programDesc(p))}</p>
-        ${o.note ? `<p class="note">${escapeHtml(o.note)}</p>` : ''}
-        ${o.tracks.length ? `<div class="sub">${p.theme_slug === 'ican' ? 'Academies' : 'Pathways'} at this school</div>
-          <ul class="tag-list">${o.tracks.map(t => `<li class="tag">${highlight(t, q)}</li>`).join('')}</ul>` : ''}
-      </div>`;
-    }).join('')}
-  </div>`;
-  return `<article class="card${open ? ' open' : ''}" id="${key}">
+  return `<a class="card card-as-link" href="${profileHref(s.loc_nbr)}" id="school-${s.loc_nbr}">
     <div class="card-name">${highlight(s.name, q)}</div>
     <div class="card-badges">
       <span class="badge badge-grade">${escapeHtml(s.grades)}</span>
@@ -452,27 +468,22 @@ function schoolCard(s, q) {
       <span class="badge badge-count">${s.offerings.length} program${s.offerings.length === 1 ? '' : 's'}</span>
     </div>
     <div class="meta-row">${ICON.pin}<span>${highlight(s.address, q)}, ${escapeHtml(s.city)}, FL ${escapeHtml(s.zip)}</span></div>
-    ${open ? '' : tagList(tags, 4)}
-    ${detail}
-    <div class="card-footer">
-      <button type="button" class="toggle-btn" data-toggle="${key}" aria-expanded="${open}" aria-controls="${key}-detail">
-        ${open ? 'Hide programs' : 'View programs'} ${ICON.chev}</button>
-      ${siteLink(s)}
-    </div>
-  </article>`;
+    ${tagList(tags, 4)}
+    <div class="card-footer"><span class="toggle-btn">View school profile ${ICON.arrow}</span></div>
+  </a>`;
 }
 
 function programCard(p, q) {
   const key = 'program-' + p.slug;
   const open = openKey === key;
   const offs = visibleOfferings(p);
-  const tags = offs.map(o => `<li><button type="button" class="tag" data-goto-school="${o.school.loc_nbr}">${highlight(o.school.name, q)}</button></li>`);
+  const tags = offs.map(o => `<li><a class="tag" href="${profileHref(o.school.loc_nbr)}">${highlight(o.school.name, q)}</a></li>`);
   const detail = !open ? '' : `<div class="detail" id="${key}-detail">
     ${offs.map(o => {
       const s = o.school;
       return `<div class="detail-item">
         <div class="detail-head">
-          <h3>${highlight(s.name, q)}</h3>
+          <h3><a class="name-link" href="${profileHref(s.loc_nbr)}">${highlight(s.name, q)}</a></h3>
           <div class="card-badges"><span class="badge badge-grade">${escapeHtml(s.grades)}</span><span class="badge badge-city">${escapeHtml(s.city)}</span></div>
         </div>
         <div class="meta-row">${ICON.pin}<span>${escapeHtml(s.address)}, ${escapeHtml(s.city)}, FL ${escapeHtml(s.zip)}</span></div>
@@ -480,7 +491,7 @@ function programCard(p, q) {
         ${o.tracks.length ? `<div class="sub">${p.theme_slug === 'ican' ? 'Academies' : 'Pathways'}</div>
           <ul class="tag-list">${o.tracks.map(t => `<li class="tag">${highlight(t, q)}</li>`).join('')}</ul>` : ''}
         <div class="card-footer" style="border-top:none;padding-top:2px">
-          <button type="button" class="link-btn" data-goto-school="${s.loc_nbr}">All programs at this school</button>
+          <a class="card-link" href="${profileHref(s.loc_nbr)}">View school profile</a>
           ${siteLink(s)}
         </div>
       </div>`;
@@ -549,12 +560,37 @@ function goToPage(page) {
   document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// The address bar carries the view (#programs, #school-0371, #program-stem-museum)
-// so a link can open any school or program directly.
+// The address bar carries the view (#programs, #program-stem-museum) so a link
+// can open any program directly. A school's profile is ?school=0371.
 function syncHash() {
   const h = openKey || (mode === 'programs' ? 'programs' : '');
   const url = location.pathname + location.search + (h ? '#' + h : '');
   try { history.replaceState(null, '', url); } catch (e) {}
+}
+
+// The list's state is kept for this tab so Back from a school profile returns
+// to the same tab, filters, sort and page. A fresh visit starts clean.
+const STATE_KEY = 'bcps-magnet-explorer-list';
+function saveState() {
+  try { sessionStorage.setItem(STATE_KEY, JSON.stringify({ mode, activeLevel, activeTheme, activeCity, activeSearch, sortKey, currentPage })); } catch (e) {}
+}
+function restoreState() {
+  let nav = '';
+  try { nav = performance.getEntriesByType('navigation')[0]?.type || ''; } catch (e) {}
+  if (nav !== 'back_forward') return false;
+  let st = null;
+  try { st = JSON.parse(sessionStorage.getItem(STATE_KEY) || 'null'); } catch (e) {}
+  if (!st) return false;
+  setMode(st.mode === 'programs' ? 'programs' : 'schools');
+  activeLevel = st.activeLevel || 'all'; activeTheme = st.activeTheme || ''; activeCity = st.activeCity || '';
+  activeSearch = st.activeSearch || ''; sortKey = st.sortKey || 'name'; currentPage = st.currentPage || 1;
+  document.getElementById('searchInput').value = activeSearch;
+  document.getElementById('themeFilter').value = activeTheme;
+  document.getElementById('cityFilter').value = activeCity;
+  document.getElementById('sortSelect').value = sortKey;
+  document.querySelectorAll('.chip[data-level]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.level === activeLevel)));
+  render();
+  return true;
 }
 
 function isFiltered() {
@@ -585,6 +621,7 @@ function render() {
   grid.innerHTML = page.map(r => mode === 'schools' ? schoolCard(r, q) : programCard(r, q)).join('');
   renderPagination(filtered.length);
   syncHash();
+  saveState();
   postHeight();
 }
 
@@ -603,15 +640,15 @@ function setMode(next, opts = {}) {
   render();
 }
 
-// Open one record: find its page under the current filters (clearing them if
-// it is filtered out), expand it and bring it into view.
-function openRecord(kind, id) {
-  const key = kind + '-' + id;
-  const wantMode = kind === 'school' ? 'schools' : 'programs';
-  if (mode !== wantMode) setMode(wantMode);
+// Open one program card: find its page under the current filters (clearing
+// them if it is filtered out), expand it and bring it into view. Schools open
+// as their own profile page instead (?school=<location number>).
+function openProgram(slug) {
+  const key = 'program-' + slug;
+  if (mode !== 'programs') setMode('programs');
   let list = getFiltered();
-  let idx = list.findIndex(r => (kind === 'school' ? r.loc_nbr : r.slug) === id);
-  if (idx < 0) { clearFilters(false); list = getFiltered(); idx = list.findIndex(r => (kind === 'school' ? r.loc_nbr : r.slug) === id); }
+  let idx = list.findIndex(r => r.slug === slug);
+  if (idx < 0) { clearFilters(false); list = getFiltered(); idx = list.findIndex(r => r.slug === slug); }
   if (idx < 0) return;
   currentPage = Math.floor(idx / PAGE_SIZE) + 1;
   openKey = key;
@@ -656,10 +693,7 @@ document.getElementById('results').addEventListener('click', e => {
     const el = document.getElementById(key);
     el?.querySelector('.toggle-btn')?.focus({ preventScroll: true });
     if (openKey) el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    return;
   }
-  const g = e.target.closest('[data-goto-school]');
-  if (g) openRecord('school', g.dataset.gotoSchool);
 });
 
 // Live data: public anon read of the bcps_magnet_* tables (see
@@ -716,15 +750,83 @@ async function init() {
   document.getElementById('innovativeList').innerHTML = Object.values(THEMES)
     .filter(t => t.kind === 'innovative').map(t => `<li class="tag">${escapeHtml(t.name)}</li>`).join('');
 
-  applyHash();
+  const profileLoc = new URLSearchParams(location.search).get('school');
+  if (profileLoc) { renderProfile(profileLoc); return; }
+  if (!restoreState()) applyHash();
   window.addEventListener('hashchange', applyHash);
 }
 
 function applyHash() {
   const h = decodeURIComponent(location.hash.replace(/^#/, ''));
+  if (h.startsWith('school-')) { location.replace(profileHref(h.slice(7))); return; }
   setMode(h === 'programs' || h.startsWith('program-') ? 'programs' : 'schools');
-  if (h.startsWith('school-')) openRecord('school', h.slice(7));
-  else if (h.startsWith('program-')) openRecord('program', h.slice(8));
+  if (h.startsWith('program-')) openProgram(h.slice(8));
+}
+
+function directionsUrl(s) {
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(`${s.name}, ${s.address}, ${s.city}, FL ${s.zip}`);
+}
+
+// A school's profile page: its details, then every magnet program it offers
+// with the pathways at this school and the other schools offering the same
+// program. Opens in the same frame so a visitor stays on the host page.
+function renderProfile(loc) {
+  document.getElementById('listView').hidden = true;
+  const view = document.getElementById('profileView');
+  view.hidden = false;
+  const listHref = location.pathname;
+  const back = `<nav class="crumb" aria-label="Breadcrumb"><a href="${listHref}" id="backLink">${ICON.back} All magnet schools</a></nav>`;
+  const s = SCHOOL_BY_LOC[loc];
+  if (!s || !s.offerings.length) {
+    view.innerHTML = `${back}<div class="empty">${ICON.search}We couldn't find that magnet school. It may have moved or the link may be out of date.</div>`;
+    postHeight();
+    return;
+  }
+  document.title = `${s.name} - Magnet Programs - Broward County Public Schools`;
+  const n = s.offerings.length;
+  view.innerHTML = `${back}
+    <header class="profile-head">
+      <div class="eyebrow">Magnet school</div>
+      <h1>${escapeHtml(s.name)}</h1>
+      <div class="card-badges">
+        <span class="badge badge-grade">${escapeHtml(s.grades)}</span>
+        <span class="badge badge-city">${escapeHtml(s.city)}</span>
+        <span class="badge badge-count">${n} magnet program${n === 1 ? '' : 's'}</span>
+      </div>
+      <div class="meta-row">${ICON.pin}<span>${escapeHtml(s.address)}, ${escapeHtml(s.city)}, FL ${escapeHtml(s.zip)}</span></div>
+      <div class="profile-actions">
+        ${s.site_url ? `<a class="toggle-btn" href="${escapeHtml(s.site_url)}" target="_blank" rel="noopener noreferrer">${ICON.globe} School website<span class="sr-only"> (opens in a new tab)</span> ${ICON.ext}</a>` : ''}
+        <a class="card-link" href="${directionsUrl(s)}" target="_blank" rel="noopener noreferrer">${ICON.pin} Get directions<span class="sr-only"> (opens in a new tab)</span> ${ICON.ext}</a>
+      </div>
+    </header>
+    <section class="profile-body" aria-labelledby="programsHeading">
+      <h2 id="programsHeading">Magnet programs at ${escapeHtml(s.name)}</h2>
+      ${s.offerings.map(o => {
+        const p = o.program;
+        const others = p.offerings.filter(x => x.school !== s);
+        return `<article class="detail-item">
+          <div class="detail-head">
+            <h3>${escapeHtml(p.name)}</h3>
+            <span class="eyebrow">${escapeHtml(THEMES[p.theme_slug]?.name)}</span>
+          </div>
+          ${p.grades_note ? `<div class="card-badges"><span class="badge badge-grade">${escapeHtml(p.grades_note)}</span></div>` : ''}
+          <p class="desc">${escapeHtml(programDesc(p))}</p>
+          ${o.note ? `<p class="note">${escapeHtml(o.note)}</p>` : ''}
+          ${o.tracks.length ? `<div class="sub">${p.theme_slug === 'ican' ? 'Academies' : 'Pathways'} at this school</div>
+            <ul class="tag-list">${o.tracks.map(t => `<li class="tag">${escapeHtml(t)}</li>`).join('')}</ul>` : ''}
+          ${others.length ? `<div class="sub">Also offered at</div>
+            <ul class="tag-list">${others.map(x => `<li><a class="tag" href="${profileHref(x.school.loc_nbr)}">${escapeHtml(x.school.name)}</a></li>`).join('')}</ul>` : ''}
+        </article>`;
+      }).join('')}
+    </section>`;
+  // Back returns to the list as it was (filters, page) when the visitor came from it.
+  document.getElementById('backLink').addEventListener('click', e => {
+    let fromList = false;
+    try { fromList = new URL(document.referrer).pathname === listHref; } catch (err) {}
+    if (fromList && history.length > 1) { e.preventDefault(); history.back(); }
+  });
+  postHeight();
+  view.scrollIntoView({ block: 'start' });
 }
 
 window.addEventListener('load', postHeight);
