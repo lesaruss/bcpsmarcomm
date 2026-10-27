@@ -278,11 +278,11 @@ ON CONFLICT (program_slug, school_loc) DO NOTHING;
 
 -- Widgets hub registration (same shape as iidl-services-directory). Applied once
 -- the embed is live on production, so the hub never lists a widget whose
--- preview 404s. No in-app editor yet: edits go through the service role.
+-- preview 404s. Editor: MagnetProgramsPage via /api/bcps/magnet-programs.
 INSERT INTO public.bcps_widgets (slug, title, description, preview_path, editor_component, sort_order)
 SELECT 'magnet-program-explorer', 'Magnet Program Explorer',
   'Embeddable guide to BCPS magnet programs: browse by school or by program, with search, level, theme and city filters.',
-  '/embeds/magnet-program-explorer.html', NULL, 6
+  '/embeds/magnet-program-explorer.html', 'magnet-program-explorer', 6
 WHERE NOT EXISTS (SELECT 1 FROM public.bcps_widgets WHERE slug = 'magnet-program-explorer');
 INSERT INTO public.acl_objects (brand, kind, slug, title, visibility)
 SELECT 'bcps', 'page', 'magnet-program-explorer', 'Magnet Program Explorer', 'restricted'

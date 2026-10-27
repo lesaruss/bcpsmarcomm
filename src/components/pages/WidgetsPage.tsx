@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import FindItFastPage from './FindItFastPage'
 import CharterSchoolsPage from './CharterSchoolsPage'
 import IidlServicesPage from './IidlServicesPage'
+import MagnetProgramsPage from './MagnetProgramsPage'
 import DirectoryPage from './DirectoryPage'
 import SchoolSupportLeadPage from './SchoolSupportLeadPage'
 import { useEffectiveRole } from '@/components/BCPSShell'
@@ -33,6 +34,7 @@ const EDITORS: Record<string, React.ComponentType> = {
   'find-it-fast': FindItFastPage,
   'charter-school-directory': CharterSchoolsPage,
   'iidl-services-directory': IidlServicesPage,
+  'magnet-program-explorer': MagnetProgramsPage,
   'department-program-directory': DirectoryPage,
   'school-support-lead': SchoolSupportLeadPage,
 }
