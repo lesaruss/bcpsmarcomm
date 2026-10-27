@@ -7,7 +7,8 @@
 // whole-site "/" campaigns and start_date windows added 2026-09-25 (v21).
 // Caller check added 2026-10-05 (v24) but only in Supabase; brought back into
 // this file 2026-10-26 along with Top Pages (v25). Friendly page names for
-// Top Pages added 2026-10-26 (v26). Dead Pages added 2026-10-27 (v28).
+// Top Pages added 2026-10-26 (v26). Dead Pages added 2026-10-27 (v28, match
+// tightened in v29).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -149,15 +150,37 @@ function nameFromPath(path: string): string {
 // snapshot; the response reports when the cap was hit.
 const DEAD_PAGES_LIMIT = 1000;
 
-// Last path segments too generic to suggest a redirect from: "/x/overview"
-// matching "/y/overview" says nothing about whether they are the same page.
-const GENERIC_SEGMENTS = new Set(['', 'overview', 'page', 'pages', 'site', 'en', 'es', 'news', 'search', 'about']);
+// Last path segments too generic to match on alone: a dead
+// ".../drivers-education/faqs" matched to School Choice's ".../faqs" in the
+// first v28 run. For these the parent segment has to match too.
+const GENERIC_SEGMENTS = new Set([
+  'overview', 'page', 'pages', 'site', 'en', 'es', 'news', 'search', 'about',
+  'faq', 'faqs', 'contact', 'contact-us', 'contacts', 'forms', 'resources',
+  'calendar', 'staff', 'documents', 'links', 'events', 'information', 'info',
+  'home', 'welcome', 'directory', 'apply', 'eligibility', 'meetings', 'agendas',
+]);
 // A dead old-site landing page ("/site/default") is the homepage.
 const HOMEPAGE_SEGMENTS = new Set(['default', 'default.aspx', 'index', 'index.html', 'index.htm', 'home']);
 
 function lastSegment(path: string): string {
   const last = path.replace(/\/+$/, '').split('/').pop() || '';
   try { return decodeURIComponent(last).toLowerCase(); } catch { return last.toLowerCase(); }
+}
+
+// What a dead page is matched to a live one by: its last segment, or its
+// last two when the last one is generic. null when there is nothing specific
+// enough to match on.
+function matchKey(path: string): string | null {
+  const segs = path.replace(/\/+$/, '').split('/').filter(Boolean).map(x => {
+    try { return decodeURIComponent(x).toLowerCase(); } catch { return x.toLowerCase(); }
+  });
+  const last = segs[segs.length - 1] || '';
+  // Old-site numeric IDs ("/Page/55422") name nothing; a live page ending in
+  // the same number is a coincidence, not a match.
+  if (/^\d+$/.test(last)) return null;
+  if (!GENERIC_SEGMENTS.has(last)) return last.length >= 4 ? last : null;
+  const parent = segs[segs.length - 2];
+  return parent && !GENERIC_SEGMENTS.has(parent) ? `${parent}/${last}` : null;
 }
 
 // Returns the GA4 dimensionFilter for a campaign, `undefined` for a
@@ -416,18 +439,18 @@ Deno.serve(async (req: Request) => {
         cur.active_users += parseInt(r.metricValues[1].value);
         byPath.set(path, cur);
       }
-      // Busiest live page per last segment. allPages is sorted by sessions,
-      // so the first page seen for a segment is the busiest.
-      const liveBySegment = new Map<string, string>();
+      // Busiest live page per match key. allPages is sorted by sessions, so
+      // the first page seen for a key is the busiest.
+      const liveByKey = new Map<string, string>();
       for (const pg of allPages) {
         if (byPath.has(pg.path)) continue;
-        const seg = lastSegment(pg.path);
-        if (GENERIC_SEGMENTS.has(seg) || seg.length < 4) continue;
-        if (!liveBySegment.has(seg)) liveBySegment.set(seg, pg.path);
+        const key = matchKey(pg.path);
+        if (key && !liveByKey.has(key)) liveByKey.set(key, pg.path);
       }
       deadPages = Array.from(byPath, ([path, m]) => {
         const seg = lastSegment(path);
-        const suggested = HOMEPAGE_SEGMENTS.has(seg) ? '/' : (liveBySegment.get(seg) ?? null);
+        const key = matchKey(path);
+        const suggested = HOMEPAGE_SEGMENTS.has(seg) ? '/' : (key ? liveByKey.get(key) ?? null : null);
         return { path, name: nameFromPath(path), ...m, suggested_path: suggested };
       }).sort((a, b) => b.sessions - a.sessions);
     } catch (err: any) {

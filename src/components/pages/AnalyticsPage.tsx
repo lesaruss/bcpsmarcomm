@@ -932,6 +932,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
           <p style={{ fontSize: 11.5, color: '#94a3b8', margin: '0 0 12px', maxWidth: 720, lineHeight: 1.6 }}>
             Every page that showed visitors the &ldquo;page not found&rdquo; screen in the last 30 days, busiest first.
             {allDead.length > 0 && <> {allDead.length} pages, {deadSessions.toLocaleString('en-US')} visits that hit a dead end.</>}
+            {allDead.length >= 1000 && <> Showing the 1,000 busiest; the rest drew only a handful of visits each.</>}
             {' '}The suggested redirect is a best guess (a live page with the same address ending, or the homepage for an old-site landing page). Check it before setting it.
           </p>
           <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, overflow: 'hidden' }}>
