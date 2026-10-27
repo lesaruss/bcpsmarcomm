@@ -435,6 +435,26 @@ function DepartmentCard({ dept, showAudit = true }: { dept: DepartmentSummary; s
 
 type StatLink = { label: string; href?: string; onClick?: () => void; external?: boolean }
 
+// The signed-in WCM's own certification tile, on the WCM dashboard and on a
+// director's dashboard when the director is also a WCM (Sean, Oct 27 Hot Lab:
+// Deanna Greist saw no certification or way into it as a director).
+type MyCert = { certified: boolean; done: number; total: number; pct: number }
+function myCertOf(data: HomeData): MyCert {
+  return data.my_cert ?? { certified: !!data.my_certified, done: 0, total: 0, pct: data.my_certified ? 100 : 0 }
+}
+function MyCertTile({ cert, label = 'Certification' }: { cert: MyCert; label?: string }) {
+  return (
+    <StatTile
+      label={label}
+      value={cert.certified ? 'Certified' : `${cert.pct}%`}
+      note={cert.certified ? 'Department WCM Certification complete' : `${cert.total ? `${cert.done} of ${cert.total} pages. ` : ''}Due ${DEPT_CERT_DEADLINE}.`}
+      tone={cert.certified ? undefined : 'warn'}
+      icon={cert.certified ? CERT_SHIELD_SRC : undefined}
+      link={cert.certified ? { label: 'Certificate and badge', href: '/certification/departments/complete' } : { label: cert.pct > 0 ? 'Continue certification' : 'Start certification', href: '/certification/departments/dashboard' }}
+    />
+  )
+}
+
 function StatTile({ label, value, note, tone, link, icon }: { label: string; value: string | number; note?: string; tone?: 'warn'; link?: StatLink; icon?: string }) {
   return (
     <div className={`home-stat${tone ? ` ${tone}` : ''}`}>
@@ -596,6 +616,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
       </div>
 
       <div className="home-strip">
+        {data.is_wcm && <MyCertTile cert={myCertOf(data)} label="Your certification" />}
         <StatTile label="Web Content Managers" value={totalWcms} note={unconfirmed ? `${unconfirmed} department${unconfirmed > 1 ? 's' : ''} still need one` : 'Confirmed on the roster'} tone={unconfirmed ? 'warn' : undefined} />
         <StatTile
           label="Certified"
@@ -1128,7 +1149,7 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
   const openGuide = () => { setGuide(true); setTab('audit') }
   const mine = data.departments
   const primary = mine[0]
-  const cert = data.my_cert ?? { certified: !!data.my_certified, done: 0, total: 0, pct: data.my_certified ? 100 : 0 }
+  const cert = myCertOf(data)
   const w = primary ? windowForDivision(primary.division) : null
   const open = mine.reduce((n, d) => n + d.findings_open, 0)
   const fixed = mine.reduce((n, d) => n + d.findings_fixed, 0)
@@ -1163,14 +1184,7 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
       </div>
 
       <div className="home-strip">
-        <StatTile
-          label="Certification"
-          value={cert.certified ? 'Certified' : `${cert.pct}%`}
-          note={cert.certified ? 'Department WCM Certification complete' : `${cert.total ? `${cert.done} of ${cert.total} pages. ` : ''}Due ${DEPT_CERT_DEADLINE}.`}
-          tone={cert.certified ? undefined : 'warn'}
-          icon={cert.certified ? CERT_SHIELD_SRC : undefined}
-          link={cert.certified ? { label: 'Certificate and badge', href: '/certification/departments/complete' } : { label: cert.pct > 0 ? 'Continue certification' : 'Start certification', href: '/certification/departments/dashboard' }}
-        />
+        <MyCertTile cert={cert} />
         {w && <StatTile label="Your review window" value={formatWindowRange(w)} note={`${w.label}. Bring your director.`}
           link={mine.length ? { label: 'How the review works', onClick: openGuide } : undefined} />}
         {mine.length > 0 && (
