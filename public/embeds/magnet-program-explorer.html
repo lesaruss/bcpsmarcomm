@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Magnet Program Explorer - Broward County Public Schools</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Same BCPS brand tokens as the Charter School Directory embed
+       (MarComm Quick Reference Sheet v3): BCPS Blue as the interactive color,
+       Century Gothic headlines, Arial body. No internal title by design; the
+       destination page supplies its own heading. */
+    --blue: #1672A7;
+    --blue-dark: #0E4E73;
+    --blue-faint: #EBF1F8;
+    --teal: #00838F;
+    --teal-light: #E0F4F5;
+    --teal-text: #006A74;
+    --border: #D0D7E2;
+    --text: #1A1A2E;
+    --text-mid: #444;
+    --text-muted: #5F6672;
+    --white: #FFFFFF;
+    --bg: #F5F7FA;
+    --radius: 8px;
+    --font-head: "Century Gothic", "Apple Gothic", Arial, Helvetica, sans-serif;
+    --font-body: Arial, Helvetica, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--white);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  button { font-family: inherit; }
+
+  /* MODE TABS */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 16px 20px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 9px 16px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: none;
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--blue); }
+  .tab[aria-selected="true"] {
+    color: var(--blue);
+    background: var(--white);
+    border-color: var(--border);
+    box-shadow: inset 0 3px 0 var(--blue);
+  }
+  .tab:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  /* CONTROLS */
+  .controls {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .search-row { display: flex; gap: 8px; align-items: center; }
+  .search-wrap { position: relative; flex: 2; }
+  .search-wrap svg {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); pointer-events: none;
+  }
+  input[type="search"], select {
+    width: 100%;
+    padding: 8px 10px 8px 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--white);
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+  input[type="search"]:focus, select:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(22,114,167,0.15);
+  }
+  select {
+    padding-left: 10px;
+    cursor: pointer;
+    flex: 1;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+  }
+
+  .filter-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .filter-label {
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-right: 2px;
+  }
+  .chip {
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--white);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .chip:hover { border-color: var(--blue); color: var(--blue); }
+  .chip:focus-visible, .pg-btn:focus-visible, .link-btn:focus-visible, .toggle-btn:focus-visible {
+    outline: 2px solid var(--blue); outline-offset: 2px;
+  }
+  .chip[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .filter-row .spacer { flex: 1; }
+  .filter-row select { flex: 0 1 220px; padding-top: 5px; padding-bottom: 5px; font-size: 12px; }
+
+  /* RESULTS BAR */
+  .results-bar {
+    padding: 8px 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .results-bar strong { color: var(--text); }
+  .link-btn {
+    background: none; border: none; color: var(--blue); font-size: 12px;
+    cursor: pointer; text-decoration: underline; padding: 0;
+  }
+
+  /* GRID + CARDS */
+  /* Dividers are drawn by each card (not a gap over a gray grid) so a short
+     last row leaves white space instead of a gray block. */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    background: var(--white);
+    overflow: hidden;
+  }
+  .card {
+    background: var(--white);
+    box-shadow: 1px 0 0 var(--border), 0 1px 0 var(--border);
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 7px;
+    transition: background 0.1s;
+  }
+  .card:hover { background: var(--blue-faint); }
+  .card.open { grid-column: 1 / -1; background: var(--white); box-shadow: inset 3px 0 0 var(--blue), 0 1px 0 var(--border); }
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--teal-text);
+  }
+  .card-name { font-family: var(--font-head); font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.35; }
+  .card-badges { display: flex; flex-wrap: wrap; gap: 5px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; line-height: 1.4; }
+  .badge-grade { background: var(--teal-light); color: var(--teal-text); border: 1px solid rgba(0,131,143,0.2); }
+  .badge-city { background: var(--blue-faint); color: var(--blue-dark); border: 1px solid rgba(22,114,167,0.2); }
+  .badge-count { background: var(--bg); color: var(--text-mid); border: 1px solid var(--border); }
+  .meta-row { display: flex; gap: 6px; align-items: flex-start; font-size: 12px; color: var(--text-muted); }
+  .meta-row svg { flex-shrink: 0; margin-top: 2px; }
+  .desc { font-size: 12.5px; color: var(--text-mid); }
+  .clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+  .tag-list { display: flex; flex-wrap: wrap; gap: 5px; list-style: none; }
+  .tag {
+    font-size: 11.5px; padding: 3px 8px; border-radius: 4px;
+    background: var(--bg); border: 1px solid var(--border); color: var(--text-mid);
+  }
+  .tag-more { font-size: 11.5px; color: var(--text-muted); padding: 3px 2px; }
+  button.tag { cursor: pointer; }
+  button.tag:hover { border-color: var(--blue); color: var(--blue); }
+
+  .card-footer {
+    margin-top: auto; padding-top: 9px; border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+  }
+  .toggle-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--blue); color: #fff; border: 1px solid var(--blue);
+    border-radius: 6px; padding: 5px 11px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .toggle-btn:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
+  .toggle-btn svg { transition: transform 0.15s; }
+  .card.open .toggle-btn svg { transform: rotate(180deg); }
+  .card-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 500; color: var(--blue); text-decoration: none;
+  }
+  .card-link:hover { color: var(--blue-dark); text-decoration: underline; }
+  .card-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 2px; }
+
+  /* EXPANDED DETAIL */
+  .detail { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 12px; display: grid; gap: 10px; }
+  .detail-item {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 6px; background: var(--white);
+  }
+  .detail-item h3 { font-family: var(--font-head); font-size: 13.5px; color: var(--text); }
+  .detail-item .sub { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-top: 2px; }
+  .detail-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: baseline; }
+  .note { font-size: 12px; color: var(--text-mid); background: var(--blue-faint); border-radius: 6px; padding: 7px 10px; }
+
+  mark { background: #FFF3CD; color: inherit; border-radius: 2px; padding: 0 1px; }
+
+  /* EMPTY */
+  .empty { grid-column: 1 / -1; padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px; background: var(--white); }
+  .empty svg { display: block; margin: 0 auto 10px; opacity: 0.35; }
+
+  /* PAGINATION */
+  .pagination {
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    padding: 12px 16px; border-top: 1px solid var(--border); background: var(--white);
+  }
+  .pagination:empty { display: none; }
+  .pg-btn {
+    min-width: 32px; height: 32px; padding: 0 8px;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--white);
+    color: var(--text-mid); font-size: 13px; font-weight: 500; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.12s; line-height: 1;
+  }
+  .pg-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+  .pg-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .pg-ellipsis { color: var(--text-muted); font-size: 13px; padding: 0 4px; }
+
+  /* INFO FOOTER */
+  .info {
+    border-top: 1px solid var(--border); background: var(--bg);
+    padding: 16px 20px 18px; display: grid; gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+  .info h2 { font-family: var(--font-head); font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .info p { font-size: 12.5px; color: var(--text-mid); margin-bottom: 8px; }
+  .info .tag { background: var(--white); }
+  .info-links { display: flex; flex-direction: column; gap: 6px; list-style: none; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  @media (max-width: 560px) {
+    .tabs { padding: 12px 12px 0; }
+    .tab { flex: 1; padding: 9px 8px; }
+    .controls, .results-bar, .info { padding-left: 14px; padding-right: 14px; }
+    .search-row { flex-direction: column; align-items: stretch; }
+    .filter-row select { flex: 1 1 100%; }
+    .filter-row .spacer { display: none; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="tabs" role="tablist" aria-label="Browse magnet programs">
+  <button type="button" class="tab" role="tab" id="tab-schools" aria-controls="results" aria-selected="true" data-mode="schools">Browse by School</button>
+  <button type="button" class="tab" role="tab" id="tab-programs" aria-controls="results" aria-selected="false" data-mode="programs">Browse by Program</button>
+</div>
+
+<div class="controls">
+  <div class="search-row">
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input type="search" id="searchInput" aria-label="Search">
+    </div>
+    <select id="sortSelect" aria-label="Sort results"></select>
+  </div>
+  <div class="filter-row" role="group" aria-label="Filter by school level">
+    <span class="filter-label">Level:</span>
+    <button type="button" class="chip" data-level="all" aria-pressed="true">All</button>
+    <button type="button" class="chip" data-level="Elementary" aria-pressed="false">Elementary</button>
+    <button type="button" class="chip" data-level="Middle" aria-pressed="false">Middle</button>
+    <button type="button" class="chip" data-level="High" aria-pressed="false">High</button>
+    <span class="spacer"></span>
+    <select id="themeFilter" aria-label="Filter by program theme"><option value="">All program themes</option></select>
+    <select id="cityFilter" aria-label="Filter by city"><option value="">All cities</option></select>
+  </div>
+</div>
+
+<div class="results-bar">
+  <span aria-live="polite">Showing <strong id="resultCount">&hellip;</strong> of <span id="totalCount">&hellip;</span> <span id="unitLabel">schools</span></span>
+  <button type="button" class="link-btn" id="clearBtn" hidden>Clear filters</button>
+</div>
+
+<div class="grid" id="results" role="tabpanel" aria-labelledby="tab-schools"></div>
+<div class="pagination" id="pagination"></div>
+
+<div class="info">
+  <section>
+    <h2>Innovative Programs</h2>
+    <p>Innovative programs bring theme-based learning to students at their own zoned school. Themes include:</p>
+    <ul class="tag-list" id="innovativeList"></ul>
+    <p style="margin-top:8px"><a class="card-link" href="https://www.browardschools.com/bcps-departments/academics/magnet-programs/explore-innovative-programs" target="_blank" rel="noopener noreferrer">Explore Innovative Programs<span class="sr-only"> (opens in a new tab)</span></a></p>
+  </section>
+  <section>
+    <h2>Ready to apply?</h2>
+    <p>Open to Florida residents in grades K-12. Kindergarten applicants must be five by September 1. Some middle and high school programs require auditions or academic criteria; iCAN, ACES and STEM do not.</p>
+    <ul class="info-links">
+      <li><a class="card-link" href="https://www.browardschools.com/bcps-departments/academics/magnet-programs/how-to-apply" target="_blank" rel="noopener noreferrer">How to Apply<span class="sr-only"> (opens in a new tab)</span></a></li>
+      <li><a class="card-link" href="https://www.browardschools.com/bcps-departments/academics/magnet-programs/open-houses" target="_blank" rel="noopener noreferrer">Open Houses<span class="sr-only"> (opens in a new tab)</span></a></li>
+      <li><a class="card-link" href="https://www.browardschools.com/bcps-departments/academics/magnet-programs/transportation-zones" target="_blank" rel="noopener noreferrer">Transportation Zones<span class="sr-only"> (opens in a new tab)</span></a></li>
+    </ul>
+  </section>
+</div>
+
+<script>
+// Data (loaded from Supabase in init)
+let THEMES = {};      // slug -> theme
+let SCHOOLS = [];     // magnet schools, each with .offerings
+let PROGRAMS = [];    // magnet programs, each with .offerings
+let SCHOOL_BY_LOC = {};
+
+// State
+let mode = 'schools';
+let activeLevel = 'all';
+let activeTheme = '';
+let activeCity = '';
+let activeSearch = '';
+let sortKey = 'name';
+let currentPage = 1;
+let openKey = null;
+const PAGE_SIZE = 12;
+
+const SORTS = {
+  schools: [['name', 'Name (A-Z)'], ['name-desc', 'Name (Z-A)'], ['city', 'City'], ['count', 'Most programs']],
+  programs: [['name', 'Name (A-Z)'], ['theme', 'Program theme'], ['count', 'Most schools']],
+};
+
+const ICON = {
+  pin: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  globe: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>',
+  ext: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>',
+  chev: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+  search: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>',
+};
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function highlight(text, query) {
+  if (!query) return escapeHtml(text);
+  const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  return escapeHtml(text).replace(re, '<mark>$1</mark>');
+}
+
+function siteLink(s) {
+  if (!s.site_url) return '';
+  return `<a href="${escapeHtml(s.site_url)}" class="card-link" target="_blank" rel="noopener noreferrer">
+    ${ICON.globe} School website<span class="sr-only"> for ${escapeHtml(s.name)} (opens in a new tab)</span> ${ICON.ext}</a>`;
+}
+
+function programDesc(p) {
+  return p.description || (THEMES[p.theme_slug] && THEMES[p.theme_slug].description) || '';
+}
+
+// Search text per record, built once after load.
+function schoolHaystack(s) {
+  return [s.name, s.city, s.address, s.grades,
+    ...s.offerings.flatMap(o => [o.program.name, THEMES[o.program.theme_slug]?.name, ...o.tracks])].join(' ').toLowerCase();
+}
+function programHaystack(p) {
+  return [p.name, THEMES[p.theme_slug]?.name, p.grades_note, programDesc(p),
+    ...p.offerings.flatMap(o => [o.school.name, o.school.city, ...o.tracks])].join(' ').toLowerCase();
+}
+
+function matchesLevel(s) { return activeLevel === 'all' || s.levels.includes(activeLevel); }
+
+function getFiltered() {
+  const q = activeSearch.toLowerCase().trim();
+  if (mode === 'schools') {
+    const list = SCHOOLS.filter(s =>
+      matchesLevel(s) &&
+      (!activeCity || s.city === activeCity) &&
+      (!activeTheme || s.offerings.some(o => o.program.theme_slug === activeTheme)) &&
+      (!q || s._hay.includes(q)));
+    const by = {
+      'name': (a, b) => a.name.localeCompare(b.name),
+      'name-desc': (a, b) => b.name.localeCompare(a.name),
+      'city': (a, b) => a.city.localeCompare(b.city) || a.name.localeCompare(b.name),
+      'count': (a, b) => b.offerings.length - a.offerings.length || a.name.localeCompare(b.name),
+    }[sortKey] || ((a, b) => a.name.localeCompare(b.name));
+    return list.sort(by);
+  }
+  // Programs: level and city narrow the schools a program is offered at.
+  const list = PROGRAMS.filter(p =>
+    (!activeTheme || p.theme_slug === activeTheme) &&
+    p.offerings.some(o => matchesLevel(o.school) && (!activeCity || o.school.city === activeCity)) &&
+    (!q || p._hay.includes(q)));
+  const by = {
+    'name': (a, b) => a.name.localeCompare(b.name),
+    'theme': (a, b) => THEMES[a.theme_slug].sort_order - THEMES[b.theme_slug].sort_order || a.sort_order - b.sort_order,
+    'count': (a, b) => b.offerings.length - a.offerings.length || a.name.localeCompare(b.name),
+  }[sortKey] || ((a, b) => a.name.localeCompare(b.name));
+  return list.sort(by);
+}
+
+function visibleOfferings(p) {
+  return p.offerings.filter(o => matchesLevel(o.school) && (!activeCity || o.school.city === activeCity));
+}
+
+function tagList(items, max) {
+  const shown = items.slice(0, max);
+  const more = items.length - shown.length;
+  return `<ul class="tag-list">${shown.join('')}${more > 0 ? `<li class="tag-more">+${more} more</li>` : ''}</ul>`;
+}
+
+function schoolCard(s, q) {
+  const key = 'school-' + s.loc_nbr;
+  const open = openKey === key;
+  const tags = s.offerings.map(o => `<li class="tag">${highlight(o.program.name, q)}</li>`);
+  const detail = !open ? '' : `<div class="detail" id="${key}-detail">
+    ${s.offerings.map(o => {
+      const p = o.program;
+      return `<div class="detail-item">
+        <div class="detail-head">
+          <h3>${highlight(p.name, q)}</h3>
+          <span class="eyebrow">${escapeHtml(THEMES[p.theme_slug]?.name)}</span>
+        </div>
+        ${p.grades_note ? `<div class="card-badges"><span class="badge badge-grade">${escapeHtml(p.grades_note)}</span></div>` : ''}
+        <p class="desc">${escapeHtml(programDesc(p))}</p>
+        ${o.note ? `<p class="note">${escapeHtml(o.note)}</p>` : ''}
+        ${o.tracks.length ? `<div class="sub">${p.theme_slug === 'ican' ? 'Academies' : 'Pathways'} at this school</div>
+          <ul class="tag-list">${o.tracks.map(t => `<li class="tag">${highlight(t, q)}</li>`).join('')}</ul>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
+  return `<article class="card${open ? ' open' : ''}" id="${key}">
+    <div class="card-name">${highlight(s.name, q)}</div>
+    <div class="card-badges">
+      <span class="badge badge-grade">${escapeHtml(s.grades)}</span>
+      <span class="badge badge-city">${highlight(s.city, q)}</span>
+      <span class="badge badge-count">${s.offerings.length} program${s.offerings.length === 1 ? '' : 's'}</span>
+    </div>
+    <div class="meta-row">${ICON.pin}<span>${highlight(s.address, q)}, ${escapeHtml(s.city)}, FL ${escapeHtml(s.zip)}</span></div>
+    ${open ? '' : tagList(tags, 4)}
+    ${detail}
+    <div class="card-footer">
+      <button type="button" class="toggle-btn" data-toggle="${key}" aria-expanded="${open}" aria-controls="${key}-detail">
+        ${open ? 'Hide programs' : 'View programs'} ${ICON.chev}</button>
+      ${siteLink(s)}
+    </div>
+  </article>`;
+}
+
+function programCard(p, q) {
+  const key = 'program-' + p.slug;
+  const open = openKey === key;
+  const offs = visibleOfferings(p);
+  const tags = offs.map(o => `<li><button type="button" class="tag" data-goto-school="${o.school.loc_nbr}">${highlight(o.school.name, q)}</button></li>`);
+  const detail = !open ? '' : `<div class="detail" id="${key}-detail">
+    ${offs.map(o => {
+      const s = o.school;
+      return `<div class="detail-item">
+        <div class="detail-head">
+          <h3>${highlight(s.name, q)}</h3>
+          <div class="card-badges"><span class="badge badge-grade">${escapeHtml(s.grades)}</span><span class="badge badge-city">${escapeHtml(s.city)}</span></div>
+        </div>
+        <div class="meta-row">${ICON.pin}<span>${escapeHtml(s.address)}, ${escapeHtml(s.city)}, FL ${escapeHtml(s.zip)}</span></div>
+        ${o.note ? `<p class="note">${escapeHtml(o.note)}</p>` : ''}
+        ${o.tracks.length ? `<div class="sub">${p.theme_slug === 'ican' ? 'Academies' : 'Pathways'}</div>
+          <ul class="tag-list">${o.tracks.map(t => `<li class="tag">${highlight(t, q)}</li>`).join('')}</ul>` : ''}
+        <div class="card-footer" style="border-top:none;padding-top:2px">
+          <button type="button" class="link-btn" data-goto-school="${s.loc_nbr}">All programs at this school</button>
+          ${siteLink(s)}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+  return `<article class="card${open ? ' open' : ''}" id="${key}">
+    <div class="eyebrow">${escapeHtml(THEMES[p.theme_slug]?.name)}</div>
+    <div class="card-name">${highlight(p.name, q)}</div>
+    <div class="card-badges">
+      ${p.grades_note ? `<span class="badge badge-grade">${escapeHtml(p.grades_note)}</span>` : ''}
+      <span class="badge badge-count">${offs.length} school${offs.length === 1 ? '' : 's'}</span>
+    </div>
+    <p class="desc${open ? '' : ' clamp'}">${highlight(programDesc(p), q)}</p>
+    ${open ? '' : tagList(tags, 4)}
+    ${detail}
+    <div class="card-footer">
+      <button type="button" class="toggle-btn" data-toggle="${key}" aria-expanded="${open}" aria-controls="${key}-detail">
+        ${open ? 'Hide schools' : 'View schools'} ${ICON.chev}</button>
+    </div>
+  </article>`;
+}
+
+function renderPagination(total) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pg = document.getElementById('pagination');
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (currentPage > 3) pages.push('...');
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+    if (currentPage < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+  pg.innerHTML = `
+    <button type="button" class="pg-btn" id="pg-prev" aria-label="Previous page" ${currentPage === 1 ? 'disabled' : ''}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    ${pages.map(p => p === '...'
+      ? `<span class="pg-ellipsis">...</span>`
+      : `<button type="button" class="pg-btn${p === currentPage ? ' active' : ''}" data-page="${p}" aria-label="Page ${p}"${p === currentPage ? ' aria-current="page"' : ''}>${p}</button>`
+    ).join('')}
+    <button type="button" class="pg-btn" id="pg-next" aria-label="Next page" ${currentPage === totalPages ? 'disabled' : ''}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>`;
+  pg.querySelector('#pg-prev')?.addEventListener('click', () => goToPage(currentPage - 1));
+  pg.querySelector('#pg-next')?.addEventListener('click', () => goToPage(currentPage + 1));
+  pg.querySelectorAll('[data-page]').forEach(btn => btn.addEventListener('click', () => goToPage(Number(btn.dataset.page))));
+}
+
+// Auto height for iframe embeds (same contract as the charter directory).
+let lastPostedHeight = 0;
+function postHeight() {
+  const height = Math.ceil(document.body.getBoundingClientRect().height);
+  if (Math.abs(height - lastPostedHeight) < 2) return;
+  lastPostedHeight = height;
+  window.parent.postMessage({ type: 'bcps-widget-resize', slug: 'magnet-program-explorer', height }, '*');
+}
+
+function goToPage(page) {
+  currentPage = page;
+  openKey = null;
+  render();
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// The address bar carries the view (#programs, #school-0371, #program-stem-museum)
+// so a link can open any school or program directly.
+function syncHash() {
+  const h = openKey || (mode === 'programs' ? 'programs' : '');
+  const url = location.pathname + location.search + (h ? '#' + h : '');
+  try { history.replaceState(null, '', url); } catch (e) {}
+}
+
+function isFiltered() {
+  return activeLevel !== 'all' || activeTheme || activeCity || activeSearch.trim();
+}
+
+function render() {
+  const q = activeSearch.toLowerCase().trim();
+  const filtered = getFiltered();
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = 1;
+
+  document.getElementById('resultCount').textContent = filtered.length;
+  document.getElementById('totalCount').textContent = mode === 'schools' ? SCHOOLS.length : PROGRAMS.length;
+  document.getElementById('unitLabel').textContent = mode === 'schools' ? 'magnet schools' : 'magnet programs';
+  document.getElementById('clearBtn').hidden = !isFiltered();
+
+  const grid = document.getElementById('results');
+  grid.setAttribute('aria-labelledby', 'tab-' + mode);
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty">${ICON.search}No ${mode === 'schools' ? 'schools' : 'programs'} match your filters. Try a different search or clear the filters.</div>`;
+    renderPagination(0);
+    postHeight();
+    return;
+  }
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = filtered.slice(start, start + PAGE_SIZE);
+  grid.innerHTML = page.map(r => mode === 'schools' ? schoolCard(r, q) : programCard(r, q)).join('');
+  renderPagination(filtered.length);
+  syncHash();
+  postHeight();
+}
+
+function setMode(next, opts = {}) {
+  mode = next;
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.mode === mode)));
+  const input = document.getElementById('searchInput');
+  input.placeholder = mode === 'schools'
+    ? 'Search schools, cities, programs or pathways...'
+    : 'Search programs, themes, pathways or schools...';
+  const sel = document.getElementById('sortSelect');
+  sel.innerHTML = SORTS[mode].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  sortKey = 'name';
+  currentPage = 1;
+  openKey = opts.openKey || null;
+  render();
+}
+
+// Open one record: find its page under the current filters (clearing them if
+// it is filtered out), expand it and bring it into view.
+function openRecord(kind, id) {
+  const key = kind + '-' + id;
+  const wantMode = kind === 'school' ? 'schools' : 'programs';
+  if (mode !== wantMode) setMode(wantMode);
+  let list = getFiltered();
+  let idx = list.findIndex(r => (kind === 'school' ? r.loc_nbr : r.slug) === id);
+  if (idx < 0) { clearFilters(false); list = getFiltered(); idx = list.findIndex(r => (kind === 'school' ? r.loc_nbr : r.slug) === id); }
+  if (idx < 0) return;
+  currentPage = Math.floor(idx / PAGE_SIZE) + 1;
+  openKey = key;
+  render();
+  const el = document.getElementById(key);
+  if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.querySelector('.toggle-btn')?.focus({ preventScroll: true }); }
+}
+
+function clearFilters(doRender = true) {
+  activeLevel = 'all'; activeTheme = ''; activeCity = ''; activeSearch = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('themeFilter').value = '';
+  document.getElementById('cityFilter').value = '';
+  document.querySelectorAll('.chip[data-level]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.level === 'all')));
+  currentPage = 1;
+  if (doRender) render();
+}
+
+// Event listeners
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { if (t.dataset.mode !== mode) setMode(t.dataset.mode); }));
+document.querySelector('.tabs').addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const next = mode === 'schools' ? 'programs' : 'schools';
+  setMode(next);
+  document.getElementById('tab-' + next).focus();
+});
+document.getElementById('searchInput').addEventListener('input', e => { activeSearch = e.target.value; currentPage = 1; openKey = null; render(); });
+document.getElementById('sortSelect').addEventListener('change', e => { sortKey = e.target.value; currentPage = 1; render(); });
+document.getElementById('themeFilter').addEventListener('change', e => { activeTheme = e.target.value; currentPage = 1; openKey = null; render(); });
+document.getElementById('cityFilter').addEventListener('change', e => { activeCity = e.target.value; currentPage = 1; openKey = null; render(); });
+document.getElementById('clearBtn').addEventListener('click', () => clearFilters());
+document.querySelectorAll('.chip[data-level]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.chip[data-level]').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+  activeLevel = btn.dataset.level; currentPage = 1; openKey = null; render();
+}));
+document.getElementById('results').addEventListener('click', e => {
+  const t = e.target.closest('[data-toggle]');
+  if (t) {
+    const key = t.dataset.toggle;
+    openKey = openKey === key ? null : key;
+    render();
+    const el = document.getElementById(key);
+    el?.querySelector('.toggle-btn')?.focus({ preventScroll: true });
+    if (openKey) el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return;
+  }
+  const g = e.target.closest('[data-goto-school]');
+  if (g) openRecord('school', g.dataset.gotoSchool);
+});
+
+// Live data: public anon read of the bcps_magnet_* tables (see
+// supabase/migrations/20261027_bcps_magnet_program_explorer.sql).
+const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+
+async function getRows(path) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+  });
+  if (!res.ok) throw new Error(path + ': ' + res.status);
+  return res.json();
+}
+
+async function init() {
+  try {
+    const [themes, schools, programs, offerings] = await Promise.all([
+      getRows('bcps_magnet_themes?select=slug,name,kind,description,sort_order&order=sort_order.asc'),
+      getRows('bcps_magnet_schools?select=loc_nbr,name,site_url,address,city,zip,grades,levels,sort_order&order=sort_order.asc'),
+      getRows('bcps_magnet_programs?select=slug,theme_slug,name,grades_note,description,sort_order&order=sort_order.asc'),
+      getRows('bcps_magnet_offerings?select=program_slug,school_loc,tracks,note,sort_order&order=sort_order.asc'),
+    ]);
+    themes.forEach(t => { THEMES[t.slug] = t; });
+    SCHOOLS = schools.map(s => ({ ...s, offerings: [] }));
+    SCHOOLS.forEach(s => { SCHOOL_BY_LOC[s.loc_nbr] = s; });
+    PROGRAMS = programs.map(p => ({ ...p, offerings: [] }));
+    const progBySlug = Object.fromEntries(PROGRAMS.map(p => [p.slug, p]));
+    offerings.forEach(o => {
+      const s = SCHOOL_BY_LOC[o.school_loc], p = progBySlug[o.program_slug];
+      if (!s || !p) return;
+      const rec = { tracks: o.tracks || [], note: o.note, school: s, program: p, sort_order: o.sort_order };
+      s.offerings.push(rec);
+      p.offerings.push(rec);
+    });
+    SCHOOLS.forEach(s => s.offerings.sort((a, b) => THEMES[a.program.theme_slug].sort_order - THEMES[b.program.theme_slug].sort_order || a.program.sort_order - b.program.sort_order));
+    PROGRAMS.forEach(p => p.offerings.sort((a, b) => a.school.name.localeCompare(b.school.name)));
+    SCHOOLS = SCHOOLS.filter(s => s.offerings.length);
+    PROGRAMS = PROGRAMS.filter(p => p.offerings.length);
+    SCHOOLS.forEach(s => { s._hay = schoolHaystack(s); });
+    PROGRAMS.forEach(p => { p._hay = programHaystack(p); });
+  } catch (e) {
+    SCHOOLS = []; PROGRAMS = [];
+  }
+
+  const themeSel = document.getElementById('themeFilter');
+  Object.values(THEMES).filter(t => t.kind === 'magnet' && PROGRAMS.some(p => p.theme_slug === t.slug)).forEach(t => {
+    const o = document.createElement('option'); o.value = t.slug; o.textContent = t.name; themeSel.appendChild(o);
+  });
+  const citySel = document.getElementById('cityFilter');
+  [...new Set(SCHOOLS.map(s => s.city).filter(Boolean))].sort().forEach(c => {
+    const o = document.createElement('option'); o.value = c; o.textContent = c; citySel.appendChild(o);
+  });
+  document.getElementById('innovativeList').innerHTML = Object.values(THEMES)
+    .filter(t => t.kind === 'innovative').map(t => `<li class="tag">${escapeHtml(t.name)}</li>`).join('');
+
+  applyHash();
+  window.addEventListener('hashchange', applyHash);
+}
+
+function applyHash() {
+  const h = decodeURIComponent(location.hash.replace(/^#/, ''));
+  setMode(h === 'programs' || h.startsWith('program-') ? 'programs' : 'schools');
+  if (h.startsWith('school-')) openRecord('school', h.slice(7));
+  else if (h.startsWith('program-')) openRecord('program', h.slice(8));
+}
+
+window.addEventListener('load', postHeight);
+window.addEventListener('resize', postHeight);
+if (window.ResizeObserver) {
+  new ResizeObserver(postHeight).observe(document.body);
+} else {
+  setInterval(postHeight, 500);
+}
+
+init();
+</script>
+</body>
+</html>
