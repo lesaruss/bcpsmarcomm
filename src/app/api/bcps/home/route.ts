@@ -79,6 +79,19 @@ interface DepartmentAnalytics {
   engaged_pct: number | null
   avg_seconds: number | null
   top_pages: { title: string; path: string; visits: number; visitors: number; avg_seconds: number }[]
+  // Every synced month, oldest first, for the Analytics tab's period picker
+  // and Traffic chart (Sean, Oct 27 Hot Lab).
+  months: DepartmentMonth[]
+}
+
+interface DepartmentMonth {
+  period: string
+  visitors: number | null
+  new_visitors: number | null
+  visits: number | null
+  engaged_pct: number | null
+  avg_seconds: number | null
+  top_pages: { title: string; path: string; visits: number; visitors: number; avg_seconds: number }[]
 }
 
 interface DepartmentSummary {
@@ -538,23 +551,18 @@ async function loadAnalytics(ids: string[], depts: DepartmentSummary[]): Promise
   const { data: rows } = await svc.from('bcps_department_analytics')
     .select('department_id, period, monthly_visitors, avg_time_seconds, bounce_rate')
     .in('department_id', ids).order('period', { ascending: false })
-  const latest = new Map<string, { period: string; monthly_visitors: number | null; avg_time_seconds: number | null; bounce_rate: number | null }>()
-  for (const r of rows ?? []) if (!latest.has(r.department_id)) latest.set(r.department_id, r)
 
-  const periods = Array.from(new Set(Array.from(latest.values()).map((r) => r.period)))
+  const periods = Array.from(new Set((rows ?? []).map((r) => r.period as string)))
   const snapByPeriod = new Map<string, { dept_id?: string; sessions?: number; new_users?: number; engagement_rate?: number; pages?: { path: string; sessions: number; active_users: number; avg_session_duration: number }[] }[]>()
   if (periods.length) {
     const { data: snaps } = await svc.from('bcps_analytics_snapshots').select('period, top_department_pages').in('period', periods)
     for (const s of snaps ?? []) snapByPeriod.set(s.period, Array.isArray(s.top_department_pages) ? s.top_department_pages : [])
   }
 
-  for (const id of ids) {
-    if (!depts.some((d) => d.id === id)) continue
-    const row = latest.get(id)
-    if (!row) continue
+  const monthOf = (id: string, row: { period: string; monthly_visitors: number | null; avg_time_seconds: number | null; bounce_rate: number | null }): DepartmentMonth => {
     const entry = (snapByPeriod.get(row.period) ?? []).find((e) => e.dept_id === id)
     const bounce = row.bounce_rate === null || row.bounce_rate === undefined ? null : Number(row.bounce_rate)
-    out.set(id, {
+    return {
       period: row.period,
       visitors: row.monthly_visitors ?? null,
       new_visitors: entry?.new_users ?? null,
@@ -566,7 +574,7 @@ async function loadAnalytics(ids: string[], depts: DepartmentSummary[]): Promise
       top_pages: (entry?.pages ?? [])
         .slice()
         .sort((a, b) => (b.sessions ?? 0) - (a.sessions ?? 0))
-        .slice(0, 6)
+        .slice(0, 20)
         .map((p) => ({
           title: titleFromPath(p.path),
           path: p.path,
@@ -574,7 +582,16 @@ async function loadAnalytics(ids: string[], depts: DepartmentSummary[]): Promise
           visitors: p.active_users ?? 0,
           avg_seconds: Math.round(p.avg_session_duration ?? 0),
         })),
-    })
+    }
+  }
+
+  for (const id of ids) {
+    if (!depts.some((d) => d.id === id)) continue
+    const mine = (rows ?? []).filter((r) => r.department_id === id)
+    if (!mine.length) continue
+    const months = mine.map((r) => monthOf(id, r)).reverse()
+    const latest = months[months.length - 1]
+    out.set(id, { ...latest, top_pages: latest.top_pages.slice(0, 6), months })
   }
   return out
 }

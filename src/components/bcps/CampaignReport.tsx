@@ -148,7 +148,7 @@ const SURFACE    = '#ffffff'
 // Ticks always reach AT OR ABOVE the series maximum, so the top gridline is a
 // real ceiling. Stopping at the last tick below max lets the peak overflow the
 // plot - caught by rendering the real data: peak 156 against a top tick of 150.
-function niceTicks(max: number, count = 4): number[] {
+export function niceTicks(max: number, count = 4): number[] {
   if (max <= 0) return [0, 1]
   const raw = max / count
   const mag = Math.pow(10, Math.floor(Math.log10(raw)))

@@ -7,7 +7,8 @@ import { MARCOMM_PATH, type PageId, type BreadcrumbItem } from '@/lib/types'
 import DepartmentsPage from './DepartmentsPage'
 import SchoolsPage from './SchoolsPage'
 import SchoolProfileView from '@/components/bcps/SchoolProfileView'
-import AnalyticsPage from './AnalyticsPage'
+import AnalyticsPage, { PeriodSelector, defaultPeriod, getPeriodRange, type PeriodState } from './AnalyticsPage'
+import TrafficTrend from '@/components/bcps/TrafficTrend'
 import WidgetsPage from './WidgetsPage'
 import DashboardPage from './DashboardPage'
 import MarcommAssignmentsPage from './MarcommAssignmentsPage'
@@ -125,7 +126,10 @@ interface DepartmentAnalytics {
   engaged_pct: number | null
   avg_seconds: number | null
   top_pages: { title: string; path: string; visits: number; visitors: number; avg_seconds: number }[]
+  months?: DepartmentMonth[]
 }
+
+type DepartmentMonth = Omit<DepartmentAnalytics, 'months'>
 
 interface DepartmentSummary {
   id: string
@@ -805,6 +809,10 @@ function ReviewTab({ led, myWindow, oversight = false }: { led: DepartmentSummar
 function AnalyticsTab({ led }: { led: DepartmentSummary[] }) {
   const withData = led.filter((d) => d.analytics)
   const [selected, setSelected] = useState<string | null>(null)
+  // The same period picker as the Analytics page (Sean, Oct 27 Hot Lab).
+  const [period, setPeriod] = useState<PeriodState>(defaultPeriod)
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const current = withData.find((d) => d.id === selected) ?? withData[0]
   if (!current?.analytics) {
     return (
@@ -814,10 +822,19 @@ function AnalyticsTab({ led }: { led: DepartmentSummary[] }) {
       </div>
     )
   }
-  const a = current.analytics
+  const range = getPeriodRange(period)
+  const all = current.analytics.months?.length ? current.analytics.months : [{ ...current.analytics }]
+  const months = range ? all.filter((m) => m.period >= range.from.slice(0, 7) && m.period <= range.to.slice(0, 7)) : all
+  const a = rollUp(months)
   return (
     <>
-      <p className="wcm-hub2-intro">{monthLabel(a.period)}, synced from Google Analytics.</p>
+      <PeriodSelector
+        period={period} setPeriod={setPeriod}
+        customFrom={customFrom} setCustomFrom={setCustomFrom}
+        customTo={customTo} setCustomTo={setCustomTo}
+        onApply={() => { if (customFrom && customTo) setPeriod((p) => ({ ...p, customFrom, customTo })) }}
+        prevLabel={null} hasPrevData={false}
+      />
       {withData.length > 8 && (
         <div className="home-actions">
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
@@ -837,35 +854,72 @@ function AnalyticsTab({ led }: { led: DepartmentSummary[] }) {
           ))}
         </div>
       )}
-      <div className="home-kpis">
-        <div className="home-kpi"><b>{fmtNum(a.visitors)}</b><span>Visitors</span></div>
-        {a.new_visitors !== null && <div className="home-kpi"><b>{fmtNum(a.new_visitors)}</b><span>First-time visitors</span></div>}
-        {a.visits !== null && <div className="home-kpi"><b>{fmtNum(a.visits)}</b><span>Visits</span></div>}
-        {a.engaged_pct !== null && <div className="home-kpi"><b>{a.engaged_pct}%</b><span>Engaged visits</span></div>}
-        <div className="home-kpi"><b>{fmtDuration(a.avg_seconds)}</b><span>Average visit</span></div>
-      </div>
-      {a.top_pages.length > 0 && (
-        <div className="home-dept">
-          <h3 className="home-card-title">Most visited pages</h3>
-          <div className="home-table-wrap">
-            <table className="home-table">
-              <thead><tr><th>Page</th><th className="num">Visits</th><th className="num">Visitors</th><th className="num">Avg. visit</th></tr></thead>
-              <tbody>
-                {a.top_pages.map((p) => (
-                  <tr key={p.path}>
-                    <td>{p.title}</td>
-                    <td className="num">{fmtNum(p.visits)}</td>
-                    <td className="num">{fmtNum(p.visitors)}</td>
-                    <td className="num">{fmtDuration(p.avg_seconds)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {!months.length ? (
+        <div className="wcm-hub2-empty">No analytics synced for {current.name} in {range?.label ?? 'this period'}. Try another period.</div>
+      ) : <>
+        <p className="wcm-hub2-intro">
+          {current.name}, {months.length === 1 ? monthLabel(months[0].period) : `${monthLabel(months[0].period)} to ${monthLabel(months[months.length - 1].period)}`}, synced from Google Analytics.
+        </p>
+        <div className="home-kpis">
+          <div className="home-kpi"><b>{fmtNum(a.visitors)}</b><span>{months.length > 1 ? 'Visitors (monthly totals added)' : 'Visitors'}</span></div>
+          {a.new_visitors !== null && <div className="home-kpi"><b>{fmtNum(a.new_visitors)}</b><span>First-time visitors</span></div>}
+          {a.visits !== null && <div className="home-kpi"><b>{fmtNum(a.visits)}</b><span>Visits</span></div>}
+          {a.engaged_pct !== null && <div className="home-kpi"><b>{a.engaged_pct}%</b><span>Engaged visits</span></div>}
+          <div className="home-kpi"><b>{fmtDuration(a.avg_seconds)}</b><span>Average visit</span></div>
+        </div>
+        {/* Most visited pages and Traffic side by side (Sean, Oct 27 Hot Lab). */}
+        <div className="home-analytics-cols">
+          <div className="home-dept">
+            <h3 className="home-card-title">Most visited pages</h3>
+            {a.top_pages.length ? (
+              <div className="home-table-wrap">
+                <table className="home-table">
+                  <thead><tr><th>Page</th><th className="num">Visits</th><th className="num">Visitors</th><th className="num">Avg. visit</th></tr></thead>
+                  <tbody>
+                    {a.top_pages.map((p) => (
+                      <tr key={p.path}>
+                        <td>{p.title}</td>
+                        <td className="num">{fmtNum(p.visits)}</td>
+                        <td className="num">{fmtNum(p.visitors)}</td>
+                        <td className="num">{fmtDuration(p.avg_seconds)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <div className="wcm-hub2-empty">No page-level numbers for this period.</div>}
+          </div>
+          <div className="home-dept">
+            <TrafficTrend subject={current.name} points={months.map((m) => ({ period: m.period, visits: m.visits, visitors: m.visitors }))} />
           </div>
         </div>
-      )}
+      </>}
     </>
   )
+}
+
+// Totals for the months in the selected period: counts are added, rates and
+// averages are weighted by visits, and pages are merged by address.
+function rollUp(months: DepartmentMonth[]): Omit<DepartmentMonth, 'period'> {
+  const sum = (k: 'visitors' | 'new_visitors' | 'visits') => months.some((m) => m[k] !== null) ? months.reduce((n, m) => n + (m[k] ?? 0), 0) : null
+  const weight = (m: DepartmentMonth) => m.visits ?? m.visitors ?? 1
+  const avg = (k: 'engaged_pct' | 'avg_seconds') => {
+    const have = months.filter((m) => m[k] !== null)
+    const w = have.reduce((n, m) => n + weight(m), 0)
+    return have.length && w ? Math.round(have.reduce((n, m) => n + (m[k] as number) * weight(m), 0) / w) : null
+  }
+  const pages = new Map<string, { title: string; path: string; visits: number; visitors: number; secs: number }>()
+  for (const m of months) for (const p of m.top_pages) {
+    const cur = pages.get(p.path) ?? { title: p.title, path: p.path, visits: 0, visitors: 0, secs: 0 }
+    cur.visits += p.visits; cur.visitors += p.visitors; cur.secs += p.avg_seconds * p.visits
+    pages.set(p.path, cur)
+  }
+  return {
+    visitors: sum('visitors'), new_visitors: sum('new_visitors'), visits: sum('visits'),
+    engaged_pct: avg('engaged_pct'), avg_seconds: avg('avg_seconds'),
+    top_pages: Array.from(pages.values()).sort((x, y) => y.visits - x.visits).slice(0, 10)
+      .map((p) => ({ title: p.title, path: p.path, visits: p.visits, visitors: p.visitors, avg_seconds: p.visits ? Math.round(p.secs / p.visits) : 0 })),
+  }
 }
 
 function NotesTab({ notes, led }: { notes: DirectorNote[]; led: DepartmentSummary[] }) {

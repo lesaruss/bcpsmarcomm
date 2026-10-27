@@ -11,13 +11,14 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 import React, { useState, useEffect, useCallback } from 'react'
+import TrafficTrend, { type TrafficPoint } from '@/components/bcps/TrafficTrend'
 import {
   fmt, fmtTime, SERIES, INK, INK_MUTED,
   type Campaign, type CampaignDay,
 } from '@/components/bcps/CampaignReport'
 
 // ─── Period types ─────────────────────────────────────────────────────────────
-type PeriodMode = 'calendar' | 'school' | 'custom'
+export type PeriodMode = 'calendar' | 'school' | 'custom'
 
 const NOW = new Date()
 const CUR_YEAR = NOW.getFullYear()
@@ -25,7 +26,7 @@ const CUR_MONTH = NOW.getMonth() + 1
 // Current school year start: if Aug or later we're in CUR_YEAR's school year, else CUR_YEAR-1
 const CUR_SCHOOL_START = CUR_MONTH >= 8 ? CUR_YEAR : CUR_YEAR - 1
 
-interface PeriodState {
+export interface PeriodState {
   mode: PeriodMode
   calYear: number
   schoolStart: number
@@ -33,13 +34,18 @@ interface PeriodState {
   customTo: string
 }
 
-interface PeriodRange {
+export interface PeriodRange {
   from: string; to: string
   prevFrom: string; prevTo: string
   label: string; prevLabel: string
 }
 
-function getPeriodRange(p: PeriodState): PeriodRange | null {
+// The default the Analytics page opens on: this calendar year.
+export function defaultPeriod(): PeriodState {
+  return { mode: 'calendar', calYear: CUR_YEAR, schoolStart: CUR_SCHOOL_START, customFrom: '', customTo: '' }
+}
+
+export function getPeriodRange(p: PeriodState): PeriodRange | null {
   if (p.mode === 'calendar') {
     return {
       from: `${p.calYear}-01-01`, to: `${p.calYear}-12-31`,
@@ -389,7 +395,7 @@ function CampaignTile({ campaign }: { campaign: Campaign }) {
 }
 
 // ─── Period Selector ──────────────────────────────────────────────────────────
-function PeriodSelector({
+export function PeriodSelector({
   period, setPeriod,
   customFrom, setCustomFrom,
   customTo, setCustomTo,
@@ -513,13 +519,8 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   const [savingCampaign, setSavingCampaign] = useState(false)
 
   // Period selection
-  const [period, setPeriod] = useState<PeriodState>({
-    mode: 'calendar',
-    calYear: CUR_YEAR,
-    schoolStart: CUR_SCHOOL_START,
-    customFrom: '',
-    customTo: '',
-  })
+  const [period, setPeriod] = useState<PeriodState>(defaultPeriod)
+  const [series, setSeries] = useState<TrafficPoint[]>([])
   // Custom inputs are staged separately (only applied on Apply click)
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -562,6 +563,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
       if (!res.ok) throw new Error(data.error || 'Failed to load analytics data.')
       setSnapshot(data.snapshot ?? null)
       setPrevSnapshot(data.prevSnapshot ?? null)
+      setSeries(Array.isArray(data.series) ? data.series : [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load analytics data.')
     } finally {
@@ -790,6 +792,14 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
               {k.delta}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Traffic: total sessions by month, the trend behind the Total
+          Sessions tile (Sean, Oct 27 Hot Lab). */}
+      {snapshot && (
+        <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '14px 16px', marginBottom: 24 }}>
+          <TrafficTrend points={series} subject="browardschools.com" />
         </div>
       )}
 
