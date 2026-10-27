@@ -7,7 +7,7 @@
 // whole-site "/" campaigns and start_date windows added 2026-09-25 (v21).
 // Caller check added 2026-10-05 (v24) but only in Supabase; brought back into
 // this file 2026-10-26 along with Top Pages (v25). Friendly page names for
-// Top Pages added 2026-10-26 (v26).
+// Top Pages added 2026-10-26 (v26). Dead Pages added 2026-10-27 (v28).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -139,6 +139,25 @@ function nameFromPath(path: string): string {
   seg = seg.replace(/\b([a-z])([a-z]*)\b/g, (_m, a: string, b: string) => a.toUpperCase() + b);
   if (!seg) return path;
   return ext ? `${seg} (${ext[1].toUpperCase()})` : seg;
+}
+
+// ---- Dead Pages (added 2026-10-27, v28) -----------------------------------
+//
+// Every path that served the site's 404 template in the window, found by its
+// title rather than its rank, so broken links far below the Top Pages cutoff
+// are caught too. Capped so a crawler hammering junk URLs cannot bloat the
+// snapshot; the response reports when the cap was hit.
+const DEAD_PAGES_LIMIT = 1000;
+
+// Last path segments too generic to suggest a redirect from: "/x/overview"
+// matching "/y/overview" says nothing about whether they are the same page.
+const GENERIC_SEGMENTS = new Set(['', 'overview', 'page', 'pages', 'site', 'en', 'es', 'news', 'search', 'about']);
+// A dead old-site landing page ("/site/default") is the homepage.
+const HOMEPAGE_SEGMENTS = new Set(['default', 'default.aspx', 'index', 'index.html', 'index.htm', 'home']);
+
+function lastSegment(path: string): string {
+  const last = path.replace(/\/+$/, '').split('/').pop() || '';
+  try { return decodeURIComponent(last).toLowerCase(); } catch { return last.toLowerCase(); }
 }
 
 // Returns the GA4 dimensionFilter for a campaign, `undefined` for a
@@ -364,6 +383,59 @@ Deno.serve(async (req: Request) => {
       name: titleByPath.get(pg.path)?.title ?? nameFromPath(pg.path),
     }));
 
+    // ---- Dead Pages ----
+    // Suggested redirect: the busiest LIVE page sharing the dead page's last
+    // URL segment (a page moved between sections keeps its slug - the Home
+    // School Education move from strategy-innovation to academics is exactly
+    // this), or the homepage for a dead old-site landing page. Only a
+    // suggestion: the person setting the redirect confirms it.
+    let deadPages: any[] = [];
+    let deadError: string | null = null;
+    let deadCapped = false;
+    try {
+      const deadReport = await runGA4Report(accessToken, {
+        dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+        dimensions: [{ name: 'pagePath' }, { name: 'pageTitle' }],
+        metrics: [{ name: 'sessions' }, { name: 'activeUsers' }],
+        dimensionFilter: { orGroup: { expressions: [
+          { filter: { fieldName: 'pageTitle', stringFilter: { matchType: 'CONTAINS', value: 'be found', caseSensitive: false } } },
+          { filter: { fieldName: 'pageTitle', stringFilter: { matchType: 'CONTAINS', value: 'page not found', caseSensitive: false } } },
+        ] } },
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: DEAD_PAGES_LIMIT
+      });
+      deadCapped = (deadReport.rowCount ?? 0) > DEAD_PAGES_LIMIT;
+      // A path can 404 under more than one title (translations); sum them.
+      // activeUsers is summed too, so it can over-count someone who saw the
+      // same dead page in two languages - close enough to rank by.
+      const byPath = new Map<string, { sessions: number; active_users: number }>();
+      for (const r of (deadReport.rows || [])) {
+        const path = r.dimensionValues[0].value as string;
+        const cur = byPath.get(path) || { sessions: 0, active_users: 0 };
+        cur.sessions += parseInt(r.metricValues[0].value);
+        cur.active_users += parseInt(r.metricValues[1].value);
+        byPath.set(path, cur);
+      }
+      // Busiest live page per last segment. allPages is sorted by sessions,
+      // so the first page seen for a segment is the busiest.
+      const liveBySegment = new Map<string, string>();
+      for (const pg of allPages) {
+        if (byPath.has(pg.path)) continue;
+        const seg = lastSegment(pg.path);
+        if (GENERIC_SEGMENTS.has(seg) || seg.length < 4) continue;
+        if (!liveBySegment.has(seg)) liveBySegment.set(seg, pg.path);
+      }
+      deadPages = Array.from(byPath, ([path, m]) => {
+        const seg = lastSegment(path);
+        const suggested = HOMEPAGE_SEGMENTS.has(seg) ? '/' : (liveBySegment.get(seg) ?? null);
+        return { path, name: nameFromPath(path), ...m, suggested_path: suggested };
+      }).sort((a, b) => b.sessions - a.sessions);
+    } catch (err: any) {
+      // Same rule as titles: a failed lookup must not cost the sync, but it
+      // is reported rather than left as an empty list that reads as "none".
+      deadError = err.message;
+    }
+
     const topPrograms = (programs || []).map((p: any) => {
       const base = (p.path as string).replace(/\/$/, '');
       const matched = allPages.filter(pg => pg.path === base || pg.path.startsWith(base + '/'));
@@ -391,6 +463,9 @@ Deno.serve(async (req: Request) => {
       top_department_pages: topDepts,
       top_program_pages: topPrograms,
       top_pages: topPages,
+      // Left as it was on a failed lookup, so one bad GA4 call cannot wipe
+      // the list the team is working from.
+      ...(deadError ? {} : { dead_pages: deadPages }),
       top_school_pages: [],
       top_project_pages: [],
       traffic_sources: trafficSources,
@@ -593,6 +668,10 @@ Deno.serve(async (req: Request) => {
       top_pages: topPages.length,
       top_pages_titled: topPages.filter(p => titleByPath.has(p.path)).length,
       top_pages_title_error: titleError,
+      dead_pages: deadPages.length,
+      dead_pages_with_suggestion: deadPages.filter(d => d.suggested_path).length,
+      dead_pages_capped: deadCapped,
+      dead_pages_error: deadError,
       programs_with_traffic: topPrograms.filter(p => p.sessions > 0).length,
       campaigns_synced: campaignResults.filter(c => !c.error && !c.skipped).length,
       campaigns: campaignResults
