@@ -10,6 +10,7 @@
 // Top Pages added 2026-10-26 (v26). Dead Pages added 2026-10-27 (v28, match
 // tightened in v29). Backfill of a past calendar month added 2026-10-27 (v30).
 // Previous addresses (bcps_departments.previous_paths) added 2026-10-27 (v31).
+// Dead Pages suggestions screened and confirmed as real pages 2026-10-27 (v32).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -162,6 +163,24 @@ const GENERIC_SEGMENTS = new Set([
 ]);
 // A dead old-site landing page ("/site/default") is the homepage.
 const HOMEPAGE_SEGMENTS = new Set(['default', 'default.aspx', 'index', 'index.html', 'index.htm', 'home']);
+
+// Destinations never offered as a redirect target (v32). The v29 matcher took
+// any path GA4 had seen without the 404 title, which let in old-site
+// addresses (/departments/employment/ -> /Page/32153/employment), stray
+// links that look like another website (/broward ->
+// /ymcasouthflorida.org/...) and malformed doubled slashes. Measured on the
+// 2026-10-27 scan: 10 of 153 suggestions, all wrong, none useful.
+const OLD_SITE_SECTIONS = new Set(['page', 'domain', 'site', 'cms', 'fs', 'sitemedia']);
+
+function badDestination(path: string): boolean {
+  if (path.startsWith('//')) return true;
+  const first = (path.split('/')[1] || '').toLowerCase();
+  return OLD_SITE_SECTIONS.has(first) || first.includes('.');
+}
+
+// Candidates kept per match key, so a busiest candidate that fails the title
+// check below can fall back to the next one.
+const CANDIDATES_PER_KEY = 3;
 
 function lastSegment(path: string): string {
   const last = path.replace(/\/+$/, '').split('/').pop() || '';
@@ -443,6 +462,8 @@ Deno.serve(async (req: Request) => {
     let deadPages: any[] = [];
     let deadError: string | null = null;
     let deadCapped = false;
+    let deadSuggestError: string | null = null;
+    let deadSuggestDropped = 0;
     try {
       const deadReport = await runGA4Report(accessToken, {
         dateRanges: [range],
@@ -467,18 +488,55 @@ Deno.serve(async (req: Request) => {
         cur.active_users += parseInt(r.metricValues[1].value);
         byPath.set(path, cur);
       }
-      // Busiest live page per match key. allPages is sorted by sessions, so
-      // the first page seen for a key is the busiest.
-      const liveByKey = new Map<string, string>();
+      // Live candidates per match key, busiest first. allPages is sorted by
+      // sessions, so pages arrive in that order.
+      const liveByKey = new Map<string, string[]>();
       for (const pg of allPages) {
-        if (byPath.has(pg.path)) continue;
+        if (byPath.has(pg.path) || badDestination(pg.path)) continue;
         const key = matchKey(pg.path);
-        if (key && !liveByKey.has(key)) liveByKey.set(key, pg.path);
+        if (!key) continue;
+        const list = liveByKey.get(key) ?? [];
+        if (list.length < CANDIDATES_PER_KEY) liveByKey.set(key, [...list, pg.path]);
       }
+      const candidatesFor = (path: string): string[] => {
+        const key = matchKey(path);
+        return key ? liveByKey.get(key) ?? [] : [];
+      };
+
+      // A destination has to be a real page: GA4 recorded a proper title for
+      // it in the same window, and that title is not the 404 page. Catches
+      // addresses the screen above cannot judge on their own. If the lookup
+      // fails, unconfirmed suggestions are dropped rather than shown, and the
+      // failure is reported, so a bad guess never reaches the team silently.
+      const toCheck = new Set<string>();
+      for (const path of byPath.keys()) {
+        if (HOMEPAGE_SEGMENTS.has(lastSegment(path))) continue;
+        for (const c of candidatesFor(path)) toCheck.add(c);
+      }
+      const realPages = new Set<string>();
+      if (toCheck.size) {
+        try {
+          const destReport = await runGA4Report(accessToken, {
+            dateRanges: [range],
+            dimensions: [{ name: 'pagePath' }, { name: 'pageTitle' }],
+            metrics: [{ name: 'sessions' }],
+            dimensionFilter: { filter: { fieldName: 'pagePath', inListFilter: { values: [...toCheck] } } },
+            limit: 10000
+          });
+          for (const r of (destReport.rows || [])) {
+            const title = (r.dimensionValues[1].value || '').trim();
+            if (title && title !== '(not set)' && !NOT_FOUND.test(title)) realPages.add(r.dimensionValues[0].value);
+          }
+        } catch (err: any) {
+          deadSuggestError = err.message;
+        }
+      }
+
       deadPages = Array.from(byPath, ([path, m]) => {
         const seg = lastSegment(path);
-        const key = matchKey(path);
-        const suggested = HOMEPAGE_SEGMENTS.has(seg) ? '/' : (key ? liveByKey.get(key) ?? null : null);
+        const candidates = candidatesFor(path);
+        const suggested = HOMEPAGE_SEGMENTS.has(seg) ? '/' : (candidates.find(c => realPages.has(c)) ?? null);
+        if (!suggested && candidates.length) deadSuggestDropped++;
         return { path, name: nameFromPath(path), ...m, suggested_path: suggested };
       }).sort((a, b) => b.sessions - a.sessions);
     } catch (err: any) {
@@ -721,6 +779,8 @@ Deno.serve(async (req: Request) => {
       top_pages_title_error: titleError,
       dead_pages: deadPages.length,
       dead_pages_with_suggestion: deadPages.filter(d => d.suggested_path).length,
+      dead_pages_suggestions_unconfirmed: deadSuggestDropped,
+      dead_pages_suggestion_check_error: deadSuggestError,
       dead_pages_capped: deadCapped,
       dead_pages_error: deadError,
       programs_with_traffic: topPrograms.filter(p => p.sessions > 0).length,

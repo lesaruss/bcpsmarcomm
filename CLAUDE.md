@@ -1,5 +1,11 @@
 # bcpsmarcomm
 
+## Before saying anything is blocked, unreachable, or can't be verified
+
+- Search `public.error_registry` and `public.knowledge_records` first, every time, before those words reach Sean or V. A wall (auth, network, proxy, repo, a page behind login) almost always has a recorded way through. This has been missed ten times (registry `AGENT-BLIND-VERIFICATION-CLAIM`).
+- Signed-in pages on bcpsmarcomm.com (anything behind login, gated docs, `/api/bcps/*`): use canon `agent-headless-page-verification`. Its full steps are in registry `QA-VEGAN-OTP-RETIRED-NO-HEADLESS-LOGIN`. The old `qa-vegan-otp` function is retired; do not call it.
+- This sandbox cannot load bcpsmarcomm.com directly. Use `pg_net` from SQL, or `mcp__Vercel__web_fetch_vercel_url` for signed-out pages (registry `SANDBOX-EGRESS-403-LIVE-SITE-USE-VERCEL-FETCH`).
+
 ## Supabase writes (project fwbhwfxpncrsfhttimna)
 
 - Before the first write, check the error registry (`public.error_registry`) and canon (`public.knowledge_records`, `always_load = true`).
