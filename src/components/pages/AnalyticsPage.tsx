@@ -99,6 +99,16 @@ interface TopPageRow extends SubPage {
   name?: string
 }
 
+// suggested_path is a guess for a person to confirm: the busiest live page
+// with the same last URL segment, or "/" for a dead old-site landing page.
+interface DeadPageRow {
+  path: string
+  name: string
+  sessions: number
+  active_users: number
+  suggested_path: string | null
+}
+
 interface DeptRow {
   slug: string
   url_slug: string
@@ -143,6 +153,9 @@ interface Snapshot {
   // Added 2026-10-26: the 200 most visited pages, ungrouped. Absent on
   // snapshots written before then.
   top_pages?: TopPageRow[]
+  // Added 2026-10-27 (bcps-ga4-sync v28): every path that served the 404
+  // page in the window. Absent on snapshots written before then.
+  dead_pages?: DeadPageRow[]
   traffic_sources: Record<string, number>
   synced_at: string
 }
@@ -490,7 +503,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'pages' | 'campaigns' | 'departments' | 'programs' | 'sources'>('pages')
+  const [activeTab, setActiveTab] = useState<'pages' | 'dead' | 'campaigns' | 'departments' | 'programs' | 'sources'>('pages')
 
   // Campaigns
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
@@ -516,6 +529,8 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
 
   // Pagination
   const [pagesPage, setPagesPage] = useState(0)
+  const [deadPage, setDeadPage] = useState(0)
+  const [deadPageSize, setDeadPageSize] = useState(25)
   const [pagesPageSize, setPagesPageSize] = useState(25)
   const [deptPage, setDeptPage] = useState(0)
   const [deptPageSize, setDeptPageSize] = useState(10)
@@ -617,7 +632,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   }, [onShowToast])
 
   // Reset paging + search when switching tabs
-  useEffect(() => { setQuery(''); setPagesPage(0); setDeptPage(0); setProgPage(0) }, [activeTab])
+  useEffect(() => { setQuery(''); setPagesPage(0); setDeadPage(0); setDeptPage(0); setProgPage(0) }, [activeTab])
 
   const handleApplyCustom = useCallback(() => {
     if (customFrom && customTo) {
@@ -652,17 +667,21 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   const toggleProgram = toggle(setExpandedPrograms)
 
   const allPages = snapshot?.top_pages || []
+  const allDead = snapshot?.dead_pages || []
   const allDepts = snapshot?.top_department_pages || []
   const allPrograms = snapshot?.top_program_pages || snapshot?.top_project_pages || []
   const prevDepts = prevSnapshot?.top_department_pages || []
 
   const q = query.trim().toLowerCase()
   const topPages = q && activeTab === 'pages' ? allPages.filter(p => p.path.toLowerCase().includes(q) || (p.name ?? '').toLowerCase().includes(q)) : allPages
+  const dead = q && activeTab === 'dead' ? allDead.filter(d => d.path.toLowerCase().includes(q) || d.name.toLowerCase().includes(q)) : allDead
   const depts = q && activeTab === 'departments' ? allDepts.filter(d => d.name.toLowerCase().includes(q)) : allDepts
   const programs = q && activeTab === 'programs' ? allPrograms.filter(p => p.name.toLowerCase().includes(q)) : allPrograms
 
-  const matchCount = activeTab === 'pages' ? topPages.length : activeTab === 'departments' ? depts.length : programs.length
+  const matchCount = activeTab === 'pages' ? topPages.length : activeTab === 'dead' ? dead.length : activeTab === 'departments' ? depts.length : programs.length
   const pagedPages = topPages.slice(pagesPage * pagesPageSize, (pagesPage + 1) * pagesPageSize)
+  const pagedDead = dead.slice(deadPage * deadPageSize, (deadPage + 1) * deadPageSize)
+  const deadSessions = allDead.reduce((s, d) => s + d.sessions, 0)
   const pagedDepts = depts.slice(deptPage * deptPageSize, (deptPage + 1) * deptPageSize)
   const pagedPrograms = programs.slice(progPage * progPageSize, (progPage + 1) * progPageSize)
 
@@ -778,6 +797,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
       <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
         {([
           ['pages', 'Top Pages'],
+          ['dead', 'Dead Pages'],
           ['departments', 'Top Departments'],
           ['programs', 'Programs & Services'],
           ['sources', 'Traffic Sources'],
@@ -844,14 +864,14 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
         </div>
       )}
 
-      {/* Per-tab search (pages + departments + programs) */}
-      {(activeTab === 'pages' || activeTab === 'departments' || activeTab === 'programs') && (
+      {/* Per-tab search (pages + dead pages + departments + programs) */}
+      {(activeTab === 'pages' || activeTab === 'dead' || activeTab === 'departments' || activeTab === 'programs') && (
         <div style={{ marginBottom: 16 }}>
           <input
             type="text"
             value={query}
-            onChange={e => { setQuery(e.target.value); setPagesPage(0); setDeptPage(0); setProgPage(0) }}
-            placeholder={activeTab === 'pages' ? 'Search pages...' : activeTab === 'departments' ? 'Search departments...' : 'Search programs & services...'}
+            onChange={e => { setQuery(e.target.value); setPagesPage(0); setDeadPage(0); setDeptPage(0); setProgPage(0) }}
+            placeholder={activeTab === 'pages' || activeTab === 'dead' ? 'Search pages...' : activeTab === 'departments' ? 'Search departments...' : 'Search programs & services...'}
             style={{ width: '100%', maxWidth: 360, fontSize: 12, fontFamily: 'Montserrat, sans-serif', padding: '8px 12px', border: '1px solid rgba(0,0,0,0.15)', borderRadius: 8, outline: 'none', color: '#1a1a1a' }}
           />
           {q && (
@@ -903,6 +923,59 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
             <PaginationBar total={topPages.length} pageSize={pagesPageSize} page={pagesPage}
               onPageSize={setPagesPageSize} onPage={setPagesPage} />
           )}
+        </div>
+      )}
+
+      {/* Dead Pages Tab */}
+      {activeTab === 'dead' && (
+        <div>
+          <p style={{ fontSize: 11.5, color: '#94a3b8', margin: '0 0 12px', maxWidth: 720, lineHeight: 1.6 }}>
+            Every page that showed visitors the &ldquo;page not found&rdquo; screen in the last 30 days, busiest first.
+            {allDead.length > 0 && <> {allDead.length} pages, {deadSessions.toLocaleString('en-US')} visits that hit a dead end.</>}
+            {allDead.length >= 1000 && <> Showing the 1,000 busiest; the rest drew only a handful of visits each.</>}
+            {' '}The suggested redirect is a best guess (a live page with the same address ending, or the homepage for an old-site landing page). Check it before setting it.
+          </p>
+          <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+                  {['#', 'Dead Page', 'Sessions', 'Active Users', 'Suggested Redirect'].map(h => (
+                    <th key={h} style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#94a3b8', textAlign: h === '#' ? 'center' : 'left', padding: '10px 14px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dead.length === 0 && (
+                  <tr><td colSpan={5} style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>{allDead.length === 0 ? `No dead pages recorded yet.${syncHint}` : 'No dead pages match your search.'}</td></tr>
+                )}
+                {pagedDead.map((d, i) => (
+                  <tr key={d.path} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{deadPage * deadPageSize + i + 1}</td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1a' }}>{d.name}</div>
+                      <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2, wordBreak: 'break-all' }}>{d.path}</div>
+                    </td>
+                    <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#1a1a1a' }}>{fmt(d.sessions)}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(d.active_users)}</td>
+                    <td style={{ padding: '10px 14px', wordBreak: 'break-all' }}>
+                      {d.suggested_path ? (
+                        <a href={`${BWS}${d.suggested_path}`} target="_blank" rel="noopener noreferrer"
+                          style={{ fontSize: 11, fontWeight: 600, color: '#1672A7', textDecoration: 'none' }}
+                          onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
+                          onMouseOut={e => (e.currentTarget.style.textDecoration = 'none')}>
+                          {d.suggested_path === '/' ? 'Homepage (/)' : d.suggested_path}
+                        </a>
+                      ) : <span style={{ fontSize: 11, color: '#94a3b8' }}>No match found</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {dead.length > 0 && (
+              <PaginationBar total={dead.length} pageSize={deadPageSize} page={deadPage}
+                onPageSize={setDeadPageSize} onPage={setDeadPage} />
+            )}
+          </div>
         </div>
       )}
 
