@@ -441,11 +441,16 @@ export interface AxeLikeViolation { id: string; impact: string | null; descripti
 export function accessibilityRows(violations: AxeLikeViolation[], inContent: (sel: string) => boolean, own: { headingSkips?: StdFacts['headingSkips'] } = {}): { rows: CheckResult[]; finalsite: AxeLikeViolation[] } {
   const finalsite: AxeLikeViolation[] = []
   const used = new Set<string>()
+  // Finalsite's slideshow copies its slides off-screen to loop them
+  // (slick-cloned); the copies sit in the content area but are generated, so
+  // a WCM cannot edit them in Composer (Sean, Oct 27 Hot Lab: Safety &
+  // Security Operations' aria-hidden-focus, marker off the screenshot).
+  const wcmOwns = (n: { target: string; html: string }) => inContent(n.target) && !/\bslick-cloned\b/.test(n.html)
   const rows: CheckResult[] = A11Y_ROWS.map((row) => {
     const hits = violations.filter((v) => row.axeIds.includes(v.id))
     hits.forEach((v) => used.add(v.id))
     // Only elements in the WCM's content area count against them.
-    const nodes = hits.flatMap((v) => (v.nodes ?? []).filter((n) => inContent(n.target)).map((n) => ({ v, n })))
+    const nodes = hits.flatMap((v) => (v.nodes ?? []).filter(wcmOwns).map((n) => ({ v, n })))
     const entry = lookupAxeEntry(row.axeIds[0])
     const steps = entry?.fixSteps ?? []
     // Headings: our own reading-order check is the main signal; axe adds to it.
@@ -471,9 +476,9 @@ export function accessibilityRows(violations: AxeLikeViolation[], inContent: (se
     }
   })
   for (const v of violations) {
-    const mine = (v.nodes ?? []).filter((n) => inContent(n.target))
-    // A rule whose only hits sit in the template (header, menus, footer) is
-    // Finalsite's.
+    const mine = (v.nodes ?? []).filter(wcmOwns)
+    // A rule whose only hits sit in the template (header, menus, footer) or
+    // in generated slideshow copies is Finalsite's.
     if (!mine.length) { finalsite.push(v); continue }
     if (used.has(v.id)) continue
     // Any other rule with hits in the WCM's own content gets its own row, so
