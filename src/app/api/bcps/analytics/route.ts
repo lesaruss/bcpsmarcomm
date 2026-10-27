@@ -60,9 +60,21 @@ export async function GET(req: NextRequest) {
       prevSnap = data ?? null
     }
 
+    // One point per month for the Traffic chart (Sean, Oct 27 Hot Lab): total
+    // sessions, the same all-sources sum as the Total Sessions tile. The
+    // selected period's months, or the last 13 when no period is given.
+    let seriesQuery = supabase.from('bcps_analytics_snapshots').select('period, traffic_sources').order('period', { ascending: true })
+    seriesQuery = from && to ? seriesQuery.gte('period', from.slice(0, 7)).lte('period', to.slice(0, 7)) : seriesQuery.gte('period', new Date(Date.now() - 395 * 864e5).toISOString().slice(0, 7))
+    const { data: seriesRows } = await seriesQuery
+    const series = (seriesRows ?? []).map((r) => ({
+      period: r.period as string,
+      visits: Object.values((r.traffic_sources ?? {}) as Record<string, number>).reduce((n, v) => n + (Number(v) || 0), 0),
+    }))
+
     return NextResponse.json({
       snapshot: snap ?? null,
       prevSnapshot: prevSnap,
+      series,
       departments: deptRows ?? [],
     })
   } catch (e: unknown) {
