@@ -1138,7 +1138,7 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
 // process, the windows and how to work through the audit.
 // Oct 13 (V): Website Review folds into Run Audit, opened from a button at the
 // top right of the tab, so the guide and the results are in one place.
-type WcmTab = 'overview' | 'documents' | 'audit' | 'marcomm' | 'widgets' | 'tools'
+type WcmTab = 'overview' | 'documents' | 'audit' | 'analytics' | 'marcomm' | 'widgets' | 'tools'
 
 function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?: boolean; onNavigate: Navigate; page?: React.ReactNode }) {
   const router = useRouter()
@@ -1162,6 +1162,9 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
     // under Documents (Sean, 2026-10-16 and 2026-10-20).
     { id: 'documents', label: 'Documents' },
     ...(mine.length ? [{ id: 'audit' as WcmTab, label: 'Run Audit' }] : []),
+    // Their own departments' analytics, with a picker when they have more
+    // than one (Sean, Oct 27 Hot Lab).
+    ...(mine.length ? [{ id: 'analytics' as WcmTab, label: 'Analytics' }] : []),
     { id: 'widgets', label: 'Widgets' },
     { id: 'tools', label: 'My Resources' },
   ]
@@ -1250,6 +1253,7 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
       {tab === 'documents' && <DocumentsTab kind="wcm" canMarcomm={canMarcomm} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audit' && <RunAuditTab depts={mine} canRecheck guide={guide} onGuide={setGuide} wcm />}
+      {tab === 'analytics' && <AnalyticsTab led={mine} />}
       {tab === 'tools' && <ToolsPanel kind="wcm" onNavigate={onNavigate} kb={data.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
     </div>
   )
