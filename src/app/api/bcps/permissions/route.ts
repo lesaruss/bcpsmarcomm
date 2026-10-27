@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { randomBytes } from 'crypto'
+import { welcomeWidgetEditors } from '@/lib/widget-editor-welcome'
 
 export const dynamic = 'force-dynamic'
 
@@ -148,6 +149,8 @@ export async function POST(req: NextRequest) {
             { object_id: body.object_id, subject_type: body.subject_type, subject_id: body.subject_id, role: body.role },
             { onConflict: 'object_id,subject_type,subject_id' })
           if (error) throw error
+          // No-op unless the object is a widget and the role is edit or manage.
+          await welcomeWidgetEditors(svc, { objectId: body.object_id, subjectType: body.subject_type, subjectId: body.subject_id, role: body.role, grantedByEmail: user.email || '' })
         } else {
           const { error } = await svc.from('acl_grants').delete()
             .eq('object_id', body.object_id).eq('subject_type', body.subject_type).eq('subject_id', body.subject_id)
