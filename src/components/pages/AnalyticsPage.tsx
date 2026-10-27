@@ -943,7 +943,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
             Every page that showed visitors the &ldquo;page not found&rdquo; screen in the last 30 days, busiest first.
             {allDead.length > 0 && <> {allDead.length} pages, {deadSessions.toLocaleString('en-US')} visits that hit a dead end.</>}
             {allDead.length >= 1000 && <> Showing the 1,000 busiest; the rest drew only a handful of visits each.</>}
-            {' '}The suggested redirect is a best guess (a live page with the same address ending, or the homepage for an old-site landing page). Check it before setting it.
+            {' '}The suggested redirect is a best guess (a live page with the same address ending, or the homepage for an old-site landing page), and every suggestion is an address the scan confirmed works. Check it before setting it.
           </p>
           <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -968,14 +968,20 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                     <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#1a1a1a' }}>{fmt(d.sessions)}</td>
                     <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(d.active_users)}</td>
                     <td style={{ padding: '10px 14px', wordBreak: 'break-all' }}>
-                      {d.suggested_path ? (
+                      {d.suggested_path ? (<>
                         <a href={`${BWS}${d.suggested_path}`} target="_blank" rel="noopener noreferrer"
                           style={{ fontSize: 11, fontWeight: 600, color: '#1672A7', textDecoration: 'none' }}
                           onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseOut={e => (e.currentTarget.style.textDecoration = 'none')}>
                           {d.suggested_path === '/' ? 'Homepage (/)' : d.suggested_path}
                         </a>
-                      ) : <span style={{ fontSize: 11, color: '#94a3b8' }}>No match found</span>}
+                        {/* A short link that only works with different capitals
+                            (/benefit vs /BENEFIT): say so, since the fix may be to
+                            make the link ignore capitals rather than redirect. */}
+                        {d.suggested_path.toLowerCase().replace(/\/+$/, '') === d.path.toLowerCase().replace(/\/+$/, '') && (
+                          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Same address, different capitals</div>
+                        )}
+                      </>) : <span style={{ fontSize: 11, color: '#94a3b8' }}>No match found</span>}
                     </td>
                   </tr>
                 ))}
