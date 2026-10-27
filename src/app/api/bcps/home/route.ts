@@ -178,6 +178,13 @@ export async function GET(req: NextRequest) {
   // oversee marketing for every department): the Director dashboard across
   // all departments.
   const oversight = groups.includes('Department Oversight')
+  // Leadership View (Sean, 2026-10-27): a District leader who follows the
+  // platform without running a department site (Manuel Castaneda, Executive
+  // Director, Enterprise Analytics and Intelligence). Paired with Department
+  // Oversight it trims the Director dashboard to what a leader needs: no My
+  // Resources, no Run Audit, the full Analytics page, and only the meeting
+  // notes they were part of.
+  const leadershipView = groups.includes('Leadership View')
   const ledIds = allDepts
     .filter((d) => oversight
       || (d.director_email || '').trim().toLowerCase() === email
@@ -275,7 +282,7 @@ export async function GET(req: NextRequest) {
   if (isDirector) {
     const analytics = await loadAnalytics(ledIds, departments)
     for (const d of departments) if (ledIds.includes(d.id)) d.analytics = analytics.get(d.id) ?? null
-    directorNotes = await loadDirectorNotes(ledIds, email)
+    directorNotes = await loadDirectorNotes(ledIds, email, leadershipView)
   } else if (isWcm && !isDwt && departments.length) {
     // A WCM's own department site visitors, for the My Department tab.
     const ids = departments.map((d) => d.id)
@@ -391,6 +398,7 @@ export async function GET(req: NextRequest) {
     is_director: isDirector,
     viewing_as: viewingAs,
     oversight: isDirector && oversight,
+    leadership_view: isDirector && leadershipView,
     is_superadmin: isSuperadmin,
     my_certified: !!certRes.data?.issued_at,
     my_cert: myCert,
@@ -600,7 +608,7 @@ async function loadAnalytics(ids: string[], depts: DepartmentSummary[]): Promise
 // 'director_notes'): every-director notes plus notes for a department this
 // person leads. A note linking to a brief is only returned when the director
 // can open it: the brief has no recipient list, or lists their email.
-async function loadDirectorNotes(ledIds: string[], email: string): Promise<DirectorNote[]> {
+async function loadDirectorNotes(ledIds: string[], email: string, namedOnly = false): Promise<DirectorNote[]> {
   const { data } = await svc.from('bcps_wcm_hub_items')
     .select('id, title, description, href, link_label, department_id, created_at, sort_order')
     .eq('tab', 'director_notes').eq('state', 'live')
@@ -627,8 +635,11 @@ async function loadDirectorNotes(ledIds: string[], email: string): Promise<Direc
   return rows
     .filter((n) => {
       const slug = docSlug(n.href)
-      if (!slug) return true
+      if (!slug) return !namedOnly
       const list = recipientsBySlug.get(slug)
+      // Leadership View sees only the meetings they were part of: notes whose
+      // doc lists them by name, not every director note across departments.
+      if (namedOnly) return !!list && list.includes(email)
       return !list || list.includes(email)
     })
     .map((n) => ({

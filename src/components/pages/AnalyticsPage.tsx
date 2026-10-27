@@ -169,6 +169,43 @@ interface Snapshot {
 const PAGE_SIZES = [10, 25, 50, 100, 200]
 const BWS = 'https://www.browardschools.com'
 
+const ANALYTICS_TABS = [
+  ['pages', 'Top Pages'],
+  ['dead', 'Dead Pages'],
+  ['departments', 'Top Departments'],
+  ['programs', 'Programs & Services'],
+  ['sources', 'Traffic Sources'],
+  ['campaigns', 'Campaigns'],
+] as const
+
+// Desktop: the four KPI tiles sit two by two beside the traffic graph.
+// Mobile (640px and under): tiles stay two by two above a full-width graph,
+// the tab row becomes a dropdown, and table rows stack (title on its own
+// row, labeled numbers beneath) so every column stays visible.
+const ANALYTICS_LAYOUT_CSS = `
+.an-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:12px;margin-bottom:24px;align-items:stretch}
+.an-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.an-kpis>*{min-width:0}
+.an-traffic{min-width:0}
+.an-tabselect{display:none}
+@media(max-width:640px){
+  .an-top{grid-template-columns:minmax(0,1fr)}
+  .an-tabs{display:none!important}
+  .an-tabselect{display:block;margin-bottom:16px}
+  .an-tabselect span{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:4px}
+  .an-tabselect select{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-weight:600;color:#1e293b;background:#fff}
+  .an-table{min-width:0!important;width:100%}
+  .an-table thead{display:none}
+  .an-table tbody tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;padding:12px 14px}
+  .an-table td{padding:0!important;min-width:0!important;max-width:none!important;text-align:left!important;white-space:normal!important;overflow-wrap:anywhere}
+  .an-table .an-rank{display:none}
+  .an-table .an-title,.an-table .an-wide,.an-table .an-action,.an-table td[colspan],.an-table .an-drill{grid-column:1/-1}
+  .an-table .an-drill{padding:4px 0 0!important}
+  .an-table .an-drill .an-table tbody tr{padding:10px 0}
+  .an-table td[data-label]::before{content:attr(data-label);display:block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:2px}
+}
+`
+
 
 
 function EngagementBar({ rate }: { rate: number }) {
@@ -717,7 +754,8 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   const prevTopDept = prevDepts[0]
 
   return (
-    <div style={{ fontFamily: 'Montserrat, sans-serif', color: '#1a1a1a', padding: '0 0 40px' }}>
+    <div className="an-page" style={{ fontFamily: 'Montserrat, sans-serif', color: '#1a1a1a', padding: '0 0 40px' }}>
+      <style>{ANALYTICS_LAYOUT_CSS}</style>
 
       {/* Period Selector */}
       <PeriodSelector
@@ -753,9 +791,12 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
         </div>
       )}
 
-      {/* KPI Row */}
+      {/* KPI tiles and traffic (Sean, 2026-10-27): on desktop the four tiles
+          sit two by two on the left with the traffic graph beside them; on a
+          phone the tiles stay two by two above a full-width graph. */}
       {snapshot && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div className="an-top">
+        <div className="an-kpis">
           {[
             // Total traffic first (Sean, 2026-10-20): every session on
             // browardschools.com in the period, all sources together.
@@ -793,26 +834,24 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
             </div>
           ))}
         </div>
-      )}
 
-      {/* Traffic: total sessions by month, the trend behind the Total
-          Sessions tile (Sean, Oct 27 Hot Lab). */}
-      {snapshot && (
-        <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '14px 16px', marginBottom: 24 }}>
+        {/* Traffic: total sessions by month, the trend behind the Total
+            Sessions tile (Sean, Oct 27 Hot Lab). */}
+        <div className="an-traffic" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '14px 16px' }}>
           <TrafficTrend points={series} subject="browardschools.com" />
         </div>
+      </div>
       )}
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-        {([
-          ['pages', 'Top Pages'],
-          ['dead', 'Dead Pages'],
-          ['departments', 'Top Departments'],
-          ['programs', 'Programs & Services'],
-          ['sources', 'Traffic Sources'],
-          ['campaigns', 'Campaigns'],
-        ] as const).map(([tab, label]) => (
+      {/* Tabs: a row of tabs on desktop, a dropdown on phones (Sean, 2026-10-27). */}
+      <label className="an-tabselect">
+        <span>Section</span>
+        <select value={activeTab} onChange={e => setActiveTab(e.target.value as typeof activeTab)}>
+          {ANALYTICS_TABS.map(([tab, label]) => <option key={tab} value={tab}>{label}</option>)}
+        </select>
+      </label>
+      <div className="an-tabs" style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+        {ANALYTICS_TABS.map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{
               fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px',
@@ -895,7 +934,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
       {/* Top Pages Tab */}
       {activeTab === 'pages' && (
         <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table className="an-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
                 {['#', 'Page', 'Total Sessions', 'Active Users', 'Engagement', 'Avg Duration'].map(h => (
@@ -909,8 +948,8 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
               )}
               {pagedPages.map((pg, i) => (
                 <tr key={pg.path} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{pagesPage * pagesPageSize + i + 1}</td>
-                  <td style={{ padding: '10px 14px' }}>
+                  <td className="an-rank" style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{pagesPage * pagesPageSize + i + 1}</td>
+                  <td className="an-title" style={{ padding: '10px 14px' }}>
                     <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer"
                       style={{ fontSize: 12, fontWeight: 700, color: '#1672A7', textDecoration: 'none' }}
                       onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
@@ -921,10 +960,10 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                       <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2, wordBreak: 'break-all' }}>{pg.path}</div>
                     )}
                   </td>
-                  <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#1a1a1a' }}>{fmt(pg.sessions)}</td>
-                  <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(pg.active_users)}</td>
-                  <td style={{ padding: '10px 14px', minWidth: 120 }}><EngagementBar rate={pg.engagement_rate} /></td>
-                  <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#555' }}>{fmtTime(pg.avg_session_duration)}</td>
+                  <td data-label="Sessions" style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#1a1a1a' }}>{fmt(pg.sessions)}</td>
+                  <td data-label="Active users" style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(pg.active_users)}</td>
+                  <td data-label="Engagement" style={{ padding: '10px 14px', minWidth: 120 }}><EngagementBar rate={pg.engagement_rate} /></td>
+                  <td data-label="Avg duration" style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#555' }}>{fmtTime(pg.avg_session_duration)}</td>
                 </tr>
               ))}
             </tbody>
@@ -946,7 +985,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
             {' '}The suggested redirect is a best guess (a live page with the same address ending, or the homepage for an old-site landing page). Check it before setting it.
           </p>
           <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="an-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
                   {['#', 'Dead Page', 'Sessions', 'Active Users', 'Suggested Redirect'].map(h => (
@@ -960,14 +999,14 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                 )}
                 {pagedDead.map((d, i) => (
                   <tr key={d.path} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    <td style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{deadPage * deadPageSize + i + 1}</td>
-                    <td style={{ padding: '10px 14px' }}>
+                    <td className="an-rank" style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{deadPage * deadPageSize + i + 1}</td>
+                    <td className="an-title" style={{ padding: '10px 14px' }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1a' }}>{d.name}</div>
                       <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2, wordBreak: 'break-all' }}>{d.path}</div>
                     </td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#1a1a1a' }}>{fmt(d.sessions)}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(d.active_users)}</td>
-                    <td style={{ padding: '10px 14px', wordBreak: 'break-all' }}>
+                    <td data-label="Sessions" style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#1a1a1a' }}>{fmt(d.sessions)}</td>
+                    <td data-label="Active users" style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(d.active_users)}</td>
+                    <td data-label="Suggested redirect" className="an-wide" style={{ padding: '10px 14px', wordBreak: 'break-all' }}>
                       {d.suggested_path ? (
                         <a href={`${BWS}${d.suggested_path}`} target="_blank" rel="noopener noreferrer"
                           style={{ fontSize: 11, fontWeight: 600, color: '#1672A7', textDecoration: 'none' }}
@@ -992,7 +1031,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
       {/* Departments Tab */}
       {activeTab === 'departments' && (
         <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table className="an-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
                 {['#', 'Department', 'Total Sessions', 'Active Users', 'Engagement', 'Avg Duration', ''].map(h => (
@@ -1014,8 +1053,8 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                 return (
                   <React.Fragment key={key}>
                     <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #f3f4f6', background: isExpanded ? '#f8fafc' : 'white' }}>
-                      <td style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{globalIdx}</td>
-                      <td style={{ padding: '10px 14px' }}>
+                      <td className="an-rank" style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{globalIdx}</td>
+                      <td className="an-title" style={{ padding: '10px 14px' }}>
                         <a href={DEPT_LINK(row)}
                           style={{ fontSize: 12, fontWeight: 700, color: '#1672A7', textDecoration: 'none' }}
                           onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
@@ -1030,14 +1069,14 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                           {hasPages && <span style={{ marginLeft: 6, color: '#1672A7' }}>{row.pages!.length} pages</span>}
                         </div>
                       </td>
-                      <td style={{ padding: '10px 14px' }}>
+                      <td data-label="Sessions" style={{ padding: '10px 14px' }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: '#1a1a1a' }}>{fmt(row.sessions)}</div>
                         {prevRow && <KpiDelta cur={row.sessions} prev={prevRow.sessions} prevLabel={pr?.prevLabel} />}
                       </td>
-                      <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(row.active_users)}</td>
-                      <td style={{ padding: '10px 14px', minWidth: 120 }}><EngagementBar rate={row.engagement_rate} /></td>
-                      <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#555' }}>{fmtTime(row.avg_session_duration)}</td>
-                      <td style={{ padding: '10px 14px' }}>
+                      <td data-label="Active users" style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(row.active_users)}</td>
+                      <td data-label="Engagement" style={{ padding: '10px 14px', minWidth: 120 }}><EngagementBar rate={row.engagement_rate} /></td>
+                      <td data-label="Avg duration" style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#555' }}>{fmtTime(row.avg_session_duration)}</td>
+                      <td className="an-action" style={{ padding: '10px 14px' }}>
                         {hasPages && (
                           <button onClick={() => toggleDept(key)}
                             style={{ fontSize: 10, fontWeight: 700, color: '#1672A7', background: '#e8f1f8', border: 'none', cursor: 'pointer', padding: '3px 8px', borderRadius: 5 }}>
@@ -1048,8 +1087,8 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                     </tr>
                     {isExpanded && hasPages && (
                       <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td colSpan={7} style={{ padding: '0 14px 14px 40px', background: '#f8fafc' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
+                        <td colSpan={7} className="an-drill" style={{ padding: '0 14px 14px 40px', background: '#f8fafc' }}>
+                          <table className="an-table an-table-sub" style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
                             <thead>
                               <tr>
                                 {['Page Path', 'Sessions', 'Active Users', 'Engagement', 'Avg Duration'].map(h => (
@@ -1060,7 +1099,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                             <tbody>
                               {row.pages!.map((pg) => (
                                 <tr key={pg.path} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                                  <td style={{ padding: '7px 10px' }}>
+                                  <td className="an-title" style={{ padding: '7px 10px' }}>
                                     <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer"
                                       style={{ fontSize: 11, color: '#1672A7', textDecoration: 'none', fontWeight: 600 }}
                                       onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
@@ -1068,10 +1107,10 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                                       {pg.path}
                                     </a>
                                   </td>
-                                  <td style={{ padding: '7px 10px', fontSize: 12, fontWeight: 700 }}>{fmt(pg.sessions)}</td>
-                                  <td style={{ padding: '7px 10px', fontSize: 12, fontWeight: 600 }}>{fmt(pg.active_users)}</td>
-                                  <td style={{ padding: '7px 10px', minWidth: 100 }}><EngagementBar rate={pg.engagement_rate} /></td>
-                                  <td style={{ padding: '7px 10px', fontSize: 11, color: '#555' }}>{fmtTime(pg.avg_session_duration)}</td>
+                                  <td data-label="Sessions" style={{ padding: '7px 10px', fontSize: 12, fontWeight: 700 }}>{fmt(pg.sessions)}</td>
+                                  <td data-label="Active users" style={{ padding: '7px 10px', fontSize: 12, fontWeight: 600 }}>{fmt(pg.active_users)}</td>
+                                  <td data-label="Engagement" style={{ padding: '7px 10px', minWidth: 100 }}><EngagementBar rate={pg.engagement_rate} /></td>
+                                  <td data-label="Avg duration" style={{ padding: '7px 10px', fontSize: 11, color: '#555' }}>{fmtTime(pg.avg_session_duration)}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1094,7 +1133,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
       {/* Programs & Services Tab */}
       {activeTab === 'programs' && (
         <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table className="an-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
                 {['#', 'Program / Service', 'Total Sessions', 'Active Users', 'Engagement', 'Avg Duration', ''].map(h => (
@@ -1114,8 +1153,8 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                 return (
                   <React.Fragment key={key}>
                     <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #f3f4f6', background: isExpanded ? '#f8fafc' : 'white' }}>
-                      <td style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{globalIdx}</td>
-                      <td style={{ padding: '10px 14px' }}>
+                      <td className="an-rank" style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8', fontWeight: 700, textAlign: 'center' }}>{globalIdx}</td>
+                      <td className="an-title" style={{ padding: '10px 14px' }}>
                         <a href={`${BWS}${row.path}`} target="_blank" rel="noopener noreferrer"
                           style={{ fontSize: 12, fontWeight: 700, color: '#1672A7', textDecoration: 'none' }}
                           onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
@@ -1127,11 +1166,11 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                           {hasPages && <span style={{ marginLeft: 6, color: '#1672A7' }}>{row.pages.length} pages</span>}
                         </div>
                       </td>
-                      <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#1a1a1a' }}>{fmt(row.sessions)}</td>
-                      <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(row.active_users)}</td>
-                      <td style={{ padding: '10px 14px', minWidth: 120 }}><EngagementBar rate={row.engagement_rate} /></td>
-                      <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#555' }}>{fmtTime(row.avg_session_duration)}</td>
-                      <td style={{ padding: '10px 14px' }}>
+                      <td data-label="Sessions" style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#1a1a1a' }}>{fmt(row.sessions)}</td>
+                      <td data-label="Active users" style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(row.active_users)}</td>
+                      <td data-label="Engagement" style={{ padding: '10px 14px', minWidth: 120 }}><EngagementBar rate={row.engagement_rate} /></td>
+                      <td data-label="Avg duration" style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#555' }}>{fmtTime(row.avg_session_duration)}</td>
+                      <td className="an-action" style={{ padding: '10px 14px' }}>
                         {hasPages && (
                           <button onClick={() => toggleProgram(key)}
                             style={{ fontSize: 10, fontWeight: 700, color: '#1672A7', background: '#e8f1f8', border: 'none', cursor: 'pointer', padding: '3px 8px', borderRadius: 5 }}>
@@ -1142,8 +1181,8 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                     </tr>
                     {isExpanded && hasPages && (
                       <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td colSpan={7} style={{ padding: '0 14px 14px 40px', background: '#f8fafc' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
+                        <td colSpan={7} className="an-drill" style={{ padding: '0 14px 14px 40px', background: '#f8fafc' }}>
+                          <table className="an-table an-table-sub" style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
                             <thead>
                               <tr>
                                 {['Page Path', 'Sessions', 'Active Users', 'Engagement', 'Avg Duration'].map(h => (
@@ -1154,7 +1193,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                             <tbody>
                               {row.pages.map((pg) => (
                                 <tr key={pg.path} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                                  <td style={{ padding: '7px 10px' }}>
+                                  <td className="an-title" style={{ padding: '7px 10px' }}>
                                     <a href={`${BWS}${pg.path}`} target="_blank" rel="noopener noreferrer"
                                       style={{ fontSize: 11, color: '#1672A7', textDecoration: 'none', fontWeight: 600 }}
                                       onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
@@ -1162,10 +1201,10 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
                                       {pg.path}
                                     </a>
                                   </td>
-                                  <td style={{ padding: '7px 10px', fontSize: 12, fontWeight: 700 }}>{fmt(pg.sessions)}</td>
-                                  <td style={{ padding: '7px 10px', fontSize: 12, fontWeight: 600 }}>{fmt(pg.active_users)}</td>
-                                  <td style={{ padding: '7px 10px', minWidth: 100 }}><EngagementBar rate={pg.engagement_rate} /></td>
-                                  <td style={{ padding: '7px 10px', fontSize: 11, color: '#555' }}>{fmtTime(pg.avg_session_duration)}</td>
+                                  <td data-label="Sessions" style={{ padding: '7px 10px', fontSize: 12, fontWeight: 700 }}>{fmt(pg.sessions)}</td>
+                                  <td data-label="Active users" style={{ padding: '7px 10px', fontSize: 12, fontWeight: 600 }}>{fmt(pg.active_users)}</td>
+                                  <td data-label="Engagement" style={{ padding: '7px 10px', minWidth: 100 }}><EngagementBar rate={pg.engagement_rate} /></td>
+                                  <td data-label="Avg duration" style={{ padding: '7px 10px', fontSize: 11, color: '#555' }}>{fmtTime(pg.avg_session_duration)}</td>
                                 </tr>
                               ))}
                             </tbody>
