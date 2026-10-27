@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { welcomeWidgetEditors } from '@/lib/widget-editor-welcome'
 
 export const dynamic = 'force-dynamic'
 
@@ -149,6 +150,7 @@ export async function POST(req: NextRequest) {
         { object_id, subject_type, subject_id, role: grantRole },
         { onConflict: 'object_id,subject_type,subject_id' })
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      await welcomeWidgetEditors(svc, { objectId: object_id, subjectType: subject_type, subjectId: subject_id, role: grantRole, grantedByEmail: user.email || '' })
     } else {
       const { error } = await svc.from('acl_grants').delete()
         .eq('object_id', object_id).eq('subject_type', subject_type).eq('subject_id', subject_id)
