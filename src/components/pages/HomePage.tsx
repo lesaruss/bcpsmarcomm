@@ -252,6 +252,8 @@ interface HomeData {
   is_director: boolean
   // Department Oversight: the Director dashboard across every department.
   oversight?: boolean
+  // Leadership View (Sean, 2026-10-27): a trimmed, view-only Director view.
+  leadership_view?: boolean
   // Set when the SuperAdmin is viewing as this person.
   viewing_as?: { email: string; has_account: boolean } | null
   is_superadmin?: boolean
@@ -564,6 +566,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
   const canMarcomm = !preview && !!pages?.includes('marcomm-assignments')
   const recentNotes = (data.director_notes ?? []).slice(0, 3)
   const oversight = !!data.oversight
+  const leadership = !!data.leadership_view
   const [deptQuery, setDeptQuery] = useState('')
   const [showAllDepts, setShowAllDepts] = useState(false)
   // Oversight covers every department, so the cards are searchable and the
@@ -585,7 +588,16 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
   const period = withAnalytics[0]?.analytics?.period
   const almostDone = led.flatMap((d) => d.wcms).filter((w) => !w.certified && w.progress_pct >= 90).length
 
-  const tabs: { id: DirectorTab; label: string }[] = [
+  // Leadership View (Sean, 2026-10-27): a leader with no department site of
+  // their own gets no Run Audit, My WCM Work or My Resources.
+  const tabs: { id: DirectorTab; label: string }[] = leadership ? [
+    { id: 'overview', label: 'Overview' },
+    { id: 'documents', label: 'Documents' },
+    { id: 'review', label: 'Website Review' },
+    { id: 'analytics', label: 'Analytics' },
+    { id: 'notes', label: 'Meeting Notes' },
+    ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets' as DirectorTab, label: 'Widgets' }] : []),
+  ] : [
     { id: 'overview', label: 'Overview' },
     { id: 'documents', label: 'Documents' },
     { id: 'audit', label: 'Run Audit' },
@@ -612,8 +624,13 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
             ? `Every department website at a glance: the people who keep each one current, how many families and staff use them, where each review stands, and the support behind it. ${led.length} department${led.length === 1 ? '' : 's'}, updated on their own.`
             : 'Your department\u2019s website at a glance: the people who keep it current, how many families and staff use it, when your website review is, and the support behind it. Everything here updates on its own.'}</p>
           <div className="home-actions">
-            <button type="button" className="home-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=director-department', { scroll: false })}>Open the Director Playbook</button>
-            <span className="home-hint">Every update for directors, in one place</span>
+            {leadership ? <>
+              <button type="button" className="home-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=bcps-platform-ownership-migration', { scroll: false })}>Open the Platform Plan</button>
+              <span className="home-hint">Moving the platform onto District accounts</span>
+            </> : <>
+              <button type="button" className="home-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=director-department', { scroll: false })}>Open the Director Playbook</button>
+              <span className="home-hint">Every update for directors, in one place</span>
+            </>}
           </div>
         </div>
         {WALKTHROUGH_VIDEO && <VideoCard media={WALKTHROUGH_VIDEO} />}
@@ -679,20 +696,21 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
             </div>
           )}
           {oversight && filteredDepts.length === 0 && <div className="wcm-hub2-empty">No department matches that search.</div>}
-          <div className="home-actions">
+          {!leadership && <div className="home-actions">
             <a className="wcm-hub2-card-btn" href={ROSTER_SIGNUP_URL}>Change or add a WCM</a>
-          </div>
+          </div>}
         </>
       )}
-      {tab === 'documents' && <DocumentsTab kind="director" canMarcomm={canMarcomm} />}
+      {tab === 'documents' && <DocumentsTab kind={leadership ? 'leadership' : 'director'} canMarcomm={canMarcomm} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
-      {tab === 'audit' && <RunAuditTab depts={led} canRecheck={false} />}
+      {tab === 'audit' && !leadership && <RunAuditTab depts={led} canRecheck={false} />}
       {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} oversight={oversight} />}
-      {tab === 'analytics' && <AnalyticsTab led={led} />}
+      {/* Leadership View sees the full Analytics page, the way the team does. */}
+      {tab === 'analytics' && (leadership ? <AnalyticsTabPage /> : <AnalyticsTab led={led} />)}
       {tab === 'notes' && <NotesTab notes={data.director_notes ?? []} led={led} />}
       {tab === 'widgets' && <WidgetsPage embedded />}
       {tab === 'wcm' && <WcmCommunityHub />}
-      {tab === 'tools' && <>
+      {tab === 'tools' && !leadership && <>
         {/* Ask & Guide folded in here (Sean, Oct 5 OOC Web Huddle). */}
         <DirectorHelp myWindow={myWindow} led={led} />
         <ToolsPanel kind="director" onNavigate={onNavigate} kb={data.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />
@@ -962,7 +980,7 @@ function NotesTab({ notes, led }: { notes: DirectorNote[]; led: DepartmentSummar
 // above it instead of as a loose page. ?tab=documents&doc=<slug> opens one.
 
 // Playbooks each dashboard always lists, even before a catalog grant exists.
-const PINNED_DOCS: Record<'director' | 'wcm', PinnedDoc[]> = {
+const PINNED_DOCS: Record<'director' | 'wcm' | 'leadership', PinnedDoc[]> = {
   director: [
     { slug: 'director-department', title: 'Director Playbook', description: 'What directors need to know about the Web Content Manager program, refreshed every Thursday.', doc_url: DIRECTOR_PLAYBOOK_URL },
     { slug: 'wcm-department', title: 'Department WCM Playbook', description: 'The detailed version your WCM works from: certification, the audit, Hot Lab and tools.', doc_url: '/playbooks/wcm-department' },
@@ -970,6 +988,10 @@ const PINNED_DOCS: Record<'director' | 'wcm', PinnedDoc[]> = {
   wcm: [
     { slug: 'wcm-department', title: 'Department WCM Playbook', description: 'Certification, your audit, Hot Lab and tools, refreshed every Thursday.', doc_url: '/playbooks/wcm-department' },
     { slug: 'score-100-checklist', title: 'Department Page Checklist', description: 'Exactly what the department audit checks, with the Finalsite steps for each item.', doc_url: '/playbooks/wcm-department/score-100-checklist' },
+  ],
+  // Leadership View (Sean, 2026-10-27): the platform plan, not the WCM program guides.
+  leadership: [
+    { slug: 'bcps-platform-ownership-migration', title: 'BCPS Platform Ownership Migration', description: 'Moving bcpsmarcomm.com and browardschools.ai onto District accounts: the Copilot test, costs and timeline.', doc_url: '/playbooks/bcps-platform-ownership-migration' },
   ],
 }
 
@@ -1085,7 +1107,7 @@ function DocFrame({ slug, title, onOpen, buttons, between }: { slug: string; tit
   )
 }
 
-function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm'; team?: boolean; canMarcomm?: boolean }) {
+function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm' | 'leadership'; team?: boolean; canMarcomm?: boolean }) {
   const [doc, openDoc] = useDocParam()
 
   if (doc === 'web-team-assignments' && team) {
@@ -1120,7 +1142,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'super
     ...(team ? { 'bcps-web-team-assignments': () => openDoc('web-team-assignments') } : {}),
     ...(canMarcomm ? { 'bcps-marcomm-assignments': () => window.location.assign(MARCOMM_PATH) } : {}),
   }
-  return <DocumentsPage embedded onOpen={(s) => openDoc(s)} trackers={trackers} pinned={kind === 'director' || kind === 'wcm' ? PINNED_DOCS[kind] : []} />
+  return <DocumentsPage embedded onOpen={(s) => openDoc(s)} trackers={trackers} pinned={kind === 'director' || kind === 'wcm' || kind === 'leadership' ? PINNED_DOCS[kind] : []} />
 }
 
 // MarComm Assignments keeps its own address (/marcomm-assignments); for the
