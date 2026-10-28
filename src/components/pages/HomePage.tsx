@@ -1318,11 +1318,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
   if (doc === 'web-team-assignments' && team) {
     return (
       <div className="home-section">
-        <div className="home-actions">
-          <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>
-          <span className="home-hint">Web Team Assignments</span>
-        </div>
-        <AssignmentsPage />
+        <AssignmentsPage onBack={() => openDoc(null)} />
       </div>
     )
   }

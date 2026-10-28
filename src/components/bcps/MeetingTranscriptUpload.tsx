@@ -51,6 +51,7 @@ const COPY: Record<Tracker, { label: string; help: string; summary: string; bar?
     label: 'District Web Team Meeting',
     help: 'Claude reads the transcript against the tracker and proposes changes: deadlines, leads, statuses and new action items. Nothing changes until you review them and press Apply.',
     summary: 'Meeting summary (shown at the top of the tracker)',
+    barButton: 'Upload transcript',
   },
   marcomm: {
     label: 'Marcomm Meeting',
