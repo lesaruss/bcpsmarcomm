@@ -95,10 +95,10 @@ export default function CompleteItemDialog({ slug, item, onClose, onDone }: { sl
         }
         uploaded = slots.map((s, i) => ({ name: s.name, path: s.path, size: files[i].size }))
       }
-      setStatus('Updating the Playbook...')
+      setStatus('Updating the page...')
       const j = await post({ ...scope, action: 'complete', response, files: uploaded })
       const n = (j.completed as string[] | undefined)?.length ?? 1
-      onDone(n > 1 ? 'Marked complete in the Work Queue and Action Items.' : 'Marked complete.')
+      onDone(n > 1 ? 'Turned in. It is marked done on your to-do list and in Action Items.' : 'Turned in. It is marked done on your to-do list.')
     } catch (e) { setError((e as Error).message); setStatus('') } finally { setBusy('') }
   }
 
@@ -109,7 +109,7 @@ export default function CompleteItemDialog({ slug, item, onClose, onDone }: { sl
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div className="cid-panel" role="dialog" aria-modal="true" aria-labelledby="cid-title">
         <div className="cid-head">
-          <h2 id="cid-title">Complete this item</h2>
+          <h2 id="cid-title">Turn in my work</h2>
           <button type="button" className="cid-x" aria-label="Close" disabled={!!busy} onClick={onClose}>&times;</button>
         </div>
         <p className="cid-item">{item.text}</p>
@@ -151,7 +151,7 @@ export default function CompleteItemDialog({ slug, item, onClose, onDone }: { sl
           {status && <span className="cid-status" role="status">{status}</span>}
           <button type="button" className="cid-btn ghost" disabled={!!busy} onClick={onClose}>Cancel</button>
           <button type="button" className="cid-btn" disabled={!!busy || (!response.trim() && !files.length)} onClick={save}>
-            {busy === 'saving' ? 'Saving...' : 'Mark complete'}
+            {busy === 'saving' ? 'Saving...' : 'Turn it in'}
           </button>
         </div>
       </div>

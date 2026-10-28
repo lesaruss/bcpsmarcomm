@@ -56,6 +56,7 @@ export const PLAYBOOK_PROPOSAL_SCHEMA = {
         new_section: { type: 'boolean' },
         title: { type: 'string' },
         detail: { type: 'string' },
+        replaces: orNull({ type: 'string' }),
       }),
     },
     queue_done: { type: 'array', items: evidenced({ item: { type: 'string' } }) },
@@ -74,7 +75,9 @@ Rules:
 - "evidence" quotes or closely paraphrases the transcript line(s) each item rests on, so a reviewer can check it.
 - "changes" is always an empty list.
 - Decisions, action items and open questions are placed in the Playbook automatically (decisions section, Work Queue, open issues). Do not repeat them below.
-- "section_updates" are other facts from the meeting that change what the Playbook says: new figures, a changed plan, status, dates or who is involved. "section" is a section title copied exactly from the outline, with "new_section" false. Only when no section fits, give a short new title and "new_section" true. "title" is a short headline, "detail" one to three plain sentences. Leave out anything the Playbook already says.
+- "section_updates" bring the meeting's new context into the Playbook: new figures, a changed plan, status, dates, who is involved, and answers to what a section is missing. "section" is a section title copied exactly from the outline, with "new_section" false. Only when no section fits, give a short new title and "new_section" true. "title" is a short headline, "detail" one to three plain sentences. Leave out anything the Playbook already says.
+- Sections marked [MISSING: ...] say what they need. When the meeting supplies it, fill that section first: use its exact title and write what the meeting said.
+- When the meeting changed something an existing item says (a new number, a moved date, a different plan), revise it: set "replaces" to that item's text copied exactly from the outline, and write the corrected item. Otherwise "replaces" is null.
 - "queue_done" lists pending Work Queue items the transcript says are finished. "item" is copied exactly from the outline's pending list. Only include an item when the transcript clearly says it is done.
 - "stage" is one short line for where the project now stands, only if the meeting changed it; otherwise null.
 - Use people's names the way the Playbook writes them. BECON is always written BECON, all capitals.
@@ -131,6 +134,7 @@ export function playbookPayload(p: Item) {
       new_section: u.new_section === true,
       title: str(u.title),
       detail: str(u.detail),
+      replaces: str(u.replaces),
     })),
     queue_done: list(p.queue_done).map((q) => str(q.item)).filter(Boolean),
     stage: str(p.stage).slice(0, 200),

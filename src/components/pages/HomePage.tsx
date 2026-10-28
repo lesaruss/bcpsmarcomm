@@ -1026,7 +1026,8 @@ function useDocParam(): [string | null, (slug: string | null) => void] {
 // Toolbar (Sean, 2026-10-26): the caller's buttons (All documents, Open full
 // page) and Edit this page share one row on top, equal widths on a phone;
 // `between` (the transcript upload bar) sits under that row, above the page.
-// Complete buttons (V, 2026-10-28): beside each open Work Queue or Action
+// Turn in my work buttons (V, 2026-10-28; renamed from Complete under the
+// BCPS Document System plain-language names): beside each open to-do or Action
 // Items entry this person owns (or every one, for the superadmin), in the
 // version on screen. They are added to the page in the frame, never saved:
 // Edit this page strips them before saving.
@@ -1052,8 +1053,8 @@ function addCompleteButtons(d: Document, items: CompletableItem[], open: (item: 
     const b = d.createElement('button')
     b.type = 'button'
     b.className = COMPLETE_BTN
-    b.textContent = 'Complete'
-    b.setAttribute('aria-label', `Complete: ${item.text}`)
+    b.textContent = 'Turn in my work'
+    b.setAttribute('aria-label', `Turn in my work: ${item.text}`)
     b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); open(item) })
     return b
   }
@@ -1070,7 +1071,8 @@ function addCompleteButtons(d: Document, items: CompletableItem[], open: (item: 
 }
 
 // refresh: bump it to reload the page in the frame (after a transcript update).
-function DocFrame({ slug, title, onOpen, buttons, between, refresh = 0 }: { slug: string; title: string; onOpen: (slug: string) => void; buttons?: React.ReactNode; between?: React.ReactNode; refresh?: number }) {
+// tools: buttons after Edit this page in the same row (the transcript upload, V 2026-10-28).
+function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }: { slug: string; title: string; onOpen: (slug: string) => void; buttons?: React.ReactNode; between?: React.ReactNode; tools?: React.ReactNode; refresh?: number }) {
   const ref = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(900)
   const [canEdit, setCanEdit] = useState(false)
@@ -1169,6 +1171,7 @@ function DocFrame({ slug, title, onOpen, buttons, between, refresh = 0 }: { slug
       <div className="doc-toolbar">
         {!editing && buttons}
         {canEdit && !editing && <button type="button" className="wcm-hub2-card-btn" onClick={startEdit}>Edit this page</button>}
+        {!editing && tools}
         {editing && <>
           <button type="button" className="home-btn" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           <button type="button" className="wcm-hub2-card-btn" onClick={cancel} disabled={saving}>Cancel</button>
@@ -1214,7 +1217,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'super
             <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>
             <a className="wcm-hub2-card-btn" href={`/api/bcps/doc-raw/${encodeURIComponent(doc)}`} target="_blank" rel="noopener noreferrer">Open full page</a>
           </>}
-          between={<MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} onApplied={() => setRefresh((n) => n + 1)} />} />
+          tools={<MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} variant="button" onApplied={() => setRefresh((n) => n + 1)} />} />
       </div>
     )
   }

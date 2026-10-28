@@ -40,18 +40,43 @@ export function versionInfo(root: HTMLElement) {
   return { main, current: pick.el, n: pick.n, blocks }
 }
 
-// Top-level sections of a block: closed accordions, or plain <h2> headings on
-// a Playbook not yet on the template.
-export function sections(block: HTMLElement): { title: string; el: HTMLElement; body: HTMLElement | null }[] {
-  const acc = kids(block).filter((el) => el.tagName === 'DETAILS' && el.classList.contains('doc-accordion'))
+// The Work Queue's title, before and after the plain-language rename
+// (BCPS Document System, V 2026-10-28).
+export const QUEUE_TITLE = /^(work queue|still to do and done)$/i
+
+// Labeled groups (BCPS Document System, V 2026-10-28): a block may hold
+// <section class="doc-group"> elements, each an eyebrow h2 over its
+// accordions (h3 titles). Older pages hold the accordions directly.
+const groupsOf = (block: HTMLElement) => kids(block).filter((el) => el.tagName === 'SECTION' && el.classList.contains('doc-group'))
+const eyebrow = (g: HTMLElement) => (g.querySelector('h2.eyebrow')?.text || '').replace(/\s+/g, ' ').trim()
+
+function summaryTitle(el: HTMLElement): string {
+  const h = el.querySelector('summary')
+  if (!h) return ''
+  const copy = parse(h.toString())
+  copy.querySelectorAll('.status-tag').forEach((t) => t.remove())
+  return copy.text.replace(/\s+/g, ' ').trim()
+}
+
+// Top-level sections of a block: closed accordions (inside groups or not), or
+// plain <h2> headings on a Playbook not yet on the template.
+export function sections(block: HTMLElement): { title: string; el: HTMLElement; body: HTMLElement | null; group: string }[] {
+  const acc: { el: HTMLElement; group: string }[] = []
+  for (const el of kids(block)) {
+    if (el.tagName === 'DETAILS' && el.classList.contains('doc-accordion')) acc.push({ el, group: '' })
+    else if (el.tagName === 'SECTION' && el.classList.contains('doc-group')) {
+      for (const d of kids(el)) if (d.tagName === 'DETAILS' && d.classList.contains('doc-accordion')) acc.push({ el: d, group: eyebrow(el) })
+    }
+  }
   if (acc.length) {
-    return acc.map((el) => ({
-      title: (el.querySelector('summary')?.text || '').trim(),
+    return acc.map(({ el, group }) => ({
+      title: summaryTitle(el),
       el,
       body: kids(el).find((c) => c.classList.contains('section-block') || c.classList.contains('tablist-wrap')) ?? null,
+      group,
     }))
   }
-  return kids(block).filter((el) => el.tagName === 'H2' && !el.classList.contains('lead-heading')).map((el) => ({ title: el.text.trim(), el, body: null }))
+  return kids(block).filter((el) => el.tagName === 'H2' && !el.classList.contains('lead-heading')).map((el) => ({ title: el.text.trim(), el, body: null, group: '' }))
 }
 
 const itemTitles = (el: HTMLElement) =>
@@ -59,7 +84,15 @@ const itemTitles = (el: HTMLElement) =>
 
 const pendingItems = (block: HTMLElement) => block.querySelectorAll('li.chk-item.pending').map((li) => li.text.replace(/\s+/g, ' ').trim())
 
-export interface PlaybookOutline { text: string; sections: string[]; pending: string[]; stage: string }
+export interface PlaybookOutline { text: string; sections: string[]; missing: string[]; pending: string[]; stage: string }
+
+// A section's status tag (Missing, Draft, Done) and, when Missing, the one
+// sentence saying what belongs there.
+function sectionStatus(el: HTMLElement): { status: string; need: string } {
+  const status = (el.querySelector('summary .status-tag')?.text || '').trim()
+  const need = (el.querySelector('.missing-note')?.text || '').replace(/^\s*missing:\s*/i, '').replace(/\s+/g, ' ').trim()
+  return { status, need }
+}
 
 // What Claude is shown: the current version's sections with their items, the
 // pending Work Queue, the stage. Titles are quoted back on apply and matched
@@ -67,19 +100,23 @@ export interface PlaybookOutline { text: string; sections: string[]; pending: st
 export function playbookOutline(html: string): PlaybookOutline {
   const root = parse(html, { comment: true })
   const { current } = versionInfo(root)
-  if (!current) return { text: '', sections: [], pending: [], stage: '' }
+  if (!current) return { text: '', sections: [], missing: [], pending: [], stage: '' }
   const secs = sections(current)
   const stage = metaValue(current, 'Stage')
   const lead = current.querySelector('.lead-summary')?.structuredText.replace(/\s+/g, ' ').trim() || ''
   const parts = [`Stage: ${stage || '(none)'}`, `Lead section: ${lead}`, 'Sections:']
+  const missing: string[] = []
   for (const s of secs) {
-    if (/^work queue$/i.test(s.title)) continue
+    if (QUEUE_TITLE.test(s.title)) continue
+    const { status, need } = sectionStatus(s.el)
+    if (/missing/i.test(status)) missing.push(s.title)
+    const flag = /missing/i.test(status) ? ` [MISSING: ${need || 'not filled in yet'}]` : /draft/i.test(status) ? ' [DRAFT]' : ''
     const items = itemTitles(s.body ?? s.el).slice(0, 40)
-    parts.push(`- "${s.title}"${items.length ? '\n' + items.map((t) => `    * ${t.slice(0, 220)}`).join('\n') : ''}`)
+    parts.push(`- "${s.title}"${flag}${items.length ? '\n' + items.map((t) => `    * ${t.slice(0, 220)}`).join('\n') : ''}`)
   }
   const pending = pendingItems(current)
   parts.push('Work Queue, pending:', ...(pending.length ? pending.map((t) => `- "${t}"`) : ['(none)']))
-  return { text: parts.join('\n').slice(0, MAX_OUTLINE), sections: secs.map((s) => s.title).filter((t) => !/^work queue$/i.test(t)), pending, stage }
+  return { text: parts.join('\n').slice(0, MAX_OUTLINE), sections: secs.map((s) => s.title).filter((t) => !QUEUE_TITLE.test(t)), missing, pending, stage }
 }
 
 function metaValue(block: HTMLElement, label: string): string {
@@ -94,25 +131,48 @@ export interface PlaybookUpdate {
   decisions: string[]
   open_questions: string[]
   actions: { title: string; lead: string; support: string[]; deadline_date: string; owners?: string[] }[]
-  section_updates: { section: string; new_section: boolean; title: string; detail: string }[]
+  section_updates: { section: string; new_section: boolean; title: string; detail: string; replaces?: string }[]
   queue_done: string[]
   stage: string
   notes_path: string
   notes_title: string
 }
 
-const accordionHtml = (title: string, inner: string) =>
-  `<details class="doc-accordion"><summary><h2>${esc(title)}</h2></summary><div class="section-block">${inner}</div></details>`
+// Grouped pages use h3 accordion titles under the h2 eyebrows.
+const accordionHtml = (title: string, inner: string, level = 2) =>
+  `<details class="doc-accordion"><summary><h${level}>${esc(title)}</h${level}></summary><div class="section-block">${inner}</div></details>`
 const agendaHtml = (title: string, detail: string, tag: string) =>
   `<div class="agenda-item"><div class="agenda-head"><span class="agenda-title">${esc(title)}</span><span class="agenda-time">${esc(tag)}</span></div>${detail ? `<div class="agenda-detail">${esc(detail)}</div>` : ''}</div>`
 
-// Where a new section goes: before the Work Queue, Related Material and
-// Decision History, so the reference sections stay last.
-function insertSection(block: HTMLElement, html: string) {
-  const anchor = sections(block).find((s) => /^(work queue|related|links)/i.test(s.title))?.el
+// Where a new section goes. On a grouped page: a Work Queue at the end of
+// Your To-Do List, a link list at the end of Resources and History, anything
+// else at the end of The Details (or the group just before the to-do list).
+// On an older page: before the Work Queue, Related Material and Decision
+// History, so the reference sections stay last.
+function insertSection(block: HTMLElement, html: string, kind: 'section' | 'queue' | 'resource' = 'section') {
+  const groups = groupsOf(block)
+  if (groups.length) {
+    const todo = groups.findIndex((g) => /to-do/i.test(eyebrow(g)))
+    const target = kind === 'queue' ? groups[todo]
+      : kind === 'resource' ? groups.find((g) => /resources/i.test(eyebrow(g)))
+      : groups.find((g) => /^the details$/i.test(eyebrow(g))) ?? groups[todo > 0 ? todo - 1 : groups.length - 1]
+    const g = target ?? groups[groups.length - 1]
+    const history = kids(g).find((el) => el.tagName === 'DETAILS' && el.classList.contains('history'))
+    if (history) history.insertAdjacentHTML('beforebegin', html)
+    else g.insertAdjacentHTML('beforeend', html)
+    return
+  }
+  const anchor = sections(block).find((s) => QUEUE_TITLE.test(s.title) || /^(related|links)/i.test(s.title))?.el
     ?? kids(block).find((el) => el.tagName === 'DETAILS' && el.classList.contains('history'))
   if (anchor) anchor.insertAdjacentHTML('beforebegin', html)
   else block.insertAdjacentHTML('beforeend', html)
+}
+
+// A section that receives content stops reading Missing: it is a Draft until
+// a person confirms it.
+function markFilled(section: HTMLElement) {
+  const tag = section.querySelector('summary .status-tag')
+  if (tag && /missing/i.test(tag.text)) { tag.set_content('Draft'); tag.setAttribute('class', 'status-tag') }
 }
 
 // The section to add to: an exact title match first, then the first title
@@ -129,9 +189,11 @@ function sectionBody(block: HTMLElement, exact: string, pattern: RegExp | null, 
       s.el.insertAdjacentHTML('afterend', '<div class="section-block" data-meeting-updates></div>')
       return s.el.nextElementSibling as HTMLElement
     }
-    insertSection(block, accordionHtml(createTitle, ''))
+    const grouped = groupsOf(block).length > 0
+    insertSection(block, accordionHtml(createTitle, '', grouped ? 3 : 2), /^(related|links|files and links|past meeting notes|decisions made)/i.test(createTitle) ? 'resource' : 'section')
     s = sections(block).find((x) => norm(x.title) === norm(createTitle))
   }
+  markFilled(s!.el)
   return s!.body!
 }
 
@@ -141,13 +203,14 @@ export function setCount(el: HTMLElement | null, n: number) { if (el) el.set_con
 // Completed. The Work Queue is created when the Playbook has none.
 function updateQueue(block: HTMLElement, u: PlaybookUpdate, tag: string): { added: number; done: number } {
   if (!u.actions.length && !u.queue_done.length) return { added: 0, done: 0 }
-  let wrap = sections(block).find((s) => /^work queue$/i.test(s.title))?.body
+  let wrap = sections(block).find((s) => QUEUE_TITLE.test(s.title))?.body
   if (!wrap) {
-    insertSection(block, '<details class="doc-accordion"><summary><h2>Work Queue</h2></summary><div class="tablist-wrap">'
-      + '<div class="tablist" role="tablist"><button class="tab-btn" role="tab" aria-selected="true" data-tab="pending">Pending <span class="count">0</span></button>'
-      + '<button class="tab-btn" role="tab" aria-selected="false" data-tab="done">Completed <span class="count">0</span></button></div>'
-      + '<div class="tabpanel" id="panel-pending" role="tabpanel"></div><div class="tabpanel" id="panel-done" hidden role="tabpanel"></div></div></details>')
-    wrap = sections(block).find((s) => /^work queue$/i.test(s.title))!.body!
+    const h = groupsOf(block).length ? 'h3' : 'h2'
+    insertSection(block, `<details class="doc-accordion"><summary><${h}>Still to Do and Done</${h}></summary><div class="tablist-wrap">`
+      + '<div class="tablist" role="tablist"><button class="tab-btn" role="tab" aria-selected="true" data-tab="pending">Still to Do <span class="count">0</span></button>'
+      + '<button class="tab-btn" role="tab" aria-selected="false" data-tab="done">Done <span class="count">0</span></button></div>'
+      + '<div class="tabpanel" id="panel-pending" role="tabpanel"></div><div class="tabpanel" id="panel-done" hidden role="tabpanel"></div></div></details>', 'queue')
+    wrap = sections(block).find((s) => QUEUE_TITLE.test(s.title))!.body!
     ensureTabScript(block)
   }
   const pendingPanel = wrap.querySelector('#panel-pending')!
@@ -273,7 +336,7 @@ export function applyPlaybookUpdate(html: string, u: PlaybookUpdate): { html: st
 
   const counts: Record<string, number> = { decisions: 0, questions: 0, sections: 0, added: 0, done: 0 }
   if (u.decisions.length) {
-    const body = sectionBody(block, '', /decision/i, 'Key Decisions')
+    const body = sectionBody(block, '', /^(decisions made|key decisions|decisions)$/i, groupsOf(block).length ? 'Decisions Made' : 'Key Decisions')
     body.insertAdjacentHTML('afterbegin', u.decisions.map((d) => agendaHtml(d, '', tag)).join(''))
     counts.decisions = u.decisions.length
   }
@@ -282,9 +345,17 @@ export function applyPlaybookUpdate(html: string, u: PlaybookUpdate): { html: st
     body.insertAdjacentHTML('afterbegin', u.open_questions.map((q) => agendaHtml(q, '', `Open, ${tag}`)).join(''))
     counts.questions = u.open_questions.length
   }
+  // Section updates fill a Missing section (its placeholder goes), revise an
+  // existing item in place when the meeting changed it, or add a new one.
   for (const s of u.section_updates) {
     const body = sectionBody(block, s.section, null, s.section)
-    body.insertAdjacentHTML('afterbegin', agendaHtml(s.title, s.detail, tag))
+    body.querySelectorAll('.missing-note').forEach((n) => n.remove())
+    const old = s.replaces
+      ? body.querySelectorAll('.agenda-item, .action-item, .decision-item').find((el) =>
+        norm(el.querySelector('.agenda-title, .action-title, .decision-title')?.text || '') === norm(s.replaces!))
+      : undefined
+    if (old) old.replaceWith(parse(agendaHtml(s.title, s.detail, `Updated ${tag}`)))
+    else body.insertAdjacentHTML('afterbegin', agendaHtml(s.title, s.detail, tag))
     counts.sections++
   }
   const q = updateQueue(block, u, tag)
@@ -292,20 +363,24 @@ export function applyPlaybookUpdate(html: string, u: PlaybookUpdate): { html: st
   counts.done = q.done
 
   if (u.notes_path) {
-    const body = sectionBody(block, '', /^(related|links)/i, 'Related Material')
+    const body = sectionBody(block, '', /^(past meeting notes|files and links|related|links)/i, 'Files and Links')
     body.insertAdjacentHTML('afterbegin', `<div class="link-block"><div class="link-label">${esc(u.notes_title)}</div><div class="link-url"><a href="https://bcpsmarcomm.com${esc(u.notes_path)}" target="_blank" rel="noopener">bcpsmarcomm.com${esc(u.notes_path)}</a></div><div class="link-note">Meeting notes, filed from the transcript upload.</div></div>`)
   }
 
-  // Decision History entry, newest first.
-  let hist = kids(block).find((el) => el.tagName === 'DETAILS' && el.classList.contains('history'))
+  // Version history entry, newest first. On a grouped page it sits at the end
+  // of Resources and History.
+  const findHist = () => kids(block).find((el) => el.tagName === 'DETAILS' && el.classList.contains('history'))
+    ?? groupsOf(block).flatMap(kids).find((el) => el.tagName === 'DETAILS' && el.classList.contains('history'))
+  let hist = findHist()
   if (!hist) {
-    block.insertAdjacentHTML('beforeend', '<details class="history"><summary>Decision History</summary><div class="body"></div></details>')
-    hist = kids(block).find((el) => el.tagName === 'DETAILS' && el.classList.contains('history'))!
+    const resources = groupsOf(block).find((g) => /resources/i.test(eyebrow(g)))
+    ;(resources ?? block).insertAdjacentHTML('beforeend', `<details class="history"><summary>${resources ? 'Version History' : 'Decision History'}</summary><div class="body"></div></details>`)
+    hist = findHist()!
   }
   const what = [
     counts.decisions && `${counts.decisions} decision${counts.decisions === 1 ? '' : 's'}`,
-    counts.added && `${counts.added} action item${counts.added === 1 ? '' : 's'} in the Work Queue`,
-    counts.done && `${counts.done} Work Queue item${counts.done === 1 ? '' : 's'} marked done`,
+    counts.added && `${counts.added} to-do${counts.added === 1 ? '' : 's'} added`,
+    counts.done && `${counts.done} to-do${counts.done === 1 ? '' : 's'} marked done`,
     counts.questions && `${counts.questions} open question${counts.questions === 1 ? '' : 's'}`,
     counts.sections && `${counts.sections} section update${counts.sections === 1 ? '' : 's'}`,
     u.stage && 'the stage',
