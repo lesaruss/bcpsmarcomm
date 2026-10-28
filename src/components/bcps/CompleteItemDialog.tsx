@@ -23,7 +23,7 @@ async function authHeaders(): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-export interface CompletableItem { kind: 'queue' | 'action'; key: string; text: string }
+export interface CompletableItem { kind: 'queue' | 'action' | 'deliverable'; key: string; text: string }
 export interface InputTarget { kind: 'question' | 'section' | 'general'; key: string; text: string }
 type Mode = 'complete' | 'input'
 
@@ -120,6 +120,7 @@ export default function CompleteItemDialog({ slug, item, onClose, onDone, mode =
         return
       }
       const j = await call({ ...scope, action: 'complete', response, files: uploaded })
+      if (item.kind === 'deliverable') { onDone('Turned in. It is on the Deliverables Shelf with your note and files.'); return }
       const n = (j.completed as string[] | undefined)?.length ?? 1
       onDone(n > 1 ? 'Turned in. It is marked done on your to-do list and in Action Items.' : 'Turned in. It is marked done on your to-do list.')
     } catch (e) { setError((e as Error).message); setStatus('') } finally { setBusy('') }

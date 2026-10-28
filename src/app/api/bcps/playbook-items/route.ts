@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase-admin'
 import { requirePlaybookItemActor } from '@/lib/bcps-auth'
 import { askClaudeJson as askJson } from '@/lib/anthropic-key'
-import { listItems, completeItem, type ItemKind, type Recipient } from '@/lib/playbook-items'
+import { listItems, completeItem, addDeliverableSlot, hasShelf, type ItemKind, type Recipient } from '@/lib/playbook-items'
 
 // Complete a Playbook item from the document (V, 2026-10-28). The person who
 // owns a Work Queue or Action Items entry, or a superadmin, sees a Complete
@@ -16,6 +16,12 @@ import { listItems, completeItem, type ItemKind, type Recipient } from '@/lib/pl
 //   POST { action: 'draft', slug, kind, key, source_name, source_text } -> { response }
 //   POST { action: 'upload_urls', slug, kind, key, files: [{ name, size }] } -> { uploads }
 //   POST { action: 'complete', slug, kind, key, response, files: [{ name, path, size }] } -> { ok }
+//
+// Deliverables Shelf (V, 2026-10-28): kind 'deliverable' is a Shelf slot. The
+// project's leads (metadata.transcript_admins) and the superadmin add slots;
+// GET also answers can_add_slot and, for them, the Playbook's readers to pick
+// an owner from.
+//   POST { action: 'add_slot', slug, title, owner_email, due } -> { ok }
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
@@ -36,9 +42,14 @@ async function displayName(userId: string, email: string): Promise<string> {
 }
 
 async function loadPlaybook(slug: string) {
-  const { data } = await svc.from('briefings').select('title, content, updated_at')
+  const { data } = await svc.from('briefings').select('title, content, updated_at, metadata')
     .eq('brand_slug', 'bcps').eq('type', 'playbook').eq('slug', slug).maybeSingle()
   return data
+}
+
+function isLead(metadata: unknown, email: string, superadmin: boolean) {
+  const leads = (metadata as Record<string, unknown> | null)?.transcript_admins
+  return superadmin || (Array.isArray(leads) && leads.some((e) => typeof e === 'string' && e.toLowerCase() === email))
 }
 
 async function recipientsOf(slug: string): Promise<Recipient[]> {
@@ -96,10 +107,12 @@ export async function GET(req: NextRequest) {
   if (!SLUG.test(slug)) return NextResponse.json({ items: [] })
   const pb = await loadPlaybook(slug)
   if (!pb) return NextResponse.json({ items: [] })
-  const items = listItems(String(pb.content || ''), await recipientsOf(slug))
+  const recipients = await recipientsOf(slug)
+  const items = listItems(String(pb.content || ''), recipients)
     .filter((i) => auth.superadmin || i.owners.includes(auth.user.email))
     .map((i) => ({ kind: i.kind, key: i.key, text: i.text }))
-  return NextResponse.json({ items })
+  const canAddSlot = isLead(pb.metadata, auth.user.email, !!auth.superadmin) && hasShelf(String(pb.content || ''))
+  return NextResponse.json({ items, can_add_slot: canAddSlot, people: canAddSlot ? recipients.filter((r) => r.name) : [] })
 }
 
 export async function POST(req: NextRequest) {
@@ -107,6 +120,28 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
   const body = await req.json().catch(() => ({}))
   const slug = String(body.slug || '')
+  if (body.action === 'add_slot') {
+    if (!SLUG.test(slug)) return NextResponse.json({ error: 'That Playbook was not found.' }, { status: 404 })
+    const pb = await loadPlaybook(slug)
+    if (!pb) return NextResponse.json({ error: 'That Playbook was not found.' }, { status: 404 })
+    if (!isLead(pb.metadata, auth.user.email, !!auth.superadmin)) return NextResponse.json({ error: 'Only this project\'s leads add deliverables.' }, { status: 403 })
+    const title = String(body.title || '').replace(/\s+/g, ' ').trim().slice(0, 160)
+    const due = String(body.due || '')
+    if (!title) return NextResponse.json({ error: 'Name the deliverable.' }, { status: 400 })
+    if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) return NextResponse.json({ error: 'Pick a due date, or leave it empty.' }, { status: 400 })
+    // The owner must be a reader of the Playbook, so they can open it to turn it in.
+    const owner = (await recipientsOf(slug)).find((r) => r.email.toLowerCase() === String(body.owner_email || '').toLowerCase())
+    if (!owner) return NextResponse.json({ error: 'Pick an owner from the people who can open this Playbook.' }, { status: 400 })
+    let html: string
+    try { html = addDeliverableSlot(String(pb.content || ''), { title, ownerName: owner.name || owner.email, ownerEmail: owner.email, due }) }
+    catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 409 }) }
+    const { data: rev } = await svc.from('bcps_doc_revisions').insert({ slug, content: pb.content, replaced_by_email: auth.user.email }).select('id').single()
+    const { data: saved } = rev ? await svc.from('briefings').update({ content: html, updated_at: new Date().toISOString() })
+      .eq('brand_slug', 'bcps').eq('type', 'playbook').eq('slug', slug).eq('updated_at', pb.updated_at).select('slug') : { data: null }
+    if (!saved?.length) return NextResponse.json({ error: 'The Playbook changed just now. Reload it and try again.' }, { status: 409 })
+    return NextResponse.json({ ok: true })
+  }
+
   const kind = body.kind as ItemKind
   const found = await itemFor(slug, kind, body.key, auth.user.email, !!auth.superadmin)
   if ('error' in found) return NextResponse.json({ error: found.error }, { status: found.status })

@@ -1,5 +1,5 @@
 import { parse, HTMLElement } from 'node-html-parser'
-import { versionInfo, sections, setCount, longDate } from '@/lib/playbook-update'
+import { versionInfo, sections, setCount, longDate, recountStatus } from '@/lib/playbook-update'
 
 // Complete a Playbook item from the document itself (V, 2026-10-28): the
 // person who owns a Work Queue or Action Items entry, or a superadmin, gets a
@@ -7,11 +7,16 @@ import { versionInfo, sections, setCount, longDate } from '@/lib/playbook-update
 // item moves to Completed with the response and links. An Action Items entry
 // and the Work Queue line for the same work are completed together.
 //
+// Deliverables Shelf (BCPS Document System, Phase 3, V 2026-10-28): a lead
+// adds one slot per deliverable (title, owner, due date); the owner turns it
+// in the same way, and the slot shows what was turned in. The Shelf reads
+// Draft while any slot is waiting and Done when every slot is filled.
+//
 // Items are found in the version a reader sees first (the checked version
 // block), the same one the transcript upload updates. Completing does not add
 // a version; the caller keeps the previous content in bcps_doc_revisions.
 
-export type ItemKind = 'queue' | 'action'
+export type ItemKind = 'queue' | 'action' | 'deliverable'
 export interface PlaybookItem { kind: ItemKind; key: string; text: string; ownerText: string; owners: string[] }
 export interface Recipient { name: string; email: string }
 
@@ -71,6 +76,13 @@ export function listItems(html: string, recipients: Recipient[]): PlaybookItem[]
       const ownerText = (a.querySelector('.action-owner')?.text || '').replace(/^\s*owners?:\s*/i, '').trim()
       items.push({ kind: 'action', key: norm(title), text: title, ownerText, owners: resolveOwners(ownerText, recipients) })
     }
+  }
+  for (const slot of block.querySelectorAll('.deliverable-slot')) {
+    if (slot.classList.contains('filled')) continue
+    const title = (slot.querySelector('.ds-title')?.text || '').replace(/\s+/g, ' ').trim()
+    if (!title) continue
+    const owners = (slot.getAttribute('data-owners') || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
+    items.push({ kind: 'deliverable', key: norm(title), text: title, ownerText: slot.getAttribute('data-owner-name') || '', owners })
   }
   return items
 }
@@ -154,7 +166,18 @@ export function completeItem(html: string, c: Completion): { html: string; compl
 
   const completed: string[] = []
   let text = ''
-  if (c.kind === 'queue') {
+  if (c.kind === 'deliverable') {
+    const slot = block.querySelectorAll('.deliverable-slot').find((x) => !x.classList.contains('filled') && norm(x.querySelector('.ds-title')?.text || '') === c.key)
+    if (!slot) throw new Error('That deliverable is no longer open on this Playbook.')
+    text = (slot.querySelector('.ds-title')?.text || '').replace(/\s+/g, ' ').trim()
+    slot.classList.add('filled')
+    const tag = slot.querySelector('.ds-head .tag')
+    if (tag) tag.set_content('Turned in')
+    const note = c.response ? ` ${esc(c.response)}` : ''
+    slot.insertAdjacentHTML('beforeend', `<div class="action-done"><strong>Turned in ${esc(longDate(c.date))}, ${esc(c.by)}.</strong>${note}${filesHtml(c.files, 'action-files')}</div>`)
+    completed.push(text)
+    shelfStatus(block)
+  } else if (c.kind === 'queue') {
     const li = queue.find((x) => norm(x.text) === c.key)
     if (!li) throw new Error('That item is no longer open on this Playbook.')
     text = li.text.replace(/\s+/g, ' ').trim()
@@ -173,4 +196,58 @@ export function completeItem(html: string, c: Completion): { html: string; compl
   const head = root.querySelector('head')
   if (head && !head.querySelector(`#${CSS_ID}`)) head.insertAdjacentHTML('beforeend', CSS)
   return { html: root.toString(), completed }
+}
+
+const SHELF_TITLE = /^deliverables shelf$/i
+const SHELF_CSS_ID = 'bcps-deliverable-css'
+const SHELF_CSS = `<style id="${SHELF_CSS_ID}">
+  .deliverable-slot { border: 1px solid var(--border, rgba(0,0,0,0.12)); border-radius: 6px; padding: 12px 16px; margin: 0 0 10px; background: #fff; }
+  .deliverable-slot .ds-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .deliverable-slot .ds-title { font-size: 14px; font-weight: 800; color: var(--text, #1a1a1a); }
+  .deliverable-slot .ds-meta { font-size: 12px; color: var(--text-50, rgba(26,26,26,0.6)); margin-top: 4px; }
+  .deliverable-slot.filled { border-color: rgba(22,117,12,0.35); }
+  .deliverable-slot.filled .tag { color: var(--bcps-green, #16750C); border-color: var(--bcps-green, #16750C); }
+</style>`
+
+// The Shelf's status: Done when it has slots and every one is filled, else Draft.
+function shelfStatus(block: HTMLElement) {
+  const shelf = sections(block).find((s) => SHELF_TITLE.test(s.title))
+  if (!shelf) return
+  const slots = shelf.el.querySelectorAll('.deliverable-slot')
+  const tag = shelf.el.querySelector('summary .status-tag')
+  if (tag && slots.length) {
+    const done = slots.every((x) => x.classList.contains('filled'))
+    tag.set_content(done ? 'Done' : 'Draft')
+    tag.setAttribute('class', done ? 'status-tag done' : 'status-tag')
+  }
+  recountStatus(block)
+}
+
+export interface Slot { title: string; ownerName: string; ownerEmail: string; due: string }
+
+// Adds a slot to the Deliverables Shelf. The Shelf's Missing note goes once
+// it has a slot; anything already on the Shelf (links, notes) stays.
+export function addDeliverableSlot(html: string, slot: Slot): string {
+  const root = parse(html, { comment: true })
+  const block = current(root)
+  if (!block) throw new Error('This Playbook has no content to update.')
+  const shelf = sections(block).find((s) => SHELF_TITLE.test(s.title))
+  if (!shelf?.body) throw new Error('This Playbook has no Deliverables Shelf.')
+  const key = norm(slot.title)
+  if (shelf.body.querySelectorAll('.deliverable-slot .ds-title').some((t) => norm(t.text) === key)) throw new Error('The Shelf already has a deliverable with that name.')
+  shelf.body.querySelectorAll('.missing-note').forEach((n) => n.remove())
+  shelf.body.insertAdjacentHTML('beforeend', `<div class="deliverable-slot" data-owners="${esc(slot.ownerEmail.toLowerCase())}" data-owner-name="${esc(slot.ownerName)}">`
+    + `<div class="ds-head"><span class="ds-title">${esc(slot.title)}</span><span class="tag">Waiting</span></div>`
+    + `<div class="ds-meta">Owner: ${esc(slot.ownerName)}.${slot.due ? ` Due ${esc(longDate(slot.due))}.` : ''}</div></div>`)
+  shelfStatus(block)
+  const head = root.querySelector('head')
+  if (head && !head.querySelector(`#${SHELF_CSS_ID}`)) head.insertAdjacentHTML('beforeend', SHELF_CSS)
+  if (head && !head.querySelector(`#${CSS_ID}`)) head.insertAdjacentHTML('beforeend', CSS)
+  return root.toString()
+}
+
+// True when the Playbook in view has a Deliverables Shelf to add slots to.
+export function hasShelf(html: string): boolean {
+  const block = current(parse(html, { comment: true }))
+  return !!block && sections(block).some((s) => SHELF_TITLE.test(s.title) && !!s.body)
 }
