@@ -14,6 +14,7 @@ import DashboardPage from './DashboardPage'
 import MarcommAssignmentsPage from './MarcommAssignmentsPage'
 import AssignmentsPage from './AssignmentsPage'
 import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
+import AgendaBuilder from '@/components/bcps/AgendaBuilder'
 import CompleteItemDialog, { type CompletableItem, type InputTarget } from '@/components/bcps/CompleteItemDialog'
 import DocumentsPage, { type PinnedDoc } from './DocumentsPage'
 import NotesPage from './NotesPage'
@@ -1332,7 +1333,10 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
             <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>
             <a className="wcm-hub2-card-btn" href={`/api/bcps/doc-raw/${encodeURIComponent(doc)}`} target="_blank" rel="noopener noreferrer">Open full page</a>
           </>}
-          tools={<MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} variant="button" onApplied={() => setRefresh((n) => n + 1)} />} />
+          tools={<>
+            <MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} variant="button" onApplied={() => setRefresh((n) => n + 1)} />
+            <AgendaBuilder key={`agenda-${doc}`} playbook={doc} onSaved={() => setRefresh((n) => n + 1)} />
+          </>} />
       </div>
     )
   }
@@ -1352,15 +1356,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
 // dashboards where it lives under Documents, it shows with a way back.
 function MarcommInDocuments() {
   const router = useRouter()
-  return (
-    <>
-      <div className="home-actions">
-        <button type="button" className="wcm-hub2-card-btn" onClick={() => router.push('/?page=dashboard&tab=documents', { scroll: false })}>All documents</button>
-        <span className="home-hint">MarComm Assignments</span>
-      </div>
-      <MarcommAssignmentsPage embedded />
-    </>
-  )
+  return <MarcommAssignmentsPage embedded onBack={() => router.push('/?page=dashboard&tab=documents', { scroll: false })} />
 }
 
 // Experiences without a Documents tab (Marcomm Meeting, School WCM, Member)

@@ -1,5 +1,5 @@
 import { parse, HTMLElement } from 'node-html-parser'
-import { versionInfo, sections, groupsOf, eyebrow, kids, longDate } from '@/lib/playbook-update'
+import { versionInfo, sections, groupsOf, eyebrow, kids, longDate, recountStatus } from '@/lib/playbook-update'
 
 // Team input on a Playbook (V, 2026-10-28: "where can the team add their
 // thoughts, answer questions, interact with the document?"). Any reader can
@@ -117,5 +117,6 @@ export function decideInput(html: string, id: string, decision: 'accept' | 'dism
     const tag = section.querySelector('summary .status-tag')
     if (tag && /missing/i.test(tag.text)) { tag.set_content('Draft'); tag.setAttribute('class', 'status-tag') }
   }
+  if (block) recountStatus(block)
   return root.toString()
 }
