@@ -1,0 +1,26 @@
+-- BCPS Document System, Phase 2, records batch 2 (V, 2026-10-28): the last 16 docs filed under
+-- BCPS Playbooks moved to their type layouts. Guide or Standard: guides, standards, templates, the
+-- Hot Lab agenda, school assignments, the II&DL data questions and the director access list. Project
+-- Proposal: the platform ownership proposal and the School Support Plan. Eight pages on the older
+-- notes shell were rebuilt on the BCPS document template, keeping their own parts; the rest were
+-- regrouped. Required sections a page does not have yet are marked Missing with an owner. The
+-- Department Page Checklist opens the right accordion for #check links from the audit. No text was
+-- lost (word-count check). Content-only change through the one-time function ve-once-docsys-phase2
+-- (md5-guarded, now a 410 stub); each previous content is kept in public.bcps_doc_revisions.
+--   bcps-audit-error-guide: Guide or Standard, md5 8a2118ae73b5e1c5bf3a052bf731e5ad (was 570d9a16facea0af10d432f3f33a0951)
+--   bcps-banner-pilot-communique: Guide or Standard, md5 32cb8d7514369a33b3b3cbf81977d345 (was e00e1b3cd621cb9e54569e278653ab2a)
+--   bcps-banner-submission-app-guide: Guide or Standard, md5 c0adafeb2b82c4278d07426648aa93cb (was b63b29bed6ab9c3d32ca7f0bb9876a29)
+--   bcps-banner-submission-test-guide-2026-09-29: Guide or Standard, md5 6dfdc595aa76272c7bfca077a06708dc (was fcea02808b6ae92a61d592cd551549e0)
+--   bcps-director-portal-access-2026-10-28: Guide or Standard, md5 4ad18ec19facce1a0245a72b348ad79f (was ec5039e8a0554e421f980c07515e80a8)
+--   bcps-hot-lab-agenda: Guide or Standard, md5 325b45bb8a974a7746fe84337e85e50c (was f87f6ea21b0fb8b4550e880a774df9dc)
+--   bcps-iidl-services-data-questions-2026-09-29: Guide or Standard, md5 8111adb7b64a02883b1973fa645322a2 (was a54cf7651c0b6a2ae432f6739d705abd)
+--   bcps-platform-ownership-proposal: Project Proposal, md5 1b3235b21322ee8ca668c926b41d91c9 (was 65301877676874c4ff245154afc62fca)
+--   bcps-principal-website-expectations-memo: Guide or Standard, md5 1904a0fceeed2e63d8cd346b7428a8ae (was c54871a69055b839dae42421ae5c66f1)
+--   bcps-school-assignments-2026-27: Guide or Standard, md5 503d613e176032f63d7f4f300d3799ab (was b80eb1829563cc54648b0e5a8616ad66)
+--   bcps-school-support-plan: Project Proposal, md5 6e13163143cf12e55434099c9ce89f8c (was 5b77f6fe063dd0852ddb19ddf4bf4a18)
+--   bcps-shared-elements-department-guide: Guide or Standard, md5 6796c26a146d142d115b36b4c9a8338b (was 2ec0090ec378c6d06e7f6df930f247e7)
+--   bcps-urgent-update-standard: Guide or Standard, md5 88840559adbf929b9e80913d1685a391 (was 516549fc48f9978a65b565d5ce80c594)
+--   bcps-wcm-communique-2026-10: Guide or Standard, md5 959d3bae71052abd465d19de53a2d176 (was 3f26b9452f10c43964803727442001b6)
+--   bcps-widget-editing-guide: Guide or Standard, md5 1a6247ee93cc10719b56d9b95b8a670c (was 2a89316d7a6964901cfceee58ac9bc26)
+--   score-100-checklist: Guide or Standard, md5 e5455cb33360dd82c3e6603ff4744862 (was 8860645b1b0952cb019d80b9c6b663dc)
+select 1;
