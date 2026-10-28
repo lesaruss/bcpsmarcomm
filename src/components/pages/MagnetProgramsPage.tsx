@@ -15,7 +15,8 @@ import { createClient } from '@/lib/supabase'
 interface Theme { slug: string; name: string; kind: 'magnet' | 'innovative'; description: string | null; sort_order: number }
 interface School {
   loc_nbr: string; name: string; site_url: string | null; address: string | null; city: string | null
-  zip: string | null; grades: string | null; levels: string[]; region: string | null; sort_order: number
+  zip: string | null; grades: string | null; levels: string[]; region: string | null
+  lat: number | null; lng: number | null; sort_order: number
 }
 interface Program { slug: string; theme_slug: string; name: string; grades_note: string | null; description: string | null; sort_order: number }
 interface Offering { id: string; program_slug: string; school_loc: string; tracks: string[]; note: string | null; sort_order: number }
@@ -229,6 +230,15 @@ export default function MagnetProgramsPage() {
               <input style={C.input} placeholder="ZIP" disabled={busy}
                 value={val(k, s, 'zip')} onChange={e => setEdit(k, 'zip', e.target.value)} />
             </div>
+            <div style={{ ...C.row3, alignItems: 'center' }}>
+              <input style={C.input} placeholder="Map latitude" inputMode="decimal" disabled={busy}
+                value={val(k, s, 'lat')} onChange={e => setEdit(k, 'lat', e.target.value)} />
+              <input style={C.input} placeholder="Map longitude" inputMode="decimal" disabled={busy}
+                value={val(k, s, 'lng')} onChange={e => setEdit(k, 'lng', e.target.value)} />
+              <div style={{ fontSize: 11, color: '#6b7280' }}>
+                {s.lat == null || s.lng == null ? 'Not on the map yet. ' : ''}Filled from the address when it changes; type here only to move the pin.
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input style={{ ...C.input, flex: 1, minWidth: 240 }} placeholder="School website URL" disabled={busy}
                 value={val(k, s, 'site_url')} onChange={e => setEdit(k, 'site_url', e.target.value)} />
@@ -346,7 +356,7 @@ export default function MagnetProgramsPage() {
                 }}>Add school</button>
               <button style={C.btn} onClick={() => { setShowNew(false); setNewSchool(EMPTY_SCHOOL) }}>Cancel</button>
             </div>
-            <p style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>The name, website and region fill in from the district school record when left blank. Then add the school to its programs from the Programs tab.</p>
+            <p style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>The name, website and region fill in from the district school record when left blank. The map pin is placed from the address. Then add the school to its programs from the Programs tab.</p>
           </>
         )}
         {showNew && tab === 'themes' && (
