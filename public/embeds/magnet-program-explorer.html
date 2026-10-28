@@ -311,6 +311,7 @@
   .pop .where { font-size: 12px; color: var(--text-muted); }
   .pop .tag { font-size: 11px; padding: 2px 7px; }
   .pop .card-link { font-weight: 600; }
+  .pop-links { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; padding-top: 6px; border-top: 1px solid var(--border); }
 
   /* INFO FOOTER */
   .info {
@@ -820,7 +821,10 @@ function mapPopup(s) {
     <a class="card-name name-link" href="${profileHref(s.loc_nbr)}">${escapeHtml(s.name)}</a>
     <span class="meta-row">${ICON.pin}<span>${escapeHtml(s.address)}, ${escapeHtml(s.city)}, FL ${escapeHtml(s.zip)}</span></span>
     ${tagList(tags, 4)}
-    <a class="card-link" href="${profileHref(s.loc_nbr)}">View school profile</a>
+    <span class="pop-links">
+      <a class="card-link" href="${profileHref(s.loc_nbr)}">View school profile</a>
+      <a class="card-link" href="${directionsUrl(s)}" target="_blank" rel="noopener noreferrer">${ICON.pin} Get directions<span class="sr-only"> to ${escapeHtml(s.name)} (opens in a new tab)</span> ${ICON.ext}</a>
+    </span>
   </div>`;
 }
 
@@ -854,9 +858,11 @@ async function renderMap(list) {
 
   const icon = L.divIcon({ className: 'map-pin', html: PIN_SVG, iconSize: [26, 34], iconAnchor: [13, 33], popupAnchor: [0, -30] });
   const pins = list.filter(hasCoords);
+  // Popups fit beside the zoom buttons on a phone-width map.
+  const popW = Math.max(180, Math.min(270, map.getSize().x - 110));
   pins.forEach(s => {
     L.marker([s.lat, s.lng], { icon, title: s.name, alt: s.name, riseOnHover: true })
-      .bindPopup(mapPopup(s), { maxWidth: 270, minWidth: 220 })
+      .bindPopup(mapPopup(s), { maxWidth: popW, minWidth: Math.min(220, popW), autoPanPaddingTopLeft: [52, 12], autoPanPaddingBottomRight: [12, 12] })
       .addTo(pinLayer);
   });
   if (pins.length) map.fitBounds(pinLayer.getBounds(), { padding: [36, 36], maxZoom: 14 });
