@@ -394,9 +394,15 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
                   the District name under it either way (Sean, 2026-10-28). */}
               {!SHOW_LEFT_MENU && (activePage !== 'dashboard' || onDashboardTab) ? (
                 <div className="topbar-title-block">
-                  <button type="button" className="topbar-home-btn" onClick={() => handleNavigate('dashboard')}>
-                    <HomeIcon /> <span>Dashboard</span>
-                  </button>
+                  {/* The page's name sits beside the button (Sean, 2026-10-28).
+                      A dashboard tab has none: the tab bar under the topbar
+                      already names the section. */}
+                  <div className="topbar-title-row">
+                    <button type="button" className="topbar-home-btn" onClick={() => handleNavigate('dashboard')} aria-label="Dashboard">
+                      <HomeIcon /> <span>Dashboard</span>
+                    </button>
+                    {!onDashboardTab && <h1 className="topbar-page-name">{title}</h1>}
+                  </div>
                   <p>{PAGE_TITLES['dashboard'].sub}</p>
                 </div>
               ) : (
