@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase-admin'
 import { requireBcpsPageAccess, requireNamedPageGrant, requirePlaybookTranscriptAccess } from '@/lib/bcps-auth'
 import { loadAssignments } from '@/lib/bcps-team-home'
 import { PLAYBOOK_PROPOSAL_SCHEMA, PLAYBOOK_SYSTEM, loadPlaybook, playbookPrompt, playbookPayload, filePlaybookNotes } from '@/lib/playbook-meeting-transcript'
+import { playbookOutline, applyPlaybookUpdate } from '@/lib/playbook-update'
 import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadMarcommRows, marcommPrompt, attachCurrent, marcommPayload } from '@/lib/marcomm-meeting-transcript'
 
 // Meeting transcript upload for Web Team Assignments (Sean, 2026-10-21).
@@ -24,7 +25,9 @@ import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadM
 // grant; see lib/marcomm-meeting-transcript.
 // ?tracker=playbook&playbook=<slug> (GET) or tracker: 'playbook', playbook
 // (POST) files meeting notes under that Playbook, for its designated leads
-// only (Sean, 2026-10-22); see lib/playbook-meeting-transcript.
+// only (Sean, 2026-10-22); see lib/playbook-meeting-transcript. Applying also
+// writes the meeting into the Playbook itself as a new version (V,
+// 2026-10-28); see lib/playbook-update.
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
@@ -193,10 +196,45 @@ async function proposeMarcomm(transcript: string, meetingDate: string, meetingLa
 async function proposePlaybook(slug: string, transcript: string, meetingDate: string, meetingLabel: string): Promise<Proposal> {
   const pb = await loadPlaybook(svc, slug)
   if (!pb) throw new Error('That Playbook was not found.')
-  const parsed = await ask(PLAYBOOK_PROPOSAL_SCHEMA, PLAYBOOK_SYSTEM, playbookPrompt(pb, meetingLabel, meetingDate, transcript))
+  const parsed = await ask(PLAYBOOK_PROPOSAL_SCHEMA, PLAYBOOK_SYSTEM, playbookPrompt(pb, meetingLabel, meetingDate, transcript)) as Proposal & Record<string, unknown>
   parsed.changes = []
   parsed.new_items = parsed.new_items || []
+  // Keep only updates that point at a real section or Work Queue item, so a
+  // misquoted title cannot add a stray section or tick the wrong item.
+  const outline = playbookOutline(pb.html)
+  const sections = new Set(outline.sections.map((t) => t.toLowerCase()))
+  const pending = new Set(outline.pending.map((t) => t.toLowerCase()))
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object') : [])
+  parsed.section_updates = list(parsed.section_updates).filter((u) => u.new_section === true || sections.has(String(u.section || '').trim().toLowerCase()))
+  parsed.queue_done = list(parsed.queue_done).filter((q) => pending.has(String(q.item || '').replace(/\s+/g, ' ').trim().toLowerCase()))
+  parsed.stage = typeof parsed.stage === 'string' && parsed.stage.trim() ? parsed.stage.trim() : null
+  parsed.current_stage = outline.stage
   return parsed
+}
+
+// Writes the reviewed meeting into the Playbook as a new version, keeping the
+// previous content in bcps_doc_revisions. The write only lands if nobody saved
+// the Playbook in between.
+async function updatePlaybook(slug: string, notes: ReturnType<typeof playbookPayload>, meetingLabel: string, meetingDate: string, notesPath: string, notesTitle: string, email: string) {
+  const { data: row } = await svc.from('briefings').select('content, updated_at')
+    .eq('brand_slug', 'bcps').eq('type', 'playbook').eq('slug', slug).maybeSingle()
+  if (!row) throw new Error('That Playbook was not found.')
+  const out = applyPlaybookUpdate(String(row.content || ''), {
+    meeting_label: meetingLabel, meeting_date: meetingDate, summary: notes.summary, decisions: notes.decisions,
+    open_questions: notes.open_questions, actions: notes.actions, section_updates: notes.section_updates,
+    queue_done: notes.queue_done, stage: notes.stage, notes_path: notesPath, notes_title: notesTitle,
+  })
+  const { data: rev, error: revErr } = await svc.from('bcps_doc_revisions')
+    .insert({ slug, content: row.content, replaced_by_email: email }).select('id').single()
+  if (revErr || !rev) throw new Error('Could not keep the previous version of the Playbook, so it was not changed.')
+  const { data: saved, error } = await svc.from('briefings').update({ content: out.html, updated_at: new Date().toISOString() })
+    .eq('brand_slug', 'bcps').eq('type', 'playbook').eq('slug', slug).eq('updated_at', row.updated_at).select('slug')
+  if (error || !saved?.length) throw new Error('The Playbook changed while you were reviewing. Upload the transcript again to update it.')
+  await svc.from('playbook_records').insert({
+    slug, brand_slug: 'bcps', author: email, kind: 'edit', source: 'transcript', applied: true,
+    body: `Updated from the ${meetingLabel} transcript (${meetingDate})${out.version ? `, as v${out.version}` : ''}. Previous content kept in bcps_doc_revisions ${rev.id}.`,
+  }).then(() => null, () => null)
+  return { version: out.version, counts: out.counts, revision_id: rev.id as string }
 }
 
 async function propose(transcript: string, meetingDate: string, meetingLabel: string, origin: string): Promise<Proposal> {
@@ -308,19 +346,32 @@ export async function POST(req: NextRequest) {
       const pb = await loadPlaybook(svc, playbook)
       if (!pb) return NextResponse.json({ error: 'That Playbook was not found.' }, { status: 404 })
       const notes = playbookPayload(body.payload || {})
-      if (!notes.summary && !notes.decisions.length && !notes.actions.length && !notes.open_questions.length) {
-        return NextResponse.json({ error: 'Nothing is selected to file.' }, { status: 400 })
+      if (!notes.summary && !notes.decisions.length && !notes.actions.length && !notes.open_questions.length
+        && !notes.section_updates.length && !notes.queue_done.length && !notes.stage) {
+        return NextResponse.json({ error: 'Nothing is selected to apply.' }, { status: 400 })
       }
+      let filed: Awaited<ReturnType<typeof filePlaybookNotes>>
       try {
-        const result = await filePlaybookNotes(svc, pb, up.meeting_label as string, up.meeting_date as string, name, up.id as string, notes)
-        await svc.from('bcps_meeting_uploads').update({
-          status: 'applied', applied_payload: notes, result, applied_by_email: auth.user.email, applied_at: new Date().toISOString(),
-        }).eq('id', up.id)
-        return NextResponse.json({ result })
+        filed = await filePlaybookNotes(svc, pb, up.meeting_label as string, up.meeting_date as string, name, up.id as string, notes)
       } catch (e) {
         console.error('meeting-transcript: playbook notes failed', e)
         return NextResponse.json({ error: (e as Error).message }, { status: 500 })
       }
+      // The notes are the meeting's record; the Playbook update is the point.
+      // If the update fails the notes stay filed and the person is told.
+      let result: Record<string, unknown> = { ...filed }
+      try {
+        const pbUpdate = await updatePlaybook(playbook, notes, up.meeting_label as string, up.meeting_date as string, filed.path,
+          `Meeting notes: ${up.meeting_label}`, auth.user.email)
+        result = { ...result, playbook_updated: true, playbook_version: pbUpdate.version, playbook_counts: pbUpdate.counts, revision_id: pbUpdate.revision_id }
+      } catch (e) {
+        console.error('meeting-transcript: playbook update failed', e)
+        result = { ...result, playbook_updated: false, playbook_error: (e as Error).message }
+      }
+      await svc.from('bcps_meeting_uploads').update({
+        status: 'applied', applied_payload: notes, result, applied_by_email: auth.user.email, applied_at: new Date().toISOString(),
+      }).eq('id', up.id)
+      return NextResponse.json({ result })
     }
 
     const payload = tracker === 'marcomm'
