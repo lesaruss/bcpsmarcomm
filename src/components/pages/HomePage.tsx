@@ -16,6 +16,7 @@ import AssignmentsPage from './AssignmentsPage'
 import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
 import AgendaBuilder from '@/components/bcps/AgendaBuilder'
 import CompleteItemDialog, { type CompletableItem, type InputTarget } from '@/components/bcps/CompleteItemDialog'
+import AddDeliverableDialog, { type Person } from '@/components/bcps/AddDeliverableDialog'
 import DocumentsPage, { type PinnedDoc } from './DocumentsPage'
 import NotesPage from './NotesPage'
 import MembersPage from './MembersPage'
@@ -1076,10 +1077,13 @@ const INPUT_BTN = 'bcps-input-btn'
 const REVIEW_BTN = 'bcps-review-btn'
 const INPUT_CSS_ID = 'bcps-input-style'
 const INPUT_CSS = `.${INPUT_BTN}, .${REVIEW_BTN} { font: inherit; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 9px; margin-left: 10px; border-radius: 4px; border: 1px dashed #1672A7; background: #fff; color: #0e4e73; cursor: pointer; vertical-align: middle; } .${INPUT_BTN}:hover, .${REVIEW_BTN}:hover { background: #1672A7; color: #fff; border-style: solid; } .bcps-input-row { margin: 0 0 10px; } .${REVIEW_BTN} { margin: 6px 8px 0 0; }`
+// Deliverables Shelf (V, 2026-10-28): Turn in my work on each open slot for its
+// owner, and Add a deliverable at the top of the Shelf for the project's leads.
+const SLOT_BTN = 'bcps-slot-btn'
 export interface InputInfo { can_add: boolean; can_review: boolean; targets: InputTarget[]; open: string[] }
 
 function stripCompleteButtons(d: Document | HTMLElement) {
-  d.querySelectorAll(`.${COMPLETE_BTN}, #${COMPLETE_CSS_ID}, .${INPUT_BTN}, .${REVIEW_BTN}, .bcps-input-row, #${INPUT_CSS_ID}`).forEach((el) => el.remove())
+  d.querySelectorAll(`.${COMPLETE_BTN}, #${COMPLETE_CSS_ID}, .${INPUT_BTN}, .${REVIEW_BTN}, .bcps-input-row, #${INPUT_CSS_ID}, .${SLOT_BTN}`).forEach((el) => el.remove())
 }
 
 function addInputButtons(d: Document, info: InputInfo, open: (t: InputTarget) => void, decide: (id: string, action: 'accept' | 'dismiss') => void) {
@@ -1133,15 +1137,38 @@ function addInputButtons(d: Document, info: InputInfo, open: (t: InputTarget) =>
   }
 }
 
-function addCompleteButtons(d: Document, items: CompletableItem[], open: (item: CompletableItem) => void) {
+function addCompleteButtons(d: Document, items: CompletableItem[], open: (item: CompletableItem) => void, addSlot: (() => void) | null) {
   stripCompleteButtons(d)
+  if (addSlot) {
+    const checkedV = d.querySelector('input.ver-radio:checked')
+    const blockV = (checkedV && d.querySelector(`.ver-${checkedV.id.replace(/^ver/, '')}`)) || d.querySelector('main') || d.body
+    blockV.querySelectorAll('details.doc-accordion').forEach((acc) => {
+      const summary = acc.querySelector(':scope > summary')
+      const body = acc.querySelector(':scope > .section-block')
+      const c = summary?.cloneNode(true) as Element | undefined
+      c?.querySelectorAll('.status-tag').forEach((t) => t.remove())
+      if (!body || normText(c?.textContent || '') !== 'deliverables shelf') return
+      const b = d.createElement('button')
+      b.type = 'button'
+      b.className = `${COMPLETE_BTN} ${SLOT_BTN}`
+      b.textContent = 'Add a deliverable'
+      b.style.margin = '0 0 10px'
+      b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); addSlot() })
+      body.insertBefore(b, body.firstChild)
+    })
+    if (!d.getElementById(COMPLETE_CSS_ID)) {
+      const st = d.createElement('style'); st.id = COMPLETE_CSS_ID; st.textContent = COMPLETE_CSS; d.head.appendChild(st)
+    }
+  }
   if (!items.length) return
   const checked = d.querySelector('input.ver-radio:checked')
   const block = (checked && d.querySelector(`.ver-${checked.id.replace(/^ver/, '')}`)) || d.querySelector('main') || d.body
-  const style = d.createElement('style')
-  style.id = COMPLETE_CSS_ID
-  style.textContent = COMPLETE_CSS
-  d.head.appendChild(style)
+  if (!d.getElementById(COMPLETE_CSS_ID)) {
+    const style = d.createElement('style')
+    style.id = COMPLETE_CSS_ID
+    style.textContent = COMPLETE_CSS
+    d.head.appendChild(style)
+  }
   const button = (item: CompletableItem) => {
     const b = d.createElement('button')
     b.type = 'button'
@@ -1161,6 +1188,11 @@ function addCompleteButtons(d: Document, items: CompletableItem[], open: (item: 
     const item = actions.find((i) => i.key === normText(t.textContent || ''))
     if (item) t.appendChild(button(item))
   })
+  const slots = items.filter((i) => i.kind === 'deliverable')
+  block.querySelectorAll('.deliverable-slot:not(.filled) .ds-title').forEach((t) => {
+    const item = slots.find((i) => i.key === normText(t.textContent || ''))
+    if (item) t.parentElement?.appendChild(button(item))
+  })
 }
 
 // refresh: bump it to reload the page in the frame (after a transcript update).
@@ -1177,6 +1209,8 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
   const [completing, setCompleting] = useState<CompletableItem | null>(null)
   const [inputInfo, setInputInfo] = useState<InputInfo>({ can_add: false, can_review: false, targets: [], open: [] })
   const [inputting, setInputting] = useState<InputTarget | null>(null)
+  const [slotPeople, setSlotPeople] = useState<Person[] | null>(null)
+  const [addingSlot, setAddingSlot] = useState(false)
   const opened = useRef<HTMLDetailsElement[]>([])
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -1201,13 +1235,14 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
   }, [slug])
   useEffect(() => {
     let live = true
-    setCompletable([])
+    setCompletable([]); setSlotPeople(null)
     ;(async () => {
       const token = (await createClient().auth.getSession()).data.session?.access_token
       if (!token) return
       const r = await fetch(`/api/bcps/playbook-items?slug=${encodeURIComponent(slug)}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
       const j = await r.json().catch(() => ({}))
       if (live) setCompletable(Array.isArray(j.items) ? j.items : [])
+      if (live) setSlotPeople(j.can_add_slot ? (Array.isArray(j.people) ? j.people : []) : null)
       const ri = await fetch(`/api/bcps/playbook-input?slug=${encodeURIComponent(slug)}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
       const ji = await ri.json().catch(() => ({}))
       if (live) setInputInfo({ can_add: !!ji.can_add, can_review: !!ji.can_review, targets: Array.isArray(ji.targets) ? ji.targets : [], open: Array.isArray(ji.open) ? ji.open : [] })
@@ -1225,7 +1260,7 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
     if (r.ok) setReload((n) => n + 1)
   }
   const decorate = (d: Document) => {
-    addCompleteButtons(d, completable, setCompleting)
+    addCompleteButtons(d, completable, setCompleting, slotPeople ? () => setAddingSlot(true) : null)
     addInputButtons(d, inputInfo, setInputting, decideInput)
   }
   // The buttons go in once both the page and the lists are ready, whichever is last.
@@ -1233,7 +1268,7 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
     const d = ref.current?.contentDocument
     if (d?.body && !editing) decorate(d)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completable, inputInfo, editing])
+  }, [completable, inputInfo, slotPeople, editing])
   const fit = () => {
     const d = ref.current?.contentDocument
     if (d?.body && !editing) decorate(d)
@@ -1302,6 +1337,10 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
       {inputting && (
         <CompleteItemDialog mode="input" slug={slug} item={inputting} onClose={() => setInputting(null)}
           onDone={(message) => { setInputting(null); setNote(message); setReload((n) => n + 1) }} />
+      )}
+      {addingSlot && slotPeople && (
+        <AddDeliverableDialog slug={slug} people={slotPeople} onClose={() => setAddingSlot(false)}
+          onDone={(message) => { setAddingSlot(false); setNote(message); setReload((n) => n + 1) }} />
       )}
       {completing && (
         <CompleteItemDialog slug={slug} item={completing} onClose={() => setCompleting(null)}
