@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
 
   const resolved = await resolveOrInviteAccount(wcmEmail, dept.wcm_name || undefined)
   if (!resolved.ok) return NextResponse.json({ error: resolved.error }, { status: 500 })
-  const { userId, isNewAccount, actionLink } = resolved.account
+  const { userId, isNewAccount, actionLink, tempPassword } = resolved.account
 
   const enrolled = await enrollBcpsMember({
     userId,
@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
     departmentName: dept.name,
     isNewAccount,
     failsafeHref: isNewAccount ? actionLink! : `${SITE}/login`,
+    tempPassword,
   })
 
   const emailResult = await sendEmail({

@@ -1,7 +1,7 @@
 // The director invitation email (Sean, 2026-10-28), sent by
 // /api/bcps/director-invite. Its own module so the copy can be rendered and
 // read without sending anything.
-import { brandedEmail, esc, firstName, DIRECTOR_PLAYBOOK_URL } from '@/lib/bcps-portal-account'
+import { brandedEmail, esc, firstName, tempPasswordHtml, DIRECTOR_PLAYBOOK_URL } from '@/lib/bcps-portal-account'
 
 export interface InviteRecipient {
   name: string
@@ -19,7 +19,9 @@ function functionLeadItems(page: string) {
       <li style="margin-bottom:6px"><strong>Your certification</strong>: the Department WCM Certification and where you are in it.</li>`
 }
 
-export function inviteEmail(r: InviteRecipient, link: string, isNew: boolean) {
+// tempPassword (2026-10-28): set by resolveOrInviteAccount on a new account or
+// one never signed into; shown under the button. See ResolvedAccount.
+export function inviteEmail(r: InviteRecipient, link: string, isNew: boolean, tempPassword?: string | null) {
   const lead = r.role === 'function_lead'
   const scope = lead
     ? `${esc(r.departments[0] ?? 'your program')}`
@@ -42,7 +44,10 @@ export function inviteEmail(r: InviteRecipient, link: string, isNew: boolean) {
     </ul>
     <p>${isNew
       ? 'Use the button below to set your password. After that, sign in at bcpsmarcomm.com with your District email.'
-      : 'You already have an account, so just sign in with your District email and password.'}</p>
+      : tempPassword
+        ? 'Your account is ready.'
+        : 'You already have an account, so just sign in with your District email and password.'}</p>
+    ${tempPassword ? tempPasswordHtml(tempPassword, !isNew) : ''}
     <p>If you have a question, reply to this email or use the feedback button once you are signed in.</p>
     <p>Sean A. Russell<br>District Webmaster, Office of Communications</p>`
   return brandedEmail({

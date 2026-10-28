@@ -97,7 +97,7 @@ async function notifyWcm(opts: {
   try {
     const resolved = await resolveOrInviteAccount(opts.wcmEmail, opts.wcmName)
     if (!resolved.ok) return { account_ok: false, email_sent: false, error: resolved.error }
-    const { userId, isNewAccount, actionLink } = resolved.account
+    const { userId, isNewAccount, actionLink, tempPassword } = resolved.account
 
     const enrolled = await enrollBcpsMember({
       userId,
@@ -114,6 +114,7 @@ async function notifyWcm(opts: {
       departmentName: opts.departmentName,
       isNewAccount,
       failsafeHref: isNewAccount ? actionLink! : `${SITE}/login`,
+      tempPassword,
     })
 
     const emailResult = await sendEmail({

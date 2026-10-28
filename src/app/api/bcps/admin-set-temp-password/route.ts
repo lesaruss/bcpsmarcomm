@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { generateTempPassword } from '@/lib/bcps-portal-account'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -49,17 +50,8 @@ async function requireBcpsAdmin(req: NextRequest): Promise<{ ok: true } | { ok: 
   return { ok: true }
 }
 
-// Readable, unambiguous temp password: avoids 0/O/1/l/I and vowel-heavy
-// runs that could spell something awkward, since this is often read aloud
-// or typed by hand off a text message. 12 chars from a wide charset is
-// comfortably above any reasonable brute-force floor for a one-time,
-// forced-change credential.
-function generateTempPassword(): string {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-  const bytes = new Uint8Array(12)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes, (b) => chars[b % chars.length]).join('')
-}
+// generateTempPassword lives in lib/bcps-portal-account (2026-10-28), shared
+// with the invite tools, which now set one on every new account.
 
 export async function POST(req: NextRequest) {
   try {

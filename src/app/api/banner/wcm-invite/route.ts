@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/resend'
-import { resolveOrInviteAccount, brandedEmail, esc, firstName, SITE } from '@/lib/bcps-portal-account'
+import { resolveOrInviteAccount, brandedEmail, esc, firstName, tempPasswordHtml, SITE } from '@/lib/bcps-portal-account'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +52,7 @@ async function requireBannerReviewer(req: NextRequest) {
   return user
 }
 
-function schoolWcmEmail(opts: { name: string; schoolName: string; isNewAccount: boolean; href: string }): string {
+function schoolWcmEmail(opts: { name: string; schoolName: string; isNewAccount: boolean; href: string; tempPassword?: string | null }): string {
   return brandedEmail({
     heading: 'Your Banner Submissions access is ready',
     body: `
@@ -68,6 +68,7 @@ function schoolWcmEmail(opts: { name: string; schoolName: string; isNewAccount: 
             One banner is all you need to submit; you can add up to three in a request.</li>
         <li>Every submission is reviewed by the District Web Team before it goes live, and you will get an email with the decision.</li>
       </ul>
+      ${opts.tempPassword ? tempPasswordHtml(opts.tempPassword) : ''}
       <p>Best regards,<br />District Web Team</p>
     `,
     ctaLabel: opts.isNewAccount ? 'Set Your Password' : 'Sign In',
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest) {
 
   const resolved = await resolveOrInviteAccount(email, name)
   if (!resolved.ok) return NextResponse.json({ error: resolved.error }, { status: 500 })
-  const { userId, isNewAccount, actionLink } = resolved.account
+  const { userId, isNewAccount, actionLink, tempPassword } = resolved.account
 
   const link = existingRow
     ? await svc.from('bcps_schools')
@@ -143,6 +144,7 @@ export async function POST(req: NextRequest) {
       schoolName: school.school_name,
       isNewAccount,
       href: isNewAccount ? actionLink! : `${SITE}/login?next=${encodeURIComponent('/?page=banner-submissions')}`,
+      tempPassword,
     }),
   })
 
