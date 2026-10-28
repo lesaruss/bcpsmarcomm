@@ -1352,15 +1352,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
 // dashboards where it lives under Documents, it shows with a way back.
 function MarcommInDocuments() {
   const router = useRouter()
-  return (
-    <>
-      <div className="home-actions">
-        <button type="button" className="wcm-hub2-card-btn" onClick={() => router.push('/?page=dashboard&tab=documents', { scroll: false })}>All documents</button>
-        <span className="home-hint">MarComm Assignments</span>
-      </div>
-      <MarcommAssignmentsPage embedded />
-    </>
-  )
+  return <MarcommAssignmentsPage embedded onBack={() => router.push('/?page=dashboard&tab=documents', { scroll: false })} />
 }
 
 // Experiences without a Documents tab (Marcomm Meeting, School WCM, Member)

@@ -7,7 +7,9 @@ import { CSS } from '@/components/bcps/CompleteItemDialog'
 // The Edit this page and Add your input dialogs on a tracker (V, 2026-10-28),
 // in the same panel as a Playbook's. Edit adds an assignment or rewrites one's
 // description; input is a note on an assignment, signed with the person's name.
-// Data: /api/bcps/web-team-assignments-edit.
+// Data: /api/bcps/web-team-assignments-edit. MarComm Assignments (V,
+// 2026-10-28) uses input mode only, saved through its own route (submitInput),
+// with its rows called requests (noun).
 
 export interface TrackerRow { slug: string; title: string; desc: string; status: string }
 type Mode = 'edit' | 'input'
@@ -23,8 +25,12 @@ async function authHeaders(): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-export default function TrackerItemDialog({ mode, rows, onClose, onDone }: { mode: Mode; rows: TrackerRow[]; onClose: () => void; onDone: (message: string) => void }) {
+export default function TrackerItemDialog({ mode, rows, onClose, onDone, submitInput, noun = 'assignment' }: {
+  mode: Mode; rows: TrackerRow[]; onClose: () => void; onDone: (message: string) => void
+  submitInput?: (slug: string, text: string) => Promise<void>; noun?: string
+}) {
   const isEdit = mode === 'edit'
+  const aNoun = `${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}`
   // Only rows still in the active list take a new description; input goes on any row.
   const choices = isEdit ? rows.filter((r) => r.status !== 'completed' && r.status !== 'archived') : rows
   const [slug, setSlug] = useState(isEdit ? NEW : '')
@@ -49,6 +55,11 @@ export default function TrackerItemDialog({ mode, rows, onClose, onDone }: { mod
   const save = async () => {
     setBusy(true); setError('')
     try {
+      if (!isEdit && submitInput) {
+        await submitInput(slug, note)
+        onDone(`Your input was added to the notes on ${rows.find((r) => r.slug === slug)?.title ?? `this ${noun}`}.`)
+        return
+      }
       const body = !isEdit ? { action: 'input', slug, text: note }
         : adding ? { action: 'add', title, description: desc, lead, support, status }
         : { action: 'describe', slug, description: desc }
@@ -73,14 +84,14 @@ export default function TrackerItemDialog({ mode, rows, onClose, onDone }: { mod
         <p className="cid-prompt">
           {isEdit
             ? 'Add a new assignment, or rewrite the description of one already on the tracker. To change a title, lead, date or status, click it on the row itself.'
-            : 'Share an update, a question or an idea on an assignment. It is added to that assignment’s notes with your name, where the team sees it.'}
+            : `Share an update, a question or an idea on ${aNoun}. It is added to that ${noun}’s notes with your name, where the team sees it.`}
         </p>
         {error && <div className="cid-error" role="alert">{error}</div>}
 
         <label className="cid-block">
-          <span className="cid-l">Assignment</span>
+          <span className="cid-l">{noun}</span>
           <select value={slug} onChange={(e) => pick(e.target.value)} disabled={busy}>
-            {isEdit ? <option value={NEW}>New assignment</option> : <option value="" disabled>Choose an assignment</option>}
+            {isEdit ? <option value={NEW}>New {noun}</option> : <option value="" disabled>Choose {aNoun}</option>}
             {choices.map((r) => <option key={r.slug} value={r.slug}>{r.title}</option>)}
           </select>
         </label>

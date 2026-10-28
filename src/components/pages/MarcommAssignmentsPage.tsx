@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
+import TrackerItemDialog from '@/components/bcps/TrackerItemDialog'
 
 // MarComm Assignments (Sean, 2026-10-08). The Office of Communications request
 // tracker, modeled on Web Team Assignments and replacing the MarComm
@@ -119,7 +120,12 @@ function todayIso(): string {
 
 // embedded: shown as a dashboard tab (SuperAdmin and the Office of
 // Communications side of the web team), so the page drops its own frame.
-export default function MarcommAssignmentsPage({ embedded = false }: { embedded?: boolean } = {}) {
+// Toolbar (V, 2026-10-28): the trackers' row from Web Team Assignments, in the
+// same order. All documents shows where there is a list to go back to (onBack);
+// Edit this page adds a team item; Upload transcript is the transcript bar as a
+// button; Add your input adds a note to a request. Edit, upload and input are
+// for the editors only, as every change here is (Sean, 2026-10-21).
+export default function MarcommAssignmentsPage({ embedded = false, onBack }: { embedded?: boolean; onBack?: () => void } = {}) {
   const [requests, setRequests] = useState<Req[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [team, setTeam] = useState<Member[]>([])
@@ -137,6 +143,8 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
   const [sort, setSort] = useState<Sort>('needed')
   const [openId, setOpenId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [inputting, setInputting] = useState(false)
+  const [toolbarNote, setToolbarNote] = useState('')
   // A sign-in that has expired still shows the list from before, but every
   // save fails (Jennifer Hodder, 2026-10-21: "I am locked out and can't add
   // anything"). Say so, with a way back in.
@@ -260,6 +268,16 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
   return (
     <div className={`mca${embedded ? ' embedded' : ''}`}>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <div className="doc-toolbar">
+        {onBack && <button type="button" className="wcm-hub2-card-btn" onClick={onBack}>All documents</button>}
+        <a className="wcm-hub2-card-btn" href={MARCOMM_HOME} target="_blank" rel="noopener noreferrer">Open full page</a>
+        {!viewing && canEdit && <button type="button" className="wcm-hub2-card-btn" onClick={() => { setToolbarNote(''); setAdding(true) }}>Edit this page</button>}
+        {/* Update the tracker from a Marcomm Meeting transcript (Sean, 2026-10-21),
+            for the MarComm Assignments editors ('marcomm-edit'); hidden for everyone else. */}
+        {!viewing && <MeetingTranscriptUpload tracker="marcomm" variant="button" onApplied={() => { load() }} />}
+        {!viewing && canEdit && <button type="button" className="wcm-hub2-card-btn" onClick={() => { setToolbarNote(''); setInputting(true) }}>Add your input</button>}
+      </div>
+      {toolbarNote && <p className="home-hint doc-toolbar-note" role="status">{toolbarNote}</p>}
       <div className="mca-head">
         <div>
           <h1>MarComm Assignments</h1>
@@ -276,15 +294,10 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
             <a className="mca-btn ghost" href="/marcomm-request" target="_blank" rel="noopener">Open request form</a>
             {canEdit ? <>
               <button className="mca-btn ghost" onClick={() => setSavingSnapshot(true)}>Save meeting snapshot</button>
-              <button className="mca-btn" onClick={() => setAdding(true)}>Add team item</button>
             </> : !loading && <span className="mca-viewonly" title="Jennifer Hodder updates the tracker during the Marcomm Meeting">View only</span>}
           </>}
         </div>
       </div>
-
-      {/* Update the tracker from a Marcomm Meeting transcript (Sean, 2026-10-21),
-          for the MarComm Assignments editors ('marcomm-edit'); hidden for everyone else. */}
-      {!viewing && <MeetingTranscriptUpload tracker="marcomm" onApplied={() => { load() }} />}
 
       {expired && (
         <div className="mca-banner expired">
@@ -432,6 +445,11 @@ export default function MarcommAssignmentsPage({ embedded = false }: { embedded?
         others={liveRows.filter(r => r.id !== open.id)} combined={requests.filter(r => r.merged_into === open.id)} />}
       {savingSnapshot && <SaveSnapshot onClose={() => setSavingSnapshot(false)} post={post} />}
       {adding && <AddItem team={team} defaultLead={myName} onClose={() => setAdding(false)} post={post} />}
+      {inputting && <TrackerItemDialog mode="input" noun="request"
+        rows={liveRows.filter(r => !CLOSED.has(r.status)).concat(liveRows.filter(r => CLOSED.has(r.status)))
+          .map(r => ({ slug: r.id, title: `${r.job_number ? `#${r.job_number} ` : ''}${r.title}`, desc: r.description ?? '', status: r.status }))}
+        submitInput={async (id, text) => { await post({ action: 'add_note', id, body: text, source: 'typed' }) }}
+        onClose={() => setInputting(false)} onDone={(message) => { setInputting(false); setToolbarNote(message) }} />}
     </div>
   )
 }
