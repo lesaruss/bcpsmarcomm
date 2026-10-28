@@ -128,7 +128,7 @@ async function setTempPassword(userId: string, metadata: Record<string, unknown>
 export function tempPasswordHtml(tempPassword: string, primary = false): string {
   return `
       <p style="margin:16px 0 0;padding:12px 14px;background:#f3f6f9;border-left:3px solid #1672A7;border-radius:0 6px 6px 0;font-size:14px;line-height:1.6">
-        ${primary ? '' : '<strong>Can&rsquo;t use the button?</strong> '}Sign in at <a href="${SITE}/login">${SITE.replace('https://', '')}/login</a>
+        ${primary ? '' : '<strong>Can&rsquo;t use the button below?</strong> '}Sign in at <a href="${SITE}/login">${SITE.replace('https://', '')}/login</a>
         with your District email and this temporary password:
         <span style="font-family:Consolas,Menlo,monospace;font-size:15px;font-weight:700;letter-spacing:0.04em">${esc(tempPassword)}</span><br>
         You will be asked to choose your own password right away. It is case-sensitive, so copy and paste it.
