@@ -781,6 +781,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
       {tab === 'tools' && !leadership && <>
         {/* Ask & Guide folded in here (Sean, Oct 5 OOC Web Huddle). */}
         <DirectorHelp myWindow={myWindow} led={led} />
+        <DirectorFaq />
         <ToolsPanel kind="director" onNavigate={onNavigate} kb={data.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />
       </>}
     </div>
@@ -1403,6 +1404,42 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
         <p>Name the Web Content Manager for your department, or let the District Web Team know about a change.</p>
         <a className="wcm-hub2-card-btn" href={ROSTER_SIGNUP_URL}>Open the form</a>
       </div>
+    </div>
+  )
+}
+
+// Processes a director may need at any point, laid out where they can find
+// them again after the announcement (Sean, 2026-10-28). The school update
+// process is Application Services' (Vanessa C. Deslandes).
+function DirectorFaq() {
+  return (
+    <div className="home-dept home-section home-faq">
+      <div className="home-dept-head"><h3>Common questions</h3></div>
+      <details>
+        <summary>How do I get schools to add or update information on their websites?</summary>
+        <p>Start by submitting an <a href="https://browardschools.incidentiq.com/" target="_blank" rel="noopener noreferrer">Incident IQ ticket to Application Services</a>. Application Services will:</p>
+        <ol>
+          <li>Review the request and confirm the content requirements.</li>
+          <li>Recommend the best approach, which may include a Shared Element for centralized content management.</li>
+          <li>If school-level updates are needed, develop instructions for school Web Content Managers (WCMs).</li>
+        </ol>
+        <p>Wait to communicate the request to schools until Application Services has provided those instructions.</p>
+      </details>
+      <details>
+        <summary>I just assigned a new WCM. What happens with the certification deadline?</summary>
+        <p>Certification is due {DEPT_CERT_DEADLINE}. If you assigned a new WCM within the last few weeks, let us know before then and our team will work directly with them to make sure they have what they need to get started.</p>
+        <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback('We assigned a new Web Content Manager recently: ')}>Let us know</button>
+      </details>
+      <details>
+        <summary>How do I change or add a WCM for my department?</summary>
+        <p>Use the WCM form to name your department&apos;s Web Content Manager or tell us about a change. The District Web Team updates the roster and your dashboard.</p>
+        <a className="wcm-hub2-card-btn" href={ROSTER_SIGNUP_URL}>Open the form</a>
+      </details>
+      <details>
+        <summary>Who do I ask about something else on my department&apos;s website?</summary>
+        <p>Send the District Web Team a message from this page. It comes straight to the team.</p>
+        <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback()}>Send a message</button>
+      </details>
     </div>
   )
 }

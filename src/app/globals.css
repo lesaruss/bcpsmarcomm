@@ -1765,6 +1765,13 @@ body {
 .home-video-transcript { margin-top: 6px; font-size: 12.5px; color: var(--text-secondary); }
 .home-video-transcript summary { cursor: pointer; font-weight: 700; color: #0e4e73; }
 .home-video-transcript p { margin: 8px 0 0; line-height: 1.6; }
+.home-faq details { border-top: 1px solid var(--border); padding: 12px 0; }
+.home-faq details:last-child { padding-bottom: 2px; }
+.home-faq summary { cursor: pointer; font-size: 14px; font-weight: 700; color: #0e4e73; }
+.home-faq p, .home-faq ol { font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); margin: 8px 0 0; }
+.home-faq ol { padding-left: 20px; }
+.home-faq a:not(.wcm-hub2-card-btn) { color: #0e4e73; font-weight: 700; text-decoration: underline; }
+.home-faq .wcm-hub2-card-btn { margin-top: 10px; }
 .home-video-play::after { content: ""; border-left: 15px solid var(--blue); border-top: 9px solid transparent; border-bottom: 9px solid transparent; margin-left: 4px; }
 .home-video-title { font-size: 14px; font-weight: 800; color: #0e4e73; }
 .home-video-sub { font-size: 12px; color: var(--text-muted); }
