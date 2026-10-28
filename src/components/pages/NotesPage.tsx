@@ -51,7 +51,14 @@ const isExternal = (url: string) => /^https?:\/\//i.test(url)
 // Access/Edit/Request-an-edit tools as Documents and Records, permanently
 // filtered to section='meeting-notes', still grouped by series/department
 // like the old Documents tab did.
-export default function NotesPage() {
+// One design for meeting notes everywhere (Sean, 2026-10-28): the director
+// dashboard's Meeting Notes tab renders this same page. extras adds meetings
+// shared with that person outside the catalog (their department's review
+// meetings, a leadership meeting); asEmail is the person a SuperAdmin is
+// viewing as, so the list is theirs.
+export interface ExtraNote { id: string; title: string; description: string | null; href: string; posted_at: string }
+
+export default function NotesPage({ embedded = false, extras = [], asEmail }: { embedded?: boolean; extras?: ExtraNote[]; asEmail?: string | null } = {}) {
   const supabase = createClient()
   const [preview, setPreview] = useState<Doc | null>(null)
   const [docs, setDocs] = useState<Doc[]>([])
@@ -81,15 +88,25 @@ export default function NotesPage() {
   const load = useCallback(async () => {
     setLoading(true); setErr('')
     const t = await token()
-    const r = await fetch('/api/bcps/documents', { headers: { Authorization: `Bearer ${t}` } })
+    const r = await fetch(`/api/bcps/documents${asEmail ? `?as=${encodeURIComponent(asEmail)}` : ''}`, { headers: { Authorization: `Bearer ${t}` } })
     const j = await r.json()
     if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
-    setDocs((j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'meeting-notes'))
+    const notes: Doc[] = (j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'meeting-notes')
+    const more: Doc[] = extras
+      .filter(x => !notes.some(d => d.doc_url === x.href || x.href.endsWith(`/${d.slug}`)))
+      .map(x => ({
+        id: `extra:${x.id}`, slug: x.href.split('/').filter(Boolean).pop() || x.id, title: x.title, description: x.description,
+        type: 'Meeting notes', date: new Date(x.posted_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+        date_sort: x.posted_at, icon: '\u{1F4DD}', section: 'meeting-notes', visibility: 'restricted', sensitive: false,
+        doc_url: x.href, is_dynamic: false, can_edit: false, featured: false, series_id: null, series_title: 'Your meetings', effective_object_id: '',
+      }))
+    setDocs([...notes, ...more])
     setRole(j.role)
     setGroups(j.groups ?? []); setMembers(j.members ?? []); setGrants(j.grants ?? [])
     setAllSeries((j.all_series ?? []).filter((s: Series) => s.section === 'meeting-notes'))
     setLoading(false)
-  }, [token])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, asEmail, extras.length])
 
   useEffect(() => { load() }, [load])
 
@@ -211,6 +228,9 @@ export default function NotesPage() {
   // first - per Sean/V 2026-08-19 ("sorted by ALL as a default
   // chronologically"). Picking a specific series from the filter narrows to
   // just that series' notes, still newest first.
+  // Embedded on a director's dashboard with only a few notes, the search and
+  // filter are noise (Sean, 2026-10-28); they come back once the list grows.
+  const showTools = !embedded || docs.length >= 6
   const chronological = useMemo(() => [...filtered].sort((a, b) => dateVal(b) - dateVal(a)), [filtered])
 
   // Series with zero notes yet (e.g. District Web Team Huddle, OOC Web
@@ -269,10 +289,10 @@ export default function NotesPage() {
         @media (max-width: 600px) { .docs-section { padding: 16px; } .docs-header h1 { font-size: 24px; } .docs-grid { grid-template-columns: 1fr; } .lightbox { padding: 12px; } .lightbox-content { max-width: 100%; } }
       `}</style>
 
-      <div className="docs-section">
+      <div className="docs-section" style={embedded ? { padding: 0, background: 'transparent' } : undefined}>
         <div className="docs-header">
-          <h1>Meeting Notes</h1>
-          <p>Notes and recaps from every recurring meeting you have access to, newest first. Use the filter to narrow to one meeting.
+          {!embedded && <h1>Meeting Notes</h1>}
+          <p>Notes and recaps from every recurring meeting you have access to, newest first.{showTools && ' Use the filter to narrow to one meeting.'}
             {isAdmin && ' As an admin, each one also shows who has access and an Edit button to manage access or content directly here.'}
           </p>
         </div>
@@ -280,7 +300,7 @@ export default function NotesPage() {
         {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '0 0 20px' }}>{err}</div>}
         {toast && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 8, padding: '10px 14px', fontSize: 13, margin: '0 0 20px' }}>{toast}</div>}
 
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 28 }}>
+        {showTools && <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 28 }}>
           <div className="notes-search-wrap" style={{ marginBottom: 0, flex: 1, minWidth: 200 }}>
             <svg className="notes-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -303,7 +323,7 @@ export default function NotesPage() {
             <option value="all">All meetings</option>
             {allSeries.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
           </select>
-        </div>
+        </div>}
 
         <p className="docs-section-label">
           {seriesFilter === 'all' ? 'All Meetings' : allSeries.find(s => s.id === seriesFilter)?.title || 'Meeting'}
@@ -325,14 +345,14 @@ export default function NotesPage() {
                     <div className="doc-badge-row">
                       {isAdmin && <span className="doc-access-badge">{badge.icon} {badge.label}</span>}
                       {isExternal(doc.doc_url) && <span className="doc-access-badge">&#8599; Opens on another site</span>}
-                      <button
+                      {!doc.id.startsWith('extra:') && <button
                         type="button"
                         className={doc.featured ? 'doc-star-btn doc-star-btn-active' : 'doc-star-btn'}
                         onClick={() => toggleFeatured(doc)}
                         title={doc.featured ? 'Remove from my favorites' : 'Add to my favorites'}
                       >
                         {doc.featured ? '★' : '☆'}
-                      </button>
+                      </button>}
                     </div>
 
                     <button
@@ -362,9 +382,9 @@ export default function NotesPage() {
                           Edit
                         </button>
                       )}
-                      <button style={openPanel === 'request' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'request')}>
+                      {!doc.id.startsWith('extra:') && <button style={openPanel === 'request' ? A.btnPrimary : A.btn} onClick={() => toggle(doc.slug, 'request')}>
                         Request an edit
-                      </button>
+                      </button>}
                     </div>
 
                     <div className="doc-meta">
