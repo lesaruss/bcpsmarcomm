@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import '../../wcm-registration/wcm-registration.css'
 import MarcommHeader, { MARCOMM_HOME, MARCOMM_LOGIN } from '../MarcommHeader'
 import DuplicateAccountWarning, { checkAccount, type AccountWarning } from '@/components/DuplicateAccountWarning'
+import { isExistingAccount, EXISTING_ACCOUNT_MESSAGE } from '@/lib/signup-existing'
 
 // MarComm Meeting account creation (Sean, 2026-10-16). Same form and checks as
 // /wcm-registration/register, minus the department picker and the
@@ -108,6 +109,7 @@ export default function MarcommRegistrationRegisterPage() {
       })
       if (signUpError) throw signUpError
       if (!data.user) throw new Error('Registration did not return an account. Please try again.')
+      if (isExistingAccount(data.user)) throw new Error(EXISTING_ACCOUNT_MESSAGE)
 
       if (data.session) {
         const r = await enroll(data.session.access_token)

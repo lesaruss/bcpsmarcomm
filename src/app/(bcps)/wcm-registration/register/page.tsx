@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import '../wcm-registration.css'
 import WcmPilotHeader from '../WcmPilotHeader'
 import DuplicateAccountWarning, { checkAccount, type AccountWarning } from '@/components/DuplicateAccountWarning'
+import { isExistingAccount, EXISTING_ACCOUNT_MESSAGE } from '@/lib/signup-existing'
 
 interface DeptOption {
   id: string
@@ -139,6 +140,7 @@ export default function WCMRegistrationRegisterPage() {
       })
       if (signUpError) throw signUpError
       if (!data.user) throw new Error('Registration did not return an account. Please try again.')
+      if (isExistingAccount(data.user)) throw new Error(EXISTING_ACCOUNT_MESSAGE)
 
       // Course profile, same table the certification course reads from.
       // If they used the "not listed" fallback, department is whatever they
