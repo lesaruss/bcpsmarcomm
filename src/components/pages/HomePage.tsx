@@ -2728,6 +2728,10 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         { id: 'ada', label: 'ADA' },
         { id: 'banners', label: 'Banners' },
         ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
+        // An Application Services member who is also a WCM keeps the WCM
+        // program in view, the way a director does (Sean, 2026-10-28:
+        // Andrea Barton keeps the main Information Systems page current).
+        ...(data.is_wcm ? [{ id: 'wcm', label: 'My WCM Work' }] : []),
         { id: 'tools', label: 'My Resources' },
       ]
   if (page) return <PageUnderTabs tabs={tabs} onChange={setTab}>{page}</PageUnderTabs>
@@ -2749,6 +2753,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         </div>
       </div>
       <div className="home-strip">
+        {kind === 'appsvc' && data.is_wcm && <MyCertTile cert={myCertOf(data)} label="Your certification" />}
         <StatTile label="My open assignments" value={assignments.length} note={`Lead on ${lead}, support on ${assignments.length - lead}.${past ? ` ${past} past their date.` : ''}`} tone={past ? 'warn' : undefined} />
         {kind === 'comms' ? (
           <>
