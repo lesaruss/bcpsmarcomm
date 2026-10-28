@@ -40,12 +40,12 @@ const FIELDS: Record<Tracker, [string, string][]> = {
 const COPY: Record<Tracker, { label: string; help: string; summary: string; bar?: string; barButton?: string; oneLine?: boolean; newItems?: string }> = {
   playbook: {
     label: 'Project Meeting',
-    help: 'Claude reads the transcript against this Playbook and proposes updates to it: decisions, action items for the Work Queue, open questions, changes to sections, finished Work Queue items and the stage. Nothing changes until you review them and press Update Playbook. The Playbook gets a new version (the previous one is kept), and the meeting notes are filed as a document under it.',
+    help: 'Claude reads the transcript against this page and drafts what changed: decisions, new to-dos, open questions, updates to sections, finished to-dos and the stage. This is a draft summary; you decide what goes in. Nothing changes until you click Publish Update. The page gets a new version (the previous one is kept), and the meeting notes are filed under it. Only add a transcript when everyone in the meeting knew it was recorded.',
     summary: 'Meeting summary',
-    bar: "Add this meeting's .vtt transcript.",
-    barButton: 'Upload',
+    bar: "Had a meeting? Add its .vtt transcript.",
+    barButton: 'Add Meeting Notes',
     oneLine: true,
-    newItems: 'Action items (added to the Work Queue)',
+    newItems: 'New to-dos (added to Your To-Do List)',
   },
   'web-team': {
     label: 'District Web Team Meeting',
@@ -228,7 +228,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
         const c = r.playbook_counts || {}
         const n = (v: number | undefined, one: string, many: string) => `${v ?? 0} ${v === 1 ? one : many}`
         setDone(r.playbook_updated
-          ? `Playbook updated${r.playbook_version ? ` to v${r.playbook_version}` : ''} (the previous version is kept): ${n(c.decisions, 'decision', 'decisions')}, ${n(c.added, 'action item', 'action items')} in the Work Queue, ${n(c.done, 'item', 'items')} marked done, ${n(c.questions, 'open question', 'open questions')}, ${n(c.sections, 'section update', 'section updates')}. The meeting notes are filed under it too.`
+          ? `Updated. Saved as the latest version${r.playbook_version ? ` (v${r.playbook_version})` : ''}; the previous one is kept: ${n(c.decisions, 'decision', 'decisions')}, ${n(c.added, 'new to-do', 'new to-dos')}, ${n(c.done, 'to-do', 'to-dos')} marked done, ${n(c.questions, 'open question', 'open questions')}, ${n(c.sections, 'section update', 'section updates')}. The meeting notes are filed under it too.`
           : `The meeting notes were filed, but the Playbook itself was not updated: ${r.playbook_error || 'something went wrong'}`)
         setDoneLink(r.path || '')
       } else {
@@ -266,7 +266,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
         <div className="mtu-overlay" onClick={(e) => { if (e.target === e.currentTarget && !busy) setOpen(false) }}>
           <div className="mtu-panel" role="dialog" aria-modal="true" aria-labelledby="mtu-title">
             <div className="mtu-head">
-              <h2 id="mtu-title">Update from a meeting transcript</h2>
+              <h2 id="mtu-title">{tracker === 'playbook' ? 'Add meeting notes' : 'Update from a meeting transcript'}</h2>
               <button type="button" className="mtu-x" aria-label="Close" disabled={!!busy} onClick={() => setOpen(false)}>&times;</button>
             </div>
 
@@ -405,7 +405,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
                       </div>
                     ))}
 
-                    <h3>Mark done in the Work Queue ({proposal.queue_done?.length ?? 0})</h3>
+                    <h3>Mark done on Your To-Do List ({proposal.queue_done?.length ?? 0})</h3>
                     {!proposal.queue_done?.length && <p className="mtu-help">None found.</p>}
                     {(proposal.queue_done ?? []).map((q, i) => (
                       <div key={'w' + i} className={`mtu-card${keepDone[i] ? '' : ' off'}`}>
@@ -437,7 +437,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
                 <div className="mtu-actions sticky">
                   <button type="button" className="mtu-btn ghost" disabled={!!busy} onClick={discard}>Discard</button>
                   <button type="button" className="mtu-btn" disabled={!!busy || (!kept && !proposal.summary.trim())} onClick={apply}>
-                    {busy === 'applying' ? (tracker === 'playbook' ? 'Updating...' : 'Applying...') : tracker === 'playbook' ? 'Update Playbook' : `Apply ${kept} change${kept === 1 ? '' : 's'}`}
+                    {busy === 'applying' ? (tracker === 'playbook' ? 'Publishing...' : 'Applying...') : tracker === 'playbook' ? 'Publish Update' : `Apply ${kept} change${kept === 1 ? '' : 's'}`}
                   </button>
                 </div>
               </>

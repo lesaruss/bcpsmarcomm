@@ -1026,7 +1026,8 @@ function useDocParam(): [string | null, (slug: string | null) => void] {
 // Toolbar (Sean, 2026-10-26): the caller's buttons (All documents, Open full
 // page) and Edit this page share one row on top, equal widths on a phone;
 // `between` (the transcript upload bar) sits under that row, above the page.
-// Complete buttons (V, 2026-10-28): beside each open Work Queue or Action
+// Turn in my work buttons (V, 2026-10-28; renamed from Complete under the
+// BCPS Document System plain-language names): beside each open to-do or Action
 // Items entry this person owns (or every one, for the superadmin), in the
 // version on screen. They are added to the page in the frame, never saved:
 // Edit this page strips them before saving.
@@ -1052,8 +1053,8 @@ function addCompleteButtons(d: Document, items: CompletableItem[], open: (item: 
     const b = d.createElement('button')
     b.type = 'button'
     b.className = COMPLETE_BTN
-    b.textContent = 'Complete'
-    b.setAttribute('aria-label', `Complete: ${item.text}`)
+    b.textContent = 'Turn in my work'
+    b.setAttribute('aria-label', `Turn in my work: ${item.text}`)
     b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); open(item) })
     return b
   }
