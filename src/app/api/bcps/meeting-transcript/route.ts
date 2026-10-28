@@ -7,6 +7,8 @@ import { loadAssignments } from '@/lib/bcps-team-home'
 import { PLAYBOOK_PROPOSAL_SCHEMA, PLAYBOOK_SYSTEM, loadPlaybook, playbookPrompt, playbookPayload, filePlaybookNotes } from '@/lib/playbook-meeting-transcript'
 import { playbookOutline, applyPlaybookUpdate } from '@/lib/playbook-update'
 import { resolveOwners } from '@/lib/playbook-items'
+import { screenTranscript, screenMessage } from '@/lib/transcript-screen'
+import { logChange } from '@/lib/doc-change-log'
 import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadMarcommRows, marcommPrompt, attachCurrent, marcommPayload } from '@/lib/marcomm-meeting-transcript'
 
 // Meeting transcript upload for Web Team Assignments (Sean, 2026-10-21).
@@ -30,6 +32,12 @@ import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadM
 // only (Sean, 2026-10-22); see lib/playbook-meeting-transcript. Applying also
 // writes the meeting into the Playbook itself as a new version (V,
 // 2026-10-28); see lib/playbook-update.
+// On a Playbook (BCPS Document System, Phase 3, V 2026-10-28) the lead must
+// confirm everyone knew the meeting was recorded (consent: true), and the
+// transcript is screened before it is summarized: a named student, a student
+// ID, a personnel or a legal matter stops the upload (status 'flagged') with
+// the lines to remove (lib/transcript-screen). Applying records each change in
+// the change trail, with what the lead left out (lib/doc-change-log).
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
@@ -234,7 +242,34 @@ async function updatePlaybook(slug: string, notes: ReturnType<typeof playbookPay
     slug, brand_slug: 'bcps', author: email, kind: 'edit', source: 'transcript', applied: true,
     body: `Updated from the ${meetingLabel} transcript (${meetingDate})${out.version ? `, as v${out.version}` : ''}. Previous content kept in bcps_doc_revisions ${rev.id}.`,
   }).then(() => null, () => null)
-  return { version: out.version, counts: out.counts, revision_id: rev.id as string }
+  return { version: out.version, counts: out.counts, revision_id: rev.id as string, html: out.html }
+}
+
+// What the proposal held that the lead left out of what they applied.
+function unticked(proposal: Record<string, unknown> | null, applied: ReturnType<typeof playbookPayload>) {
+  if (!proposal) return []
+  const list = (k: string) => (Array.isArray(proposal[k]) ? proposal[k] as Record<string, unknown>[] : [])
+  const out: { kind: string; text: string; evidence: string }[] = []
+  const left = (kind: string, items: Record<string, unknown>[], field: string, kept: string[]) => {
+    for (const i of items) if (!kept.includes(String(i[field] || '').trim())) out.push({ kind, text: String(i[field] || ''), evidence: String(i.evidence || '') })
+  }
+  left('decision', list('decisions'), 'decision', applied.decisions)
+  left('open question', list('open_questions'), 'question', applied.open_questions)
+  left('to-do', list('new_items'), 'title', applied.actions.map((a) => a.title))
+  left('section update', list('section_updates'), 'title', applied.section_updates.map((u) => u.title))
+  left('done', list('queue_done'), 'item', applied.queue_done)
+  if (proposal.stage && !applied.stage) out.push({ kind: 'stage', text: String(proposal.stage), evidence: '' })
+  return out
+}
+
+// The transcript lines each applied item rests on, for the trail.
+function evidenceOf(proposal: Record<string, unknown> | null) {
+  if (!proposal) return []
+  const out: { kind: string; text: string; evidence: string }[] = []
+  for (const [k, field] of [['decisions', 'decision'], ['open_questions', 'question'], ['new_items', 'title'], ['section_updates', 'title'], ['queue_done', 'item']] as const) {
+    for (const i of (Array.isArray(proposal[k]) ? proposal[k] as Record<string, unknown>[] : [])) out.push({ kind: k, text: String(i[field] || ''), evidence: String(i.evidence || '').slice(0, 400) })
+  }
+  return out
 }
 
 async function propose(transcript: string, meetingDate: string, meetingLabel: string, origin: string): Promise<Proposal> {
@@ -309,12 +344,31 @@ export async function POST(req: NextRequest) {
     if (transcript.length < 200) return NextResponse.json({ error: 'Paste or upload the transcript first.' }, { status: 400 })
     if (transcript.length > MAX_TRANSCRIPT) return NextResponse.json({ error: 'That transcript is too long for one upload. Split it in two.' }, { status: 400 })
     if (!DATE.test(meetingDate)) return NextResponse.json({ error: 'Choose the meeting date.' }, { status: 400 })
+    if (tracker === 'playbook' && body.consent !== true) return NextResponse.json({ error: 'Confirm that everyone in the meeting knew it was being recorded.' }, { status: 400 })
 
     const { data: up, error: insErr } = await svc.from('bcps_meeting_uploads').insert({
       tracker, playbook_slug: playbook || null, meeting_date: meetingDate, meeting_label: meetingLabel, transcript,
       uploaded_by_email: auth.user.email, uploaded_by_name: name,
+      source_name: String(body.source_name || '').slice(0, 200) || null,
+      ...(tracker === 'playbook' ? { consent_confirmed_at: new Date().toISOString(), consent_confirmed_by: auth.user.email } : {}),
     }).select('id').single()
     if (insErr || !up) return NextResponse.json({ error: 'Could not save the upload.' }, { status: 500 })
+
+    // The content stop: nothing about a named student, a student ID, a
+    // personnel or a legal matter is summarized into a project document.
+    if (tracker === 'playbook') {
+      let screen: Awaited<ReturnType<typeof screenTranscript>>
+      try { screen = await screenTranscript(transcript) } catch (e) {
+        console.error('meeting-transcript: screen failed', e)
+        await svc.from('bcps_meeting_uploads').update({ status: 'failed', error: `screen: ${String((e as Error).message).slice(0, 900)}` }).eq('id', up.id)
+        return NextResponse.json({ error: 'The privacy check could not run, so nothing was summarized. Try again in a minute.' }, { status: 502 })
+      }
+      await svc.from('bcps_meeting_uploads').update({ screen }).eq('id', up.id)
+      if (!screen.clean) {
+        await svc.from('bcps_meeting_uploads').update({ status: 'flagged' }).eq('id', up.id)
+        return NextResponse.json({ error: screenMessage(screen), flagged: screen.findings }, { status: 422 })
+      }
+    }
 
     try {
       const proposal = tracker === 'marcomm'
@@ -333,7 +387,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.action === 'apply' || body.action === 'discard') {
-    const { data: up } = await svc.from('bcps_meeting_uploads').select('id, status, meeting_date, meeting_label, tracker, playbook_slug').eq('id', String(body.upload_id || '')).maybeSingle()
+    const { data: up } = await svc.from('bcps_meeting_uploads').select('id, status, meeting_date, meeting_label, tracker, playbook_slug, proposal, source_name').eq('id', String(body.upload_id || '')).maybeSingle()
     if (!up || up.tracker !== tracker || (tracker === 'playbook' && up.playbook_slug !== playbook)) return NextResponse.json({ error: 'That upload was not found.' }, { status: 404 })
     if (up.status !== 'proposed') return NextResponse.json({ error: `That upload was already ${up.status}.` }, { status: 409 })
 
@@ -357,6 +411,11 @@ export async function POST(req: NextRequest) {
         console.error('meeting-transcript: playbook notes failed', e)
         return NextResponse.json({ error: (e as Error).message }, { status: 500 })
       }
+      await logChange(svc, {
+        slug: filed.slug, action: 'meeting_notes', actor: auth.user.email, approvedBy: auth.user.email, model: MODEL,
+        source: { upload_id: up.id, file: up.source_name ?? null, meeting: up.meeting_label, meeting_date: up.meeting_date, playbook },
+        summary: `Meeting notes filed from the ${up.meeting_label} transcript, reviewed by the lead.`,
+      })
       // The notes are the meeting's record; the Playbook update is the point.
       // If the update fails the notes stay filed and the person is told.
       let result: Record<string, unknown> = { ...filed }
@@ -364,6 +423,12 @@ export async function POST(req: NextRequest) {
         const pbUpdate = await updatePlaybook(playbook, notes, up.meeting_label as string, up.meeting_date as string, filed.path,
           `Meeting notes: ${up.meeting_label}`, auth.user.email)
         result = { ...result, playbook_updated: true, playbook_version: pbUpdate.version, playbook_counts: pbUpdate.counts, revision_id: pbUpdate.revision_id }
+        await logChange(svc, {
+          slug: playbook, action: 'transcript_update', actor: auth.user.email, approvedBy: auth.user.email, model: MODEL,
+          source: { upload_id: up.id, file: up.source_name ?? null, meeting: up.meeting_label, meeting_date: up.meeting_date, notes: filed.path, evidence: evidenceOf(up.proposal as Record<string, unknown> | null) },
+          summary: `Updated from the ${up.meeting_label} transcript (${up.meeting_date})${pbUpdate.version ? ` as v${pbUpdate.version}` : ''}.`,
+          unticked: unticked(up.proposal as Record<string, unknown> | null, notes), revisionId: pbUpdate.revision_id, after: pbUpdate.html,
+        })
       } catch (e) {
         console.error('meeting-transcript: playbook update failed', e)
         result = { ...result, playbook_updated: false, playbook_error: (e as Error).message }
