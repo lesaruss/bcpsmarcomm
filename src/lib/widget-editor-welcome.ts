@@ -7,7 +7,8 @@ import { conversationUrl, escapeHtml } from '@/lib/site-inbox'
 // their Messages inbox (lighting up the bell) and stay there to come back to.
 // Called after a grant is saved by both grant routes: /api/bcps/widgets
 // (editor_set, a widget's own managers) and /api/bcps/permissions (grant_set,
-// superadmin). Grants to a group welcome each member of the group.
+// superadmin). Grants to a group welcome each member of the group. It also
+// gives the same person or group view on the Widgets page, where editing happens.
 //
 // One welcome per person per widget: before sending, look for a conversation
 // already opening with that widget's "You can now edit" line, so re-saving a
@@ -36,6 +37,20 @@ export async function welcomeWidgetEditors(svc: SupabaseClient, opts: {
   if (!obj) return
   const { data: widget } = await svc.from('bcps_widgets').select('slug, title, editor_component').eq('slug', obj.slug).maybeSingle()
   if (!widget) return
+
+  // The Widgets page is restricted, so an editor of one widget also needs view
+  // on it or "open Widgets in the menu" leads nowhere (found 2026-10-27: each
+  // existing editor had been given it by hand). Insert-only: an existing grant
+  // on the Widgets page for this subject is left as it is, never downgraded.
+  if (['user', 'group'].includes(opts.subjectType)) {
+    const { data: page } = await svc.from('acl_objects').select('id').eq('brand', 'bcps').eq('kind', 'page').eq('slug', 'widgets').maybeSingle()
+    if (page) {
+      const { error } = await svc.from('acl_grants').upsert(
+        { object_id: page.id, subject_type: opts.subjectType, subject_id: opts.subjectId, role: 'view' },
+        { onConflict: 'object_id,subject_type,subject_id', ignoreDuplicates: true })
+      if (error) console.error('widgets page grant failed', opts.subjectId, error.message)
+    }
+  }
 
   let userIds = [opts.subjectId]
   if (opts.subjectType === 'group') {
