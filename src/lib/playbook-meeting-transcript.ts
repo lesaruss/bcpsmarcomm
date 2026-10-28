@@ -142,34 +142,51 @@ export function playbookPayload(p: Item) {
 }
 export type PlaybookPayload = ReturnType<typeof playbookPayload>
 
-// Body markup follows the template's body_skeleton: fixed header, meta row,
-// audience banner, an open lead section, closed accordions for the rest.
+// Body markup follows the Meeting Record type of the BCPS Document System:
+// fixed header, meta row, audience banner, an open Summary, then labeled
+// groups (What We Decided, Your To-Do List, Resources and History) of closed
+// accordions, with an On This Page index.
 function notesHtml(head: string, pb: PlaybookRef, label: string, date: string, author: string, p: PlaybookPayload): string {
   const title = `${label}: ${longDate(date)}`
   const meta = [
-    ['Type', '<span class="doc-type-badge">Meeting Notes</span>'],
+    ['Type', '<span class="doc-type-badge">Meeting Record</span>'],
     ['Playbook', `<a href="/playbooks/${esc(pb.slug)}">${esc(pb.title)}</a>`],
     ['Meeting date', esc(longDate(date))],
     ['Uploaded by', esc(author)],
   ].map(([l, v]) => `<div class="meta-item"><span class="meta-label">${l}</span><span class="meta-value">${v}</span></div>`).join('\n    ')
   const section = (name: string, inner: string) =>
-    `<details class="doc-accordion"><summary><h2>${name}</h2></summary><div class="section-block">${inner}</div></details>`
+    `<details class="doc-accordion"><summary><h3>${name}</h3></summary><div class="section-block">${inner}</div></details>`
   const points = (xs: string[]) => xs.map((x) => `<div class="agenda-item"><div class="agenda-detail">${esc(x)}</div></div>`).join('\n')
   const actions = p.actions.map((a, i) => `<div class="action-item"><div class="action-num">${i + 1}</div><div class="action-body"><div class="action-title">${esc(a.title)}</div>${a.description ? `<div class="action-detail">${esc(a.description)}</div>` : ''}<div class="action-owner">${esc([a.lead, ...a.support].filter(Boolean).join(', ') || 'No owner named')}</div><div class="action-deadline">${a.deadline_date ? esc(longDate(a.deadline_date)) : 'No date set'}</div></div></div>`).join('\n')
+  const groups: [string, string, string[]][] = [
+    ['What We Decided', 'Decisions made in the meeting and questions still open.', [
+      section(`Decisions (${p.decisions.length})`, p.decisions.length ? points(p.decisions) : '<p>None recorded.</p>'),
+      section(`Open Questions (${p.open_questions.length})`, p.open_questions.length ? points(p.open_questions) : '<p>None recorded.</p>'),
+    ]],
+    ['Your To-Do List', 'Who does what next. Owners can turn in their work from here.', [
+      section(`Action Items (${p.actions.length})`, p.actions.length ? actions : '<p>None recorded.</p>'),
+    ]],
+    ['Resources and History', 'Where these notes came from and related documents.', [
+      section('Transcript Source', `<p>Written from the meeting transcript uploaded by ${esc(author)} and reviewed before filing.</p>`),
+      section('Related Documents', `<ul class="link-list"><li><a href="/playbooks/${esc(pb.slug)}">${esc(pb.title)}</a>: the Playbook these notes are filed under.</li></ul>`),
+    ]],
+  ]
+  const index = groups.map(([eb, , accs], i) => `<li><a href="#g${i + 1}">${eb}</a><span class="pi-count">${accs.length} section${accs.length === 1 ? '' : 's'}</span></li>`).join('')
+  const body = groups.map(([eb, note, accs], i) => `<section class="doc-group" aria-labelledby="g${i + 1}"><h2 class="eyebrow" id="g${i + 1}">${eb}</h2><p class="group-note">${note}</p>${accs.join('')}</section>`).join('\n  ')
   const headWithTitle = head.replace(/<title>[\s\S]*?<\/title>/i, `<title>${esc(title)}</title>`)
   return `${headWithTitle}<body>
+<a class="skip-link" href="#content">Skip to content</a>
 <header class="bcps-header" role="banner"><a class="bcps-logo-link" href="/?page=dashboard" aria-label="Back to the BCPS MarComm dashboard"><img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" class="bcps-logo"></a><div class="bcps-header-divider" aria-hidden="true"></div><span class="bcps-header-title">BCPS MarComm &middot; ${esc(pb.title)}</span></header>
-<main>
+<main id="content">
   <h1>${esc(title)}</h1>
   <div class="meta-row">
     ${meta}
   </div>
   <div class="audience-banner"><p><strong>For:</strong> The ${esc(pb.title)} project team. Written from the meeting transcript and reviewed by ${esc(author)} before filing.</p></div>
+  <nav class="page-index" aria-label="On this page"><p class="pi-label">On this page</p><ol>${index}</ol></nav>
   <h2 class="lead-heading">Summary</h2>
   <div class="section-block lead-summary"><p>${esc(p.summary || 'No summary was kept.')}</p></div>
-  ${section(`Decisions (${p.decisions.length})`, p.decisions.length ? points(p.decisions) : '<p>None recorded.</p>')}
-  ${section(`Action Items (${p.actions.length})`, p.actions.length ? actions : '<p>None recorded.</p>')}
-  ${section(`Open Questions (${p.open_questions.length})`, p.open_questions.length ? points(p.open_questions) : '<p>None recorded.</p>')}
+  ${body}
 </main>
 </body>
 </html>`
@@ -199,6 +216,8 @@ export async function filePlaybookNotes(svc: SupabaseClient, pb: PlaybookRef, la
     metadata: {
       parent_playbook_slug: pb.slug,
       doc_kind: 'meeting-notes',
+      doc_type: 'meeting-record',
+      layout: 'groups',
       meeting_date: date,
       source: 'meeting transcript upload',
       upload_id: uploadId,
