@@ -199,6 +199,23 @@ function sectionBody(block: HTMLElement, exact: string, pattern: RegExp | null, 
 
 export function setCount(el: HTMLElement | null, n: number) { if (el) el.set_content(String(n)) }
 
+// Keeps the "N of M required sections complete" counts true after a section's
+// status changes: each group's note and its line in the On This Page index.
+// Required sections are the ones with a status tag; Done ones are complete.
+export function recountStatus(block: HTMLElement) {
+  for (const g of groupsOf(block)) {
+    const tags = kids(g).filter((d) => d.tagName === 'DETAILS' && d.classList.contains('doc-accordion')).map((d) => d.querySelector('summary .status-tag')).filter((t): t is HTMLElement => !!t)
+    if (!tags.length) continue
+    const done = tags.filter((t) => /\bdone\b/.test(t.getAttribute('class') || '')).length
+    const line = `${done} of ${tags.length} required sections complete.`
+    const note = kids(g).find((el) => el.classList.contains('group-note'))
+    if (note) note.set_content(/\d+ of \d+ required sections complete\./.test(note.innerHTML) ? note.innerHTML.replace(/\d+ of \d+ required sections complete\./, line) : `${note.innerHTML} ${line}`)
+    const id = g.querySelector('h2.eyebrow')?.getAttribute('id')
+    const li = id ? block.querySelectorAll('nav.page-index li').find((l) => l.querySelector('a')?.getAttribute('href') === `#${id}`) : undefined
+    li?.querySelector('.pi-count')?.set_content(`${done} of ${tags.length} complete`)
+  }
+}
+
 // Work Queue: new action items as a pending group, finished items moved to
 // Completed. The Work Queue is created when the Playbook has none.
 function updateQueue(block: HTMLElement, u: PlaybookUpdate, tag: string): { added: number; done: number } {
@@ -387,5 +404,6 @@ export function applyPlaybookUpdate(html: string, u: PlaybookUpdate): { html: st
   const histBody = kids(hist).find((el) => el.classList.contains('body')) ?? hist
   histBody.insertAdjacentHTML('afterbegin', `<h2>${esc(longDate(u.meeting_date))}${version ? ` (v${version})` : ''}</h2><p>${esc(`${version ? `v${version}: ` : ''}${u.meeting_label}, from the meeting transcript. ${u.summary}${what ? ` Added: ${what}.` : ''}`)}</p>`)
 
+  recountStatus(block)
   return { html: root.toString(), version, counts }
 }
