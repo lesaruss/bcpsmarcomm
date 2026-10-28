@@ -211,22 +211,33 @@
 
   /* School and program cards are links (the whole card opens its page), laid
      out like a department card: body on the left, arrow on the right. */
-  a.card-as-link {
+  .card-as-link {
     color: inherit; text-decoration: none;
     display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 14px 14px 14px 16px;
   }
-  a.card-as-link .card-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-  a.card-as-link .top { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  a.card-as-link .label {
+  .card-as-link .card-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .card-as-link .top { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .card-as-link .label {
     font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
     padding: 2px 7px; border-radius: 4px; background: var(--blue-faint); color: var(--blue-dark);
   }
-  a.card-as-link .label-theme { background: var(--teal-light); color: var(--teal-text); }
-  a.card-as-link .where { font-size: 12px; color: var(--text-muted); }
-  a.card-as-link .card-name { font-size: 15.5px; line-height: 1.3; }
-  a.card-as-link .go { align-self: center; color: var(--text-muted); transition: transform 0.12s, color 0.12s; }
-  a.card-as-link:hover .go { color: var(--blue); transform: translateX(2px); }
+  .card-as-link .label-theme { background: var(--teal-light); color: var(--teal-text); }
+  .card-as-link .where { font-size: 12px; color: var(--text-muted); }
+  .card-as-link .card-name { font-size: 15.5px; line-height: 1.3; }
+  .card-as-link .go { align-self: center; color: var(--text-muted); transition: transform 0.12s, color 0.12s; }
+  .card-as-link:hover .go { color: var(--blue); transform: translateX(2px); }
   a.card-as-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  /* Program cards: the name is the card's link, stretched over the whole card,
+     and the school names sit above it as their own links (links can't nest). */
+  .card-stretch { position: relative; }
+  .card-stretch .stretched { color: inherit; text-decoration: none; }
+  .card-stretch .stretched::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); }
+  /* Only what a click would open is highlighted: the program name, unless the
+     pointer is on a school name. */
+  .card-stretch:hover:not(:has(a.tag:hover)) .stretched { color: var(--blue); text-decoration: underline; }
+  .card-stretch .stretched:focus-visible { outline: none; }
+  .card-stretch .stretched:focus-visible::after { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .card-stretch a.tag { position: relative; z-index: 1; }
   a.tag { color: var(--blue-dark); text-decoration: none; display: inline-block; }
   a.tag:hover { border-color: var(--blue); color: var(--blue); text-decoration: underline; }
   a.tag:focus-visible, .name-link:focus-visible, .crumb a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
@@ -488,20 +499,22 @@ function programHref(slug) {
   return location.pathname + '?program=' + encodeURIComponent(slug);
 }
 
-// Each program card is one link to that program's page, framed like a school card.
+// Each program card opens that program's page, framed like a school card. The
+// program name is the card's link (stretched over the card) so each school name
+// can be its own link to the school's page.
 function programCard(p, q) {
   const offs = visibleOfferings(p);
-  const tags = offs.map(o => `<li class="tag">${highlight(o.school.name, q)}</li>`);
-  return `<a class="card card-as-link" href="${programHref(p.slug)}" id="program-${p.slug}">
+  const tags = offs.map(o => `<li><a class="tag" href="${profileHref(o.school.loc_nbr)}">${highlight(o.school.name, q)}</a></li>`);
+  return `<article class="card card-as-link card-stretch" id="program-${p.slug}">
     <span class="card-body">
       <span class="top"><span class="label label-theme">${escapeHtml(THEMES[p.theme_slug]?.name)}</span></span>
-      <span class="card-name">${highlight(p.name, q)}</span>
+      <a class="card-name stretched" href="${programHref(p.slug)}">${highlight(p.name, q)}</a>
       <span class="where">${p.grades_note ? escapeHtml(p.grades_note) + ' · ' : ''}${offs.length} school${offs.length === 1 ? '' : 's'}</span>
       <span class="desc clamp">${highlight(programDesc(p), q)}</span>
       ${tagList(tags, 4)}
     </span>
     ${ICON.go}
-  </a>`;
+  </article>`;
 }
 
 function renderPagination(total) {
