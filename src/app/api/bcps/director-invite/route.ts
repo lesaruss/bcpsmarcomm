@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { requireBcpsSuperAdmin } from '@/lib/bcps-auth'
 import { enrollBcpsMember, resolveOrInviteAccount, SITE } from '@/lib/bcps-portal-account'
 import { inviteEmail } from '@/lib/bcps-director-invite-email'
-import { sendEmail } from '@/lib/resend'
+import { sendEmail, EMAIL_FROM } from '@/lib/resend'
 
 // Director invitations (Sean, 2026-10-28): one email that lets every
 // department director, and the executives over them, into BCPS MarComm.
@@ -43,6 +43,9 @@ interface Recipient {
   has_account: boolean
   signed_in: boolean
   invited_at: string | null
+  // The latest invitation email to them, from bcps_outbound_emails (Campaigns
+  // page, 2026-10-28): sent or failed, when, and the provider's error.
+  last_email: { status: string; at: string; error: string | null } | null
 }
 
 const norm = (e: string | null | undefined) => (e || '').trim().toLowerCase()
@@ -57,7 +60,7 @@ async function listRecipients(): Promise<Recipient[]> {
   const add = (email: string, name: string, dept: string | null, role: Recipient['role']) => {
     const e = norm(email)
     if (!e || !e.endsWith('@' + ALLOWED_DOMAIN)) return
-    const cur = byEmail.get(e) ?? { email: e, name, departments: [], role, has_account: false, signed_in: false, invited_at: null }
+    const cur = byEmail.get(e) ?? { email: e, name, departments: [], role, has_account: false, signed_in: false, invited_at: null, last_email: null }
     if (dept && !cur.departments.includes(dept)) cur.departments.push(dept)
     // Executive outranks director, and both outrank a function lead, for the
     // wording of the email.
@@ -80,9 +83,11 @@ async function listRecipients(): Promise<Recipient[]> {
   const emails = list.map((r) => r.email)
   // Account state from wcm_cert_users (every portal account has a row) and
   // auth sign-in times; invite history from bcps_director_invites.
-  const [{ data: certs }, { data: invites }] = await Promise.all([
+  const [{ data: certs }, { data: invites }, { data: sends }] = await Promise.all([
     svc.from('wcm_cert_users').select('email, user_id, full_name').in('email', emails),
     svc.from('bcps_director_invites').select('email, sent_at').in('email', emails),
+    svc.from('bcps_outbound_emails').select('to_addresses, status, last_error, created_at, sent_at')
+      .eq('kind', 'director-invite').order('created_at', { ascending: false }).limit(1000),
   ])
   const userIds = new Map<string, string>()
   for (const c of certs ?? []) if (c.user_id) userIds.set(norm(c.email), c.user_id as string)
@@ -95,6 +100,8 @@ async function listRecipients(): Promise<Recipient[]> {
     r.has_account = userIds.has(r.email)
     r.signed_in = signedIn.has(r.email)
     r.invited_at = (invites ?? []).find((i) => norm(i.email) === r.email)?.sent_at ?? null
+    const last = (sends ?? []).find((m) => ((m.to_addresses ?? []) as string[]).some((t) => norm(t) === r.email))
+    r.last_email = last ? { status: last.status as string, at: (last.sent_at || last.created_at) as string, error: (last.last_error as string) || null } : null
     const full = (certs ?? []).find((c) => norm(c.email) === r.email)?.full_name as string | undefined
     if (full && (r.role === 'executive' || !r.name)) r.name = full
   }
@@ -103,12 +110,20 @@ async function listRecipients(): Promise<Recipient[]> {
 
 const SUBJECT = 'Your access to BCPS MarComm'
 
+const REPLY_TO = 'sean.russell@browardschools.com'
+// Stands in for the temporary password in a preview: the real one is made at
+// send time, for people who have not signed in yet.
+const PREVIEW_PASSWORD = '(created when sent)'
+
 export async function GET(req: NextRequest) {
   const auth = await requireBcpsSuperAdmin(req)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-  return NextResponse.json({ ok: true, recipients: await listRecipients() })
+  return NextResponse.json({ ok: true, sender: { from: EMAIL_FROM, reply_to: REPLY_TO, subject: SUBJECT }, recipients: await listRecipients() })
 }
 
+// POST { action: 'preview', email } returns the email exactly as that person
+//   would get it (Campaigns page spot check, 2026-10-28). Nothing is sent and
+//   no account is touched; the temporary password shows as a placeholder.
 // POST { action: 'test', to } sends the email as the first person on the list
 //   would get it, with a sign-in link, to one District address. No accounts.
 // POST { action: 'send', emails } invites the people named (only addresses on
@@ -118,6 +133,16 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
   const body = await req.json().catch(() => ({}))
   const list = await listRecipients()
+
+  if (body.action === 'preview') {
+    const r = list.find((x) => x.email === norm(body.email))
+    if (!r) return NextResponse.json({ error: 'That person is not on the list.' }, { status: 404 })
+    const isNew = !r.has_account
+    return NextResponse.json({
+      ok: true, to: r.email, subject: SUBJECT, is_new_account: isNew, gets_temp_password: !r.signed_in,
+      html: inviteEmail(r, isNew ? `${SITE}/set-password#their-own-link` : SIGN_IN_URL, isNew, r.signed_in ? null : PREVIEW_PASSWORD),
+    })
+  }
 
   if (body.action === 'test') {
     const to = norm(body.to)
@@ -157,7 +182,7 @@ export async function POST(req: NextRequest) {
       if (group?.id) await svc.from('acl_group_members').upsert({ group_id: group.id, user_id: userId }, { onConflict: 'group_id,user_id' })
 
       const link = isNewAccount && actionLink ? actionLink : SIGN_IN_URL
-      const sent = await sendEmail({ to: r.email, subject: SUBJECT, html: inviteEmail(r, link, isNewAccount, tempPassword), replyTo: 'sean.russell@browardschools.com', kind: 'director-invite', context: { new_account: isNewAccount } })
+      const sent = await sendEmail({ to: r.email, subject: SUBJECT, html: inviteEmail(r, link, isNewAccount, tempPassword), replyTo: REPLY_TO, kind: 'director-invite', context: { new_account: isNewAccount } })
       if (sent.ok) {
         await svc.from('bcps_director_invites').upsert({ email: r.email, name: r.name, sent_at: new Date().toISOString(), new_account: isNewAccount, sent_by: auth.user.email ?? null }, { onConflict: 'email' })
       }

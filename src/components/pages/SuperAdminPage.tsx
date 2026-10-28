@@ -22,11 +22,11 @@ interface SuperAdminPageProps {
   onShowToast: (msg: string) => void
 }
 
-type AdminTab = 'invites' | 'directors' | 'domain' | 'members' | 'viewas' | 'platform'
+type AdminTab = 'invites' | 'campaigns' | 'domain' | 'members' | 'viewas' | 'platform'
 
 const ADMIN_TABS: { id: AdminTab; label: string; icon: string }[] = [
   { id: 'invites', label: 'Beta Invitations', icon: '✉️' },
-  { id: 'directors', label: 'Director Invitations', icon: '🏛️' },
+  { id: 'campaigns', label: 'Campaigns', icon: '📣' },
   { id: 'domain', label: 'Domain Rules', icon: '🔒' },
   { id: 'members', label: 'All Members', icon: '👥' },
   { id: 'viewas', label: 'View As Access', icon: '👁️' },
@@ -486,10 +486,13 @@ function ViewAsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
   )
 }
 
-// Director Invitations (Sean, 2026-10-28): every department director and the
-// executives over them, from bcps_departments, with who has an account and
-// who has been invited. Send a test to yourself first; then send to the
-// people checked. /api/bcps/director-invite does the work.
+// Campaigns (V, 2026-10-28; playbook bcps-campaigns): BCPS MarComm's own email
+// campaigns, sent from the platform with replies to the sender. Phase 1 is the
+// Director invitation (Sean, 2026-10-28): every department director and the
+// executives over them, from bcps_departments. The page shows who it is from,
+// lets you open any recipient and read the exact email they will get, send
+// yourself a test, send to the people checked, and see sent or failed for
+// each. /api/bcps/director-invite does the work.
 interface DirectorRecipient {
   email: string
   name: string
@@ -498,13 +501,18 @@ interface DirectorRecipient {
   has_account: boolean
   signed_in: boolean
   invited_at: string | null
+  last_email: { status: string; at: string; error: string | null } | null
 }
+interface Sender { from: string; reply_to: string; subject: string }
+interface Preview { to: string; subject: string; html: string; is_new_account: boolean; gets_temp_password: boolean }
 
-function DirectorInvitesTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
+function CampaignsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
   const [list, setList] = useState<DirectorRecipient[] | null>(null)
+  const [sender, setSender] = useState<Sender | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [testTo, setTestTo] = useState('sean.russell@browardschools.com')
   const [busy, setBusy] = useState(false)
+  const [preview, setPreview] = useState<Preview | null>(null)
 
   const load = async () => {
     const r = await fetch('/api/bcps/director-invite', { headers: await authHeaders() })
@@ -512,6 +520,7 @@ function DirectorInvitesTab({ onShowToast }: { onShowToast: (msg: string) => voi
     if (!r.ok) { onShowToast(j.error || 'Could not load directors.'); setList([]); return }
     const rows: DirectorRecipient[] = j.recipients ?? []
     setList(rows)
+    setSender(j.sender ?? null)
     // Everyone not yet invited starts checked.
     setPicked(new Set(rows.filter((x) => !x.invited_at).map((x) => x.email)))
   }
@@ -527,13 +536,18 @@ function DirectorInvitesTab({ onShowToast }: { onShowToast: (msg: string) => voi
     } finally { setBusy(false) }
   }
 
+  const openPreview = async (email: string) => {
+    const { ok, j } = await post({ action: 'preview', email })
+    if (!ok) { onShowToast(j.error || 'Could not load the preview.'); return }
+    setPreview(j as Preview)
+  }
   const sendTest = async () => {
     const { ok, j } = await post({ action: 'test', to: testTo })
     onShowToast(ok ? `Test sent to ${testTo}, written as it would read for ${j.as}.` : (j.error || 'Could not send the test.'))
   }
   const sendPicked = async () => {
     if (!picked.size) return
-    if (!window.confirm(`Send the BCPS MarComm invitation to ${picked.size} ${picked.size === 1 ? 'person' : 'people'}? New accounts are created for anyone who does not have one.`)) return
+    if (!window.confirm(`Send the BCPS MarComm invitation to ${picked.size} ${picked.size === 1 ? 'person' : 'people'}? New accounts are created for anyone who does not have one. This cannot be undone.`)) return
     const { ok, j } = await post({ action: 'send', emails: Array.from(picked) })
     if (!ok) { onShowToast(j.error || 'Could not send.'); return }
     onShowToast(j.failed?.length ? `Sent ${j.sent}. ${j.failed.length} failed: ${j.failed.map((f: { email: string }) => f.email).join(', ')}` : `Sent ${j.sent} invitation${j.sent === 1 ? '' : 's'}.`)
@@ -542,21 +556,48 @@ function DirectorInvitesTab({ onShowToast }: { onShowToast: (msg: string) => voi
   const toggle = (email: string) => setPicked((p) => { const n = new Set(p); if (n.has(email)) n.delete(email); else n.add(email); return n })
 
   const roleLabel = (r: DirectorRecipient['role']) => r === 'executive' ? 'Executive' : r === 'leader' ? 'Leader' : r === 'function_lead' ? 'Program lead' : 'Director'
+  const day = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const sentCount = (list ?? []).filter((r) => r.last_email?.status === 'sent').length
+  const failedCount = (list ?? []).filter((r) => r.last_email && r.last_email.status !== 'sent').length
   return (
     <div>
       <div className="admin-section-header">
         <div>
-          <h3>Director Invitations</h3>
-          <p>One email that lets each director into BCPS MarComm: their WCMs, analytics and department report, website review, Hot Labs and meeting notes. People without an account get a set-password link; everyone is added to the Directors group.</p>
+          <h3>Campaigns</h3>
+          <p>Platform emails sent from BCPS MarComm, with replies going to the sender. Pick a campaign, open any recipient to see exactly what they will get, send yourself a test, then send.</p>
         </div>
       </div>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+        <div className="invite-form-card" style={{ flex: '1 1 260px', margin: 0, borderColor: '#1672A7' }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#1672A7' }}>Campaign 1 · Open</div>
+          <h4 style={{ margin: '4px 0' }}>Director invitation</h4>
+          <p style={{ margin: 0, fontSize: 13 }}>{list ? `${list.length} directors and executives. ${sentCount} sent${failedCount ? `, ${failedCount} failed` : ''}.` : 'Loading...'}</p>
+        </div>
+        <div className="invite-form-card" style={{ flex: '1 1 260px', margin: 0, opacity: 0.6 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Campaign 2 · Next</div>
+          <h4 style={{ margin: '4px 0' }}>Web Content Manager email</h4>
+          <p style={{ margin: 0, fontSize: 13 }}>Follows the director invitation.</p>
+        </div>
+      </div>
+      {sender && (
+        <div className="invite-form-card">
+          <h4>What recipients see</h4>
+          <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '6px 16px', margin: 0, fontSize: 13 }}>
+            <dt style={{ fontWeight: 700 }}>From</dt><dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{sender.from}</dd>
+            <dt style={{ fontWeight: 700 }}>Reply to</dt><dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{sender.reply_to}</dd>
+            <dt style={{ fontWeight: 700 }}>Subject</dt><dd style={{ margin: 0 }}>{sender.subject}</dd>
+          </dl>
+        </div>
+      )}
       <div className="invite-form-card">
-        <h4>1. Send yourself a test</h4>
+        <h4>1. Spot check</h4>
+        <p style={{ margin: '0 0 6px', fontSize: 13 }}>Use <strong>Preview</strong> on anyone below to read the exact email they will get. People who have not signed in yet get a temporary password, created when the email is sent.</p>
+        <h4 style={{ marginTop: 18 }}>2. Send yourself a test</h4>
         <div className="form-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
           <input type="email" className="form-input" style={{ maxWidth: 340 }} value={testTo} onChange={(e) => setTestTo(e.target.value)} aria-label="Send the test to" />
           <button className="btn btn-outline" disabled={busy || !testTo.trim()} onClick={sendTest}>Send test</button>
         </div>
-        <h4 style={{ marginTop: 18 }}>2. Send to the people checked below</h4>
+        <h4 style={{ marginTop: 18 }}>3. Send to the people checked below</h4>
         <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
           <button className="btn btn-primary" disabled={busy || !picked.size} onClick={sendPicked}>Send to {picked.size} {picked.size === 1 ? 'person' : 'people'}</button>
         </div>
@@ -564,7 +605,7 @@ function DirectorInvitesTab({ onShowToast }: { onShowToast: (msg: string) => voi
       {!list ? <p>Loading directors...</p> : (
         <div className="invite-table-wrap">
           <table className="invite-table">
-            <thead><tr><th aria-label="Send"></th><th>Name</th><th>Departments</th><th>Account</th><th>Invited</th></tr></thead>
+            <thead><tr><th aria-label="Send"></th><th>Name</th><th>Departments</th><th>Account</th><th>Email</th><th aria-label="Preview"></th></tr></thead>
             <tbody>
               {list.map((r) => (
                 <tr key={r.email}>
@@ -572,11 +613,38 @@ function DirectorInvitesTab({ onShowToast }: { onShowToast: (msg: string) => voi
                   <td><div style={{ fontWeight: 700 }}>{r.name}</div><div style={{ fontSize: 11, opacity: 0.7, overflowWrap: 'anywhere' }}>{r.email} · {roleLabel(r.role)}</div></td>
                   <td style={{ fontSize: 12 }}>{r.departments.length ? r.departments.join(', ') : 'All departments'}</td>
                   <td>{r.signed_in ? <span className="badge badge-green">Signed in</span> : r.has_account ? <span className="badge badge-yellow">Account, not signed in</span> : <span className="badge badge-gray">No account</span>}</td>
-                  <td style={{ fontSize: 12 }}>{r.invited_at ? new Date(r.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Not yet'}</td>
+                  <td style={{ fontSize: 12 }}>
+                    {!r.last_email ? 'Not sent'
+                      : r.last_email.status === 'sent' ? <span className="badge badge-green">Sent {day(r.last_email.at)}</span>
+                      : <span className="badge badge-red" title={r.last_email.error || undefined}>Failed {day(r.last_email.at)}</span>}
+                    {r.last_email?.error && r.last_email.status !== 'sent' && <div style={{ fontSize: 11, opacity: 0.8, marginTop: 4 }}>{r.last_email.error}</div>}
+                  </td>
+                  <td><button className="btn btn-outline" style={{ padding: '4px 10px', fontSize: 12 }} disabled={busy} onClick={() => openPreview(r.email)}>Preview</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {preview && (
+        <div role="dialog" aria-modal="true" aria-labelledby="campaign-preview-title" onClick={(e) => { if (e.target === e.currentTarget) setPreview(null) }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '32px 16px', overflowY: 'auto' }}>
+          <div style={{ background: '#fff', borderRadius: 10, width: 'min(720px, 100%)', padding: 20, boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <h3 id="campaign-preview-title" style={{ margin: 0 }}>Preview</h3>
+              <button className="btn btn-outline" onClick={() => setPreview(null)}>Close</button>
+            </div>
+            <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '4px 14px', fontSize: 13, margin: '12px 0' }}>
+              <dt style={{ fontWeight: 700 }}>To</dt><dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{preview.to}</dd>
+              {sender && <><dt style={{ fontWeight: 700 }}>From</dt><dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{sender.from}</dd><dt style={{ fontWeight: 700 }}>Reply to</dt><dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{sender.reply_to}</dd></>}
+              <dt style={{ fontWeight: 700 }}>Subject</dt><dd style={{ margin: 0 }}>{preview.subject}</dd>
+            </dl>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+              <span className={`badge ${preview.is_new_account ? 'badge-yellow' : 'badge-gray'}`}>{preview.is_new_account ? 'New account, created when sent' : 'Has an account'}</span>
+              {preview.gets_temp_password && <span className="badge badge-yellow">Gets a temporary password</span>}
+            </div>
+            <iframe title={`Email to ${preview.to}`} srcDoc={preview.html} sandbox="" style={{ width: '100%', height: '65vh', border: '1px solid #ddd', borderRadius: 8, background: '#fff' }} />
+          </div>
         </div>
       )}
     </div>
@@ -609,7 +677,7 @@ export default function SuperAdminPage({ onShowToast }: SuperAdminPageProps) {
 
       <div className="admin-content">
         {activeTab === 'invites' && <InvitesTab onShowToast={onShowToast} />}
-        {activeTab === 'directors' && <DirectorInvitesTab onShowToast={onShowToast} />}
+        {activeTab === 'campaigns' && <CampaignsTab onShowToast={onShowToast} />}
         {activeTab === 'domain' && <DomainTab onShowToast={onShowToast} />}
         {activeTab === 'members' && <MembersTab onShowToast={onShowToast} />}
         {activeTab === 'viewas' && <ViewAsTab onShowToast={onShowToast} />}
