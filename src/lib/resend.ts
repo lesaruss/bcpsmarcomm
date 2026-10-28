@@ -1,5 +1,10 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
+// Who every platform email is from. Shown on the Campaigns page (2026-10-28),
+// so the sender people see and the one sent with are the same value. The
+// display name was "BCPS Marcomm"; the platform is BCPS MarComm.
+export const EMAIL_FROM = 'BCPS MarComm <notifications@bcpsmarcomm.com>'
+
 // Thin wrapper around the Resend HTTP API (no SDK dependency needed).
 // bcpsmarcomm.com is already a verified Resend sending domain (per the
 // LESARUSS email infrastructure brief, 2026-07-16), so this sends straight
@@ -115,7 +120,7 @@ export async function deliver(opts: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'BCPS Marcomm <notifications@bcpsmarcomm.com>',
+        from: EMAIL_FROM,
         to: opts.to,
         subject: opts.subject,
         html: opts.html,

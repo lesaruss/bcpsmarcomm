@@ -693,6 +693,7 @@ body {
 .badge-yellow    { background: #fef3c7; color: #b45309; }
 .badge-green     { background: #dcfce7; color: #16a34a; }
 .badge-gray      { background: #f3f4f6; color: #6b7280; }
+.badge-red       { background: #fee2e2; color: #b91c1c; }
 
 .dot { color: var(--text-muted); }
 .link-btn {
