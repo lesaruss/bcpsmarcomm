@@ -9,6 +9,8 @@ import { playbookOutline, applyPlaybookUpdate } from '@/lib/playbook-update'
 import { resolveOwners } from '@/lib/playbook-items'
 import { screenTranscript, screenMessage } from '@/lib/transcript-screen'
 import { logChange } from '@/lib/doc-change-log'
+import { askClaudeJson } from '@/lib/anthropic-key'
+import { OUTCOME_SCHEMA, OUTCOME_SYSTEM, outcomePrompt, cleanOutcomes, applyOutcomesToRecord, type AgendaItem, type AgendaOutcome, type ItemOutcome } from '@/lib/playbook-agenda'
 import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadMarcommRows, marcommPrompt, attachCurrent, marcommPayload } from '@/lib/marcomm-meeting-transcript'
 
 // Meeting transcript upload for Web Team Assignments (Sean, 2026-10-21).
@@ -193,10 +195,41 @@ async function proposeMarcomm(transcript: string, meetingDate: string, meetingLa
   return parsed
 }
 
+// The agenda saved for this meeting (agenda builder): the latest one dated on
+// or up to a week before the meeting that has no outcomes yet.
+const OUTCOME_MODEL = 'claude-sonnet-5-5'
+async function agendaFor(slug: string, meetingDate: string) {
+  const weekBefore = new Date(Date.parse(meetingDate + 'T12:00:00Z') - 7 * 86_400_000).toISOString().slice(0, 10)
+  const { data } = await svc.from('bcps_playbook_agendas').select('id, record_slug, meeting_date, items')
+    .eq('playbook_slug', slug).is('outcomes', null).lte('meeting_date', meetingDate).gte('meeting_date', weekBefore)
+    .order('meeting_date', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle()
+  return data && Array.isArray(data.items) && data.items.length ? { id: data.id as string, record_slug: data.record_slug as string | null, meeting_date: data.meeting_date as string, items: data.items as AgendaItem[] } : null
+}
+
+// Each agenda item's outcome from the transcript. A failure here never stops
+// the upload; the lead just sees no outcomes to confirm.
+async function agendaOutcomes(items: AgendaItem[], transcript: string): Promise<ItemOutcome[] | null> {
+  try {
+    const out = await askClaudeJson(OUTCOME_MODEL, OUTCOME_SCHEMA, OUTCOME_SYSTEM, outcomePrompt(items, transcript))
+    return cleanOutcomes(out.outcomes, items)
+  } catch (e) {
+    console.error('meeting-transcript: agenda outcomes failed', e)
+    return null
+  }
+}
+
 async function proposePlaybook(slug: string, transcript: string, meetingDate: string, meetingLabel: string): Promise<Proposal> {
   const pb = await loadPlaybook(svc, slug)
   if (!pb) throw new Error('That Playbook was not found.')
-  const parsed = await ask(PLAYBOOK_PROPOSAL_SCHEMA, PLAYBOOK_SYSTEM, playbookPrompt(pb, meetingLabel, meetingDate, transcript)) as Proposal & Record<string, unknown>
+  const agenda = await agendaFor(slug, meetingDate)
+  const [parsed, outcomes] = await Promise.all([
+    ask(PLAYBOOK_PROPOSAL_SCHEMA, PLAYBOOK_SYSTEM, playbookPrompt(pb, meetingLabel, meetingDate, transcript)) as Promise<Proposal & Record<string, unknown>>,
+    agenda ? agendaOutcomes(agenda.items, transcript) : Promise.resolve(null),
+  ])
+  if (agenda && outcomes) {
+    parsed.agenda = { id: agenda.id, record_slug: agenda.record_slug, meeting_date: agenda.meeting_date,
+      items: agenda.items.map((it) => ({ verb: it.verb, title: it.title, owner: it.owner, ...outcomes.find((o) => o.key === it.key)! })) }
+  }
   parsed.changes = []
   parsed.new_items = parsed.new_items || []
   // Keep only updates that point at a real section or Work Queue item, so a
@@ -243,6 +276,38 @@ async function updatePlaybook(slug: string, notes: ReturnType<typeof playbookPay
     body: `Updated from the ${meetingLabel} transcript (${meetingDate})${out.version ? `, as v${out.version}` : ''}. Previous content kept in bcps_doc_revisions ${rev.id}.`,
   }).then(() => null, () => null)
   return { version: out.version, counts: out.counts, revision_id: rev.id as string, html: out.html }
+}
+
+// Writes the outcomes the lead confirmed into the agenda record and the
+// agenda row. Returns how many items were settled.
+async function recordOutcomes(playbook: string, agenda: { id: string; record_slug: string | null; items: (ItemOutcome & { verb: string; title: string; owner: string })[] }, raw: unknown[], notesPath: string, uploadId: string, email: string) {
+  const { data: row } = await svc.from('bcps_playbook_agendas').select('items, outcomes').eq('id', agenda.id).maybeSingle()
+  if (!row || row.outcomes) throw new Error('That agenda already has its outcomes.')
+  const items = (row.items ?? []) as AgendaItem[]
+  const confirmed: ItemOutcome[] = items.map((it) => {
+    const proposed = agenda.items.find((a) => a.key === it.key)
+    const given = raw.find((r) => r && typeof r === 'object' && (r as Record<string, unknown>).key === it.key) as Record<string, unknown> | undefined
+    const outcome = (['settled', 'partly', 'not_covered'] as AgendaOutcome[]).find((v) => v === given?.outcome) ?? proposed?.outcome ?? 'not_covered'
+    return { key: it.key, outcome, note: String(given?.note ?? proposed?.note ?? '').slice(0, 600), evidence: proposed?.evidence ?? '' }
+  })
+  if (agenda.record_slug) {
+    const { data: rec } = await svc.from('briefings').select('content, updated_at').eq('brand_slug', 'bcps').eq('slug', agenda.record_slug).maybeSingle()
+    if (rec) {
+      const html = applyOutcomesToRecord(String(rec.content || ''), items, confirmed, notesPath)
+      const { data: rev } = await svc.from('bcps_doc_revisions').insert({ slug: agenda.record_slug, content: rec.content, replaced_by_email: email }).select('id').single()
+      if (rev) {
+        await svc.from('briefings').update({ content: html, updated_at: new Date().toISOString() }).eq('brand_slug', 'bcps').eq('slug', agenda.record_slug).eq('updated_at', rec.updated_at)
+        await logChange(svc, {
+          slug: agenda.record_slug, action: 'agenda_outcomes', actor: email, approvedBy: email, model: OUTCOME_MODEL,
+          source: { upload_id: uploadId, playbook, outcomes: confirmed }, summary: `Meeting outcomes recorded: ${confirmed.filter((o) => o.outcome === 'settled').length} of ${confirmed.length} settled.`,
+          unticked: confirmed.filter((o) => o.outcome !== agenda.items.find((a) => a.key === o.key)?.outcome).map((o) => ({ key: o.key, changed_to: o.outcome })),
+          revisionId: rev.id as string, after: html,
+        })
+      }
+    }
+  }
+  await svc.from('bcps_playbook_agendas').update({ outcomes: confirmed, outcomes_at: new Date().toISOString(), upload_id: uploadId }).eq('id', agenda.id)
+  return { settled: confirmed.filter((o) => o.outcome === 'settled').length, total: confirmed.length }
 }
 
 // What the proposal held that the lead left out of what they applied.
@@ -432,6 +497,16 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         console.error('meeting-transcript: playbook update failed', e)
         result = { ...result, playbook_updated: false, playbook_error: (e as Error).message }
+      }
+      // Agenda outcomes the lead confirmed, written into the agenda record.
+      const agenda = (up.proposal as Record<string, unknown> | null)?.agenda as { id: string; record_slug: string | null; items: (ItemOutcome & { verb: string; title: string; owner: string })[] } | undefined
+      if (agenda && Array.isArray(body.agenda_outcomes)) {
+        try {
+          result = { ...result, agenda_outcomes: await recordOutcomes(playbook, agenda, body.agenda_outcomes, filed.path, up.id as string, auth.user.email) }
+        } catch (e) {
+          console.error('meeting-transcript: agenda outcomes not recorded', e)
+          result = { ...result, agenda_outcomes_error: (e as Error).message }
+        }
       }
       await svc.from('bcps_meeting_uploads').update({
         status: 'applied', applied_payload: notes, result, applied_by_email: auth.user.email, applied_at: new Date().toISOString(),

@@ -23,7 +23,7 @@ const VERBS: Verb[] = ['Decide', 'Assign', 'Confirm', 'Review']
 const MAX = 6
 interface Item { key: string; source: string; verb: Verb; title: string; owner: string; minutes: number; detail: string; strikes: number }
 const SOURCE: Record<string, string> = {
-  standing: 'Last meeting', overdue: 'Overdue', question: 'Open question', missing: 'Missing section', input: 'Team input', lead: 'Added by you',
+  standing: 'Last meeting', carried: 'Not settled last time', overdue: 'Overdue', question: 'Open question', missing: 'Missing section', input: 'Team input', lead: 'Added by you',
 }
 
 export default function AgendaBuilder({ playbook, onSaved }: { playbook: string; onSaved: () => void }) {

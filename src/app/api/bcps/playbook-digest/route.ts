@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'crypto'
 import { sendEmail } from '@/lib/resend'
-import { buildDigests, digestHtml, digestSubject, type DigestPlaybook } from '@/lib/playbook-digest'
+import { buildDigests, digestHtml, digestSubject, type DigestPlaybook, type AgendaRow } from '@/lib/playbook-digest'
 import { easternDate } from '@/lib/playbook-people'
 
 // Weekly Playbook digest (BCPS Document System, Phase 3, V 2026-10-28). One
@@ -43,11 +43,13 @@ export async function POST(req: NextRequest) {
     recipients: (recs ?? []).filter((x) => x.brief_slug === r.slug && x.attendee_email).map((x) => ({ name: String(x.attendee_name || ''), email: String(x.attendee_email) })),
   }))
   const { data: waiting } = await supabase.from('bcps_playbook_inputs').select('playbook_slug, created_at').eq('status', 'new')
-  const digests = buildDigests(playbooks, (waiting ?? []) as { playbook_slug: string; created_at: string }[], today)
+  const since = new Date(Date.parse(today + 'T12:00:00Z') - 15 * 86_400_000).toISOString().slice(0, 10)
+  const { data: agendas } = await supabase.from('bcps_playbook_agendas').select('playbook_slug, meeting_date, items, outcomes').gte('meeting_date', since)
+  const digests = buildDigests(playbooks, (waiting ?? []) as { playbook_slug: string; created_at: string }[], today, (agendas ?? []) as AgendaRow[])
 
   if (body.dry_run) {
     return NextResponse.json({ ok: true, today, people: digests.length, digests: digests.map((d) => ({
-      email: d.email, name: d.name, subject: digestSubject(d), due: d.due.map((t) => `${t.playbook}: ${t.text}${t.due ? ` (${t.due})` : ''}`), reviews: d.reviews, other: d.other.length,
+      email: d.email, name: d.name, subject: digestSubject(d), due: d.due.map((t) => `${t.playbook}: ${t.text}${t.due ? ` (${t.due})` : ''}`), reviews: d.reviews, followups: d.followups, other: d.other.length,
     })) })
   }
 

@@ -13,11 +13,15 @@ import { versionInfo, sections, longDate, QUEUE_TITLE, recountStatus } from '@/l
 //   - an item on its third agenda goes to the sponsor as a Concern to Watch
 // The lead edits the proposal before saving; saving files the agenda as a
 // Meeting Record and fills the Playbook's Next Meeting Agenda section.
+// After the meeting, its transcript upload matches each item to its outcome
+// (settled, partly, not covered); the lead confirms them and they are written
+// into the agenda record. Items not settled are carried to the next agenda,
+// keeping their key, so the third-strike rule sees them.
 // Everything here reads the version a reader sees first.
 
 export type AgendaVerb = 'Decide' | 'Assign' | 'Confirm' | 'Review'
 export const AGENDA_VERBS: AgendaVerb[] = ['Decide', 'Assign', 'Confirm', 'Review']
-export type AgendaSource = 'standing' | 'overdue' | 'question' | 'missing' | 'input' | 'lead'
+export type AgendaSource = 'standing' | 'carried' | 'overdue' | 'question' | 'missing' | 'input' | 'lead'
 export interface AgendaItem {
   key: string
   source: AgendaSource
@@ -73,6 +77,7 @@ export interface AgendaContext {
   leadName: string                 // who owns items no one else does
   openInputs: number               // team input waiting for a lead
   earlier: string[][]              // item keys of earlier agendas, newest first
+  carried?: AgendaItem[]           // last meeting's items it did not settle
 }
 
 interface Candidate { source: AgendaSource; verb: AgendaVerb; title: string; owner: string; detail: string; keyText: string }
@@ -173,13 +178,19 @@ function strikesOf(key: string, earlier: string[][]): number {
 // Each kind gets a share first, so a page with many open questions still
 // brings its Missing sections and waiting input to the meeting; any room
 // left goes to the rest, in order. Order on the agenda stays the approved one.
-const SHARE: Record<AgendaSource, number> = { standing: 1, overdue: 2, question: 3, missing: 2, input: 1, lead: 0 }
+const SHARE: Record<AgendaSource, number> = { standing: 1, carried: 2, overdue: 2, question: 3, missing: 2, input: 1, lead: 0 }
 
 export function proposeAgenda(html: string, ctx: AgendaContext): { items: AgendaItem[]; more: AgendaItem[] } {
-  const all = agendaCandidates(html, ctx).map((c): AgendaItem => {
+  const fresh = agendaCandidates(html, ctx).map((c): AgendaItem => {
     const key = agendaKey(c.source, c.keyText)
     return { key, source: c.source, verb: c.verb, title: c.title, owner: c.owner, minutes: MINUTES[c.verb], detail: c.detail, strikes: strikesOf(key, ctx.earlier) }
   })
+  // Items the last meeting did not settle come right after the standing item,
+  // under their old key; the same item found fresh on the page is not repeated.
+  const carried = (ctx.carried ?? []).map((it): AgendaItem => ({ ...it, source: 'carried', strikes: strikesOf(it.key, ctx.earlier) }))
+  const carriedKeys = new Set(carried.map((c) => c.key))
+  const standing = fresh.filter((f) => f.source === 'standing')
+  const all = [...standing, ...carried, ...fresh.filter((f) => f.source !== 'standing' && !carriedKeys.has(f.key))]
   const used = new Set<number>()
   const taken: Partial<Record<AgendaSource, number>> = {}
   all.forEach((it, i) => {
@@ -199,7 +210,7 @@ export function cleanAgendaItems(raw: unknown, earlier: string[][]): AgendaItem[
     const verb = AGENDA_VERBS.find((v) => v === o.verb)
     const title = clean(String(o.title || '')).slice(0, 300)
     if (!verb || !title) return []
-    const source = (['standing', 'overdue', 'question', 'missing', 'input', 'lead'] as AgendaSource[]).find((s) => s === o.source) ?? 'lead'
+    const source = (['standing', 'carried', 'overdue', 'question', 'missing', 'input', 'lead'] as AgendaSource[]).find((s) => s === o.source) ?? 'lead'
     const key = typeof o.key === 'string' && o.key ? o.key.slice(0, 200) : agendaKey('lead', title)
     const minutes = Math.min(60, Math.max(1, Math.round(Number(o.minutes) || MINUTES[verb])))
     return [{ key, source, verb, title, owner: clean(String(o.owner || '')).slice(0, 120) || 'The project lead', minutes, detail: clean(String(o.detail || '')).slice(0, 1200), strikes: strikesOf(key, earlier) }]
@@ -296,3 +307,65 @@ export function leadNameOf(metadata: Record<string, unknown> | null, recipients:
   return 'The project lead'
 }
 
+
+// Outcomes ------------------------------------------------------------------
+
+export type AgendaOutcome = 'settled' | 'partly' | 'not_covered'
+export const OUTCOME_LABEL: Record<AgendaOutcome, string> = { settled: 'Settled', partly: 'Partly settled', not_covered: 'Not covered' }
+export interface ItemOutcome { key: string; outcome: AgendaOutcome; note: string; evidence: string }
+
+export const OUTCOME_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['outcomes'],
+  properties: {
+    outcomes: {
+      type: 'array',
+      items: {
+        type: 'object', additionalProperties: false, required: ['key', 'outcome', 'note', 'evidence'],
+        properties: { key: { type: 'string' }, outcome: { type: 'string', enum: ['settled', 'partly', 'not_covered'] }, note: { type: 'string' }, evidence: { type: 'string' } },
+      },
+    },
+  },
+}
+
+export const OUTCOME_SYSTEM = `You match a Broward County Public Schools project meeting's transcript to the agenda that was set for it. Each agenda item names what the meeting had to do: Decide, Assign, Confirm or Review something. For every item, say whether the meeting did it:
+- "settled": the meeting did what the item asked (a decision was made, an owner and date were agreed, a date was confirmed, the review happened).
+- "partly": it was discussed but not finished (for example, an owner was named but no date).
+- "not_covered": the meeting did not get to it, or nothing was settled.
+"note" is one plain sentence on what was settled or what is still open, using the transcript's facts. "evidence" quotes or closely paraphrases the transcript line it rests on (empty when not covered). Return one entry per agenda item, with its key copied exactly. Record only what the transcript supports. No em dashes.`
+
+export function outcomePrompt(items: AgendaItem[], transcript: string): string {
+  return `<agenda>\n${items.map((it) => `- key: ${it.key}\n  item: ${it.verb}: ${it.title}\n  owner: ${it.owner}`).join('\n')}\n</agenda>\n\n<transcript>\n${transcript}\n</transcript>`
+}
+
+export function cleanOutcomes(raw: unknown, items: AgendaItem[]): ItemOutcome[] {
+  const list = Array.isArray(raw) ? raw : []
+  return items.map((it) => {
+    const o = (list.find((x) => x && typeof x === 'object' && (x as Record<string, unknown>).key === it.key) ?? {}) as Record<string, unknown>
+    const outcome = (['settled', 'partly', 'not_covered'] as AgendaOutcome[]).find((v) => v === o.outcome) ?? 'not_covered'
+    return { key: it.key, outcome, note: clean(String(o.note || '')).slice(0, 600), evidence: clean(String(o.evidence || '')).slice(0, 600) }
+  })
+}
+
+// Writes the confirmed outcomes into the agenda record: an outcome line under
+// each item, a summary line and a link to the meeting notes.
+export function applyOutcomesToRecord(html: string, items: AgendaItem[], outcomes: ItemOutcome[], notesPath: string | null): string {
+  const root = parse(html, { comment: true })
+  const main = root.querySelector('main')
+  if (!main) return html
+  const byTitle = new Map(items.map((it) => [clean(`${it.verb}: ${it.title}`).toLowerCase(), outcomes.find((o) => o.key === it.key)]))
+  for (const el of main.querySelectorAll('.agenda-item')) {
+    const title = clean(el.querySelector('.agenda-title')?.text || '').toLowerCase()
+    const o = byTitle.get(title)
+    if (!o) continue
+    el.querySelector('.agenda-outcome')?.remove()
+    const color = o.outcome === 'settled' ? 'var(--bcps-green, #16750C)' : o.outcome === 'partly' ? 'var(--bcps-orange, #C55326)' : 'var(--text-50, #666)'
+    el.insertAdjacentHTML('beforeend', `<div class="agenda-outcome" style="margin-top:6px;font-size:13px"><strong style="color:${color}">${OUTCOME_LABEL[o.outcome]}.</strong>${o.note ? ` ${esc(o.note)}` : ''}</div>`)
+  }
+  const settled = outcomes.filter((o) => o.outcome === 'settled').length
+  const lead = main.querySelector('.lead-summary')
+  if (lead) {
+    lead.querySelector('.agenda-result')?.remove()
+    lead.insertAdjacentHTML('beforeend', `<p class="agenda-result"><strong>After the meeting:</strong> ${settled} of ${outcomes.length} item${outcomes.length === 1 ? '' : 's'} settled, from the meeting transcript and confirmed by the lead.${notesPath ? ` <a href="${esc(notesPath)}">Read the meeting notes</a>.` : ''}${settled < outcomes.length ? ' What was not settled goes on the next agenda.' : ''}</p>`)
+  }
+  return root.toString()
+}
