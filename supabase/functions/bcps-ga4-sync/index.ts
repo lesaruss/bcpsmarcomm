@@ -12,6 +12,8 @@
 // Previous addresses (bcps_departments.previous_paths) added 2026-10-27 (v31).
 // Dead Pages suggestions screened and confirmed as real pages 2026-10-27 (v32,
 // same-address capital-letter variants kept without a title in v33).
+// Department report limit raised to 10,000 rows and every matched department
+// kept 2026-10-28 (v34).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -333,7 +335,9 @@ Deno.serve(async (req: Request) => {
         metrics: [{ name: 'sessions' }, { name: 'activeUsers' }, { name: 'engagementRate' }, { name: 'averageSessionDuration' }, { name: 'newUsers' }],
         dimensionFilter: { filter: { fieldName: 'pagePath', stringFilter: { matchType: 'BEGINS_WITH', value: '/bcps-departments/' } } },
         orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
-        limit: 200
+        // v34: was 200, which dropped every page below the 200 busiest, so
+        // smaller departments never got a row. Same ceiling as allPagesReport.
+        limit: 10000
       }),
       runGA4Report(accessToken, {
         dateRanges: [range],
@@ -394,7 +398,10 @@ Deno.serve(async (req: Request) => {
       engagement_rate: agg.sessions > 0 ? agg.totalEngagement / agg.sessions : 0,
       avg_session_duration: agg.sessions > 0 ? agg.totalDuration / agg.sessions : 0,
       pages: agg.pages.sort((a: any, b: any) => b.sessions - a.sessions).slice(0, 20)
-    })).sort((a: any, b: any) => b.sessions - a.sessions).slice(0, 100);
+    })).sort((a: any, b: any) => b.sessions - a.sessions)
+      // v34: every matched department is kept; only unmatched buckets are
+      // capped, so the wider report cannot push a small department out.
+      .filter((d: any, _i: number, all: any[]) => d.matched || all.filter((x: any) => !x.matched).indexOf(d) < 100);
 
     // ---- Programs & Services (aggregate each program page + its sub-pages) ----
     const allPages = (allPagesReport.rows || []).map((r: any) => ({
