@@ -4,6 +4,8 @@ import { createServiceClient } from '@/lib/supabase-admin'
 import { timingSafeEqual } from 'crypto'
 import { sendEmail } from '@/lib/resend'
 import { buildDigests, digestHtml, digestSubject, type DigestPlaybook, type AgendaRow } from '@/lib/playbook-digest'
+import { listItems } from '@/lib/playbook-items'
+import { dueDate } from '@/lib/playbook-agenda'
 import { easternDate } from '@/lib/playbook-people'
 
 // Weekly Playbook digest (BCPS Document System, Phase 3, V 2026-10-28). One
@@ -54,7 +56,13 @@ export async function POST(req: NextRequest) {
   const digests = buildDigests(playbooks, (waiting ?? []) as { playbook_slug: string; created_at: string }[], today, (agendas ?? []) as AgendaRow[])
 
   if (body.dry_run) {
-    return NextResponse.json({ ok: true, today, read: { playbooks: live.length, readers: recs?.length ?? 0, waiting_input: waiting?.length ?? 0, agendas: agendas?.length ?? 0 }, people: digests.length, digests: digests.map((d) => ({
+    // Per Playbook: open items found, how many have an owner, how many state a due date.
+    const per = playbooks.map((pb) => {
+      const items = listItems(pb.html, pb.recipients)
+      return { slug: pb.slug, readers: pb.recipients.length, chars: pb.html.length, items: items.length, owned: items.filter((i) => i.owners.length).length,
+        dated: items.filter((i) => dueDate(i.text, today) ?? (i.dueText ? dueDate(i.dueText, today) : null)).length }
+    }).filter((p) => p.items)
+    return NextResponse.json({ ok: true, today, per, read: { playbooks: live.length, readers: recs?.length ?? 0, waiting_input: waiting?.length ?? 0, agendas: agendas?.length ?? 0 }, people: digests.length, digests: digests.map((d) => ({
       email: d.email, name: d.name, subject: digestSubject(d), due: d.due.map((t) => `${t.playbook}: ${t.text}${t.due ? ` (${t.due})` : ''}`), reviews: d.reviews, followups: d.followups, other: d.other.length,
     })) })
   }
