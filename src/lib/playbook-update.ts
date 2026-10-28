@@ -19,18 +19,18 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase()
 const MAX_OUTLINE = 60_000
 
-function shortDate(iso: string): string {
+export function shortDate(iso: string): string {
   return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' })
 }
-function longDate(iso: string): string {
+export function longDate(iso: string): string {
   return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' })
 }
 
-const kids = (el: HTMLElement) => el.childNodes.filter((n): n is HTMLElement => n instanceof HTMLElement)
+export const kids = (el: HTMLElement) => el.childNodes.filter((n): n is HTMLElement => n instanceof HTMLElement)
 
 // The block a reader sees first: the checked version, else the highest
 // numbered one, else <main>.
-function versionInfo(root: HTMLElement) {
+export function versionInfo(root: HTMLElement) {
   const main = root.querySelector('main')
   const blocks = root.querySelectorAll('div.ver').map((el) => ({ el, n: Number((/\bver-(\d+)\b/.exec(el.getAttribute('class') || '') || [])[1] || 0) })).filter((b) => b.n > 0)
   if (!blocks.length) return { main, current: main, n: 0, blocks }
@@ -42,7 +42,7 @@ function versionInfo(root: HTMLElement) {
 
 // Top-level sections of a block: closed accordions, or plain <h2> headings on
 // a Playbook not yet on the template.
-function sections(block: HTMLElement): { title: string; el: HTMLElement; body: HTMLElement | null }[] {
+export function sections(block: HTMLElement): { title: string; el: HTMLElement; body: HTMLElement | null }[] {
   const acc = kids(block).filter((el) => el.tagName === 'DETAILS' && el.classList.contains('doc-accordion'))
   if (acc.length) {
     return acc.map((el) => ({
@@ -93,7 +93,7 @@ export interface PlaybookUpdate {
   summary: string
   decisions: string[]
   open_questions: string[]
-  actions: { title: string; lead: string; support: string[]; deadline_date: string }[]
+  actions: { title: string; lead: string; support: string[]; deadline_date: string; owners?: string[] }[]
   section_updates: { section: string; new_section: boolean; title: string; detail: string }[]
   queue_done: string[]
   stage: string
@@ -135,7 +135,7 @@ function sectionBody(block: HTMLElement, exact: string, pattern: RegExp | null, 
   return s!.body!
 }
 
-function setCount(el: HTMLElement | null, n: number) { if (el) el.set_content(String(n)) }
+export function setCount(el: HTMLElement | null, n: number) { if (el) el.set_content(String(n)) }
 
 // Work Queue: new action items as a pending group, finished items moved to
 // Completed. The Work Queue is created when the Playbook has none.
@@ -158,7 +158,8 @@ function updateQueue(block: HTMLElement, u: PlaybookUpdate, tag: string): { adde
     const li = u.actions.map((a) => {
       const who = [a.lead, ...a.support].filter(Boolean).join(', ')
       const when = a.deadline_date ? `, by ${shortDate(a.deadline_date)}` : ''
-      return `<li class="chk-item pending"><span class="chk-box"></span><span>${esc(a.title)}${who || when ? ` (${esc(who || 'no owner named')}${esc(when)})` : ''}</span></li>`
+      const owners = a.owners?.length ? ` data-owners="${esc(a.owners.join(','))}"` : ''
+      return `<li class="chk-item pending"${owners}><span class="chk-box"></span><span>${esc(a.title)}${who || when ? ` (${esc(who || 'no owner named')}${esc(when)})` : ''}</span></li>`
     }).join('')
     pendingPanel.querySelectorAll('details.held').forEach((d) => d.removeAttribute('open'))
     pendingPanel.insertAdjacentHTML('afterbegin', `<details class="held" open><summary>${esc(`From ${u.meeting_label}, ${tag}`)} <span class="grp-count">${u.actions.length}</span></summary><div class="body"><ul class="chk-list">${li}</ul></div></details>`)
