@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
 import TrackerItemDialog from '@/components/bcps/TrackerItemDialog'
+import { useDictation, DictationBar } from '@/components/bcps/Dictation'
 
 // MarComm Assignments (Sean, 2026-10-08). The Office of Communications request
 // tracker, modeled on Web Team Assignments and replacing the MarComm
@@ -448,7 +449,7 @@ export default function MarcommAssignmentsPage({ embedded = false, onBack }: { e
       {inputting && <TrackerItemDialog mode="input" noun="request"
         rows={liveRows.filter(r => !CLOSED.has(r.status)).concat(liveRows.filter(r => CLOSED.has(r.status)))
           .map(r => ({ slug: r.id, title: `${r.job_number ? `#${r.job_number} ` : ''}${r.title}`, desc: r.description ?? '', status: r.status }))}
-        submitInput={async (id, text) => { await post({ action: 'add_note', id, body: text, source: 'typed' }) }}
+        submitInput={async (id, text, dictated) => { await post({ action: 'add_note', id, body: text, source: dictated ? 'dictated' : 'typed' }) }}
         onClose={() => setInputting(false)} onDone={(message) => { setInputting(false); setToolbarNote(message) }} />}
     </div>
   )
@@ -480,91 +481,6 @@ function SupportPicker({ team, lead, value, onChange }: { team: Member[]; lead: 
       ))}
     </div>
   )
-}
-
-// Voice dictation for notes, the same recorder as Web Team Assignments
-// (public/bcps-web-team-assignments.html): Record starts the browser's speech
-// recognition, restarting between pauses until Stop; the cleaned transcript
-// is added to the note box to edit before Add note. Chrome and Edge only.
-type SpeechRec = {
-  continuous: boolean; interimResults: boolean; lang: string
-  onstart: (() => void) | null
-  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null
-  onerror: ((e: { error: string }) => void) | null
-  onend: (() => void) | null
-  start: () => void; stop: () => void
-}
-function useDictation(onText: (text: string) => void) {
-  const [recording, setRecording] = useState(false)
-  const [live, setLive] = useState('Press Record to transcribe speech into a note.')
-  const [active, setActive] = useState(false)
-  const st = useRef({ on: false, acc: '', committed: false, rec: null as SpeechRec | null })
-  const onTextRef = useRef(onText)
-  onTextRef.current = onText
-
-  const msg = (m: string, a: boolean) => { setLive(m); setActive(a) }
-  const clean = (t: string) => {
-    t = t.trim(); if (!t) return ''
-    t = t.charAt(0).toUpperCase() + t.slice(1)
-    if (t.length > 15 && !/[.!?]$/.test(t)) t += '.'
-    return t
-  }
-  const commit = useCallback(() => {
-    const s = st.current
-    if (s.committed) return
-    s.committed = true
-    const text = s.acc.trim(); s.acc = ''
-    if (!text) { msg('Nothing captured. Try speaking again.', false); return }
-    onTextRef.current(text)
-    msg('Transcript added. Edit below and click Add note.', false)
-  }, [])
-  const SR = (): (new () => SpeechRec) | null => {
-    if (typeof window === 'undefined') return null
-    const w = window as unknown as { SpeechRecognition?: new () => SpeechRec; webkitSpeechRecognition?: new () => SpeechRec }
-    return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
-  }
-  const runSession = useCallback(() => {
-    const Ctor = SR(); const s = st.current
-    if (!s.on || !Ctor) return
-    const rec = new Ctor(); s.rec = rec
-    rec.continuous = false; rec.interimResults = true; rec.lang = 'en-US'
-    rec.onstart = () => msg('Listening...', true)
-    rec.onresult = e => {
-      let interim = ''
-      for (let i = 0; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript
-        if (e.results[i].isFinal) { const c = clean(t); if (c) s.acc += (s.acc ? ' ' : '') + c } else interim += t
-      }
-      if (interim) msg(interim, true)
-      else if (s.acc) msg(s.acc.length > 60 ? '...' + s.acc.slice(-57) : s.acc, true)
-    }
-    rec.onerror = e => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        s.on = false; setRecording(false)
-        msg('Mic blocked. Click the lock icon in your browser address bar and allow the microphone.', false)
-      } else if (e.error === 'network') {
-        s.on = false; setRecording(false)
-        msg('Network error. The speech service is unavailable.', false)
-      }
-    }
-    rec.onend = () => { if (s.on) setTimeout(runSession, 100); else commit() }
-    try { rec.start() } catch { setTimeout(() => { if (s.on) runSession() }, 250) }
-  }, [commit])
-  const start = () => {
-    if (!SR()) { msg('Voice input requires Chrome or Edge.', false); return }
-    const s = st.current
-    s.acc = ''; s.committed = false; s.on = true
-    setRecording(true); msg('Starting...', true); runSession()
-  }
-  const stop = useCallback(() => {
-    const s = st.current
-    s.on = false; s.committed = false; setRecording(false)
-    try { s.rec?.stop() } catch { /* already stopped */ }
-    setTimeout(() => { if (!st.current.committed) commit() }, 500)
-  }, [commit])
-  // Stop listening when the drawer closes.
-  useEffect(() => () => { if (st.current.on) { st.current.on = false; try { st.current.rec?.stop() } catch { /* closed */ } } }, [])
-  return { recording, live, active, toggle: () => (recording ? stop() : start()) }
 }
 
 function Drawer({ req, canEdit, team, notes, onClose, post, others, combined }: {
@@ -797,12 +713,7 @@ function Drawer({ req, canEdit, team, notes, onClose, post, others, combined }: 
         <section>
           <h3>Notes</h3>
           {canEdit && <div className="d-add">
-            <div className="recorder-bar">
-              <button type="button" className={`mic-btn${dictation.recording ? ' recording' : ''}`} onClick={dictation.toggle}>
-                <span className="mic-dot" />{dictation.recording ? 'Stop' : 'Record'}
-              </button>
-              <span className={`live-transcript${dictation.active ? ' active' : ''}`} aria-live="polite">{dictation.live}</span>
-            </div>
+            <DictationBar dictation={dictation} />
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
               placeholder="Type a note, or use Record above to speak it..."
               onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); addNote() } }} />

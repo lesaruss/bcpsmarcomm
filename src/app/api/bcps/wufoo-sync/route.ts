@@ -222,9 +222,22 @@ async function sync() {
     const { Entries } = await wufoo<{ Entries: Entry[] }>(`/forms/${state.form_hash}/entries.json?${q}`)
     for (const e of Entries) {
       const { files, ...row } = toRow(e, state.fields, state.field_map)
-      const { data, error } = await supabase.from('bcps_marcomm_requests')
+      let { data, error } = await supabase.from('bcps_marcomm_requests')
         .upsert(row, { onConflict: 'job_number', ignoreDuplicates: true }).select('id')
       if (error) throw new Error(`Entry ${e.EntryId}: ${error.message}`)
+      // The platform form takes job numbers from the same sequence (2026-10-28),
+      // so a Wufoo entry's number can already belong to a form request. Skipping
+      // it would lose the request: import it without a job number instead, with
+      // a note naming the Wufoo entry, so the team can see and number it.
+      let collided = false
+      if (!data?.length) {
+        const { data: holder } = await supabase.from('bcps_marcomm_requests').select('source').eq('job_number', row.job_number).maybeSingle()
+        if (holder && holder.source !== 'wufoo') {
+          collided = true
+          ;({ data, error } = await supabase.from('bcps_marcomm_requests').insert({ ...row, job_number: null }).select('id'))
+          if (error) throw new Error(`Entry ${e.EntryId}: ${error.message}`)
+        }
+      }
       if (data?.length) {
         imported.push(row.job_number)
         if (files.length) {
@@ -232,7 +245,10 @@ async function sync() {
           if (attachments.length) await supabase.from('bcps_marcomm_requests').update({ attachments }).eq('id', data[0].id)
         }
         await supabase.from('bcps_marcomm_request_notes').insert({
-          request_id: data[0].id, body: `Imported from Wufoo entry ${row.job_number}.`, author: 'Wufoo', source: 'system',
+          request_id: data[0].id, author: 'Wufoo', source: 'system',
+          body: collided
+            ? `Imported from Wufoo entry ${row.job_number}. Job number ${row.job_number} was already taken by a platform form request, so this one has none yet.`
+            : `Imported from Wufoo entry ${row.job_number}.`,
         })
       } else skipped.push(row.job_number)
       after = Math.max(after, row.job_number)
