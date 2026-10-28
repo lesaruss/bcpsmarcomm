@@ -17,6 +17,7 @@ async function authHeaders(): Promise<Record<string, string>> {
 
 import { BETA_MEMBERS, DOMAIN_RULES } from '@/lib/data'
 import type { BetaMember, DomainRule } from '@/lib/types'
+import RecurringEmails from '@/components/bcps/RecurringEmails'
 
 interface SuperAdminPageProps {
   onShowToast: (msg: string) => void
@@ -663,7 +664,11 @@ function CampaignsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
 }
 
 export default function SuperAdminPage({ onShowToast }: SuperAdminPageProps) {
-  const [activeTab, setActiveTab] = useState<AdminTab>('invites')
+  // ?tab=campaigns opens a tab directly, e.g. from the Friday approval email.
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+    const want = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
+    return ADMIN_TABS.find((t) => t.id === want)?.id ?? 'invites'
+  })
 
   return (
     <div className="superadmin-page">
@@ -688,7 +693,7 @@ export default function SuperAdminPage({ onShowToast }: SuperAdminPageProps) {
 
       <div className="admin-content">
         {activeTab === 'invites' && <InvitesTab onShowToast={onShowToast} />}
-        {activeTab === 'campaigns' && <CampaignsTab onShowToast={onShowToast} />}
+        {activeTab === 'campaigns' && <><CampaignsTab onShowToast={onShowToast} /><RecurringEmails onShowToast={onShowToast} /></>}
         {activeTab === 'domain' && <DomainTab onShowToast={onShowToast} />}
         {activeTab === 'members' && <MembersTab onShowToast={onShowToast} />}
         {activeTab === 'viewas' && <ViewAsTab onShowToast={onShowToast} />}
