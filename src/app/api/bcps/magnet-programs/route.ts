@@ -60,7 +60,7 @@ async function audit(actor: string, action: string, detail: unknown) {
 // so keys (slug, loc_nbr, program_slug + school_loc) never change on update.
 const FIELDS = {
   theme: ['name', 'kind', 'description', 'sort_order'],
-  school: ['name', 'site_url', 'address', 'city', 'zip', 'grades', 'levels', 'region', 'sort_order'],
+  school: ['name', 'site_url', 'address', 'city', 'zip', 'grades', 'levels', 'region', 'lat', 'lng', 'sort_order'],
   program: ['theme_slug', 'name', 'grades_note', 'description', 'sort_order'],
   offering: ['tracks', 'note', 'sort_order'],
 } as const
@@ -96,6 +96,23 @@ async function freeSlug(table: string, base: string) {
   const taken = new Set((data ?? []).map(r => r.slug))
   if (!taken.has(base)) return base
   for (let i = 2; ; i++) if (!taken.has(`${base}-${i}`)) return `${base}-${i}`
+}
+
+// Street address to map pin via the US Census geocoder (free, no key). Returns
+// null when the address doesn't match so the save still goes through; the
+// editor can type coordinates by hand.
+async function geocode(address?: string | null, city?: string | null, zip?: string | null) {
+  if (!address) return null
+  const line = [address, city, 'FL', zip].filter(Boolean).join(', ')
+  try {
+    const r = await fetch('https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?benchmark=Public_AR_Current&format=json&address='
+      + encodeURIComponent(line), { signal: AbortSignal.timeout(6000) })
+    const m = (await r.json())?.result?.addressMatches?.[0]?.coordinates
+    if (typeof m?.x !== 'number' || typeof m?.y !== 'number') return null
+    return { lat: Math.round(m.y * 1e6) / 1e6, lng: Math.round(m.x * 1e6) / 1e6 }
+  } catch {
+    return null
+  }
 }
 
 // GET /api/bcps/magnet-programs - all four tables for the admin editor
@@ -155,6 +172,7 @@ export async function POST(req: NextRequest) {
         row.site_url = row.site_url || base?.site_url || null
         row.region = row.region || dir?.region || null
         if (!row.name) return NextResponse.json({ error: 'name required (no district school found for that location number).' }, { status: 400 })
+        if (row.lat == null || row.lng == null) Object.assign(row, await geocode(row.address, row.city, row.zip))
         const { data, error } = await svc.from(TABLE.school).insert({ ...row, loc_nbr: loc }).select().single()
         if (error) throw error
         await audit(user.id, 'magnet_school_create', { loc_nbr: loc, name: row.name })
@@ -180,6 +198,14 @@ export async function POST(req: NextRequest) {
         const updates = pick(kind, body)
         if (kind === 'school' && 'name' in updates && !updates.name) return NextResponse.json({ error: 'name required.' }, { status: 400 })
         if ((kind === 'theme' || kind === 'program') && 'name' in updates && !updates.name) return NextResponse.json({ error: 'name required.' }, { status: 400 })
+        // A new address moves the map pin unless the editor also set coordinates.
+        if (kind === 'school' && ['address', 'city', 'zip'].some(f => f in updates) && !('lat' in updates || 'lng' in updates)) {
+          const { data: cur } = await svc.from(TABLE.school).select('address, city, zip').eq('loc_nbr', key).maybeSingle()
+          const next = { ...cur, ...updates }
+          if (cur && ['address', 'city', 'zip'].some(f => (cur as any)[f] !== (next as any)[f])) {
+            Object.assign(updates, await geocode(next.address, next.city, next.zip))
+          }
+        }
         const { data, error } = await svc.from(TABLE[kind])
           .update({ ...updates, updated_at: now() }).eq(keyCol, key).select().single()
         if (error) throw error

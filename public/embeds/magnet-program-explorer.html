@@ -158,6 +158,7 @@
     padding: 14px 20px 20px;
     background: var(--bg);
   }
+  .grid[hidden] { display: none; }
   .card {
     background: var(--white);
     border: 1px solid var(--border);
@@ -289,6 +290,28 @@
   .pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
   .pg-ellipsis { color: var(--text-muted); font-size: 13px; padding: 0 4px; }
 
+  /* MAP */
+  /* Leaflet (loaded on first open of the Map tab) with OpenStreetMap tiles;
+     one BCPS Blue pin per school that matches the filters. */
+  .map-panel { padding: 14px 20px 20px; background: var(--bg); display: flex; flex-direction: column; gap: 8px; }
+  .map-panel[hidden] { display: none; }
+  #map { height: 520px; border: 1px solid var(--border); border-radius: var(--radius); background: #E8EDF3; z-index: 0; }
+  .map-note { font-size: 12px; color: var(--text-muted); }
+  .map-note[hidden] { display: none; }
+  .map-pin { background: none; border: none; }
+  .map-pin svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+  .map-pin:focus-visible { outline: 2px solid var(--blue-dark); outline-offset: 2px; border-radius: 50%; }
+  .leaflet-container { font-family: var(--font-body); }
+  .leaflet-container a.leaflet-popup-close-button { color: var(--text-muted); }
+  .leaflet-popup-content { margin: 12px 14px; font-size: 12.5px; line-height: 1.45; }
+  .pop { display: flex; flex-direction: column; gap: 6px; }
+  .pop .card-name { font-size: 14px; }
+  .pop .name-link { color: var(--text); }
+  .pop .name-link:hover { color: var(--blue); }
+  .pop .where { font-size: 12px; color: var(--text-muted); }
+  .pop .tag { font-size: 11px; padding: 2px 7px; }
+  .pop .card-link { font-weight: 600; }
+
   /* INFO FOOTER */
   .info {
     border-top: 1px solid var(--border); background: var(--bg);
@@ -311,6 +334,8 @@
     .filter-row select { flex: 1 1 100%; }
     .filter-row .spacer { display: none; }
     .grid { grid-template-columns: 1fr; padding-left: 14px; padding-right: 14px; }
+    .map-panel { padding-left: 14px; padding-right: 14px; }
+    #map { height: 380px; }
   }
 </style>
 </head>
@@ -320,6 +345,7 @@
 <div class="tabs" role="tablist" aria-label="Browse magnet programs">
   <button type="button" class="tab" role="tab" id="tab-schools" aria-controls="results" aria-selected="true" data-mode="schools">Browse by School</button>
   <button type="button" class="tab" role="tab" id="tab-programs" aria-controls="results" aria-selected="false" data-mode="programs">Browse by Program</button>
+  <button type="button" class="tab" role="tab" id="tab-map" aria-controls="mapPanel" aria-selected="false" data-mode="map">Map</button>
 </div>
 
 <div class="controls">
@@ -350,6 +376,10 @@
 </div>
 
 <div class="grid" id="results" role="tabpanel" aria-labelledby="tab-schools"></div>
+<div class="map-panel" id="mapPanel" role="tabpanel" aria-labelledby="tab-map" hidden>
+  <div id="map" role="region" aria-label="Map of magnet schools"></div>
+  <p class="map-note" id="mapNote" hidden></p>
+</div>
 <div class="pagination" id="pagination"></div>
 </div>
 
@@ -394,6 +424,7 @@ const SORTS = {
   schools: [['name', 'Name (A-Z)'], ['name-desc', 'Name (Z-A)'], ['city', 'City'], ['count', 'Most programs']],
   programs: [['name', 'Name (A-Z)'], ['theme', 'Program theme'], ['count', 'Most schools']],
 };
+SORTS.map = SORTS.schools;  // the Map tab shows schools; its sort is hidden
 
 const ICON = {
   pin: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>',
@@ -438,7 +469,7 @@ function matchesLevel(s) { return activeLevel === 'all' || s.levels.includes(act
 
 function getFiltered() {
   const q = activeSearch.toLowerCase().trim();
-  if (mode === 'schools') {
+  if (mode !== 'programs') {
     const list = SCHOOLS.filter(s =>
       matchesLevel(s) &&
       (!activeCity || s.city === activeCity) &&
@@ -562,10 +593,10 @@ function goToPage(page) {
   document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// The address bar carries the tab (#programs). A school's page is ?school=0371
+// The address bar carries the tab (#programs, #map). A school's page is ?school=0371
 // and a program's page is ?program=stem-museum.
 function syncHash() {
-  const h = mode === 'programs' ? 'programs' : '';
+  const h = mode === 'schools' ? '' : mode;
   const url = location.pathname + location.search + (h ? '#' + h : '');
   try { history.replaceState(null, '', url); } catch (e) {}
 }
@@ -583,7 +614,7 @@ function restoreState() {
   let st = null;
   try { st = JSON.parse(sessionStorage.getItem(STATE_KEY) || 'null'); } catch (e) {}
   if (!st) return false;
-  setMode(st.mode === 'programs' ? 'programs' : 'schools');
+  setMode(TAB_MODES.includes(st.mode) ? st.mode : 'schools');
   activeLevel = st.activeLevel || 'all'; activeTheme = st.activeTheme || ''; activeCity = st.activeCity || '';
   activeSearch = st.activeSearch || ''; sortKey = st.sortKey || 'name'; currentPage = st.currentPage || 1;
   document.getElementById('searchInput').value = activeSearch;
@@ -606,11 +637,23 @@ function render() {
   if (currentPage > totalPages) currentPage = 1;
 
   document.getElementById('resultCount').textContent = filtered.length;
-  document.getElementById('totalCount').textContent = mode === 'schools' ? SCHOOLS.length : PROGRAMS.length;
-  document.getElementById('unitLabel').textContent = mode === 'schools' ? 'magnet schools' : 'magnet programs';
+  document.getElementById('totalCount').textContent = mode === 'programs' ? PROGRAMS.length : SCHOOLS.length;
+  document.getElementById('unitLabel').textContent = mode === 'programs' ? 'magnet programs' : 'magnet schools';
   document.getElementById('clearBtn').hidden = !isFiltered();
 
   const grid = document.getElementById('results');
+  const onMap = mode === 'map';
+  grid.hidden = onMap;
+  document.getElementById('mapPanel').hidden = !onMap;
+  document.getElementById('sortSelect').hidden = onMap;
+  if (onMap) {
+    renderPagination(0);
+    renderMap(filtered);
+    syncHash();
+    saveState();
+    postHeight();
+    return;
+  }
   grid.setAttribute('aria-labelledby', 'tab-' + mode);
   if (filtered.length === 0) {
     grid.innerHTML = `<div class="empty">${ICON.search}No ${mode === 'schools' ? 'schools' : 'programs'} match your filters. Try a different search or clear the filters.</div>`;
@@ -631,9 +674,9 @@ function setMode(next) {
   mode = next;
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.mode === mode)));
   const input = document.getElementById('searchInput');
-  input.placeholder = mode === 'schools'
-    ? 'Search schools, cities, programs or pathways...'
-    : 'Search programs, themes, pathways or schools...';
+  input.placeholder = mode === 'programs'
+    ? 'Search programs, themes, pathways or schools...'
+    : 'Search schools, cities, programs or pathways...';
   const sel = document.getElementById('sortSelect');
   sel.innerHTML = SORTS[mode].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   sortKey = 'name';
@@ -653,9 +696,11 @@ function clearFilters(doRender = true) {
 
 // Event listeners
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { if (t.dataset.mode !== mode) setMode(t.dataset.mode); }));
+const TAB_MODES = ['schools', 'programs', 'map'];
 document.querySelector('.tabs').addEventListener('keydown', e => {
   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-  const next = mode === 'schools' ? 'programs' : 'schools';
+  const i = TAB_MODES.indexOf(mode) + (e.key === 'ArrowRight' ? 1 : -1);
+  const next = TAB_MODES[(i + TAB_MODES.length) % TAB_MODES.length];
   setMode(next);
   document.getElementById('tab-' + next).focus();
 });
@@ -685,7 +730,7 @@ async function init() {
   try {
     const [themes, schools, programs, offerings] = await Promise.all([
       getRows('bcps_magnet_themes?select=slug,name,kind,description,sort_order&order=sort_order.asc'),
-      getRows('bcps_magnet_schools?select=loc_nbr,name,site_url,address,city,zip,grades,levels,sort_order&order=sort_order.asc'),
+      getRows('bcps_magnet_schools?select=loc_nbr,name,site_url,address,city,zip,grades,levels,lat,lng,sort_order&order=sort_order.asc'),
       getRows('bcps_magnet_programs?select=slug,theme_slug,name,grades_note,description,sort_order&order=sort_order.asc'),
       getRows('bcps_magnet_offerings?select=program_slug,school_loc,tracks,note,sort_order&order=sort_order.asc'),
     ]);
@@ -734,7 +779,94 @@ function applyHash() {
   // Older links (#school-0371, #program-stem-museum) open the record's own page.
   if (h.startsWith('school-')) { location.replace(profileHref(h.slice(7))); return; }
   if (h.startsWith('program-')) { location.replace(programHref(h.slice(8))); return; }
-  setMode(h === 'programs' ? 'programs' : 'schools');
+  setMode(TAB_MODES.includes(h) ? h : 'schools');
+}
+
+// MAP TAB. Leaflet loads the first time the Map tab opens, so the list views
+// don't pay for it. Pins follow the same search, level, theme and city filters.
+const LEAFLET = {
+  css: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  cssSri: 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=',
+  js: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  jsSri: 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=',
+};
+let leafletLoading = null;
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (leafletLoading) return leafletLoading;
+  leafletLoading = new Promise((resolve, reject) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = LEAFLET.css; css.integrity = LEAFLET.cssSri; css.crossOrigin = '';
+    document.head.appendChild(css);
+    const js = document.createElement('script');
+    js.src = LEAFLET.js; js.integrity = LEAFLET.jsSri; js.crossOrigin = '';
+    js.onload = () => resolve(window.L);
+    js.onerror = () => { leafletLoading = null; js.remove(); reject(new Error('leaflet')); };
+    document.head.appendChild(js);
+  });
+  return leafletLoading;
+}
+
+const PIN_SVG = '<svg width="26" height="34" viewBox="0 0 26 34" aria-hidden="true"><path d="M13 1C6.4 1 1 6.3 1 12.9 1 21.8 13 33 13 33s12-11.2 12-20.1C25 6.3 19.6 1 13 1z" fill="#1672A7" stroke="#fff" stroke-width="2"/><circle cx="13" cy="13" r="4.5" fill="#fff"/></svg>';
+let map = null, pinLayer = null, mapRun = 0;
+
+function hasCoords(s) { return s.lat != null && s.lng != null; }
+
+function mapPopup(s) {
+  const n = s.offerings.length;
+  const tags = s.offerings.map(o => `<li><a class="tag" href="${programHref(o.program.slug)}">${escapeHtml(o.program.name)}</a></li>`);
+  return `<div class="pop">
+    <span class="where">${escapeHtml(s.grades)} · ${escapeHtml(s.city)} · ${n} magnet program${n === 1 ? '' : 's'}</span>
+    <a class="card-name name-link" href="${profileHref(s.loc_nbr)}">${escapeHtml(s.name)}</a>
+    <span class="meta-row">${ICON.pin}<span>${escapeHtml(s.address)}, ${escapeHtml(s.city)}, FL ${escapeHtml(s.zip)}</span></span>
+    ${tagList(tags, 4)}
+    <a class="card-link" href="${profileHref(s.loc_nbr)}">View school profile</a>
+  </div>`;
+}
+
+async function renderMap(list) {
+  const run = ++mapRun;
+  const note = document.getElementById('mapNote');
+  let L;
+  try {
+    L = await loadLeaflet();
+  } catch (e) {
+    note.hidden = false;
+    note.textContent = 'The map could not load right now. Browse by School lists the same schools.';
+    postHeight();
+    return;
+  }
+  // A newer filter change or a tab switch replaced this run while Leaflet loaded.
+  if (run !== mapRun || mode !== 'map') return;
+
+  if (!map) {
+    // One-finger drag stays with the page on phones so the embed doesn't trap
+    // scrolling; pinch and the zoom buttons still move the map.
+    map = L.map('map', { scrollWheelZoom: false, dragging: !L.Browser.mobile }).setView([26.13, -80.2], 10);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+    }).addTo(map);
+    pinLayer = L.featureGroup().addTo(map);
+  }
+  map.invalidateSize();
+  pinLayer.clearLayers();
+
+  const icon = L.divIcon({ className: 'map-pin', html: PIN_SVG, iconSize: [26, 34], iconAnchor: [13, 33], popupAnchor: [0, -30] });
+  const pins = list.filter(hasCoords);
+  pins.forEach(s => {
+    L.marker([s.lat, s.lng], { icon, title: s.name, alt: s.name, riseOnHover: true })
+      .bindPopup(mapPopup(s), { maxWidth: 270, minWidth: 220 })
+      .addTo(pinLayer);
+  });
+  if (pins.length) map.fitBounds(pinLayer.getBounds(), { padding: [36, 36], maxZoom: 14 });
+
+  const missing = list.length - pins.length;
+  note.hidden = !(list.length === 0 || missing > 0);
+  note.textContent = list.length === 0
+    ? 'No schools match your filters. Try a different search or clear the filters.'
+    : `${missing} school${missing === 1 ? '' : 's'} without a map location ${missing === 1 ? 'is' : 'are'} listed under Browse by School.`;
+  postHeight();
 }
 
 function directionsUrl(s) {
