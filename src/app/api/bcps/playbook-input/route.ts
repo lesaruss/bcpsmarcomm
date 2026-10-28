@@ -5,6 +5,8 @@ import { requirePlaybookItemActor } from '@/lib/bcps-auth'
 import { askClaudeJson } from '@/lib/anthropic-key'
 import { listTargets, addInput, decideInput, GENERAL_KEY, type InputKind } from '@/lib/playbook-input'
 import { backupsOf, handedOff } from '@/lib/playbook-people'
+import { screenTranscript, screenMessage } from '@/lib/transcript-screen'
+import { logChange } from '@/lib/doc-change-log'
 
 // Team input on a Playbook (V, 2026-10-28). Any reader answers an open
 // question, adds to a Missing or Draft section, or adds general input, with
@@ -130,6 +132,11 @@ export async function POST(req: NextRequest) {
     await svc.from('bcps_playbook_inputs').update({
       status: body.action === 'accept' ? 'accepted' : 'dismissed', decided_by_email: auth.user.email, decided_at: new Date().toISOString(),
     }).eq('id', id)
+    await logChange(svc, {
+      slug, action: body.action === 'accept' ? 'input_accepted' : 'input_dismissed', actor: auth.user.email, approvedBy: auth.user.email,
+      source: { input_id: id, as: lead ? 'lead' : 'backup lead' }, summary: `Team input ${body.action === 'accept' ? 'accepted' : 'dismissed'} by ${name}${lead ? '' : ' as backup lead'}.`,
+      revisionId: rev, after: html,
+    })
     return NextResponse.json({ ok: true })
   }
 
@@ -143,6 +150,13 @@ export async function POST(req: NextRequest) {
   if (body.action === 'draft') {
     const text = String(body.source_text || '').trim().slice(0, 400_000)
     if (text.length < 40) return NextResponse.json({ error: 'That file has no text to read.' }, { status: 400 })
+    // The content stop applies to drafting too (lib/transcript-screen).
+    try {
+      const screen = await screenTranscript(text)
+      if (!screen.clean) return NextResponse.json({ error: screenMessage(screen).replace('This transcript was not summarized', 'Nothing was drafted from this file'), flagged: screen.findings }, { status: 422 })
+    } catch {
+      return NextResponse.json({ error: 'The privacy check could not run, so nothing was drafted. Try again in a minute, or write it yourself.' }, { status: 502 })
+    }
     try {
       const out = await askClaudeJson(DRAFT_MODEL, {
         type: 'object', additionalProperties: false, required: ['response'], properties: { response: { type: 'string' } },
@@ -205,6 +219,10 @@ export async function POST(req: NextRequest) {
       slug, brand_slug: 'bcps', author: auth.user.email, kind: 'edit', source: 'team-input', applied: true,
       body: `Team input from ${name} on ${kind === 'general' ? 'the page' : `"${target.text}"`}.${files.length ? ` ${files.length} file${files.length === 1 ? '' : 's'}.` : ''} Previous content kept in bcps_doc_revisions ${rev}.`,
     }).then(() => null, () => null)
+    await logChange(svc, {
+      slug, action: 'input_added', actor: auth.user.email, source: { input_id: rec.id, target: kind === 'general' ? 'general' : target.text, files: files.map((f) => f.name) },
+      summary: `Team input from ${name}, not yet confirmed.`, revisionId: rev, after: html,
+    })
     return NextResponse.json({ ok: true, id: rec.id })
   }
 

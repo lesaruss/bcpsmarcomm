@@ -147,6 +147,12 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
   const [keepStage, setKeepStage] = useState(false)
   const [done, setDone] = useState('')
   const [doneLink, setDoneLink] = useState('')
+  // Playbook uploads (Phase 3, V 2026-10-28): the lead confirms recording
+  // consent, and a transcript the privacy check stops comes back with the
+  // lines to remove.
+  const [consent, setConsent] = useState(false)
+  const [sourceName, setSourceName] = useState('')
+  const [flagged, setFlagged] = useState<{ kind: string; excerpt: string; why: string }[]>([])
   const scope = tracker === 'playbook' ? { tracker, playbook } : { tracker }
 
   const loadUploads = async () => {
@@ -174,7 +180,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
   if (!allowed) return null
 
   const reset = () => {
-    setTranscript(''); setProposal(null); setUploadId(''); setError(''); setDone('')
+    setTranscript(''); setProposal(null); setUploadId(''); setError(''); setDone(''); setFlagged([]); setConsent(false); setSourceName('')
     setKeepChange([]); setKeepNew([]); setKeepDecision([]); setKeepQuestion([]); setKeepSection([]); setKeepDone([]); setKeepStage(false); setDoneLink('')
   }
 
@@ -183,16 +189,18 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
     if (/\.docx$/i.test(f.name)) { setError('Word files cannot be read here. In Teams, download the transcript as .vtt, or open the Word file and paste the text.'); return }
     setError('')
     setTranscript(cleanTranscript(await f.text()))
+    setSourceName(f.name)
   }
 
   const read = async () => {
-    setBusy('reading'); setError(''); setDone(''); setDoneLink('')
+    setBusy('reading'); setError(''); setDone(''); setDoneLink(''); setFlagged([])
     try {
       const res = await fetch('/api/bcps/meeting-transcript', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ ...scope, action: 'propose', transcript: cleanTranscript(transcript), meeting_date: date, meeting_label: label }),
+        body: JSON.stringify({ ...scope, action: 'propose', transcript: cleanTranscript(transcript), meeting_date: date, meeting_label: label, consent, source_name: sourceName }),
       })
       const j = await res.json().catch(() => ({ error: 'The server did not answer. Try again.' }))
+      if (Array.isArray(j.flagged)) setFlagged(j.flagged)
       if (!res.ok) throw new Error(j.error || 'Something went wrong.')
       setUploadId(j.upload_id)
       setProposal(j.proposal)
@@ -279,6 +287,11 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
 
             {done && <div className="mtu-done">{done}{doneLink && <> <a href={doneLink} target="_top">Open the meeting notes</a></>}</div>}
             {error && <div className="mtu-error" role="alert">{error}</div>}
+            {flagged.length > 0 && (
+              <ul className="mtu-flagged">
+                {flagged.map((f, i) => <li key={i}><q>{f.excerpt}</q> <em>{f.why}</em></li>)}
+              </ul>
+            )}
 
             {!proposal && (
               <>
@@ -295,8 +308,14 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
                   <label className="mtu-file">Choose a file (.vtt or .txt)<input type="file" accept=".vtt,.txt,.srt,.md,text/plain,text/vtt" onChange={(e) => onFile(e.target.files?.[0])} /></label>
                   <span className="mtu-count">{transcript ? `${transcript.length.toLocaleString()} characters` : ''}</span>
                 </div>
+                {tracker === 'playbook' && (
+                  <label className="mtu-consent">
+                    <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+                    <span>Everyone in this meeting knew it was being recorded.</span>
+                  </label>
+                )}
                 <div className="mtu-actions">
-                  <button type="button" className="mtu-btn" disabled={!!busy || transcript.trim().length < 200} onClick={read}>
+                  <button type="button" className="mtu-btn" disabled={!!busy || transcript.trim().length < 200 || (tracker === 'playbook' && !consent)} onClick={read}>
                     {busy === 'reading' ? 'Reading the transcript... (a minute or two)' : 'Read transcript'}
                   </button>
                 </div>
@@ -486,6 +505,12 @@ const CSS = `
 .mtu-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .mtu-actions.sticky { position: sticky; bottom: -24px; background: #fff; padding: 14px 0 4px; border-top: 1px solid rgba(0,0,0,0.08); }
 .mtu-error { background: rgba(185,28,28,0.07); border-left: 4px solid #b91c1c; padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; }
+.mtu-flagged { list-style: none; padding: 0; margin: -4px 0 12px; display: flex; flex-direction: column; gap: 6px; }
+.mtu-flagged li { font-size: 12px; line-height: 1.5; padding: 8px 12px; border: 1px solid rgba(185,28,28,0.25); border-radius: 6px; }
+.mtu-flagged q { font-style: italic; }
+.mtu-flagged em { display: block; font-style: normal; color: rgba(26,26,26,0.6); margin-top: 2px; }
+.mtu-consent { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; font-weight: 600; margin: 4px 0 10px; }
+.mtu-consent input { margin-top: 3px; }
 .mtu-done { background: rgba(22,117,12,0.08); border-left: 4px solid #16750C; padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; }
 .mtu-card { border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; }
 .mtu-card.off { opacity: 0.45; }

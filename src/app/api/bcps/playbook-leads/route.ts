@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase-admin'
 import { requirePlaybookItemActor } from '@/lib/bcps-auth'
 import { leadsOf, backupsOf } from '@/lib/playbook-people'
+import { logChange } from '@/lib/doc-change-log'
 
 // Project leads and the backup lead (BCPS Document System, Phase 3, V
 // 2026-10-28). The superadmin names a Playbook's leads
@@ -74,5 +75,10 @@ export async function POST(req: NextRequest) {
   // Only the metadata changes; updated_at stays, so a page edit in progress still saves.
   const { error } = await svc.from('briefings').update({ metadata }).eq('brand_slug', 'bcps').eq('type', 'playbook').eq('slug', slug)
   if (error) return NextResponse.json({ error: 'The leads could not be saved.' }, { status: 500 })
+  await logChange(svc, {
+    slug, action: 'leads_changed', actor: auth.user.email,
+    source: { before: { leads: current, backups: backupsOf(pb.metadata) }, after: { leads, backups } },
+    summary: `Leads: ${leads.join(', ') || 'none'}. Backup: ${backups.join(', ') || 'none'}.`,
+  })
   return NextResponse.json({ ok: true })
 }

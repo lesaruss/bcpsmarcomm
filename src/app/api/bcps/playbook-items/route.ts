@@ -3,6 +3,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase-admin'
 import { requirePlaybookItemActor } from '@/lib/bcps-auth'
 import { askClaudeJson as askJson } from '@/lib/anthropic-key'
+import { screenTranscript, screenMessage } from '@/lib/transcript-screen'
+import { logChange } from '@/lib/doc-change-log'
 import { listItems, completeItem, addDeliverableSlot, hasShelf, type ItemKind, type Recipient } from '@/lib/playbook-items'
 
 // Complete a Playbook item from the document (V, 2026-10-28). The person who
@@ -139,6 +141,7 @@ export async function POST(req: NextRequest) {
     const { data: saved } = rev ? await svc.from('briefings').update({ content: html, updated_at: new Date().toISOString() })
       .eq('brand_slug', 'bcps').eq('type', 'playbook').eq('slug', slug).eq('updated_at', pb.updated_at).select('slug') : { data: null }
     if (!saved?.length) return NextResponse.json({ error: 'The Playbook changed just now. Reload it and try again.' }, { status: 409 })
+    await logChange(svc, { slug, action: 'deliverable_added', actor: auth.user.email, summary: `Deliverable added: ${title}, owner ${owner.name || owner.email}${due ? `, due ${due}` : ''}.`, revisionId: rev!.id as string, after: html })
     return NextResponse.json({ ok: true })
   }
 
@@ -166,6 +169,13 @@ export async function POST(req: NextRequest) {
   if (body.action === 'draft') {
     const text = String(body.source_text || '').trim().slice(0, 400_000)
     if (text.length < 40) return NextResponse.json({ error: 'That file has no text to read.' }, { status: 400 })
+    // The content stop applies to drafting too (lib/transcript-screen).
+    try {
+      const screen = await screenTranscript(text)
+      if (!screen.clean) return NextResponse.json({ error: screenMessage(screen).replace('This transcript was not summarized', 'Nothing was drafted from this file'), flagged: screen.findings }, { status: 422 })
+    } catch {
+      return NextResponse.json({ error: 'The privacy check could not run, so nothing was drafted. Try again in a minute, or write it yourself.' }, { status: 502 })
+    }
     try {
       const out = await askJson(DRAFT_MODEL, {
         type: 'object', additionalProperties: false, required: ['response'], properties: { response: { type: 'string' } },
@@ -237,6 +247,10 @@ export async function POST(req: NextRequest) {
       slug, brand_slug: 'bcps', author: auth.user.email, kind: 'edit', source: 'complete', applied: true,
       body: `Completed by ${name}: ${out.completed.join(' / ')}.${files.length ? ` ${files.length} file${files.length === 1 ? '' : 's'} attached.` : ''} Previous content kept in bcps_doc_revisions ${rev!.id}.`,
     }).then(() => null, () => null)
+    await logChange(svc, {
+      slug, action: 'turn_in', actor: auth.user.email, source: { completion_id: rec.id, files: files.map((f) => f.name) },
+      summary: `Turned in by ${name}: ${out.completed.join(' / ')}.`, revisionId: rev!.id as string, after: out.html,
+    })
     return NextResponse.json({ ok: true, completed: out.completed })
   }
 

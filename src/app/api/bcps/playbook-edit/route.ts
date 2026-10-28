@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase-admin'
 import { requirePlaybookEditAccess } from '@/lib/bcps-auth'
+import { logChange } from '@/lib/doc-change-log'
 
 // Project leads edit a Playbook, or a doc under it, in place on the dashboard
 // (Sean, 2026-10-22: "designate people as admins for these projects so they
@@ -46,5 +47,6 @@ export async function POST(req: NextRequest) {
   const { error } = await svc.from('briefings').update({ content: html, updated_at: new Date().toISOString() })
     .eq('brand_slug', 'bcps').eq('slug', slug)
   if (error) return NextResponse.json({ error: 'The page could not be saved.' }, { status: 500 })
+  await logChange(svc, { slug, action: 'page_edited', actor: auth.user.email, summary: 'Edited in place on the dashboard.', revisionId: rev.id as string, after: html })
   return NextResponse.json({ ok: true, revision_id: rev.id })
 }

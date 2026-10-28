@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase-admin'
 import { requirePlaybookTranscriptAccess } from '@/lib/bcps-auth'
 import { loadPlaybook } from '@/lib/playbook-meeting-transcript'
+import { logChange } from '@/lib/doc-change-log'
 import { proposeAgenda, cleanAgendaItems, agendaRecordHtml, applyAgendaToPlaybook, leadNameOf } from '@/lib/playbook-agenda'
 
 // Agenda builder (BCPS Document System, Phase 3, V 2026-10-28). A Playbook's
@@ -132,6 +133,11 @@ export async function POST(req: NextRequest) {
       }
     }
   }
+  await logChange(svc, {
+    slug, action: 'agenda_saved', actor: auth.user.email, approvedBy: auth.user.email,
+    source: { record: recordSlug, meeting_date: date, items: items.map((i) => `${i.verb}: ${i.title}`) },
+    summary: `Agenda for ${date} saved (${items.length} item${items.length === 1 ? '' : 's'}) by ${author}.`, revisionId, after: revisionId ? filled : null,
+  })
   await svc.from('bcps_playbook_agendas').insert({
     playbook_slug: slug, record_slug: recordSlug, meeting_date: date, meeting_label: label, items, created_by_email: auth.user.email, revision_id: revisionId,
   })
