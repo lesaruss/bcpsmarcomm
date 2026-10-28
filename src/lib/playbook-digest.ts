@@ -79,10 +79,11 @@ const docLink = (slug: string) => `https://bcpsmarcomm.com/?page=dashboard&tab=d
 export function digestSubject(d: Digest): string {
   const parts = [d.due.length && plural(d.due.length, 'to-do due', 'to-dos due'), d.reviews.length && plural(d.reviews.reduce((n, r) => n + r.count, 0), 'change to review', 'changes to review'),
     d.followups.length && plural(d.followups.length, 'meeting to follow up', 'meetings to follow up')].filter(Boolean)
-  return `You have ${parts.join(' and ')}`
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0]
+  return `You have ${list}`
 }
 
-export function digestHtml(d: Digest, today: string): string {
+export function digestHtml(d: Digest, today: string, footer?: string): string {
   const first = (d.name || '').split(' ')[0]
   const when = (t: DigestTodo) => t.kind === 'deliverable' && !t.due ? 'Deliverable' : t.overdue ? `Overdue, was due ${longDate(t.due!)} (${businessDaysBetween(t.due!, today)} business days)` : t.due ? `Due ${longDate(t.due)}` : ''
   const row = (t: DigestTodo) => `
@@ -109,6 +110,6 @@ export function digestHtml(d: Digest, today: string): string {
       ${d.reviews.length ? `<h3 style="margin:22px 0 8px;font-size:15px;color:#0e4e73">Waiting for your review</h3>${reviews}` : ''}
       ${d.followups.length ? `<h3 style="margin:22px 0 8px;font-size:15px;color:#0e4e73">Meeting follow-up</h3>${followups}` : ''}
       ${d.other.length ? `<h3 style="margin:22px 0 8px;font-size:15px;color:#0e4e73">Also open</h3>${d.other.slice(0, 15).map(row).join('')}${d.other.length > 15 ? `<p style="font-size:12px;color:#666">And ${d.other.length - 15} more on your projects.</p>` : ''}` : ''}
-      <p style="margin:26px 0 0;font-size:12px;color:#888">Sent Monday mornings when something is due or waiting for you. Nothing is sent in a week with none.</p>
+      <p style="margin:26px 0 0;font-size:12px;color:#888">${footer ?? 'Sent Monday mornings when something is due or waiting for you. Nothing is sent in a week with none.'}</p>
     </div>`
 }

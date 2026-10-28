@@ -35,6 +35,11 @@ const {
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { wcmAccessEmail } = require('../src/lib/bcps-wcm-access-email') as typeof import('../src/lib/bcps-wcm-access-email')
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { certReminderEmail, certReminderSubject, approvalNoticeEmail, settingsFooter } = require('../src/lib/email-stream-copy') as typeof import('../src/lib/email-stream-copy')
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { digestHtml, digestSubject } = require('../src/lib/playbook-digest') as typeof import('../src/lib/playbook-digest')
+
 const OUT = join(process.cwd(), 'emails', 'approved')
 const CHECK = process.argv.includes('--check')
 
@@ -104,6 +109,33 @@ const cases: { name: string; subject: string; html: string }[] = [
     name: 'wcm-access-existing-account',
     subject: 'Your BCPS MarComm access',
     html: wcmAccessEmail({ name: WCM, departments: [DEPT] }, `${SITE}/login`, false, null),
+  },
+  // Recurring emails (Campaigns Phase 2, V 2026-10-28). Fixed sample data and
+  // a fixed date, as above.
+  {
+    name: 'stream-certification-in-progress',
+    subject: certReminderSubject({ name: WCM, status: 'in-progress', pct: 52 }),
+    html: certReminderEmail({ name: WCM, status: 'in-progress', pct: 52 }, settingsFooter('Your WCM certification', 'weekly')),
+  },
+  {
+    name: 'stream-certification-not-started',
+    subject: certReminderSubject({ name: WCM, status: 'not-started', pct: 0 }),
+    html: certReminderEmail({ name: WCM, status: 'not-started', pct: 0 }, settingsFooter('Your WCM certification', 'weekly')),
+  },
+  (() => {
+    const d = {
+      email: 'sample@browardschools.com', name: WCM,
+      due: [{ slug: 'sample-playbook', playbook: 'Sample Project', text: 'Send the reminder to extension WCMs (Patricia)', kind: 'queue', due: '2026-10-07', overdue: true }],
+      other: [{ slug: 'sample-playbook', playbook: 'Sample Project', text: 'Confirm the school matches (Patricia)', kind: 'queue', due: null, overdue: false }],
+      reviews: [{ slug: 'sample-playbook', playbook: 'Sample Project', count: 1, handoff: false }],
+      followups: [{ slug: 'sample-playbook', playbook: 'Sample Project', meeting_date: '2026-10-20', open: 2, total: 4, notes: true }],
+    }
+    return { name: 'stream-project-digest', subject: digestSubject(d), html: digestHtml(d, '2026-10-28', settingsFooter('Your projects this week', 'weekly')) }
+  })(),
+  {
+    name: 'stream-approval-notice',
+    subject: "Approve next week's emails by 5 PM: Your projects this week, Your WCM certification",
+    html: approvalNoticeEmail('November 2, 2026', [{ name: 'Your projects this week', count: 2 }, { name: 'Your WCM certification', count: 63 }], `${SITE}/?page=superadmin&tab=campaigns`),
   },
 ]
 
