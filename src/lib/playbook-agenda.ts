@@ -40,10 +40,11 @@ const clean = (s: string) => s.replace(/\s+/g, ' ').trim()
 export const agendaKey = (source: AgendaSource, text: string) => `${source}:${clean(text).toLowerCase().replace(/[^a-z0-9 ]/g, '').slice(0, 160)}`
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-const MONTH_RE = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\.?\\s+(\\d{1,2})(?:,?\\s+(\\d{4}))?'
 // Only a date the page states as a due date: "by Oct 30", "before November 4",
 // "(due 10/30)". A date mentioned for another reason never makes an item overdue.
-const DUE_RE = new RegExp(`\\b(?:by|before|due(?: by)?|no later than)\\s+(?:${MONTH_RE}|(\\d{1,2})/(\\d{1,2})(?:/(\\d{2,4}))?)`, 'i')
+// Written as one regex literal: built from a template string it matched
+// nothing in the production build (V's digest preview, 2026-10-28).
+const DUE_RE = /\b(?:by|before|due(?: by)?|no later than)\s+(?:(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:,?\s+(\d{4}))?|(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?)/i
 
 function isoOf(y: number, m: number, d: number) {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`

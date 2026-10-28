@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       return { slug: pb.slug, readers: pb.recipients.length, chars: pb.html.length, items: items.length, owned: items.filter((i) => i.owners.length).length,
         dated: items.filter((i) => dueDate(i.text, today) ?? (i.dueText ? dueDate(i.dueText, today) : null)).length }
     }).filter((p) => p.items)
-    return NextResponse.json({ ok: true, today, per, read: { playbooks: live.length, readers: recs?.length ?? 0, waiting_input: waiting?.length ?? 0, agendas: agendas?.length ?? 0 }, people: digests.length, digests: digests.map((d) => ({
+    return NextResponse.json({ ok: true, today, date_check: [dueDate('by Oct 30', today), dueDate('Before Oct 7 5', today), dueDate('due 12/2', today)], per, read: { playbooks: live.length, readers: recs?.length ?? 0, waiting_input: waiting?.length ?? 0, agendas: agendas?.length ?? 0 }, people: digests.length, digests: digests.map((d) => ({
       email: d.email, name: d.name, subject: digestSubject(d), due: d.due.map((t) => `${t.playbook}: ${t.text}${t.due ? ` (${t.due})` : ''}`), reviews: d.reviews, followups: d.followups, other: d.other.length,
     })) })
   }
