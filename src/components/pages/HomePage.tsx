@@ -1013,7 +1013,8 @@ function useDocParam(): [string | null, (slug: string | null) => void] {
 // Toolbar (Sean, 2026-10-26): the caller's buttons (All documents, Open full
 // page) and Edit this page share one row on top, equal widths on a phone;
 // `between` (the transcript upload bar) sits under that row, above the page.
-function DocFrame({ slug, title, onOpen, buttons, between }: { slug: string; title: string; onOpen: (slug: string) => void; buttons?: React.ReactNode; between?: React.ReactNode }) {
+// refresh: bump it to reload the page in the frame (after a transcript update).
+function DocFrame({ slug, title, onOpen, buttons, between, refresh = 0 }: { slug: string; title: string; onOpen: (slug: string) => void; buttons?: React.ReactNode; between?: React.ReactNode; refresh?: number }) {
   const ref = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(900)
   const [canEdit, setCanEdit] = useState(false)
@@ -1101,7 +1102,7 @@ function DocFrame({ slug, title, onOpen, buttons, between }: { slug: string; tit
         </p>
       )}
       {!editing && between}
-      <iframe ref={ref} key={`${slug}-${reload}`} src={`/api/bcps/doc-raw/${encodeURIComponent(slug)}?embed=1`} title={title} onLoad={fit}
+      <iframe ref={ref} key={`${slug}-${reload}-${refresh}`} src={`/api/bcps/doc-raw/${encodeURIComponent(slug)}?embed=1`} title={title} onLoad={fit}
         style={{ display: 'block', width: '100%', height, border: editing ? '2px solid var(--blue, #1672A7)' : '1px solid var(--border)', borderRadius: 12, background: '#fff' }} />
     </>
   )
@@ -1109,6 +1110,7 @@ function DocFrame({ slug, title, onOpen, buttons, between }: { slug: string; tit
 
 function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm' | 'leadership'; team?: boolean; canMarcomm?: boolean }) {
   const [doc, openDoc] = useDocParam()
+  const [refresh, setRefresh] = useState(0)
 
   if (doc === 'web-team-assignments' && team) {
     return (
@@ -1124,13 +1126,13 @@ function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'super
   if (doc) {
     return (
       <div className="home-section">
-        {/* The upload bar shows only on a Playbook, and only for that project's leads (Sean, 2026-10-22). */}
-        <DocFrame slug={doc} title="Document" onOpen={(s) => openDoc(s)}
+        {/* The upload bar shows only on a Playbook, and only for that project's leads (Sean, 2026-10-22). Applying updates the Playbook, so the page reloads. */}
+        <DocFrame slug={doc} title="Document" onOpen={(s) => openDoc(s)} refresh={refresh}
           buttons={<>
             <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>
             <a className="wcm-hub2-card-btn" href={`/api/bcps/doc-raw/${encodeURIComponent(doc)}`} target="_blank" rel="noopener noreferrer">Open full page</a>
           </>}
-          between={<MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} onApplied={() => {}} />} />
+          between={<MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} onApplied={() => setRefresh((n) => n + 1)} />} />
       </div>
     )
   }

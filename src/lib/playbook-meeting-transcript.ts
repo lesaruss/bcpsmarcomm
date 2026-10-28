@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { playbookOutline } from '@/lib/playbook-update'
 
 // Meeting transcript upload on a Playbook (Sean, 2026-10-22): the Playbook
 // side of /api/bcps/meeting-transcript (tracker 'playbook'). A project lead
@@ -8,6 +9,9 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 // reviewed notes as a doc under the Playbook (/playbooks/[playbook]/[doc]),
 // built from the BCPS MarComm document template, with the Playbook's own
 // recipients so the notes are never more open than the Playbook.
+// Since V, 2026-10-28, Claude also proposes updates to the Playbook itself
+// (section updates, finished Work Queue items, the stage), and applying
+// writes the meeting into the Playbook as a new version (lib/playbook-update).
 
 const BCPS_DOC_TEMPLATE_ID = 'f7037d82-c5e2-4997-8631-aa68993157a4'
 const MAX_PLAYBOOK_TEXT = 80_000
@@ -26,7 +30,7 @@ const evidenced = (props: Record<string, unknown>) => ({
 export const PLAYBOOK_PROPOSAL_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['summary', 'changes', 'new_items', 'decisions', 'open_questions'],
+  required: ['summary', 'changes', 'new_items', 'decisions', 'open_questions', 'section_updates', 'queue_done', 'stage'],
   properties: {
     summary: { type: 'string' },
     changes: { type: 'array', items: { type: 'string' } },
@@ -45,10 +49,21 @@ export const PLAYBOOK_PROPOSAL_SCHEMA = {
     },
     decisions: { type: 'array', items: evidenced({ decision: { type: 'string' } }) },
     open_questions: { type: 'array', items: evidenced({ question: { type: 'string' } }) },
+    section_updates: {
+      type: 'array',
+      items: evidenced({
+        section: { type: 'string' },
+        new_section: { type: 'boolean' },
+        title: { type: 'string' },
+        detail: { type: 'string' },
+      }),
+    },
+    queue_done: { type: 'array', items: evidenced({ item: { type: 'string' } }) },
+    stage: orNull({ type: 'string' }),
   },
 }
 
-export const PLAYBOOK_SYSTEM = `You write meeting notes for a Broward County Public Schools project from a meeting transcript. The project's Playbook is given for context: who is on the project, what it is for and where it stands.
+export const PLAYBOOK_SYSTEM = `You update a Broward County Public Schools project Playbook from a meeting transcript, and write the meeting notes. The Playbook's current version is given as an outline: its stage, lead section, sections with their items, and the pending Work Queue.
 
 Rules:
 - Record only what the transcript supports. Never invent dates, owners or decisions. Leave out anything mentioned only in passing or ambiguous.
@@ -58,26 +73,34 @@ Rules:
 - "open_questions" are things raised but not settled, or waiting on someone.
 - "evidence" quotes or closely paraphrases the transcript line(s) each item rests on, so a reviewer can check it.
 - "changes" is always an empty list.
+- Decisions, action items and open questions are placed in the Playbook automatically (decisions section, Work Queue, open issues). Do not repeat them below.
+- "section_updates" are other facts from the meeting that change what the Playbook says: new figures, a changed plan, status, dates or who is involved. "section" is a section title copied exactly from the outline, with "new_section" false. Only when no section fits, give a short new title and "new_section" true. "title" is a short headline, "detail" one to three plain sentences. Leave out anything the Playbook already says.
+- "queue_done" lists pending Work Queue items the transcript says are finished. "item" is copied exactly from the outline's pending list. Only include an item when the transcript clearly says it is done.
+- "stage" is one short line for where the project now stands, only if the meeting changed it; otherwise null.
 - Use people's names the way the Playbook writes them. BECON is always written BECON, all capitals.
 
 Write plainly, for the team. No em dashes.`
 
-export interface PlaybookRef { slug: string; title: string; text: string; tenantId: string; metadata: Record<string, unknown> }
+export interface PlaybookRef { slug: string; title: string; text: string; html: string; tenantId: string; metadata: Record<string, unknown> }
 
 export async function loadPlaybook(svc: SupabaseClient, slug: string): Promise<PlaybookRef | null> {
   const { data } = await svc.from('briefings').select('slug, title, content, metadata, tenant_id')
     .eq('brand_slug', 'bcps').eq('type', 'playbook').eq('slug', slug).maybeSingle()
   if (!data) return null
-  const text = String(data.content || '')
+  const html = String(data.content || '')
+  const text = html
     .replace(/<(style|script)[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;|&rsquo;/g, "'").replace(/&quot;/g, '"')
     .replace(/\s+/g, ' ').trim().slice(0, MAX_PLAYBOOK_TEXT)
-  return { slug: data.slug, title: data.title || slug, text, tenantId: data.tenant_id as string, metadata: (data.metadata ?? {}) as Record<string, unknown> }
+  return { slug: data.slug, title: data.title || slug, text, html, tenantId: data.tenant_id as string, metadata: (data.metadata ?? {}) as Record<string, unknown> }
 }
 
+// The outline of the current version, not the whole page: a Playbook keeps
+// every earlier version in its HTML, and Claude should read only the live one.
 export function playbookPrompt(pb: PlaybookRef, meetingLabel: string, meetingDate: string, transcript: string): string {
-  return `Project: ${pb.title}\nMeeting: ${meetingLabel}\nMeeting date: ${meetingDate}\n\n<playbook>\n${pb.text}\n</playbook>\n\n<transcript>\n${transcript}\n</transcript>`
+  const outline = playbookOutline(pb.html).text || pb.text
+  return `Project: ${pb.title}\nMeeting: ${meetingLabel}\nMeeting date: ${meetingDate}\n\n<playbook>\n${outline}\n</playbook>\n\n<transcript>\n${transcript}\n</transcript>`
 }
 
 type Item = Record<string, unknown>
@@ -103,6 +126,14 @@ export function playbookPayload(p: Item) {
       support: Array.isArray(n.support) ? n.support.map(str).filter(Boolean) : [],
       deadline_date: DATE.test(str(n.deadline_date)) ? str(n.deadline_date) : '',
     })),
+    section_updates: list(p.section_updates).filter((u) => str(u.section) && str(u.title)).map((u) => ({
+      section: str(u.section).slice(0, 120),
+      new_section: u.new_section === true,
+      title: str(u.title),
+      detail: str(u.detail),
+    })),
+    queue_done: list(p.queue_done).map((q) => str(q.item)).filter(Boolean),
+    stage: str(p.stage).slice(0, 200),
   }
 }
 export type PlaybookPayload = ReturnType<typeof playbookPayload>
