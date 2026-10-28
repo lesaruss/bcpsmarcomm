@@ -9,21 +9,26 @@ import { longDate } from '@/lib/playbook-update'
 // overdue or due in the next seven days, other open ones, and team input
 // waiting on them as a lead (or as the backup lead, after five business days).
 // People with nothing due and nothing to review get no email.
+// Leads also see meeting follow-up (agenda outcomes, Phase 3): a meeting
+// two or more business days past with no notes yet, or with agenda items it
+// did not settle, for up to two weeks after the meeting.
 
 export interface DigestPlaybook { slug: string; title: string; html: string; metadata: unknown; recipients: Recipient[] }
 export interface WaitingInput { playbook_slug: string; created_at: string }
 export interface DigestTodo { slug: string; playbook: string; text: string; kind: string; due: string | null; overdue: boolean }
 export interface DigestReview { slug: string; playbook: string; count: number; handoff: boolean }
-export interface Digest { email: string; name: string; due: DigestTodo[]; other: DigestTodo[]; reviews: DigestReview[] }
+export interface AgendaRow { playbook_slug: string; meeting_date: string; items: unknown[]; outcomes: { outcome: string }[] | null }
+export interface FollowUp { slug: string; playbook: string; meeting_date: string; open: number; total: number; notes: boolean }
+export interface Digest { email: string; name: string; due: DigestTodo[]; other: DigestTodo[]; reviews: DigestReview[]; followups: FollowUp[] }
 
 const DAY = 86_400_000
 const inDays = (iso: string, n: number) => new Date(Date.parse(iso + 'T12:00:00Z') + n * DAY).toISOString().slice(0, 10)
 
-export function buildDigests(playbooks: DigestPlaybook[], waiting: WaitingInput[], today: string): Digest[] {
+export function buildDigests(playbooks: DigestPlaybook[], waiting: WaitingInput[], today: string, agendas: AgendaRow[] = []): Digest[] {
   const byEmail = new Map<string, Digest>()
   const person = (email: string, name: string) => {
     let d = byEmail.get(email)
-    if (!d) { d = { email, name, due: [], other: [], reviews: [] }; byEmail.set(email, d) }
+    if (!d) { d = { email, name, due: [], other: [], reviews: [], followups: [] }; byEmail.set(email, d) }
     if (!d.name && name) d.name = name
     return d
   }
@@ -45,6 +50,16 @@ export function buildDigests(playbooks: DigestPlaybook[], waiting: WaitingInput[
         else d.other.push(todo)
       }
     }
+    // Meetings two or more business days past, within two weeks, that still
+    // have no notes or left agenda items unsettled.
+    for (const a of agendas.filter((x) => x.playbook_slug === pb.slug)) {
+      const days = businessDaysBetween(a.meeting_date, today)
+      if (days < 2 || a.meeting_date < inDays(today, -14)) continue
+      const total = Array.isArray(a.items) ? a.items.length : 0
+      const open = a.outcomes ? a.outcomes.filter((o) => o.outcome !== 'settled').length : total
+      if (!open) continue
+      for (const email of leadsOf(pb.metadata)) person(email, nameIn(pb, email)).followups.push({ slug: pb.slug, playbook: pb.title, meeting_date: a.meeting_date, open, total, notes: !!a.outcomes })
+    }
     const mine = waiting.filter((w) => w.playbook_slug === pb.slug)
     if (!mine.length) continue
     for (const email of leadsOf(pb.metadata)) person(email, nameIn(pb, email)).reviews.push({ slug: pb.slug, playbook: pb.title, count: mine.length, handoff: false })
@@ -53,7 +68,7 @@ export function buildDigests(playbooks: DigestPlaybook[], waiting: WaitingInput[
   }
 
   return Array.from(byEmail.values())
-    .filter((d) => d.due.length || d.reviews.length)
+    .filter((d) => d.due.length || d.reviews.length || d.followups.length)
     .map((d) => ({ ...d, due: d.due.sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999')) }))
 }
 
@@ -62,7 +77,8 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 const docLink = (slug: string) => `https://bcpsmarcomm.com/?page=dashboard&tab=documents&doc=${encodeURIComponent(slug)}`
 
 export function digestSubject(d: Digest): string {
-  const parts = [d.due.length && plural(d.due.length, 'to-do due', 'to-dos due'), d.reviews.length && plural(d.reviews.reduce((n, r) => n + r.count, 0), 'change to review', 'changes to review')].filter(Boolean)
+  const parts = [d.due.length && plural(d.due.length, 'to-do due', 'to-dos due'), d.reviews.length && plural(d.reviews.reduce((n, r) => n + r.count, 0), 'change to review', 'changes to review'),
+    d.followups.length && plural(d.followups.length, 'meeting to follow up', 'meetings to follow up')].filter(Boolean)
   return `You have ${parts.join(' and ')}`
 }
 
@@ -79,6 +95,11 @@ export function digestHtml(d: Digest, today: string): string {
       <div style="font-size:14px;font-weight:700;color:#1a1a1a">${esc(plural(r.count, 'piece', 'pieces'))} of team input on <a href="${docLink(r.slug)}" style="color:#1672A7">${esc(r.playbook)}</a></div>
       <div style="font-size:12px;color:#666;margin-top:2px">${r.handoff ? 'Waiting five business days or more for the project lead, so it comes to you as backup lead.' : 'Accept what belongs in the plan; dismiss the rest.'}</div>
     </div>`).join('')
+  const followups = d.followups.map((f) => `
+    <div style="border-left:3px solid #C55326;padding:4px 0 4px 10px;margin:0 0 10px">
+      <div style="font-size:14px;font-weight:700;color:#1a1a1a">The ${esc(longDate(f.meeting_date))} meeting on <a href="${docLink(f.slug)}" style="color:#1672A7">${esc(f.playbook)}</a></div>
+      <div style="font-size:12px;color:#666;margin-top:2px">${f.notes ? `${plural(f.open, 'agenda item was', 'agenda items were')} not settled. They go on the next agenda.` : `No meeting notes yet for its ${plural(f.total, 'agenda item', 'agenda items')}. Upload the transcript to record what was settled.`}</div>
+    </div>`).join('')
   return `
     <div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;color:#1a1a1a">
       <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#C55326">Your week on BCPS MarComm</div>
@@ -86,6 +107,7 @@ export function digestHtml(d: Digest, today: string): string {
       <p style="margin:0 0 6px;font-size:14px;color:#444">${first ? `${esc(first)}, here` : 'Here'} is what is yours on your BCPS projects. Open a project and use Turn in my work beside an item when it is done.</p>
       ${d.due.length ? `<h3 style="margin:22px 0 8px;font-size:15px;color:#0e4e73">Due this week or overdue</h3>${d.due.map(row).join('')}` : ''}
       ${d.reviews.length ? `<h3 style="margin:22px 0 8px;font-size:15px;color:#0e4e73">Waiting for your review</h3>${reviews}` : ''}
+      ${d.followups.length ? `<h3 style="margin:22px 0 8px;font-size:15px;color:#0e4e73">Meeting follow-up</h3>${followups}` : ''}
       ${d.other.length ? `<h3 style="margin:22px 0 8px;font-size:15px;color:#0e4e73">Also open</h3>${d.other.slice(0, 15).map(row).join('')}${d.other.length > 15 ? `<p style="font-size:12px;color:#666">And ${d.other.length - 15} more on your projects.</p>` : ''}` : ''}
       <p style="margin:26px 0 0;font-size:12px;color:#888">Sent Monday mornings when something is due or waiting for you. Nothing is sent in a week with none.</p>
     </div>`

@@ -73,7 +73,12 @@ interface Proposal {
   summary: string; changes: Change[]; new_items: NewItem[]
   decisions?: { decision: string; evidence: string }[]; open_questions?: { question: string; evidence: string }[]
   section_updates?: SectionUpdate[]; queue_done?: { item: string; evidence: string }[]; stage?: string | null; current_stage?: string
+  // The agenda saved for this meeting, with each item's outcome (Phase 3).
+  agenda?: { meeting_date: string; items: AgendaOutcome[] }
 }
+type Outcome = 'settled' | 'partly' | 'not_covered'
+interface AgendaOutcome { key: string; verb: string; title: string; owner: string; outcome: Outcome; note: string; evidence: string }
+const OUTCOMES: [Outcome, string][] = [['settled', 'Settled'], ['partly', 'Partly settled'], ['not_covered', 'Not covered']]
 interface Upload { id: string; meeting_date: string; meeting_label: string; status: string; uploaded_by_name: string | null; created_at: string; result: { changed?: number; added?: number; path?: string; playbook_updated?: boolean; playbook_version?: number | null } | null }
 
 function today(): string {
@@ -153,6 +158,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
   const [consent, setConsent] = useState(false)
   const [sourceName, setSourceName] = useState('')
   const [flagged, setFlagged] = useState<{ kind: string; excerpt: string; why: string }[]>([])
+  const [outcomes, setOutcomes] = useState<AgendaOutcome[]>([])
   const scope = tracker === 'playbook' ? { tracker, playbook } : { tracker }
 
   const loadUploads = async () => {
@@ -180,7 +186,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
   if (!allowed) return null
 
   const reset = () => {
-    setTranscript(''); setProposal(null); setUploadId(''); setError(''); setDone(''); setFlagged([]); setConsent(false); setSourceName('')
+    setTranscript(''); setProposal(null); setUploadId(''); setError(''); setDone(''); setFlagged([]); setConsent(false); setSourceName(''); setOutcomes([])
     setKeepChange([]); setKeepNew([]); setKeepDecision([]); setKeepQuestion([]); setKeepSection([]); setKeepDone([]); setKeepStage(false); setDoneLink('')
   }
 
@@ -211,6 +217,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
       setKeepSection((j.proposal.section_updates ?? []).map(() => true))
       setKeepDone((j.proposal.queue_done ?? []).map(() => true))
       setKeepStage(!!j.proposal.stage)
+      setOutcomes(j.proposal.agenda?.items ?? [])
     } catch (e) { setError((e as Error).message) } finally { setBusy('') }
   }
 
@@ -230,7 +237,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
       }
       const res = await fetch('/api/bcps/meeting-transcript', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-        body: JSON.stringify({ ...scope, action: 'apply', upload_id: uploadId, payload }),
+        body: JSON.stringify({ ...scope, action: 'apply', upload_id: uploadId, payload, ...(outcomes.length ? { agenda_outcomes: outcomes.map((o) => ({ key: o.key, outcome: o.outcome, note: o.note })) } : {}) }),
       })
       const j = await res.json().catch(() => ({ error: 'The server did not answer. Try again.' }))
       if (!res.ok) throw new Error(j.error || 'Something went wrong.')
@@ -239,7 +246,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
         const c = r.playbook_counts || {}
         const n = (v: number | undefined, one: string, many: string) => `${v ?? 0} ${v === 1 ? one : many}`
         setDone(r.playbook_updated
-          ? `Updated. Saved as the latest version${r.playbook_version ? ` (v${r.playbook_version})` : ''}; the previous one is kept: ${n(c.decisions, 'decision', 'decisions')}, ${n(c.added, 'new to-do', 'new to-dos')}, ${n(c.done, 'to-do', 'to-dos')} marked done, ${n(c.questions, 'open question', 'open questions')}, ${n(c.sections, 'section update', 'section updates')}. The meeting notes are filed under it too.`
+          ? `Updated. Saved as the latest version${r.playbook_version ? ` (v${r.playbook_version})` : ''}; the previous one is kept: ${n(c.decisions, 'decision', 'decisions')}, ${n(c.added, 'new to-do', 'new to-dos')}, ${n(c.done, 'to-do', 'to-dos')} marked done, ${n(c.questions, 'open question', 'open questions')}, ${n(c.sections, 'section update', 'section updates')}. The meeting notes are filed under it too.${r.agenda_outcomes ? ` The agenda shows its outcomes: ${r.agenda_outcomes.settled} of ${r.agenda_outcomes.total} settled.` : ''}`
           : `The meeting notes were filed, but the Playbook itself was not updated: ${r.playbook_error || 'something went wrong'}`)
         setDoneLink(r.path || '')
       } else {
@@ -341,6 +348,25 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
                   <span className="mtu-l">{copy.summary}</span>
                   <textarea rows={3} value={proposal.summary} onChange={(e) => setProposal({ ...proposal, summary: e.target.value })} />
                 </label>
+
+                {tracker === 'playbook' && outcomes.length > 0 && (
+                  <>
+                    <h3>The agenda for this meeting ({outcomes.filter((o) => o.outcome === 'settled').length} of {outcomes.length} settled)</h3>
+                    <p className="mtu-help">Claude matched each agenda item to what the meeting did. Correct anything it got wrong. Items not settled go on the next agenda.</p>
+                    {outcomes.map((o, i) => (
+                      <div key={o.key} className="mtu-card">
+                        <div className="mtu-outcome">
+                          <strong>{o.verb}: {o.title}</strong>
+                          <select aria-label={`Outcome: ${o.title}`} value={o.outcome} onChange={(e) => setOutcomes(outcomes.map((x, j) => (j === i ? { ...x, outcome: e.target.value as Outcome } : x)))}>
+                            {OUTCOMES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                          </select>
+                        </div>
+                        <input aria-label={`Note: ${o.title}`} className="mtu-note" value={o.note} onChange={(e) => setOutcomes(outcomes.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))} />
+                        {o.evidence && <p className="mtu-ev">From the transcript: {o.evidence}</p>}
+                      </div>
+                    ))}
+                  </>
+                )}
 
                 {tracker === 'playbook' && (
                   <>
@@ -509,6 +535,9 @@ const CSS = `
 .mtu-flagged li { font-size: 12px; line-height: 1.5; padding: 8px 12px; border: 1px solid rgba(185,28,28,0.25); border-radius: 6px; }
 .mtu-flagged q { font-style: italic; }
 .mtu-flagged em { display: block; font-style: normal; color: rgba(26,26,26,0.6); margin-top: 2px; }
+.mtu-outcome { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; font-size: 13px; }
+.mtu-outcome select { font: inherit; font-size: 12px; padding: 5px 8px; border: 1px solid rgba(0,0,0,0.18); border-radius: 6px; }
+.mtu-note { font: inherit; font-size: 12px; padding: 6px 10px; border: 1px solid rgba(0,0,0,0.15); border-radius: 6px; width: 100%; box-sizing: border-box; margin-top: 8px; }
 .mtu-consent { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; font-weight: 600; margin: 4px 0 10px; }
 .mtu-consent input { margin-top: 3px; }
 .mtu-done { background: rgba(22,117,12,0.08); border-left: 4px solid #16750C; padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; }

@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase-admin'
 import { requirePlaybookTranscriptAccess } from '@/lib/bcps-auth'
 import { loadPlaybook } from '@/lib/playbook-meeting-transcript'
 import { logChange } from '@/lib/doc-change-log'
-import { proposeAgenda, cleanAgendaItems, agendaRecordHtml, applyAgendaToPlaybook, leadNameOf } from '@/lib/playbook-agenda'
+import { proposeAgenda, cleanAgendaItems, agendaRecordHtml, applyAgendaToPlaybook, leadNameOf, type AgendaItem, type ItemOutcome } from '@/lib/playbook-agenda'
 
 // Agenda builder (BCPS Document System, Phase 3, V 2026-10-28). A Playbook's
 // leads (metadata.transcript_admins) and the superadmin get Build next agenda:
@@ -36,13 +36,25 @@ async function recipientsOf(slug: string) {
 }
 
 // Item keys of this Playbook's earlier agendas, newest first.
-async function earlierAgendas(slug: string): Promise<{ keys: string[][]; last: { date: string; path: string | null } | null }> {
-  const { data } = await svc.from('bcps_playbook_agendas').select('meeting_date, record_slug, items')
+async function earlierAgendas(slug: string): Promise<{ keys: string[][]; last: { date: string; path: string | null } | null; carried: AgendaItem[] }> {
+  const { data } = await svc.from('bcps_playbook_agendas').select('meeting_date, record_slug, items, outcomes')
     .eq('playbook_slug', slug).order('meeting_date', { ascending: false }).order('created_at', { ascending: false }).limit(6)
   const rows = data ?? []
-  const keys = rows.map((r) => (Array.isArray(r.items) ? r.items : []).map((i: { key?: string }) => String(i?.key || '')).filter(Boolean))
+  // A strike is an agenda an item did not get settled on: once a meeting's
+  // outcomes are in, its settled items do not count toward the third strike.
+  const keys = rows.map((r) => {
+    const settled = new Set((Array.isArray(r.outcomes) ? r.outcomes as ItemOutcome[] : []).filter((o) => o.outcome === 'settled').map((o) => o.key))
+    return (Array.isArray(r.items) ? r.items : []).map((i: { key?: string }) => String(i?.key || '')).filter((k: string) => k && !settled.has(k))
+  })
   const last = rows[0] ? { date: String(rows[0].meeting_date), path: rows[0].record_slug ? `/playbooks/${slug}/${rows[0].record_slug}` : null } : null
-  return { keys, last }
+  // What the latest agenda's meeting did not settle, once its outcomes are in.
+  const latest = rows[0]
+  const outcomes = (Array.isArray(latest?.outcomes) ? latest!.outcomes : []) as ItemOutcome[]
+  const carried = outcomes.length
+    ? ((latest!.items ?? []) as AgendaItem[]).filter((it) => outcomes.find((o) => o.key === it.key)?.outcome !== 'settled')
+        .map((it) => ({ ...it, detail: [outcomes.find((o) => o.key === it.key)?.note, `Not settled at the ${latest!.meeting_date} meeting.`].filter(Boolean).join(' ') }))
+    : []
+  return { keys, last, carried }
 }
 
 const defaultLabel = (title: string) => `${title.replace(/\s*\(.*?\)\s*$/, '')} Meeting`
@@ -60,7 +72,7 @@ export async function GET(req: NextRequest) {
     svc.from('bcps_playbook_inputs').select('id', { count: 'exact', head: true }).eq('playbook_slug', slug).eq('status', 'new'),
   ])
   const day = today()
-  const { items, more } = proposeAgenda(pb.html, { today: day, leadName: leadNameOf(pb.metadata, recipients), openInputs: inputs.count ?? 0, earlier: earlier.keys })
+  const { items, more } = proposeAgenda(pb.html, { today: day, leadName: leadNameOf(pb.metadata, recipients), openInputs: inputs.count ?? 0, earlier: earlier.keys, carried: earlier.carried })
   return NextResponse.json({ allowed: true, label: defaultLabel(pb.title), date: inDays(day, 7), items, more, last: earlier.last })
 }
 

@@ -11,7 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type ChangeAction =
   | 'transcript_update' | 'meeting_notes' | 'turn_in' | 'deliverable_added'
-  | 'input_added' | 'input_accepted' | 'input_dismissed' | 'agenda_saved'
+  | 'input_added' | 'input_accepted' | 'input_dismissed' | 'agenda_saved' | 'agenda_outcomes'
   | 'page_edited' | 'leads_changed'
 
 export interface ChangeEntry {
