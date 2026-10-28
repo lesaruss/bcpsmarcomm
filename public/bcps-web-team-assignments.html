@@ -2035,6 +2035,8 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   var currentPriority5 = 'all';
   var tagMap = {}; // slug -> { ooc: bool, app: bool, priority: 'high'|'medium'|'low'|null, status: string, completed_at: string|null }
   var TAGS_TABLE = 'https://fwbhwfxpncrsfhttimna.supabase.co/rest/v1/bcps_assignment_tags';
+  // Writes go through the signed-in API (2026-10-28); the table is read-only to the public key.
+  var TAGS_API = '/api/bcps/assignment-tags';
   var TAGS_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
   var STATUS_LABELS = { 'in-progress': 'In Progress', 'pending': 'Pending', 'ongoing': 'Ongoing', 'completed': 'Completed' };
 
@@ -2179,10 +2181,10 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   }
 
   function patchTag(slug, fields){
-    fetch(TAGS_TABLE + '?assignment_slug=eq.' + encodeURIComponent(slug), {
-      method: 'PATCH',
-      headers: tagHeaders({ 'Prefer': 'return=minimal' }),
-      body: JSON.stringify(fields)
+    fetch(TAGS_API, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'patch', slug: slug, fields: fields })
     }).catch(function(){ /* silent fail, local state already updated */ });
   }
 
@@ -2194,10 +2196,10 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
       tagMap[slug] = rowDefault(r);
       seedRows.push({ assignment_slug: slug, team_ooc: tagMap[slug].ooc, team_app_services: tagMap[slug].app, status: tagMap[slug].status });
     });
-    fetch(TAGS_TABLE, {
-      method: 'POST',
-      headers: tagHeaders({ 'Prefer': 'resolution=ignore-duplicates,return=minimal' }),
-      body: JSON.stringify(seedRows)
+    fetch(TAGS_API, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'seed', rows: seedRows })
     }).catch(function(){ /* silent */ }).then(function(){
       return fetch(TAGS_TABLE + '?select=assignment_slug,team_ooc,team_app_services,priority,status,completed_at', { headers: tagHeaders() });
     }).then(function(res){ return res.json(); }).then(function(dbRows){
@@ -2660,6 +2662,8 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   var currentPriority6 = 'all';
   var tagMap = {}; // slug -> { ooc: bool, app: bool, priority: 'high'|'medium'|'low'|null, status: string, completed_at: string|null }
   var TAGS_TABLE = 'https://fwbhwfxpncrsfhttimna.supabase.co/rest/v1/bcps_assignment_tags';
+  // Writes go through the signed-in API (2026-10-28); the table is read-only to the public key.
+  var TAGS_API = '/api/bcps/assignment-tags';
   var TAGS_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
   var STATUS_LABELS = { 'in-progress': 'In Progress', 'pending': 'Pending', 'ongoing': 'Ongoing', 'completed': 'Completed' };
 
@@ -2804,10 +2808,10 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   }
 
   function patchTag(slug, fields){
-    fetch(TAGS_TABLE + '?assignment_slug=eq.' + encodeURIComponent(slug), {
-      method: 'PATCH',
-      headers: tagHeaders({ 'Prefer': 'return=minimal' }),
-      body: JSON.stringify(fields)
+    fetch(TAGS_API, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'patch', slug: slug, fields: fields })
     }).catch(function(){ /* silent fail, local state already updated */ });
   }
 
@@ -2819,10 +2823,10 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
       tagMap[slug] = rowDefault(r);
       seedRows.push({ assignment_slug: slug, team_ooc: tagMap[slug].ooc, team_app_services: tagMap[slug].app, status: tagMap[slug].status });
     });
-    fetch(TAGS_TABLE, {
-      method: 'POST',
-      headers: tagHeaders({ 'Prefer': 'resolution=ignore-duplicates,return=minimal' }),
-      body: JSON.stringify(seedRows)
+    fetch(TAGS_API, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'seed', rows: seedRows })
     }).catch(function(){ /* silent */ }).then(function(){
       return fetch(TAGS_TABLE + '?select=assignment_slug,team_ooc,team_app_services,priority,status,completed_at', { headers: tagHeaders() });
     }).then(function(res){ return res.json(); }).then(function(dbRows){
@@ -3279,6 +3283,8 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   var currentPriority7 = 'all';
   var tagMap = {}; // slug -> { ooc: bool, app: bool, priority: 'high'|'medium'|'low'|null, status: string, completed_at: string|null }
   var TAGS_TABLE = 'https://fwbhwfxpncrsfhttimna.supabase.co/rest/v1/bcps_assignment_tags';
+  // Writes go through the signed-in API (2026-10-28); the table is read-only to the public key.
+  var TAGS_API = '/api/bcps/assignment-tags';
   var TAGS_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
   var STATUS_LABELS = { 'in-progress': 'In Progress', 'pending': 'Pending', 'ongoing': 'Ongoing', 'completed': 'Completed' };
 
@@ -3423,10 +3429,10 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   }
 
   function patchTag(slug, fields){
-    fetch(TAGS_TABLE + '?assignment_slug=eq.' + encodeURIComponent(slug), {
-      method: 'PATCH',
-      headers: tagHeaders({ 'Prefer': 'return=minimal' }),
-      body: JSON.stringify(fields)
+    fetch(TAGS_API, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'patch', slug: slug, fields: fields })
     }).catch(function(){ /* silent fail, local state already updated */ });
   }
 
@@ -3438,10 +3444,10 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
       tagMap[slug] = rowDefault(r);
       seedRows.push({ assignment_slug: slug, team_ooc: tagMap[slug].ooc, team_app_services: tagMap[slug].app, status: tagMap[slug].status });
     });
-    fetch(TAGS_TABLE, {
-      method: 'POST',
-      headers: tagHeaders({ 'Prefer': 'resolution=ignore-duplicates,return=minimal' }),
-      body: JSON.stringify(seedRows)
+    fetch(TAGS_API, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'seed', rows: seedRows })
     }).catch(function(){ /* silent */ }).then(function(){
       return fetch(TAGS_TABLE + '?select=assignment_slug,team_ooc,team_app_services,priority,status,completed_at', { headers: tagHeaders() });
     }).then(function(res){ return res.json(); }).then(function(dbRows){
@@ -4481,6 +4487,8 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   var currentPriority8 = 'all';
   var tagMap = {}; // slug -> { ooc: bool, app: bool, priority: 'high'|'medium'|'low'|null, status: string, completed_at: string|null }
   var TAGS_TABLE = 'https://fwbhwfxpncrsfhttimna.supabase.co/rest/v1/bcps_assignment_tags';
+  // Writes go through the signed-in API (2026-10-28); the table is read-only to the public key.
+  var TAGS_API = '/api/bcps/assignment-tags';
   var TAGS_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
   var STATUS_LABELS = { 'in-progress': 'In Progress', 'pending': 'Pending', 'ongoing': 'Ongoing', 'completed': 'Completed', 'archived': 'Archived' };
   var DONE_STATUSES = { 'completed': true, 'archived': true };
@@ -4605,10 +4613,10 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   }
 
   function patchTag(slug, fields){
-    fetch(TAGS_TABLE + '?assignment_slug=eq.' + encodeURIComponent(slug), {
-      method: 'PATCH',
-      headers: tagHeaders({ 'Prefer': 'return=minimal' }),
-      body: JSON.stringify(fields)
+    fetch(TAGS_API, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'patch', slug: slug, fields: fields })
     }).catch(function(){ /* silent fail, local state already updated */ });
   }
 
@@ -4620,10 +4628,10 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
       tagMap[slug] = rowDefault(r);
       seedRows.push({ assignment_slug: slug, team_ooc: tagMap[slug].ooc, team_app_services: tagMap[slug].app, status: tagMap[slug].status });
     });
-    fetch(TAGS_TABLE, {
-      method: 'POST',
-      headers: tagHeaders({ 'Prefer': 'resolution=ignore-duplicates,return=minimal' }),
-      body: JSON.stringify(seedRows)
+    fetch(TAGS_API, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'seed', rows: seedRows })
     }).catch(function(){ /* silent */ }).then(function(){
       return fetch(TAGS_TABLE + '?select=assignment_slug,team_ooc,team_app_services,priority,status,completed_at', { headers: tagHeaders() });
     }).then(function(res){ return res.json(); }).then(function(dbRows){
@@ -5178,11 +5186,10 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   }
 
   function efUpsert(slug, fields){
-    var body = Object.assign({ assignment_slug: slug, updated_at: new Date().toISOString() }, fields);
-    return fetch(EF_TABLE, {
-      method: 'POST',
-      headers: efHeaders({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
-      body: JSON.stringify(body)
+    return fetch('/api/bcps/assignment-tags', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'upsert', slug: slug, fields: fields })
     }).catch(function(){ /* silent fail, local cache already updated so UI stays consistent */ });
   }
 
