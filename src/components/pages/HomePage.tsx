@@ -133,6 +133,7 @@ type DepartmentMonth = Omit<DepartmentAnalytics, 'months'>
 
 interface DepartmentSummary {
   id: string
+  slug?: string | null
   name: string
   division: string | null
   website_url: string | null
@@ -544,7 +545,7 @@ const SAMPLE_TEAM_ASSIGNMENTS: Assignment[] = [
 ]
 
 /* ─── DIRECTOR ─────────────────────────────────────────── */
-type DirectorTab = 'overview' | 'documents' | 'marcomm' | 'audit' | 'review' | 'analytics' | 'notes' | 'widgets' | 'wcm' | 'tools'
+type DirectorTab = 'overview' | 'documents' | 'marcomm' | 'audit' | 'review' | 'analytics' | 'notes' | 'hotlabs' | 'widgets' | 'wcm' | 'tools'
 
 // The review window that matters most to this director: the open one, else
 // the next upcoming one, else the last one (their departments may span
@@ -596,6 +597,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
     { id: 'review', label: 'Website Review' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'notes', label: 'Meeting Notes' },
+    ...((data.hot_labs?.length ?? 0) > 0 ? [{ id: 'hotlabs' as DirectorTab, label: 'Hot Labs' }] : []),
     ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets' as DirectorTab, label: 'Widgets' }] : []),
   ] : [
     { id: 'overview', label: 'Overview' },
@@ -604,6 +606,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
     { id: 'review', label: 'Website Review' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'notes', label: 'Meeting Notes' },
+    ...((data.hot_labs?.length ?? 0) > 0 ? [{ id: 'hotlabs' as DirectorTab, label: 'Hot Labs' }] : []),
     ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets' as DirectorTab, label: 'Widgets' }] : []),
     // A director who is also their department's WCM keeps the WCM cards.
     ...(data.is_wcm ? [{ id: 'wcm' as DirectorTab, label: 'My WCM Work' }] : []),
@@ -708,6 +711,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
       {/* Leadership View sees the full Analytics page, the way the team does. */}
       {tab === 'analytics' && (leadership ? <AnalyticsTabPage /> : <AnalyticsTab led={led} />)}
       {tab === 'notes' && <NotesTab notes={data.director_notes ?? []} led={led} />}
+      {tab === 'hotlabs' && <DirectorHotLabsTab items={data.hot_labs ?? []} />}
       {tab === 'widgets' && <WidgetsPage embedded />}
       {tab === 'wcm' && <WcmCommunityHub />}
       {tab === 'tools' && !leadership && <>
@@ -878,6 +882,14 @@ function AnalyticsTab({ led }: { led: DepartmentSummary[] }) {
         <p className="wcm-hub2-intro">
           {current.name}, {months.length === 1 ? monthLabel(months[0].period) : `${monthLabel(months[0].period)} to ${monthLabel(months[months.length - 1].period)}`}, synced from Google Analytics.
         </p>
+        {/* The department report (Sean, 2026-10-28): sources, links to fix and
+            marketing ideas, on its own page like a campaign report. */}
+        {current.slug && (
+          <div className="home-actions">
+            <a className="home-btn" href={`/reports/departments/${current.slug}`}>Open the {current.name} report</a>
+            <span className="home-hint">Where visitors come from, links to fix and ideas for your department</span>
+          </div>
+        )}
         <div className="home-kpis">
           <div className="home-kpi"><b>{fmtNum(a.visitors)}</b><span>{months.length > 1 ? 'Visitors (monthly totals added)' : 'Visitors'}</span></div>
           {a.new_visitors !== null && <div className="home-kpi"><b>{fmtNum(a.new_visitors)}</b><span>First-time visitors</span></div>}
@@ -1671,6 +1683,40 @@ function HotLabCard({ items }: { items: { title: string; date: string; url: stri
       )}
       <a className="home-link-btn" href="/?page=notes">All meeting notes</a>
     </div>
+  )
+}
+
+// Directors follow the Hot Labs to see what the District Web Team is covering
+// with their WCMs (Sean, 2026-10-28). Every session's notes, newest first,
+// with the times in case they want to sit in.
+function DirectorHotLabsTab({ items }: { items: { title: string; date: string; url: string }[] }) {
+  const live = hotLabLive()
+  return (
+    <>
+      <p className="wcm-hub2-intro">
+        Hot Labs are the District Web Team&apos;s working sessions with Department WCMs, Tuesdays and Thursdays, 11:30 AM to 12:30 PM on Teams.
+        Each one has its recording and notes, so you can see what your WCMs are working on.
+      </p>
+      <div className="home-actions">
+        <a className="wcm-hub2-card-btn" href={HOT_LAB_JOIN_URL} target="_blank" rel="noopener noreferrer">{live ? 'Join the Hot Lab now' : 'Sit in on Teams'}</a>
+        {live && <span className="home-live-pill">Live now</span>}
+      </div>
+      <div className="home-dept">
+        {items.map((h) => {
+          const d = new Date(h.date)
+          const ok = !isNaN(d.getTime())
+          return (
+            <div key={h.url} className="home-note">
+              {ok && <div className="home-note-date">{d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}<b>{d.getDate()}</b></div>}
+              <div className="home-note-body">
+                <div className="home-note-title"><a href={h.url}>{h.title}</a></div>
+                <div className="home-note-text">Recording and notes</div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </>
   )
 }
 

@@ -1,0 +1,194 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { requireBcpsSuperAdmin } from '@/lib/bcps-auth'
+import { brandedEmail, enrollBcpsMember, esc, firstName, resolveOrInviteAccount, SITE, DIRECTOR_PLAYBOOK_URL } from '@/lib/bcps-portal-account'
+import { sendEmail } from '@/lib/resend'
+
+// Director invitations (Sean, 2026-10-28): one email that lets every
+// department director, and the executives over them, into BCPS MarComm.
+//
+// Who is on the list: every director_email and executive_emails address on
+// bcps_departments, plus the leaders in EXTRA_LEADERS who oversee the platform
+// without leading a department. The SuperAdmin panel previews the list, sends
+// a test to one address, and sends to the people it picks.
+//
+// What a send does, per person:
+//   - no account: creates it (the set-password link in the email), enrolls it
+//     the way an approved roster submission does, and adds the Directors group.
+//   - an account already: adds the Directors group only, and the email points
+//     at the sign-in page. Its role is never touched, so an admin stays one.
+// The Directors group is what opens the Hot Lab notes to them. Everything else
+// on the director dashboard follows from bcps_departments, by email.
+//
+// SuperAdmin only, like beta-invite.
+
+const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } })
+const BRAND = 'bcps'
+const DIRECTORS_GROUP_SLUG = 'directors'
+const ALLOWED_DOMAIN = 'browardschools.com'
+const SIGN_IN_URL = `${SITE}/login`
+
+// Leaders who follow the platform without a department of their own. Their
+// other groups (Department Oversight, Leadership View) are already queued.
+const EXTRA_LEADERS: { email: string; name: string; note: string }[] = [
+  { email: 'manuel.castaneda@browardschools.com', name: 'Manuel Castaneda', note: 'Enterprise Analytics and Intelligence (Leadership View)' },
+]
+
+interface Recipient {
+  email: string
+  name: string
+  departments: string[]
+  role: 'director' | 'executive' | 'leader'
+  has_account: boolean
+  signed_in: boolean
+  invited_at: string | null
+}
+
+const norm = (e: string | null | undefined) => (e || '').trim().toLowerCase()
+
+function nameFromEmail(email: string) {
+  return email.split('@')[0].split(/[._]/).filter(Boolean).map((p) => p[0].toUpperCase() + p.slice(1)).join(' ')
+}
+
+async function listRecipients(): Promise<Recipient[]> {
+  const { data: depts } = await svc.from('bcps_departments').select('name, director_name, director_email, executive_emails').order('name')
+  const byEmail = new Map<string, Recipient>()
+  const add = (email: string, name: string, dept: string | null, role: Recipient['role']) => {
+    const e = norm(email)
+    if (!e || !e.endsWith('@' + ALLOWED_DOMAIN)) return
+    const cur = byEmail.get(e) ?? { email: e, name, departments: [], role, has_account: false, signed_in: false, invited_at: null }
+    if (dept && !cur.departments.includes(dept)) cur.departments.push(dept)
+    // Executive outranks director for the wording of the email.
+    if (role === 'executive') cur.role = 'executive'
+    if (!cur.name || cur.name === nameFromEmail(e)) cur.name = name || cur.name
+    byEmail.set(e, cur)
+  }
+  for (const d of depts ?? []) {
+    if (d.director_email) add(d.director_email, (d.director_name as string) || nameFromEmail(norm(d.director_email)), d.name as string, 'director')
+    for (const x of (d.executive_emails ?? []) as string[]) add(x, nameFromEmail(norm(x)), d.name as string, 'executive')
+  }
+  for (const l of EXTRA_LEADERS) if (!byEmail.has(l.email)) add(l.email, l.name, null, 'leader')
+
+  const list = Array.from(byEmail.values())
+  const emails = list.map((r) => r.email)
+  // Account state from wcm_cert_users (every portal account has a row) and
+  // auth sign-in times; invite history from bcps_director_invites.
+  const [{ data: certs }, { data: invites }] = await Promise.all([
+    svc.from('wcm_cert_users').select('email, user_id, full_name').in('email', emails),
+    svc.from('bcps_director_invites').select('email, sent_at').in('email', emails),
+  ])
+  const userIds = new Map<string, string>()
+  for (const c of certs ?? []) if (c.user_id) userIds.set(norm(c.email), c.user_id as string)
+  const signedIn = new Set<string>()
+  for (const [e, id] of Array.from(userIds)) {
+    const { data } = await svc.auth.admin.getUserById(id)
+    if (data?.user?.last_sign_in_at) signedIn.add(e)
+  }
+  for (const r of list) {
+    r.has_account = userIds.has(r.email)
+    r.signed_in = signedIn.has(r.email)
+    r.invited_at = (invites ?? []).find((i) => norm(i.email) === r.email)?.sent_at ?? null
+    const full = (certs ?? []).find((c) => norm(c.email) === r.email)?.full_name as string | undefined
+    if (full && (r.role === 'executive' || !r.name)) r.name = full
+  }
+  return list.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function inviteEmail(r: Pick<Recipient, 'name' | 'departments' | 'role'>, link: string, isNew: boolean) {
+  const scope = r.role === 'leader'
+    ? 'every department’s website'
+    : r.departments.length > 1
+      ? `the ${r.departments.length} departments you oversee (${r.departments.map(esc).join(', ')})`
+      : r.departments[0] ? `${esc(r.departments[0])}` : 'your department'
+  const body = `
+    <p>Hi ${esc(firstName(r.name))},</p>
+    <p>You now have access to <strong>BCPS MarComm</strong>, the District Web Team&rsquo;s platform for the people who keep
+    our department websites current. Your dashboard covers ${scope}:</p>
+    <ul style="padding-left:20px;margin:12px 0">
+      <li style="margin-bottom:6px"><strong>Your Web Content Managers</strong>: who they are and where each one stands with certification.</li>
+      <li style="margin-bottom:6px"><strong>Analytics</strong>: how many families and staff use your pages, your most visited pages, and a department report with where visitors come from, links to fix and marketing ideas.</li>
+      <li style="margin-bottom:6px"><strong>Website review</strong>: where your department&rsquo;s audit stands and what it found.</li>
+      <li style="margin-bottom:6px"><strong>Hot Labs</strong>: the recordings and notes from our twice-weekly sessions with WCMs, so you can see what we are working on together.</li>
+      <li style="margin-bottom:6px"><strong>Meeting notes</strong> from your department&rsquo;s review meetings, and the Director Playbook.</li>
+    </ul>
+    <p>${isNew
+      ? 'Use the button below to set your password. After that, sign in at bcpsmarcomm.com with your District email.'
+      : 'You already have an account, so just sign in with your District email and password.'}</p>
+    <p>If you have a question, reply to this email or use the feedback button once you are signed in.</p>
+    <p>Sean A. Russell<br>District Webmaster, Office of Communications</p>`
+  return brandedEmail({
+    heading: 'Welcome to BCPS MarComm',
+    body,
+    ctaLabel: isNew ? 'Set your password' : 'Sign in to BCPS MarComm',
+    ctaHref: link,
+    footNote: `${isNew ? 'This link works once. If it has expired, choose &ldquo;Forgot password&rdquo; on the sign-in page. ' : ''}The Director Playbook is at <a href="${DIRECTOR_PLAYBOOK_URL}" style="color:#0e4e73">${DIRECTOR_PLAYBOOK_URL.replace('https://', '')}</a>.`,
+  })
+}
+
+const SUBJECT = 'Your access to BCPS MarComm'
+
+export async function GET(req: NextRequest) {
+  const auth = await requireBcpsSuperAdmin(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  return NextResponse.json({ ok: true, recipients: await listRecipients() })
+}
+
+// POST { action: 'test', to } sends the email as the first person on the list
+//   would get it, with a sign-in link, to one District address. No accounts.
+// POST { action: 'send', emails } invites the people named (only addresses on
+//   the list are accepted).
+export async function POST(req: NextRequest) {
+  const auth = await requireBcpsSuperAdmin(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const body = await req.json().catch(() => ({}))
+  const list = await listRecipients()
+
+  if (body.action === 'test') {
+    const to = norm(body.to)
+    if (!to.endsWith('@' + ALLOWED_DOMAIN) && !to.endsWith('@lesaruss.com')) return NextResponse.json({ error: 'Send the test to a District or LESARUSS address.' }, { status: 422 })
+    const sample = list.find((r) => r.role === 'director' && !r.has_account) ?? list[0]
+    if (!sample) return NextResponse.json({ error: 'No directors on file.' }, { status: 404 })
+    const r = await sendEmail({ to, subject: `[Test] ${SUBJECT}`, html: inviteEmail(sample, SIGN_IN_URL, true), kind: 'director-invite-test', context: { as: sample.email } })
+    return r.ok ? NextResponse.json({ ok: true, as: sample.email }) : NextResponse.json({ error: r.error || 'Could not send.' }, { status: 502 })
+  }
+
+  if (body.action === 'send') {
+    const wanted = new Set(((body.emails ?? []) as string[]).map(norm))
+    const targets = list.filter((r) => wanted.has(r.email))
+    if (!targets.length) return NextResponse.json({ error: 'Nobody on the list was selected.' }, { status: 400 })
+
+    const { data: group } = await svc.from('acl_groups').select('id').eq('brand', BRAND).eq('slug', DIRECTORS_GROUP_SLUG).maybeSingle()
+    const { data: depts } = await svc.from('bcps_departments').select('name, slug')
+    const results: { email: string; ok: boolean; new_account?: boolean; error?: string }[] = []
+
+    for (const r of targets) {
+      const acct = await resolveOrInviteAccount(r.email, r.name)
+      if (!acct.ok) { results.push({ email: r.email, ok: false, error: acct.error }); continue }
+      const { userId, isNewAccount, actionLink } = acct.account
+      if (isNewAccount) {
+        const dept = (depts ?? []).find((d) => d.name === r.departments[0])
+        const enrolled = await enrollBcpsMember({ userId, email: r.email, fullName: r.name, departmentName: dept?.name ?? null, departmentSlug: dept?.slug ?? null, addToWcmGroup: false })
+        if (!enrolled.ok) { results.push({ email: r.email, ok: false, error: enrolled.error }); continue }
+      } else {
+        // An existing sign-in without a BCPS MarComm profile row gets one, so
+        // the Hot Lab check (which looks people up there) finds them. Never
+        // overwrites a row that exists, and never touches their role.
+        await svc.from('wcm_cert_users').upsert(
+          { user_id: userId, email: r.email, full_name: r.name, department: r.departments[0] ?? null, department_needs_review: false, is_admin: false },
+          { onConflict: 'user_id', ignoreDuplicates: true },
+        )
+      }
+      if (group?.id) await svc.from('acl_group_members').upsert({ group_id: group.id, user_id: userId }, { onConflict: 'group_id,user_id' })
+
+      const link = isNewAccount && actionLink ? actionLink : SIGN_IN_URL
+      const sent = await sendEmail({ to: r.email, subject: SUBJECT, html: inviteEmail(r, link, isNewAccount), replyTo: 'sean.russell@browardschools.com', kind: 'director-invite', context: { new_account: isNewAccount } })
+      if (sent.ok) {
+        await svc.from('bcps_director_invites').upsert({ email: r.email, name: r.name, sent_at: new Date().toISOString(), new_account: isNewAccount, sent_by: auth.user.email ?? null }, { onConflict: 'email' })
+      }
+      results.push({ email: r.email, ok: sent.ok, new_account: isNewAccount, error: sent.ok ? undefined : sent.error })
+    }
+    return NextResponse.json({ ok: true, sent: results.filter((x) => x.ok).length, failed: results.filter((x) => !x.ok), results })
+  }
+
+  return NextResponse.json({ error: 'Unknown action.' }, { status: 400 })
+}
