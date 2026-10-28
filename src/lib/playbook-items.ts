@@ -17,7 +17,9 @@ import { versionInfo, sections, setCount, longDate, recountStatus } from '@/lib/
 // a version; the caller keeps the previous content in bcps_doc_revisions.
 
 export type ItemKind = 'queue' | 'action' | 'deliverable'
-export interface PlaybookItem { kind: ItemKind; key: string; text: string; ownerText: string; owners: string[] }
+// dueText: where a due date may be stated besides the item's own line: its
+// to-do group's title ("Before Oct 7") or an Action Items deadline.
+export interface PlaybookItem { kind: ItemKind; key: string; text: string; ownerText: string; owners: string[]; dueText?: string }
 export interface Recipient { name: string; email: string }
 
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase()
@@ -65,7 +67,8 @@ export function listItems(html: string, recipients: Recipient[]): PlaybookItem[]
     const text = li.text.replace(/\s+/g, ' ').trim()
     const stored = (li.getAttribute('data-owners') || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
     const ownerText = trailingOwner(text)
-    items.push({ kind: 'queue', key: norm(text), text, ownerText, owners: stored.length ? stored : resolveOwners(ownerText, recipients) })
+    const group = (li.closest('details.held')?.querySelector('summary')?.text || '').replace(/\s+/g, ' ').trim()
+    items.push({ kind: 'queue', key: norm(text), text, ownerText, owners: stored.length ? stored : resolveOwners(ownerText, recipients), dueText: group })
   }
   for (const s of sections(block)) {
     if (!/action items/i.test(s.title) || !s.body) continue
@@ -74,7 +77,8 @@ export function listItems(html: string, recipients: Recipient[]): PlaybookItem[]
       const title = a.querySelector('.action-title')?.text.replace(/\s+/g, ' ').trim() || ''
       if (!title) continue
       const ownerText = (a.querySelector('.action-owner')?.text || '').replace(/^\s*owners?:\s*/i, '').trim()
-      items.push({ kind: 'action', key: norm(title), text: title, ownerText, owners: resolveOwners(ownerText, recipients) })
+      const deadline = (a.querySelector('.action-deadline')?.text || '').replace(/\s+/g, ' ').trim()
+      items.push({ kind: 'action', key: norm(title), text: title, ownerText, owners: resolveOwners(ownerText, recipients), dueText: deadline ? `by ${deadline}` : '' })
     }
   }
   for (const slot of block.querySelectorAll('.deliverable-slot')) {
@@ -82,7 +86,8 @@ export function listItems(html: string, recipients: Recipient[]): PlaybookItem[]
     const title = (slot.querySelector('.ds-title')?.text || '').replace(/\s+/g, ' ').trim()
     if (!title) continue
     const owners = (slot.getAttribute('data-owners') || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
-    items.push({ kind: 'deliverable', key: norm(title), text: title, ownerText: slot.getAttribute('data-owner-name') || '', owners })
+    const meta = (slot.querySelector('.ds-meta')?.text || '').replace(/\s+/g, ' ').trim()
+    items.push({ kind: 'deliverable', key: norm(title), text: title, ownerText: slot.getAttribute('data-owner-name') || '', owners, dueText: meta.replace(/\bDue\b/, 'due') })
   }
   return items
 }

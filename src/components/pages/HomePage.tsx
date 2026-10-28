@@ -15,6 +15,7 @@ import MarcommAssignmentsPage from './MarcommAssignmentsPage'
 import AssignmentsPage from './AssignmentsPage'
 import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
 import AgendaBuilder from '@/components/bcps/AgendaBuilder'
+import ProjectLeads from '@/components/bcps/ProjectLeads'
 import CompleteItemDialog, { type CompletableItem, type InputTarget } from '@/components/bcps/CompleteItemDialog'
 import AddDeliverableDialog, { type Person } from '@/components/bcps/AddDeliverableDialog'
 import DocumentsPage, { type PinnedDoc } from './DocumentsPage'
@@ -1355,6 +1356,8 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
 function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm' | 'leadership'; team?: boolean; canMarcomm?: boolean; asEmail?: string | null }) {
   const [doc, openDoc] = useDocParam()
   const [refresh, setRefresh] = useState(0)
+  const [leadsNote, setLeadsNote] = useState('')
+  useEffect(() => { setLeadsNote('') }, [doc])
 
   if (doc === 'web-team-assignments' && team) {
     return (
@@ -1375,7 +1378,9 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
           tools={<>
             <MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} variant="button" onApplied={() => setRefresh((n) => n + 1)} />
             <AgendaBuilder key={`agenda-${doc}`} playbook={doc} onSaved={() => setRefresh((n) => n + 1)} />
-          </>} />
+            <ProjectLeads key={`leads-${doc}-${refresh}`} playbook={doc} onSaved={(m) => { setLeadsNote(m); setRefresh((n) => n + 1) }} />
+          </>}
+          between={leadsNote ? <p className="home-hint doc-toolbar-note" role="status">{leadsNote}</p> : undefined} />
       </div>
     )
   }
