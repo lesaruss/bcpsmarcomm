@@ -167,7 +167,6 @@
     transition: border-color 0.12s, box-shadow 0.12s;
   }
   .card:hover { border-color: var(--blue); box-shadow: 0 2px 10px rgba(22,114,167,0.14); }
-  .card.open { grid-column: 1 / -1; border-color: var(--blue); box-shadow: inset 3px 0 0 var(--blue); }
   .eyebrow {
     font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
     text-transform: uppercase; color: var(--teal-text);
@@ -203,7 +202,6 @@
   }
   .toggle-btn:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
   .toggle-btn svg { transition: transform 0.15s; }
-  .card.open .toggle-btn svg { transform: rotate(180deg); }
   .card-link {
     display: inline-flex; align-items: center; gap: 5px;
     font-size: 12px; font-weight: 500; color: var(--blue); text-decoration: none;
@@ -211,8 +209,8 @@
   .card-link:hover { color: var(--blue-dark); text-decoration: underline; }
   .card-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 2px; }
 
-  /* School cards are links (the whole card opens the profile), laid out like
-     a department card: body on the left, arrow on the right. */
+  /* School and program cards are links (the whole card opens its page), laid
+     out like a department card: body on the left, arrow on the right. */
   a.card-as-link {
     color: inherit; text-decoration: none;
     display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 14px 14px 14px 16px;
@@ -223,6 +221,7 @@
     font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
     padding: 2px 7px; border-radius: 4px; background: var(--blue-faint); color: var(--blue-dark);
   }
+  a.card-as-link .label-theme { background: var(--teal-light); color: var(--teal-text); }
   a.card-as-link .where { font-size: 12px; color: var(--text-muted); }
   a.card-as-link .card-name { font-size: 15.5px; line-height: 1.3; }
   a.card-as-link .go { align-self: center; color: var(--text-muted); transition: transform 0.12s, color 0.12s; }
@@ -244,9 +243,9 @@
   .profile-actions .toggle-btn { text-decoration: none; padding: 7px 13px; font-size: 13px; }
   .profile-body { padding: 18px 20px 22px; display: grid; gap: 12px; background: var(--bg); }
   .profile-body h2 { font-family: var(--font-head); font-size: 16px; color: var(--text); }
+  .profile-lede { font-size: 14px; color: var(--text-mid); max-width: 75ch; }
 
   /* EXPANDED DETAIL */
-  .detail { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 12px; display: grid; gap: 10px; }
   .detail-item {
     border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px;
     display: flex; flex-direction: column; gap: 6px; background: var(--white);
@@ -378,7 +377,6 @@ let activeCity = '';
 let activeSearch = '';
 let sortKey = 'name';
 let currentPage = 1;
-let openKey = null;
 const PAGE_SIZE = 12;
 
 const SORTS = {
@@ -390,7 +388,6 @@ const ICON = {
   pin: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>',
   globe: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>',
   ext: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>',
-  chev: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
   go: '<svg class="go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
   back: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>',
   search: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>',
@@ -487,45 +484,24 @@ function schoolCard(s, q) {
   </a>`;
 }
 
+function programHref(slug) {
+  return location.pathname + '?program=' + encodeURIComponent(slug);
+}
+
+// Each program card is one link to that program's page, framed like a school card.
 function programCard(p, q) {
-  const key = 'program-' + p.slug;
-  const open = openKey === key;
   const offs = visibleOfferings(p);
-  const tags = offs.map(o => `<li><a class="tag" href="${profileHref(o.school.loc_nbr)}">${highlight(o.school.name, q)}</a></li>`);
-  const detail = !open ? '' : `<div class="detail" id="${key}-detail">
-    ${offs.map(o => {
-      const s = o.school;
-      return `<div class="detail-item">
-        <div class="detail-head">
-          <h3><a class="name-link" href="${profileHref(s.loc_nbr)}">${highlight(s.name, q)}</a></h3>
-          <div class="card-badges"><span class="badge badge-grade">${escapeHtml(s.grades)}</span><span class="badge badge-city">${escapeHtml(s.city)}</span></div>
-        </div>
-        <div class="meta-row">${ICON.pin}<span>${escapeHtml(s.address)}, ${escapeHtml(s.city)}, FL ${escapeHtml(s.zip)}</span></div>
-        ${o.note ? `<p class="note">${escapeHtml(o.note)}</p>` : ''}
-        ${o.tracks.length ? `<div class="sub">${p.theme_slug === 'ican' ? 'Academies' : 'Pathways'}</div>
-          <ul class="tag-list">${o.tracks.map(t => `<li class="tag">${highlight(t, q)}</li>`).join('')}</ul>` : ''}
-        <div class="card-footer" style="border-top:none;padding-top:2px">
-          <a class="card-link" href="${profileHref(s.loc_nbr)}">View school profile</a>
-          ${siteLink(s)}
-        </div>
-      </div>`;
-    }).join('')}
-  </div>`;
-  return `<article class="card${open ? ' open' : ''}" id="${key}">
-    <div class="eyebrow">${escapeHtml(THEMES[p.theme_slug]?.name)}</div>
-    <div class="card-name">${highlight(p.name, q)}</div>
-    <div class="card-badges">
-      ${p.grades_note ? `<span class="badge badge-grade">${escapeHtml(p.grades_note)}</span>` : ''}
-      <span class="badge badge-count">${offs.length} school${offs.length === 1 ? '' : 's'}</span>
-    </div>
-    <p class="desc${open ? '' : ' clamp'}">${highlight(programDesc(p), q)}</p>
-    ${open ? '' : tagList(tags, 4)}
-    ${detail}
-    <div class="card-footer">
-      <button type="button" class="toggle-btn" data-toggle="${key}" aria-expanded="${open}" aria-controls="${key}-detail">
-        ${open ? 'Hide schools' : 'View schools'} ${ICON.chev}</button>
-    </div>
-  </article>`;
+  const tags = offs.map(o => `<li class="tag">${highlight(o.school.name, q)}</li>`);
+  return `<a class="card card-as-link" href="${programHref(p.slug)}" id="program-${p.slug}">
+    <span class="card-body">
+      <span class="top"><span class="label label-theme">${escapeHtml(THEMES[p.theme_slug]?.name)}</span></span>
+      <span class="card-name">${highlight(p.name, q)}</span>
+      <span class="where">${p.grades_note ? escapeHtml(p.grades_note) + ' · ' : ''}${offs.length} school${offs.length === 1 ? '' : 's'}</span>
+      <span class="desc clamp">${highlight(programDesc(p), q)}</span>
+      ${tagList(tags, 4)}
+    </span>
+    ${ICON.go}
+  </a>`;
 }
 
 function renderPagination(total) {
@@ -569,20 +545,19 @@ function postHeight() {
 
 function goToPage(page) {
   currentPage = page;
-  openKey = null;
   render();
   document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// The address bar carries the view (#programs, #program-stem-museum) so a link
-// can open any program directly. A school's profile is ?school=0371.
+// The address bar carries the tab (#programs). A school's page is ?school=0371
+// and a program's page is ?program=stem-museum.
 function syncHash() {
-  const h = openKey || (mode === 'programs' ? 'programs' : '');
+  const h = mode === 'programs' ? 'programs' : '';
   const url = location.pathname + location.search + (h ? '#' + h : '');
   try { history.replaceState(null, '', url); } catch (e) {}
 }
 
-// The list's state is kept for this tab so Back from a school profile returns
+// The list's state is kept for this tab so Back from a school or program page returns
 // to the same tab, filters, sort and page. A fresh visit starts clean.
 const STATE_KEY = 'bcps-magnet-explorer-list';
 function saveState() {
@@ -639,7 +614,7 @@ function render() {
   postHeight();
 }
 
-function setMode(next, opts = {}) {
+function setMode(next) {
   mode = next;
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.mode === mode)));
   const input = document.getElementById('searchInput');
@@ -650,25 +625,7 @@ function setMode(next, opts = {}) {
   sel.innerHTML = SORTS[mode].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   sortKey = 'name';
   currentPage = 1;
-  openKey = opts.openKey || null;
   render();
-}
-
-// Open one program card: find its page under the current filters (clearing
-// them if it is filtered out), expand it and bring it into view. Schools open
-// as their own profile page instead (?school=<location number>).
-function openProgram(slug) {
-  const key = 'program-' + slug;
-  if (mode !== 'programs') setMode('programs');
-  let list = getFiltered();
-  let idx = list.findIndex(r => r.slug === slug);
-  if (idx < 0) { clearFilters(false); list = getFiltered(); idx = list.findIndex(r => r.slug === slug); }
-  if (idx < 0) return;
-  currentPage = Math.floor(idx / PAGE_SIZE) + 1;
-  openKey = key;
-  render();
-  const el = document.getElementById(key);
-  if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.querySelector('.toggle-btn')?.focus({ preventScroll: true }); }
 }
 
 function clearFilters(doRender = true) {
@@ -689,27 +646,15 @@ document.querySelector('.tabs').addEventListener('keydown', e => {
   setMode(next);
   document.getElementById('tab-' + next).focus();
 });
-document.getElementById('searchInput').addEventListener('input', e => { activeSearch = e.target.value; currentPage = 1; openKey = null; render(); });
+document.getElementById('searchInput').addEventListener('input', e => { activeSearch = e.target.value; currentPage = 1; render(); });
 document.getElementById('sortSelect').addEventListener('change', e => { sortKey = e.target.value; currentPage = 1; render(); });
-document.getElementById('themeFilter').addEventListener('change', e => { activeTheme = e.target.value; currentPage = 1; openKey = null; render(); });
-document.getElementById('cityFilter').addEventListener('change', e => { activeCity = e.target.value; currentPage = 1; openKey = null; render(); });
+document.getElementById('themeFilter').addEventListener('change', e => { activeTheme = e.target.value; currentPage = 1; render(); });
+document.getElementById('cityFilter').addEventListener('change', e => { activeCity = e.target.value; currentPage = 1; render(); });
 document.getElementById('clearBtn').addEventListener('click', () => clearFilters());
 document.querySelectorAll('.chip[data-level]').forEach(btn => btn.addEventListener('click', () => {
   document.querySelectorAll('.chip[data-level]').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
-  activeLevel = btn.dataset.level; currentPage = 1; openKey = null; render();
+  activeLevel = btn.dataset.level; currentPage = 1; render();
 }));
-document.getElementById('results').addEventListener('click', e => {
-  const t = e.target.closest('[data-toggle]');
-  if (t) {
-    const key = t.dataset.toggle;
-    openKey = openKey === key ? null : key;
-    render();
-    const el = document.getElementById(key);
-    el?.querySelector('.toggle-btn')?.focus({ preventScroll: true });
-    if (openKey) el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-});
-
 // Live data: public anon read of the bcps_magnet_* tables (see
 // supabase/migrations/20261027_bcps_magnet_program_explorer.sql).
 const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
@@ -764,38 +709,65 @@ async function init() {
   document.getElementById('innovativeList').innerHTML = Object.values(THEMES)
     .filter(t => t.kind === 'innovative').map(t => `<li class="tag">${escapeHtml(t.name)}</li>`).join('');
 
-  const profileLoc = new URLSearchParams(location.search).get('school');
-  if (profileLoc) { renderProfile(profileLoc); return; }
+  const params = new URLSearchParams(location.search);
+  if (params.get('school')) { renderSchoolPage(params.get('school')); return; }
+  if (params.get('program')) { renderProgramPage(params.get('program')); return; }
   if (!restoreState()) applyHash();
   window.addEventListener('hashchange', applyHash);
 }
 
 function applyHash() {
   const h = decodeURIComponent(location.hash.replace(/^#/, ''));
+  // Older links (#school-0371, #program-stem-museum) open the record's own page.
   if (h.startsWith('school-')) { location.replace(profileHref(h.slice(7))); return; }
-  setMode(h === 'programs' || h.startsWith('program-') ? 'programs' : 'schools');
-  if (h.startsWith('program-')) openProgram(h.slice(8));
+  if (h.startsWith('program-')) { location.replace(programHref(h.slice(8))); return; }
+  setMode(h === 'programs' ? 'programs' : 'schools');
 }
 
 function directionsUrl(s) {
   return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(`${s.name}, ${s.address}, ${s.city}, FL ${s.zip}`);
 }
 
-// A school's profile page: its details, then every magnet program it offers
-// with the pathways at this school and the other schools offering the same
-// program. Opens in the same frame so a visitor stays on the host page.
-function renderProfile(loc) {
+// Shared shell for a school or program page: hides the list, sets the back
+// link, and opens in the same frame so a visitor stays on the host page.
+function openPage(backLabel, backHref) {
   document.getElementById('listView').hidden = true;
   const view = document.getElementById('profileView');
   view.hidden = false;
-  const listHref = location.pathname;
-  const back = `<nav class="crumb" aria-label="Breadcrumb"><a href="${listHref}" id="backLink">${ICON.back} All magnet schools</a></nav>`;
+  return { view, back: `<nav class="crumb" aria-label="Breadcrumb"><a href="${backHref}" id="backLink">${ICON.back} ${backLabel}</a></nav>` };
+}
+
+function finishPage(view) {
+  // Back returns to the list as it was (tab, filters, page) when the visitor
+  // came straight from it; from another school or program page it opens the list.
+  document.getElementById('backLink').addEventListener('click', e => {
+    let fromList = false;
+    try {
+      const ref = new URL(document.referrer);
+      fromList = ref.pathname === location.pathname && !ref.searchParams.get('school') && !ref.searchParams.get('program');
+    } catch (err) {}
+    if (fromList && history.length > 1) { e.preventDefault(); history.back(); }
+  });
+  postHeight();
+  view.scrollIntoView({ block: 'start' });
+}
+
+function pageNotFound(view, back, what) {
+  view.innerHTML = `${back}<div class="empty">${ICON.search}We couldn't find that magnet ${what}. It may have moved or the link may be out of date.</div>`;
+  postHeight();
+}
+
+function pathwaysBlock(p, o, suffix) {
+  return o.tracks.length ? `<div class="sub">${p.theme_slug === 'ican' ? 'Academies' : 'Pathways'}${suffix}</div>
+    <ul class="tag-list">${o.tracks.map(t => `<li class="tag">${escapeHtml(t)}</li>`).join('')}</ul>` : '';
+}
+
+// A school's page: its details, then every magnet program it offers with the
+// pathways at this school and the other schools offering the same program.
+function renderSchoolPage(loc) {
+  const { view, back } = openPage('All magnet schools', location.pathname);
   const s = SCHOOL_BY_LOC[loc];
-  if (!s || !s.offerings.length) {
-    view.innerHTML = `${back}<div class="empty">${ICON.search}We couldn't find that magnet school. It may have moved or the link may be out of date.</div>`;
-    postHeight();
-    return;
-  }
+  if (!s || !s.offerings.length) return pageNotFound(view, back, 'school');
   document.title = `${s.name} - Magnet Programs - Broward County Public Schools`;
   const n = s.offerings.length;
   view.innerHTML = `${back}
@@ -813,34 +785,73 @@ function renderProfile(loc) {
         <a class="card-link" href="${directionsUrl(s)}" target="_blank" rel="noopener noreferrer">${ICON.pin} Get directions<span class="sr-only"> (opens in a new tab)</span> ${ICON.ext}</a>
       </div>
     </header>
-    <section class="profile-body" aria-labelledby="programsHeading">
-      <h2 id="programsHeading">Magnet programs at ${escapeHtml(s.name)}</h2>
+    <section class="profile-body" aria-labelledby="pageHeading">
+      <h2 id="pageHeading">Magnet programs at ${escapeHtml(s.name)}</h2>
       ${s.offerings.map(o => {
         const p = o.program;
         const others = p.offerings.filter(x => x.school !== s);
         return `<article class="detail-item">
           <div class="detail-head">
-            <h3>${escapeHtml(p.name)}</h3>
+            <h3><a class="name-link" href="${programHref(p.slug)}">${escapeHtml(p.name)}</a></h3>
             <span class="eyebrow">${escapeHtml(THEMES[p.theme_slug]?.name)}</span>
           </div>
           ${p.grades_note ? `<div class="card-badges"><span class="badge badge-grade">${escapeHtml(p.grades_note)}</span></div>` : ''}
           <p class="desc">${escapeHtml(programDesc(p))}</p>
           ${o.note ? `<p class="note">${escapeHtml(o.note)}</p>` : ''}
-          ${o.tracks.length ? `<div class="sub">${p.theme_slug === 'ican' ? 'Academies' : 'Pathways'} at this school</div>
-            <ul class="tag-list">${o.tracks.map(t => `<li class="tag">${escapeHtml(t)}</li>`).join('')}</ul>` : ''}
+          ${pathwaysBlock(p, o, ' at this school')}
           ${others.length ? `<div class="sub">Also offered at</div>
             <ul class="tag-list">${others.map(x => `<li><a class="tag" href="${profileHref(x.school.loc_nbr)}">${escapeHtml(x.school.name)}</a></li>`).join('')}</ul>` : ''}
+          <div class="card-footer" style="border-top:none;padding-top:2px">
+            <a class="card-link" href="${programHref(p.slug)}">View program page</a>
+          </div>
         </article>`;
       }).join('')}
     </section>`;
-  // Back returns to the list as it was (filters, page) when the visitor came from it.
-  document.getElementById('backLink').addEventListener('click', e => {
-    let fromList = false;
-    try { fromList = new URL(document.referrer).pathname === listHref; } catch (err) {}
-    if (fromList && history.length > 1) { e.preventDefault(); history.back(); }
-  });
-  postHeight();
-  view.scrollIntoView({ block: 'start' });
+  finishPage(view);
+}
+
+// A program's page: what it is, then every school that offers it with that
+// school's pathways and notes, and the other programs in the same theme.
+function renderProgramPage(slug) {
+  const { view, back } = openPage('All magnet programs', location.pathname + '#programs');
+  const p = PROGRAMS.find(x => x.slug === slug);
+  if (!p) return pageNotFound(view, back, 'program');
+  document.title = `${p.name} - Magnet Programs - Broward County Public Schools`;
+  const theme = THEMES[p.theme_slug];
+  const n = p.offerings.length;
+  const related = PROGRAMS.filter(x => x.theme_slug === p.theme_slug && x !== p).sort((a, b) => a.sort_order - b.sort_order);
+  view.innerHTML = `${back}
+    <header class="profile-head">
+      <div class="eyebrow">${escapeHtml(theme?.name || 'Magnet program')}</div>
+      <h1>${escapeHtml(p.name)}</h1>
+      <div class="card-badges">
+        ${p.grades_note ? `<span class="badge badge-grade">${escapeHtml(p.grades_note)}</span>` : ''}
+        <span class="badge badge-count">Offered at ${n} school${n === 1 ? '' : 's'}</span>
+      </div>
+      <p class="profile-lede">${escapeHtml(programDesc(p))}</p>
+    </header>
+    <section class="profile-body" aria-labelledby="pageHeading">
+      <h2 id="pageHeading">Schools offering ${escapeHtml(p.name)}</h2>
+      ${p.offerings.map(o => {
+        const s = o.school;
+        return `<article class="detail-item">
+          <div class="detail-head">
+            <h3><a class="name-link" href="${profileHref(s.loc_nbr)}">${escapeHtml(s.name)}</a></h3>
+            <div class="card-badges"><span class="badge badge-grade">${escapeHtml(s.grades)}</span><span class="badge badge-city">${escapeHtml(s.city)}</span></div>
+          </div>
+          <div class="meta-row">${ICON.pin}<span>${escapeHtml(s.address)}, ${escapeHtml(s.city)}, FL ${escapeHtml(s.zip)}</span></div>
+          ${o.note ? `<p class="note">${escapeHtml(o.note)}</p>` : ''}
+          ${pathwaysBlock(p, o, ' at this school')}
+          <div class="card-footer" style="border-top:none;padding-top:2px">
+            <a class="card-link" href="${profileHref(s.loc_nbr)}">View school profile</a>
+            ${siteLink(s)}
+          </div>
+        </article>`;
+      }).join('')}
+      ${related.length ? `<h2>More in ${escapeHtml(theme?.name || 'this theme')}</h2>
+        <ul class="tag-list">${related.map(x => `<li><a class="tag" href="${programHref(x.slug)}">${escapeHtml(x.name)}</a></li>`).join('')}</ul>` : ''}
+    </section>`;
+  finishPage(view);
 }
 
 window.addEventListener('load', postHeight);
