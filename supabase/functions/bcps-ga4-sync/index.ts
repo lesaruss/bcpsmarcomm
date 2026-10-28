@@ -13,7 +13,7 @@
 // Dead Pages suggestions screened and confirmed as real pages 2026-10-27 (v32,
 // same-address capital-letter variants kept without a title in v33).
 // Department report limit raised to 10,000 rows and every matched department
-// kept 2026-10-28 (v34).
+// kept 2026-10-28 (v34). Department and unmatched groups keyed apart (v35).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -370,7 +370,12 @@ Deno.serve(async (req: Request) => {
       // A page with no department row keeps the previous behavior: bucket by
       // the first segment and derive a display name from it, so district
       // pages that no department owns still appear in Top Departments.
-      const key = matched ? matched.slug : segments[1];
+      // v35: keyed so a department can never share a group with unmatched
+      // pages. They used to share one key whenever a department's slug equaled
+      // a first folder name: HR Operations (slug hr-operations) lost September
+      // and October to its own /bcps-departments/hr-operations/ job pages,
+      // whose unmatched group was created first and kept dept_id empty.
+      const key = matched ? `dept:${matched.id}` : `path:${segments[1]}`;
       if (!deptAggMap.has(key)) {
         const deptPath = matched ? matched.main : '/bcps-departments/' + segments[1];
         deptAggMap.set(key, {
