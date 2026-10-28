@@ -1,0 +1,17 @@
+-- BCPS Document System, Phase 2, batch 2 (V, 2026-10-28): 8 Playbooks built on the
+-- generic LESARUSS playbook shell (or an early BCPS page) rebuilt on the BCPS document
+-- template and moved to their type layout. Old one-off parts became template patterns
+-- (timeline rows to agenda items, tool and topic accordions to nested accordions); no
+-- text was lost (checked line by line). Content-only change through the one-time
+-- function ve-once-docsys-phase2 (md5-guarded); each previous content is kept in
+-- public.bcps_doc_revisions (replaced 2026-10-28 by vegan@lesaruss.com).
+-- Not moved: universe-report (a LESARUSS operations report filed under BCPS; V to confirm).
+--   banner-submission-app: project-playbook, md5 604fda721a5d1f585337864cce309b87 (was ed556d5f375e352b0f130659a2699a6f)
+--   bcps-content-dependency-escalation: project-playbook, md5 144126c64f64f12cc488412ad7528f03 (was ffcde0088b4fc341386431b1b1e758b8)
+--   bcps-doc-migration: project-playbook, md5 29e553b28bf341005f9ebabea8ec0caa (was a5b33c0e27c37af76791d76bc3714743)
+--   bcps-wcm-registration-2026-27: guide, md5 31d76f3fb02c4a9d3e73fad6fbac3dd0 (was 060e6e031550542dd9ccb6b61f5c91c1)
+--   district-web-team-tools: guide, md5 2d8815f7817b44d7c254d53b30bef095 (was 4741491c35935c734d3913dbec3acbef)
+--   wcm-department: guide, md5 0e20d07e70125f2b01e87be344f8f345 (was daac165e906386c802c21bfc78964555)
+--   wcm-hot-labs: project-playbook, md5 2276b1f74895c72249a51390002f7674 (was 719c944803487481a3000a84dfe3015f)
+--   wcm-roster-approvals: project-playbook, md5 61317d353908589025038e4523ecb340 (was b4eebc90bb88f276c6aefc1c99ed827f)
+select 1;

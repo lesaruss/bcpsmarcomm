@@ -296,12 +296,11 @@ function newVersion(root: HTMLElement, current: HTMLElement, n: number, label: s
   const cur = block.querySelector('details.ver-dd-inline .cur')
   if (cur) cur.set_content(`v${next} &#183; ${esc(label)}`)
 
-  // The template's CSS shows versions 1 to 9; add the rule past that.
-  if (next > 9) {
-    const head = root.querySelector('head')
-    if (head && !head.toString().includes(`#ver${next}:checked`)) {
-      head.insertAdjacentHTML('beforeend', `<style>#ver${next}:checked ~ .ver-content .ver-${next} { display: block; }</style>`)
-    }
+  // The template's CSS shows versions 1 to 9, but older pages only carry
+  // rules for the versions they had; add the rule whenever it is missing.
+  const head = root.querySelector('head')
+  if (head && !head.toString().includes(`#ver${next}:checked`)) {
+    head.insertAdjacentHTML('beforeend', `<style>#ver${next}:checked ~ .ver-content .ver-${next} { display: block; }</style>`)
   }
   return block
 }
