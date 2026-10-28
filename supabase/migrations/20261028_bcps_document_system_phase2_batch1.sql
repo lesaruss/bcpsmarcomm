@@ -1,0 +1,20 @@
+-- BCPS Document System, Phase 2, batch 1 (V, 2026-10-28): 11 Playbooks on the
+-- shared template moved to their type layout (labeled groups, On This Page index,
+-- status tags, plain names; required sections the page lacked marked Missing with
+-- an owner). Versioned Playbooks gained a new version; earlier versions stay in
+-- the version menu. Content-only change, applied through the one-time function
+-- ve-once-docsys-phase2 (md5-guarded). Each previous content is kept in
+-- public.bcps_doc_revisions (replaced 2026-10-28 by vegan@lesaruss.com), which is
+-- the record of this change; the new pages are too large to repeat here.
+--   bcps-central-v2: project-playbook, md5 030edba939bf20674232e37c252775d4 (was 37c13034a4b2acfa705722d9dff780a9)
+--   bcps-marcomm-launch-plan: project-playbook, v2, md5 480ecdaa6836f7a6dc125e2f82b68d25 (was 2a5217b43253249d0184d7560b98baf0)
+--   bcps-platform-ownership-migration: project-playbook, v4, md5 fa82be93cd1984ff183f3877dadada3e (was a976f707bb9fd4d2df82f1ebb40dea0f)
+--   bcps-website-redirects: project-playbook, v2, md5 2f8c50c353c1ce4b49b73f58b04c2881 (was fd78843739113bbc072a7157034035b6)
+--   director-department: guide, md5 8f804a9d56a29e1eedebe347a0f94e01 (was b22f9411ac034b5418cb5a0bcce6f96f)
+--   iidl-services-directory: project-playbook, v2, md5 033447275a60c31e3e9ce287168df59d (was e5da2732fb8a7cea99f615f60e531c81)
+--   marketing-your-schools-workshop: project-playbook, v2, md5 b6cd0e2579bc34547a49e92596850c07 (was 927a5ac51ee7d671e33c45e490539255)
+--   portals-project: project-playbook, v3, md5 5ad8f8da189702a133c36a12659b2d45 (was c230f76aa575e078cdf2c6d63bca5182)
+--   school-wcm-certification-audit: project-playbook, v6, md5 776fcf50e8a138bfd5223607cb952f90 (was 47938e9f953523c4d4cda91bea2bf297)
+--   school-website-service-model: project-playbook, v3, md5 41baf03d237a9183d6f87fb1a5ef9003 (was 01de15c94fd0b64fa75352618879ee27)
+--   wcm-community-hub: project-playbook, md5 8bbd7606bb242ae4c09f83ab3028749e (was 91008c615c28e288c6b8bfa3a2685407)
+select 1;
