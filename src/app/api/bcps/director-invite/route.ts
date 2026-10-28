@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     if (!to.endsWith('@' + ALLOWED_DOMAIN) && !to.endsWith('@lesaruss.com')) return NextResponse.json({ error: 'Send the test to a District or LESARUSS address.' }, { status: 422 })
     const sample = list.find((r) => r.role === 'director' && !r.has_account) ?? list[0]
     if (!sample) return NextResponse.json({ error: 'No directors on file.' }, { status: 404 })
-    const r = await sendEmail({ to, subject: `[Test] ${SUBJECT}`, html: inviteEmail(sample, SIGN_IN_URL, true), kind: 'director-invite-test', context: { as: sample.email } })
+    const r = await sendEmail({ to, subject: `[Test] ${SUBJECT}`, html: inviteEmail(sample, SIGN_IN_URL, true, 'Sample7Temp2'), kind: 'director-invite-test', context: { as: sample.email } })
     return r.ok ? NextResponse.json({ ok: true, as: sample.email }) : NextResponse.json({ error: r.error || 'Could not send.' }, { status: 502 })
   }
 
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     for (const r of targets) {
       const acct = await resolveOrInviteAccount(r.email, r.name)
       if (!acct.ok) { results.push({ email: r.email, ok: false, error: acct.error }); continue }
-      const { userId, isNewAccount, actionLink } = acct.account
+      const { userId, isNewAccount, actionLink, tempPassword } = acct.account
       if (isNewAccount) {
         const dept = (depts ?? []).find((d) => d.name === r.departments[0])
         const enrolled = await enrollBcpsMember({ userId, email: r.email, fullName: r.name, departmentName: dept?.name ?? null, departmentSlug: dept?.slug ?? null, addToWcmGroup: false })
@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
       if (group?.id) await svc.from('acl_group_members').upsert({ group_id: group.id, user_id: userId }, { onConflict: 'group_id,user_id' })
 
       const link = isNewAccount && actionLink ? actionLink : SIGN_IN_URL
-      const sent = await sendEmail({ to: r.email, subject: SUBJECT, html: inviteEmail(r, link, isNewAccount), replyTo: 'sean.russell@browardschools.com', kind: 'director-invite', context: { new_account: isNewAccount } })
+      const sent = await sendEmail({ to: r.email, subject: SUBJECT, html: inviteEmail(r, link, isNewAccount, tempPassword), replyTo: 'sean.russell@browardschools.com', kind: 'director-invite', context: { new_account: isNewAccount } })
       if (sent.ok) {
         await svc.from('bcps_director_invites').upsert({ email: r.email, name: r.name, sent_at: new Date().toISOString(), new_account: isNewAccount, sent_by: auth.user.email ?? null }, { onConflict: 'email' })
       }

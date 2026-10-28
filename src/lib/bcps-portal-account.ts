@@ -88,7 +88,52 @@ export const WCM_GETTING_STARTED_URL = `${SITE}/playbooks/bcps-wcm-registration-
 export const WCM_PLAYBOOK_URL = `${SITE}/playbooks/wcm-department`
 export const DIRECTOR_PLAYBOOK_URL = `${SITE}/playbooks/director-department`
 
-export type ResolvedAccount = { userId: string; isNewAccount: boolean; actionLink: string | null }
+// tempPassword (2026-10-28): set on every new account, and on an existing
+// one that has never been signed into, so the email can carry it under the
+// button. The invite link alone was not enough: district mail filtering
+// opens links before people do, and a one-time link it opens is spent
+// (error_registry BCPS-RESET-EMAIL-DISTRICT-FILTER-SUSPECTED). Iviani
+// Figueroa, Erik Anderson and Kymarie McEwan were all left with an account
+// and no password that way (BCPS-SIGNUP-EXISTING-ACCOUNT-SILENT). A password
+// in the email is no weaker than the link next to it, and a filter cannot
+// spend it. must_change_password sends them to /set-password on first
+// sign-in. null when it could not be set; the link still works.
+export type ResolvedAccount = { userId: string; isNewAccount: boolean; actionLink: string | null; tempPassword: string | null }
+
+// Readable, unambiguous temp password (moved from admin-set-temp-password,
+// which uses it too): no 0/O/1/l/I, since it is often read aloud or typed
+// from a text message.
+export function generateTempPassword(): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  const bytes = new Uint8Array(12)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('')
+}
+
+// Sets a temporary password that must be changed on first sign-in, keeping
+// the rest of user_metadata. Returns it, or null if it could not be set.
+async function setTempPassword(userId: string, metadata: Record<string, unknown> | undefined): Promise<string | null> {
+  const password = generateTempPassword()
+  const { error } = await svc.auth.admin.updateUserById(userId, {
+    password,
+    email_confirm: true,
+    user_metadata: { ...(metadata || {}), must_change_password: true },
+  })
+  return error ? null : password
+}
+
+// The temporary password under an invite email's button. Plain enough to read
+// out over the phone if the person calls. primary: the password is the way in
+// (no set-password link to fall back from), so it is not framed as a backup.
+export function tempPasswordHtml(tempPassword: string, primary = false): string {
+  return `
+      <p style="margin:16px 0 0;padding:12px 14px;background:#f3f6f9;border-left:3px solid #1672A7;border-radius:0 6px 6px 0;font-size:14px;line-height:1.6">
+        ${primary ? '' : '<strong>Can&rsquo;t use the button below?</strong> '}Sign in at <a href="${SITE}/login">${SITE.replace('https://', '')}/login</a>
+        with your District email and this temporary password:
+        <span style="font-family:Consolas,Menlo,monospace;font-size:15px;font-weight:700;letter-spacing:0.04em">${esc(tempPassword)}</span><br>
+        You will be asked to choose your own password right away. It is case-sensitive, so copy and paste it.
+      </p>`
+}
 
 // Try to create the account (this IS the invite email link when new); on
 // "already registered", fall back to a recovery link purely to get back
@@ -109,9 +154,10 @@ export async function resolveOrInviteAccount(email: string, fullName?: string): 
   })
 
   if (!inviteErr && inviteData?.user && inviteData.properties?.action_link) {
+    const tempPassword = await setTempPassword(inviteData.user.id, inviteData.user.user_metadata)
     return {
       ok: true,
-      account: { userId: inviteData.user.id, isNewAccount: true, actionLink: inviteData.properties.action_link },
+      account: { userId: inviteData.user.id, isNewAccount: true, actionLink: inviteData.properties.action_link, tempPassword },
     }
   }
 
@@ -120,7 +166,10 @@ export async function resolveOrInviteAccount(email: string, fullName?: string): 
     if (existingErr || !existing?.user) {
       return { ok: false, error: existingErr?.message || "Could not look up this account." }
     }
-    return { ok: true, account: { userId: existing.user.id, isNewAccount: false, actionLink: null } }
+    // Never signed into: whatever password it has (often none, from an
+    // earlier invite) has never worked for them, so give it one that will.
+    const tempPassword = existing.user.last_sign_in_at ? null : await setTempPassword(existing.user.id, existing.user.user_metadata)
+    return { ok: true, account: { userId: existing.user.id, isNewAccount: false, actionLink: null, tempPassword } }
   }
 
   return { ok: false, error: inviteErr?.message || 'Could not create this account.' }
@@ -177,6 +226,7 @@ export function wcmConfirmationEmail(opts: {
   departmentName: string
   isNewAccount: boolean
   failsafeHref: string
+  tempPassword?: string | null
 }): string {
   return brandedEmail({
     heading: `You've been confirmed as a Web Content Manager`,
@@ -193,7 +243,7 @@ export function wcmConfirmationEmail(opts: {
         <li>Register for PD credit in LAB and finish your certification through the link above.</li>
         <li>Your day-to-day standards, responsibilities and tools live in the playbook below - that is the one to bookmark.</li>
       </ul>
-      <p>Your role playbook: <a href="${WCM_PLAYBOOK_URL}">Department Web Content Manager Playbook</a>.</p>
+      <p>Your role playbook: <a href="${WCM_PLAYBOOK_URL}">Department Web Content Manager Playbook</a>.</p>${opts.tempPassword ? tempPasswordHtml(opts.tempPassword) : ''}
     `,
     ctaLabel: opts.isNewAccount ? 'Set Up Your Account (Failsafe Link)' : 'Log In (Failsafe Link)',
     ctaHref: opts.failsafeHref,

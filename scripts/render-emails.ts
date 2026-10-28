@@ -73,6 +73,17 @@ const cases: { name: string; subject: string; html: string }[] = [
     }),
   },
   {
+    // The temporary password under the button (2026-10-28), set on every new
+    // account and on one never signed into. Fixed sample password.
+    name: 'wcm-confirmation-new-account-temp-password',
+    subject: `You're invited: BCPS Web Content Manager for ${DEPT}`,
+    html: wcmConfirmationEmail({
+      wcmName: WCM, departmentName: DEPT, isNewAccount: true,
+      failsafeHref: `${SITE}/set-password#SAMPLE_ACTION_LINK`,
+      tempPassword: 'SampleTemp23',
+    }),
+  },
+  {
     name: 'wcm-confirmation-existing-account',
     subject: `You're confirmed: BCPS Web Content Manager for ${DEPT}`,
     html: wcmConfirmationEmail({
