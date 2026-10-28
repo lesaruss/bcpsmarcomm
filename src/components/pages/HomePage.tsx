@@ -14,7 +14,7 @@ import DashboardPage from './DashboardPage'
 import MarcommAssignmentsPage from './MarcommAssignmentsPage'
 import AssignmentsPage from './AssignmentsPage'
 import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
-import CompleteItemDialog, { type CompletableItem } from '@/components/bcps/CompleteItemDialog'
+import CompleteItemDialog, { type CompletableItem, type InputTarget } from '@/components/bcps/CompleteItemDialog'
 import DocumentsPage, { type PinnedDoc } from './DocumentsPage'
 import MembersPage from './MembersPage'
 import { WcmCommunityHub, type CertStatus } from './WCMPage'
@@ -1036,8 +1036,68 @@ const COMPLETE_CSS_ID = 'bcps-complete-style'
 const COMPLETE_CSS = `.${COMPLETE_BTN} { font: inherit; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 9px; margin-left: 10px; border-radius: 4px; border: 1px solid #1672A7; background: #fff; color: #0e4e73; cursor: pointer; vertical-align: middle; } .${COMPLETE_BTN}:hover { background: #1672A7; color: #fff; }`
 const normText = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase()
 
+// Team input (V, 2026-10-28): an Add your input button on each open question
+// and each Missing or Draft section for every reader, and Accept and Dismiss
+// on input still waiting for the project lead. Also added in the viewer only.
+const INPUT_BTN = 'bcps-input-btn'
+const REVIEW_BTN = 'bcps-review-btn'
+const INPUT_CSS_ID = 'bcps-input-style'
+const INPUT_CSS = `.${INPUT_BTN}, .${REVIEW_BTN} { font: inherit; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 9px; margin-left: 10px; border-radius: 4px; border: 1px dashed #1672A7; background: #fff; color: #0e4e73; cursor: pointer; vertical-align: middle; } .${INPUT_BTN}:hover, .${REVIEW_BTN}:hover { background: #1672A7; color: #fff; border-style: solid; } .bcps-input-row { margin: 0 0 10px; } .${REVIEW_BTN} { margin: 6px 8px 0 0; }`
+export interface InputInfo { can_add: boolean; can_review: boolean; targets: InputTarget[]; open: string[] }
+
 function stripCompleteButtons(d: Document | HTMLElement) {
-  d.querySelectorAll(`.${COMPLETE_BTN}, #${COMPLETE_CSS_ID}`).forEach((el) => el.remove())
+  d.querySelectorAll(`.${COMPLETE_BTN}, #${COMPLETE_CSS_ID}, .${INPUT_BTN}, .${REVIEW_BTN}, .bcps-input-row, #${INPUT_CSS_ID}`).forEach((el) => el.remove())
+}
+
+function addInputButtons(d: Document, info: InputInfo, open: (t: InputTarget) => void, decide: (id: string, action: 'accept' | 'dismiss') => void) {
+  if (!info.can_add) return
+  const checked = d.querySelector('input.ver-radio:checked')
+  const block = (checked && d.querySelector(`.ver-${checked.id.replace(/^ver/, '')}`)) || d.querySelector('main') || d.body
+  const style = d.createElement('style')
+  style.id = INPUT_CSS_ID
+  style.textContent = INPUT_CSS
+  d.head.appendChild(style)
+  const button = (cls: string, label: string, aria: string, onClick: () => void) => {
+    const b = d.createElement('button')
+    b.type = 'button'
+    b.className = cls
+    b.textContent = label
+    b.setAttribute('aria-label', aria)
+    b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onClick() })
+    return b
+  }
+  const titleOf = (el: Element) => {
+    const c = el.cloneNode(true) as Element
+    c.querySelectorAll('.status-tag').forEach((t) => t.remove())
+    return normText(c.textContent || '')
+  }
+  block.querySelectorAll('details.doc-accordion').forEach((acc) => {
+    const summary = acc.querySelector(':scope > summary')
+    const body = acc.querySelector(':scope > .section-block')
+    if (!summary || !body) return
+    const title = titleOf(summary)
+    const section = info.targets.find((t) => t.kind === 'section' && t.key === title)
+    if (section) {
+      const row = d.createElement('div')
+      row.className = 'bcps-input-row'
+      row.appendChild(button(INPUT_BTN, 'Add your input', `Add your input: ${section.text}`, () => open(section)))
+      body.insertBefore(row, body.firstChild)
+    }
+    if (/^open (questions|issues)$/.test(title)) {
+      body.querySelectorAll('.agenda-item .agenda-title').forEach((t) => {
+        const q = info.targets.find((x) => x.kind === 'question' && x.key === normText(t.textContent || ''))
+        if (q) t.appendChild(button(INPUT_BTN, 'Answer', `Answer: ${q.text}`, () => open(q)))
+      })
+    }
+  })
+  if (info.can_review) {
+    block.querySelectorAll('.team-input[data-input-id]').forEach((el) => {
+      const id = el.getAttribute('data-input-id') || ''
+      if (!info.open.includes(id)) return
+      el.appendChild(button(REVIEW_BTN, 'Accept', 'Accept this input into the page', () => decide(id, 'accept')))
+      el.appendChild(button(REVIEW_BTN, 'Dismiss', 'Dismiss this input', () => decide(id, 'dismiss')))
+    })
+  }
 }
 
 function addCompleteButtons(d: Document, items: CompletableItem[], open: (item: CompletableItem) => void) {
@@ -1082,6 +1142,8 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
   const [reload, setReload] = useState(0)
   const [completable, setCompletable] = useState<CompletableItem[]>([])
   const [completing, setCompleting] = useState<CompletableItem | null>(null)
+  const [inputInfo, setInputInfo] = useState<InputInfo>({ can_add: false, can_review: false, targets: [], open: [] })
+  const [inputting, setInputting] = useState<InputTarget | null>(null)
   const opened = useRef<HTMLDetailsElement[]>([])
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -1113,17 +1175,35 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
       const r = await fetch(`/api/bcps/playbook-items?slug=${encodeURIComponent(slug)}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
       const j = await r.json().catch(() => ({}))
       if (live) setCompletable(Array.isArray(j.items) ? j.items : [])
+      const ri = await fetch(`/api/bcps/playbook-input?slug=${encodeURIComponent(slug)}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
+      const ji = await ri.json().catch(() => ({}))
+      if (live) setInputInfo({ can_add: !!ji.can_add, can_review: !!ji.can_review, targets: Array.isArray(ji.targets) ? ji.targets : [], open: Array.isArray(ji.open) ? ji.open : [] })
     })().catch(() => {})
     return () => { live = false }
   }, [slug, reload, refresh])
-  // The buttons go in once both the page and the list are ready, whichever is last.
+  const decideInput = async (id: string, action: 'accept' | 'dismiss') => {
+    const token = (await createClient().auth.getSession()).data.session?.access_token
+    const r = await fetch('/api/bcps/playbook-input', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ action, slug, id }),
+    })
+    const j = await r.json().catch(() => ({ error: 'The server did not answer. Try again.' }))
+    setNote(r.ok ? (action === 'accept' ? 'Accepted. The input is now part of the page; the previous version is kept.' : 'Dismissed. It is off the page and kept in the record.') : j.error || 'Something went wrong.')
+    if (r.ok) setReload((n) => n + 1)
+  }
+  const decorate = (d: Document) => {
+    addCompleteButtons(d, completable, setCompleting)
+    addInputButtons(d, inputInfo, setInputting, decideInput)
+  }
+  // The buttons go in once both the page and the lists are ready, whichever is last.
   useEffect(() => {
     const d = ref.current?.contentDocument
-    if (d?.body && !editing) addCompleteButtons(d, completable, setCompleting)
-  }, [completable, editing])
+    if (d?.body && !editing) decorate(d)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completable, inputInfo, editing])
   const fit = () => {
     const d = ref.current?.contentDocument
-    if (d?.body && !editing) addCompleteButtons(d, completable, setCompleting)
+    if (d?.body && !editing) decorate(d)
     if (!d?.documentElement) return
     const measure = () => setHeight(Math.max(600, d.documentElement.scrollHeight))
     measure()
@@ -1172,6 +1252,9 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
         {!editing && buttons}
         {canEdit && !editing && <button type="button" className="wcm-hub2-card-btn" onClick={startEdit}>Edit this page</button>}
         {!editing && tools}
+        {!editing && inputInfo.can_add && (
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => setInputting(inputInfo.targets.find((t) => t.kind === 'general') ?? { kind: 'general', key: 'general', text: 'General input on this page' })}>Add your input</button>
+        )}
         {editing && <>
           <button type="button" className="home-btn" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           <button type="button" className="wcm-hub2-card-btn" onClick={cancel} disabled={saving}>Cancel</button>
@@ -1183,6 +1266,10 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
         </p>
       )}
       {!editing && between}
+      {inputting && (
+        <CompleteItemDialog mode="input" slug={slug} item={inputting} onClose={() => setInputting(null)}
+          onDone={(message) => { setInputting(null); setNote(message); setReload((n) => n + 1) }} />
+      )}
       {completing && (
         <CompleteItemDialog slug={slug} item={completing} onClose={() => setCompleting(null)}
           onDone={(message) => { setCompleting(null); setNote(message); setReload((n) => n + 1) }} />

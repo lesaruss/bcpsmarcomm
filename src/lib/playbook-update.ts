@@ -47,8 +47,8 @@ export const QUEUE_TITLE = /^(work queue|still to do and done)$/i
 // Labeled groups (BCPS Document System, V 2026-10-28): a block may hold
 // <section class="doc-group"> elements, each an eyebrow h2 over its
 // accordions (h3 titles). Older pages hold the accordions directly.
-const groupsOf = (block: HTMLElement) => kids(block).filter((el) => el.tagName === 'SECTION' && el.classList.contains('doc-group'))
-const eyebrow = (g: HTMLElement) => (g.querySelector('h2.eyebrow')?.text || '').replace(/\s+/g, ' ').trim()
+export const groupsOf = (block: HTMLElement) => kids(block).filter((el) => el.tagName === 'SECTION' && el.classList.contains('doc-group'))
+export const eyebrow = (g: HTMLElement) => (g.querySelector('h2.eyebrow')?.text || '').replace(/\s+/g, ' ').trim()
 
 function summaryTitle(el: HTMLElement): string {
   const h = el.querySelector('summary')
