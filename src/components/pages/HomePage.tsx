@@ -14,6 +14,7 @@ import DashboardPage from './DashboardPage'
 import MarcommAssignmentsPage from './MarcommAssignmentsPage'
 import AssignmentsPage from './AssignmentsPage'
 import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
+import AgendaBuilder from '@/components/bcps/AgendaBuilder'
 import CompleteItemDialog, { type CompletableItem, type InputTarget } from '@/components/bcps/CompleteItemDialog'
 import DocumentsPage, { type PinnedDoc } from './DocumentsPage'
 import MembersPage from './MembersPage'
@@ -1305,7 +1306,10 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
             <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>
             <a className="wcm-hub2-card-btn" href={`/api/bcps/doc-raw/${encodeURIComponent(doc)}`} target="_blank" rel="noopener noreferrer">Open full page</a>
           </>}
-          tools={<MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} variant="button" onApplied={() => setRefresh((n) => n + 1)} />} />
+          tools={<>
+            <MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} variant="button" onApplied={() => setRefresh((n) => n + 1)} />
+            <AgendaBuilder key={`agenda-${doc}`} playbook={doc} onSaved={() => setRefresh((n) => n + 1)} />
+          </>} />
       </div>
     )
   }
