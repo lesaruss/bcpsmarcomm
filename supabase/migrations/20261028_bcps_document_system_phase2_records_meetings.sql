@@ -1,0 +1,41 @@
+-- BCPS Document System, Phase 2, records batch 1 (V, 2026-10-28): the 32 meeting records
+-- filed under BCPS Playbooks moved to the Meeting Record layout: labeled groups (The Meeting,
+-- What We Decided, Your To-Do List, Resources and History), an On This Page index and plain
+-- section names. 28 notes on the older meeting-notes shell were rebuilt on the BCPS document
+-- template, keeping their own parts (attendee cards, decision rows, action items, embedded
+-- recordings); 4 already on the template were regrouped. No text was lost (word-count check).
+-- Content-only change through the one-time function ve-once-docsys-phase2 (md5-guarded, now a
+-- 410 stub); each previous content is kept in public.bcps_doc_revisions.
+--   bcps-banner-submission-vanessa-walkthrough-2026-09-08: md5 7e6d5746a263c2e1bced3f81adc2a2c0 (was c12096997a113465f6d692c166094288)
+--   bcps-dr-hudge-meeting-2026-10-07: md5 f08ced1bb5f600cccf30f8603ed710ea (was 6778cceb975b72fce4c914455091e44d)
+--   bcps-google-governance-ai-2026-10-08: md5 a764fc0ee9244b47a3f9a6ac0b0b0ad5 (was a6dd6fe470a837402b96f35da7e53399)
+--   bcps-hot-lab-dept-wcms-2026-06-30: md5 8fd7c00f4baec686a344174213d993f8 (was c79e6229788c746c4160107bb2c15d9b)
+--   bcps-hot-lab-dept-wcms-2026-07-01: md5 ef8c70d331d66b390a99d135a78facb9 (was 495d79f833ef0b5cbc08ff40a53b7c1f)
+--   bcps-hot-lab-dept-wcms-2026-07-02: md5 f9840e80afe0a82e573743c933638d94 (was fac32390aacf90e0f3af1d1cf739de94)
+--   bcps-hot-lab-dept-wcms-2026-07-14: md5 17d6968d02d56ed3fd8b2a00bfd1a57e (was 3c2f24b80ebdc517333daa1674ea4f3b)
+--   bcps-hot-lab-dept-wcms-2026-07-16: md5 ff94b86b3358474aad28df5a0bbc1dad (was d58abc46694794ee8b92f72238bf0906)
+--   bcps-hot-lab-dept-wcms-2026-07-21: md5 1b339c0c875fb66e766305f942195aaf (was f1b710d34b57cc0dcc029446a3ab5102)
+--   bcps-hot-lab-dept-wcms-2026-08-18: md5 040dd6db1feeef265fa00a6fd92997e3 (was d11bdceacc34f4b25aecd5089b750810)
+--   bcps-hot-lab-dept-wcms-2026-08-20: md5 a7a6cf7dbebc8078124a2d4b9b8a64a1 (was 152aa1bd6681826f5ce8a42dbefb4b1c)
+--   bcps-hot-lab-dept-wcms-2026-08-25: md5 a42bf293acdc07ee1831cb5de9eb2743 (was f9700fad3b0cacf9de544cd8a05006f2)
+--   bcps-hot-lab-dept-wcms-2026-08-27: md5 50c0519e2492ce22867c4bf54ae728b9 (was 1d8e33bba9f1251f98730776ae908c71)
+--   bcps-hot-lab-dept-wcms-2026-09-01: md5 6e4c4cc8227b6a436da5c01a9f51ed13 (was 1efd0a1e1a15bfab9190e31b860d6fc4)
+--   bcps-hot-lab-dept-wcms-2026-09-03: md5 d65402166bd4d04a76c62a9ab6d50df2 (was 14d640ca444c3782c117a8cc198e49c5)
+--   bcps-hot-lab-dept-wcms-2026-09-08: md5 6ba6db61c0f605e2fd4e04924835f083 (was e2f5dee2c3e657543d36ea8738b9225e)
+--   bcps-hot-lab-dept-wcms-2026-09-15: md5 7610b9b18e92b87b2aa6928f3e032bce (was f29c4aedf245df0f5f924caf95f76981)
+--   bcps-hot-lab-dept-wcms-2026-09-17: md5 15c47b56e628fc9e13d08148be270427 (was cf6afe2ab75740e702e06fd95a8a3d4f)
+--   bcps-hot-lab-dept-wcms-2026-09-22: md5 cc0255f823301ac28d2222837c3d9cb9 (was d4917993f564f4991aedccfe41c76ce3)
+--   bcps-hot-lab-dept-wcms-2026-09-24: md5 66832ccf06df786da7e71474dd6e2094 (was 118473568d7c2fbd4a9e07ced6322cdf)
+--   bcps-hot-lab-dept-wcms-2026-09-29: md5 708f9bfaa21210f7442912cba42070ed (was 54ca6225cb1fc42067c3186127353e21)
+--   bcps-hot-lab-dept-wcms-2026-10-01: md5 a1cc77fb65cb4abffad3a17dd25ebfc8 (was cdfc4b48d87782db2aa4e6b84d91d35c)
+--   bcps-hot-lab-dept-wcms-2026-10-06: md5 f376b44047937b0616b899dd7e61204d (was c2b087fe7f85574332872b833e83cc9e)
+--   bcps-hot-lab-dept-wcms-2026-10-08: md5 5a3ec0c47e09d0ef8fd6397c72b83d47 (was b4e622ee6b456dd59cccf2d416d072e6)
+--   bcps-hot-lab-dept-wcms-2026-10-13: md5 949403720f4e44f7b6ce3019ebad6af9 (was d1c32881aada15c90d73f70dd392ae43)
+--   bcps-hot-lab-dept-wcms-2026-10-15: md5 0cc4e899317a133829e243e9c9673055 (was 2b023e25443f8ea7f370d32aeeed7f6f)
+--   bcps-hot-lab-dept-wcms-2026-10-20: md5 a67d8b719ce6ddecdec94f24b40e91cc (was 55f4e2a251f642d029be2ed98fb0d5cb)
+--   bcps-hot-lab-dept-wcms-2026-10-22: md5 aff07c747c3f2d36f32c11ecc3d42cfe (was be07498a6a3026aa8dd501716003c3cf)
+--   bcps-hot-lab-dept-wcms-2026-10-27: md5 9c1ab1b1c3448a6a96dd293db4104037 (was 1f6fd11a4116edbb42d272483eac1440)
+--   bcps-web-team-meeting-2026-10-09: md5 d2e76f9edda09dc5abac1a4522900112 (was 7ed4461147bcbd4ce931f3724439ab61)
+--   bcps-web-team-meeting-recap-2026-10-09: md5 c5d1e65ecefc6bdcc0664e7ce6982750 (was 22504c1695accaf85676501c12d1efcb)
+--   bcps-website-governance-plan-2026-06-10-meeting-2026-10-07: md5 f4be13e6379a08874296d31807e5e751 (was 710224c8868d8bd273070f321e027fbe)
+select 1;
