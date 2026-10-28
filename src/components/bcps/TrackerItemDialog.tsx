@@ -3,13 +3,15 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { CSS } from '@/components/bcps/CompleteItemDialog'
+import { useDictation, DictationBar, DICTATION_CSS } from '@/components/bcps/Dictation'
 
 // The Edit this page and Add your input dialogs on a tracker (V, 2026-10-28),
 // in the same panel as a Playbook's. Edit adds an assignment or rewrites one's
 // description; input is a note on an assignment, signed with the person's name.
 // Data: /api/bcps/web-team-assignments-edit. MarComm Assignments (V,
 // 2026-10-28) uses input mode only, saved through its own route (submitInput),
-// with its rows called requests (noun).
+// with its rows called requests (noun). Input takes voice dictation, the
+// same Record button as the MarComm request notes (V, 2026-10-28).
 
 export interface TrackerRow { slug: string; title: string; desc: string; status: string }
 type Mode = 'edit' | 'input'
@@ -27,7 +29,7 @@ async function authHeaders(): Promise<Record<string, string>> {
 
 export default function TrackerItemDialog({ mode, rows, onClose, onDone, submitInput, noun = 'assignment' }: {
   mode: Mode; rows: TrackerRow[]; onClose: () => void; onDone: (message: string) => void
-  submitInput?: (slug: string, text: string) => Promise<void>; noun?: string
+  submitInput?: (slug: string, text: string, dictated: boolean) => Promise<void>; noun?: string
 }) {
   const isEdit = mode === 'edit'
   const aNoun = `${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}`
@@ -40,6 +42,11 @@ export default function TrackerItemDialog({ mode, rows, onClose, onDone, submitI
   const [support, setSupport] = useState('')
   const [status, setStatus] = useState('pending')
   const [note, setNote] = useState('')
+  const [dictated, setDictated] = useState(false)
+  const dictation = useDictation((text) => {
+    setNote((prev) => (prev.trimEnd() ? `${prev.trimEnd()} ${text}` : text))
+    setDictated(true)
+  }, 'Transcript added. Edit below, then share your input.')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const adding = isEdit && slug === NEW
@@ -56,7 +63,7 @@ export default function TrackerItemDialog({ mode, rows, onClose, onDone, submitI
     setBusy(true); setError('')
     try {
       if (!isEdit && submitInput) {
-        await submitInput(slug, note)
+        await submitInput(slug, note, dictated)
         onDone(`Your input was added to the notes on ${rows.find((r) => r.slug === slug)?.title ?? `this ${noun}`}.`)
         return
       }
@@ -75,7 +82,7 @@ export default function TrackerItemDialog({ mode, rows, onClose, onDone, submitI
 
   return (
     <div className="cid-overlay" onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose() }}>
-      <style dangerouslySetInnerHTML={{ __html: CSS + FIELD_CSS }} />
+      <style dangerouslySetInnerHTML={{ __html: CSS + FIELD_CSS + DICTATION_CSS }} />
       <div className="cid-panel" role="dialog" aria-modal="true" aria-labelledby="tid-title">
         <div className="cid-head">
           <h2 id="tid-title">{isEdit ? 'Edit this page' : 'Add your input'}</h2>
@@ -110,10 +117,12 @@ export default function TrackerItemDialog({ mode, rows, onClose, onDone, submitI
               placeholder="What the assignment is, where it stands, and what comes next." />
           </label>
         ) : (
-          <label className="cid-block">
+          <div className="cid-block">
             <span className="cid-l">Your input</span>
-            <textarea rows={5} value={note} onChange={(e) => setNote(e.target.value)} maxLength={4000} disabled={busy} />
-          </label>
+            <DictationBar dictation={dictation} />
+            <textarea rows={5} value={note} onChange={(e) => setNote(e.target.value)} maxLength={4000} disabled={busy} aria-label="Your input"
+              placeholder="Type your input, or press Record to speak it." style={{ marginTop: 8 }} />
+          </div>
         )}
 
         {adding && (

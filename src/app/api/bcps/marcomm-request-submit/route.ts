@@ -118,9 +118,11 @@ export async function POST(req: NextRequest) {
     .slice(0, MAX_FILES)
     .map(a => ({ name: String(a.name || a.path.split('/').pop()).slice(0, 120), path: a.path }))
 
+  // The table has submitted_at, not created_at (2026-10-28): counting on
+  // created_at errored, the count came back empty and the limit never applied.
   const since = new Date(Date.now() - 3600_000).toISOString()
   const { count } = await supabase.from('bcps_marcomm_requests').select('id', { count: 'exact', head: true })
-    .ilike('requester_email', email).gte('created_at', since)
+    .ilike('requester_email', email).gte('submitted_at', since)
   if ((count ?? 0) >= RATE_LIMIT) return NextResponse.json({ error: 'Too many requests from this address in the last hour. Please try again later.' }, { status: 429 })
 
   const { data: job, error: jobError } = await supabase.rpc('bcps_marcomm_next_job')
