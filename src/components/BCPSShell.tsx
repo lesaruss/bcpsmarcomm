@@ -61,6 +61,7 @@ export function useEffectiveRole(realRole: string): string {
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const SUPERADMIN_EMAILS = new Set(['contact@lesaruss.com'])
+const BCPS_LOGO_URL = 'https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png'
 
 const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   dashboard:                { title: 'Dashboard',               sub: 'Broward County Public Schools' },
@@ -374,7 +375,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           {/* Global Topbar */}
           <header className="topbar">
             <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              {SHOW_LEFT_MENU ? (
+              {SHOW_LEFT_MENU && (
                 <button
                   className="hamburger-btn"
                   onClick={() => setSidebarOpen(s => !s)}
@@ -382,15 +383,28 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
                 >
                   <HamburgerIcon />
                 </button>
-              ) : (activePage !== 'dashboard' || onDashboardTab) && (
-                <button type="button" className="topbar-home-btn" onClick={() => handleNavigate('dashboard')}>
-                  <HomeIcon /> <span>Dashboard</span>
-                </button>
               )}
-              <div>
-                <h1>{title}</h1>
-                <p>{sub}</p>
-              </div>
+              {/* The BCPS horizontal logo left the topbar with the retired
+                  menu; it is back on every page for branding (Sean, 2026-10-28). */}
+              {!SHOW_LEFT_MENU && (
+                <img src={BCPS_LOGO_URL} alt="Broward County Public Schools" className="topbar-logo" />
+              )}
+              {/* Overview reads "Dashboard"; every other page puts the
+                  Dashboard button in that spot instead of a page title, with
+                  the District name under it either way (Sean, 2026-10-28). */}
+              {!SHOW_LEFT_MENU && (activePage !== 'dashboard' || onDashboardTab) ? (
+                <div className="topbar-title-block">
+                  <button type="button" className="topbar-home-btn" onClick={() => handleNavigate('dashboard')}>
+                    <HomeIcon /> <span>Dashboard</span>
+                  </button>
+                  <p>{PAGE_TITLES['dashboard'].sub}</p>
+                </div>
+              ) : (
+                <div className="topbar-title-block">
+                  <h1>{title}</h1>
+                  <p>{sub}</p>
+                </div>
+              )}
             </div>
 
             <div className="topbar-right">

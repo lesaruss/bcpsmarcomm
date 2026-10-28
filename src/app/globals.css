@@ -2543,6 +2543,23 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   white-space: nowrap; flex-shrink: 0; font-family: inherit;
 }
 .topbar-home-btn:hover { background: #f0f4f8; border-color: var(--blue); }
+/* Topbar brand: BCPS horizontal logo, a rule, then the title block (Sean, 2026-10-28) */
+.topbar-logo {
+  height: 40px; width: auto; display: block; flex-shrink: 0;
+  padding-right: 14px; border-right: 1px solid var(--border);
+}
+.topbar-title-block { display: flex; flex-direction: column; align-items: flex-start; flex-shrink: 0; }
+.topbar-title-block p { white-space: nowrap; }
+.topbar-title-block .topbar-home-btn { height: 30px; }
+.topbar-title-block .topbar-home-btn + p { margin-top: 3px; }
+@media (max-width: 640px) {
+  .topbar-logo { height: 28px; padding-right: 10px; }
+  .topbar-left { gap: 10px !important; min-width: 0; }
+  .topbar-left h1 { font-size: 16px; }
+  /* The logo already reads "Broward County Public Schools"; at phone
+     width the repeated line has no room beside the bell and Sign out. */
+  .topbar-title-block p { display: none; }
+}
 .topbar-viewas {
   display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
   font-size: 12px; font-weight: 700; color: #92400e;
