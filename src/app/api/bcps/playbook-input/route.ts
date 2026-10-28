@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase-admin'
 import { requirePlaybookItemActor } from '@/lib/bcps-auth'
 import { askClaudeJson } from '@/lib/anthropic-key'
 import { listTargets, addInput, decideInput, GENERAL_KEY, type InputKind } from '@/lib/playbook-input'
+import { backupsOf, handedOff } from '@/lib/playbook-people'
 
 // Team input on a Playbook (V, 2026-10-28). Any reader answers an open
 // question, adds to a Missing or Draft section, or adds general input, with
@@ -45,6 +46,8 @@ async function loadPlaybook(slug: string) {
 
 // Readers: the Playbook's recipients (or everyone signed in when it has none),
 // District admins, the superadmin. Leads: metadata.transcript_admins, the superadmin.
+// Backup: metadata.backup_leads, who may review input that has waited five
+// business days for a lead (Phase 3, V 2026-10-28).
 async function roles(slug: string, email: string, superadmin: boolean, metadata: unknown) {
   const { data: rows } = await svc.from('bcps_brief_recipients').select('attendee_email').eq('brief_slug', slug)
   let reader = superadmin || !rows?.length || rows.some((r) => String(r.attendee_email || '').toLowerCase() === email)
@@ -54,7 +57,8 @@ async function roles(slug: string, email: string, superadmin: boolean, metadata:
   }
   const leads = (metadata as Record<string, unknown> | null)?.transcript_admins
   const lead = superadmin || (Array.isArray(leads) && leads.some((e) => typeof e === 'string' && e.toLowerCase() === email))
-  return { reader, lead }
+  const backup = !lead && backupsOf(metadata).includes(email)
+  return { reader, lead, backup }
 }
 
 // Keep the previous version, then write only if nobody saved in between.
@@ -91,12 +95,14 @@ export async function GET(req: NextRequest) {
   const slug = String(req.nextUrl.searchParams.get('slug') || '')
   const pb = await loadPlaybook(slug)
   if (!pb) return NextResponse.json(none)
-  const { reader, lead } = await roles(slug, auth.user.email, !!auth.superadmin, pb.metadata)
+  const { reader, lead, backup } = await roles(slug, auth.user.email, !!auth.superadmin, pb.metadata)
   if (!reader) return NextResponse.json(none)
-  const { data: open } = lead
-    ? await svc.from('bcps_playbook_inputs').select('id').eq('playbook_slug', slug).eq('status', 'new')
-    : { data: [] as { id: string }[] }
-  return NextResponse.json({ can_add: true, can_review: lead, targets: listTargets(String(pb.content || '')), open: (open ?? []).map((r) => r.id) })
+  const { data: waiting } = lead || backup
+    ? await svc.from('bcps_playbook_inputs').select('id, created_at').eq('playbook_slug', slug).eq('status', 'new')
+    : { data: [] as { id: string; created_at: string }[] }
+  // The backup lead sees only what has waited five business days.
+  const open = (waiting ?? []).filter((r) => lead || handedOff(r.created_at as string)).map((r) => r.id)
+  return NextResponse.json({ can_add: true, can_review: lead || open.length > 0, targets: listTargets(String(pb.content || '')), open })
 }
 
 export async function POST(req: NextRequest) {
@@ -106,14 +112,15 @@ export async function POST(req: NextRequest) {
   const slug = String(body.slug || '')
   const pb = await loadPlaybook(slug)
   if (!pb) return NextResponse.json({ error: 'That Playbook was not found.' }, { status: 404 })
-  const { reader, lead } = await roles(slug, auth.user.email, !!auth.superadmin, pb.metadata)
+  const { reader, lead, backup } = await roles(slug, auth.user.email, !!auth.superadmin, pb.metadata)
   if (!reader) return NextResponse.json({ error: 'You do not have access to this Playbook.' }, { status: 403 })
 
   if (body.action === 'accept' || body.action === 'dismiss') {
-    if (!lead) return NextResponse.json({ error: 'Only the project lead can confirm team input.' }, { status: 403 })
+    if (!lead && !backup) return NextResponse.json({ error: 'Only the project lead can confirm team input.' }, { status: 403 })
     const id = String(body.id || '')
-    const { data: row } = await svc.from('bcps_playbook_inputs').select('id, status').eq('id', id).eq('playbook_slug', slug).maybeSingle()
+    const { data: row } = await svc.from('bcps_playbook_inputs').select('id, status, created_at').eq('id', id).eq('playbook_slug', slug).maybeSingle()
     if (!row) return NextResponse.json({ error: 'That input was not found.' }, { status: 404 })
+    if (!lead && !handedOff(row.created_at as string)) return NextResponse.json({ error: 'The project lead has five business days to review this. It comes to you after that.' }, { status: 403 })
     if (row.status !== 'new') return NextResponse.json({ error: `That input was already ${row.status}.` }, { status: 409 })
     const name = await displayName(auth.user.userId, auth.user.email)
     let html: string

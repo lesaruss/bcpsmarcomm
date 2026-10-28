@@ -1,0 +1,69 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { timingSafeEqual } from 'crypto'
+import { sendEmail } from '@/lib/resend'
+import { buildDigests, digestHtml, digestSubject, type DigestPlaybook } from '@/lib/playbook-digest'
+import { easternDate } from '@/lib/playbook-people'
+
+// Weekly Playbook digest (BCPS Document System, Phase 3, V 2026-10-28). One
+// email per person with to-dos due or overdue, open deliverables, and team
+// input waiting on them as a lead or backup lead. See lib/playbook-digest.
+// Callers prove themselves with x-audit-key (lesaruss_secrets.BCPS_AUDIT_WORKER_KEY,
+// the same key the audit-question digest uses).
+//
+//   POST {}                         -> sends to everyone with something due or waiting
+//   POST { dry_run: true }          -> who would get what, nothing sent
+//   POST { preview_to, only? }      -> one digest (only: whose; default the first) sent to preview_to
+export const dynamic = 'force-dynamic'
+export const maxDuration = 120
+
+const supabase = createClient(process.env.LESARUSS_SUPABASE_URL!, process.env.LESARUSS_SUPABASE_SERVICE_KEY!)
+
+async function authorized(req: NextRequest) {
+  const given = req.headers.get('x-audit-key') || ''
+  if (!given) return false
+  const { data } = await supabase.from('lesaruss_secrets').select('value').eq('key', 'BCPS_AUDIT_WORKER_KEY').maybeSingle()
+  const want = data?.value || ''
+  if (!want || want.length !== given.length) return false
+  return timingSafeEqual(Buffer.from(given), Buffer.from(want))
+}
+
+export async function POST(req: NextRequest) {
+  if (!(await authorized(req))) return NextResponse.json({ error: 'Not allowed' }, { status: 401 })
+  const body = await req.json().catch(() => ({}))
+  const today = easternDate()
+
+  const { data: rows, error } = await supabase.from('briefings').select('slug, title, content, metadata, status')
+    .eq('brand_slug', 'bcps').eq('type', 'playbook')
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const live = (rows ?? []).filter((r) => r.status !== 'archived' && r.status !== 'withdrawn')
+  const { data: recs } = await supabase.from('bcps_brief_recipients').select('brief_slug, attendee_name, attendee_email').in('brief_slug', live.map((r) => r.slug))
+  const playbooks: DigestPlaybook[] = live.map((r) => ({
+    slug: r.slug as string, title: (r.title as string) || (r.slug as string), html: String(r.content || ''), metadata: r.metadata,
+    recipients: (recs ?? []).filter((x) => x.brief_slug === r.slug && x.attendee_email).map((x) => ({ name: String(x.attendee_name || ''), email: String(x.attendee_email) })),
+  }))
+  const { data: waiting } = await supabase.from('bcps_playbook_inputs').select('playbook_slug, created_at').eq('status', 'new')
+  const digests = buildDigests(playbooks, (waiting ?? []) as { playbook_slug: string; created_at: string }[], today)
+
+  if (body.dry_run) {
+    return NextResponse.json({ ok: true, today, people: digests.length, digests: digests.map((d) => ({
+      email: d.email, name: d.name, subject: digestSubject(d), due: d.due.map((t) => `${t.playbook}: ${t.text}${t.due ? ` (${t.due})` : ''}`), reviews: d.reviews, other: d.other.length,
+    })) })
+  }
+
+  if (body.preview_to) {
+    const d = digests.find((x) => x.email === String(body.only || '').toLowerCase()) ?? digests[0]
+    if (!d) return NextResponse.json({ ok: true, sent: false, reason: 'nobody has anything due or waiting' })
+    const sent = await sendEmail({ to: String(body.preview_to), subject: `[Preview for ${d.name || d.email}] ${digestSubject(d)}`, html: digestHtml(d, today), kind: 'bcps-playbook-digest-preview', context: { for: d.email } })
+    return NextResponse.json({ ok: sent.ok, sent: sent.ok, for: d.email, error: sent.error })
+  }
+
+  let sent = 0
+  const failed: string[] = []
+  for (const d of digests) {
+    const r = await sendEmail({ to: d.email, subject: digestSubject(d), html: digestHtml(d, today), kind: 'bcps-playbook-digest', context: { due: d.due.length, reviews: d.reviews.length } })
+    if (r.ok) sent++
+    else failed.push(d.email)
+  }
+  return NextResponse.json({ ok: !failed.length, people: digests.length, sent, failed })
+}
