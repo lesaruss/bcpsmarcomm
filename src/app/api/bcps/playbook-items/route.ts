@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase-admin'
 import { requirePlaybookItemActor } from '@/lib/bcps-auth'
-import { anthropicKey } from '@/lib/anthropic-key'
+import { askClaudeJson as askJson } from '@/lib/anthropic-key'
 import { listItems, completeItem, type ItemKind, type Recipient } from '@/lib/playbook-items'
 
 // Complete a Playbook item from the document (V, 2026-10-28). The person who
@@ -55,23 +55,6 @@ async function itemFor(slug: string, kind: unknown, key: unknown, email: string,
   if (!item) return { error: 'That item is no longer open on this Playbook.', status: 409 }
   if (!superadmin && !item.owners.includes(email)) return { error: 'Only the person who owns this item can complete it.', status: 403 }
   return { pb, item }
-}
-
-async function askJson(model: string, schema: Record<string, unknown>, system: string, content: string): Promise<Record<string, unknown>> {
-  const key = await anthropicKey()
-  if (!key) throw new Error('The Claude key is not set up for this site.')
-  const client = new Anthropic({ apiKey: key })
-  const msg = await client.beta.messages.stream({
-    model,
-    max_tokens: 4000,
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    output_config: { format: { type: 'json_schema', schema } },
-    system,
-    messages: [{ role: 'user', content }],
-  }).finalMessage()
-  if (msg.stop_reason === 'refusal') throw new Error('Claude declined this request.')
-  return JSON.parse(msg.content.map((b) => (b.type === 'text' ? b.text : '')).join(''))
 }
 
 // When Claude is unavailable the lightbox still opens with a plain prompt.

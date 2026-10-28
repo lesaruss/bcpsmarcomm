@@ -10,6 +10,11 @@ import { cleanTranscript } from '@/components/bcps/MeetingTranscriptUpload'
 // any number of files, or has Claude draft the response from a transcript or
 // notes file; the item then moves to Completed with the response and links.
 // Data: /api/bcps/playbook-items.
+//
+// mode 'input' (V, 2026-10-28): the same dialog lets any reader add their
+// input to an open question, a Missing or Draft section, or the page in
+// general. Input shows on the page as team input until a lead accepts or
+// dismisses it. Data: /api/bcps/playbook-input.
 
 const supabaseClient = createClient()
 async function authHeaders(): Promise<Record<string, string>> {
@@ -19,6 +24,14 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 export interface CompletableItem { kind: 'queue' | 'action'; key: string; text: string }
+export interface InputTarget { kind: 'question' | 'section' | 'general'; key: string; text: string }
+type Mode = 'complete' | 'input'
+
+const INPUT_PROMPT: Record<InputTarget['kind'], string> = {
+  question: 'Answer this question with what you know. Attach anything that backs it up.',
+  section: 'Add what this section is missing, or what should change. Attach any files that help.',
+  general: 'Share a thought, an idea, a concern or a file for the team. The project lead reviews it.',
+}
 
 const TEXT_FILE = /\.(vtt|txt|md|srt)$/i
 const MAX_FILES = 10
@@ -27,8 +40,8 @@ function size(n: number): string {
   return n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`
 }
 
-async function post(body: Record<string, unknown>) {
-  const res = await fetch('/api/bcps/playbook-items', {
+async function post(body: Record<string, unknown>, endpoint = '/api/bcps/playbook-items') {
+  const res = await fetch(endpoint, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify(body),
   })
   const j = await res.json().catch(() => ({ error: 'The server did not answer. Try again.' }))
@@ -36,7 +49,10 @@ async function post(body: Record<string, unknown>) {
   return j
 }
 
-export default function CompleteItemDialog({ slug, item, onClose, onDone }: { slug: string; item: CompletableItem; onClose: () => void; onDone: (message: string) => void }) {
+export default function CompleteItemDialog({ slug, item, onClose, onDone, mode = 'complete' }: { slug: string; item: CompletableItem | InputTarget; onClose: () => void; onDone: (message: string) => void; mode?: Mode }) {
+  const isInput = mode === 'input'
+  const endpoint = isInput ? '/api/bcps/playbook-input' : '/api/bcps/playbook-items'
+  const call = (body: Record<string, unknown>) => post(body, endpoint)
   const [prompt, setPrompt] = useState('')
   const [expectsFiles, setExpectsFiles] = useState(false)
   const [response, setResponse] = useState('')
@@ -50,7 +66,9 @@ export default function CompleteItemDialog({ slug, item, onClose, onDone }: { sl
 
   useEffect(() => {
     let live = true
-    post({ ...scope, action: 'prompt' })
+    if (isInput) {
+      setPrompt(INPUT_PROMPT[item.kind as InputTarget['kind']] ?? INPUT_PROMPT.general)
+    } else post({ ...scope, action: 'prompt' })
       .then((j) => { if (live) { setPrompt(j.prompt || ''); setExpectsFiles(!!j.expects_files) } })
       .catch(() => { if (live) setPrompt('Say what you did to complete this item, and attach anything it produced.') })
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose() }
@@ -75,7 +93,7 @@ export default function CompleteItemDialog({ slug, item, onClose, onDone }: { sl
     if (response.trim() && !window.confirm('Replace what you have written with a draft from this file?')) return
     setBusy('drafting'); setError('')
     try {
-      const j = await post({ ...scope, action: 'draft', source_name: f.name, source_text: cleanTranscript(await f.text()) })
+      const j = await call({ ...scope, action: 'draft', source_name: f.name, source_text: cleanTranscript(await f.text()) })
       setResponse(j.response || '')
     } catch (e) { setError((e as Error).message) } finally { setBusy('') }
   }
@@ -86,17 +104,22 @@ export default function CompleteItemDialog({ slug, item, onClose, onDone }: { sl
       let uploaded: { name: string; path: string; size: number }[] = []
       if (files.length) {
         setStatus('Preparing the upload...')
-        const j = await post({ ...scope, action: 'upload_urls', files: files.map((f) => ({ name: f.name, size: f.size })) })
+        const j = await call({ ...scope, action: 'upload_urls', files: files.map((f) => ({ name: f.name, size: f.size })) })
         const slots = j.uploads as { name: string; path: string; token: string }[]
         for (let i = 0; i < slots.length; i++) {
           setStatus(`Uploading ${i + 1} of ${slots.length}: ${files[i].name}`)
           const { error: upErr } = await supabaseClient.storage.from('playbook-attachments').uploadToSignedUrl(slots[i].path, slots[i].token, files[i], { contentType: files[i].type || undefined })
-          if (upErr) throw new Error(`${files[i].name} did not upload. Nothing was marked complete.`)
+          if (upErr) throw new Error(`${files[i].name} did not upload. ${isInput ? 'Nothing was shared.' : 'Nothing was marked complete.'}`)
         }
         uploaded = slots.map((s, i) => ({ name: s.name, path: s.path, size: files[i].size }))
       }
       setStatus('Updating the page...')
-      const j = await post({ ...scope, action: 'complete', response, files: uploaded })
+      if (isInput) {
+        await call({ ...scope, action: 'add', response, files: uploaded })
+        onDone('Shared. Your input is on the page now, and the project lead will review it.')
+        return
+      }
+      const j = await call({ ...scope, action: 'complete', response, files: uploaded })
       const n = (j.completed as string[] | undefined)?.length ?? 1
       onDone(n > 1 ? 'Turned in. It is marked done on your to-do list and in Action Items.' : 'Turned in. It is marked done on your to-do list.')
     } catch (e) { setError((e as Error).message); setStatus('') } finally { setBusy('') }
@@ -109,7 +132,7 @@ export default function CompleteItemDialog({ slug, item, onClose, onDone }: { sl
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div className="cid-panel" role="dialog" aria-modal="true" aria-labelledby="cid-title">
         <div className="cid-head">
-          <h2 id="cid-title">Turn in my work</h2>
+          <h2 id="cid-title">{isInput ? 'Add your input' : 'Turn in my work'}</h2>
           <button type="button" className="cid-x" aria-label="Close" disabled={!!busy} onClick={onClose}>&times;</button>
         </div>
         <p className="cid-item">{item.text}</p>
@@ -117,7 +140,7 @@ export default function CompleteItemDialog({ slug, item, onClose, onDone }: { sl
         {error && <div className="cid-error" role="alert">{error}</div>}
 
         <label className="cid-block">
-          <span className="cid-l">Your response</span>
+          <span className="cid-l">{isInput ? 'Your input' : 'Your response'}</span>
           <textarea rows={5} value={response} onChange={(e) => setResponse(e.target.value)} disabled={busy === 'drafting'}
             placeholder={busy === 'drafting' ? 'Drafting from your file...' : 'What you did, when, and who it went to.'} />
         </label>
@@ -151,7 +174,7 @@ export default function CompleteItemDialog({ slug, item, onClose, onDone }: { sl
           {status && <span className="cid-status" role="status">{status}</span>}
           <button type="button" className="cid-btn ghost" disabled={!!busy} onClick={onClose}>Cancel</button>
           <button type="button" className="cid-btn" disabled={!!busy || (!response.trim() && !files.length)} onClick={save}>
-            {busy === 'saving' ? 'Saving...' : 'Turn it in'}
+            {busy === 'saving' ? 'Saving...' : isInput ? 'Share my input' : 'Turn it in'}
           </button>
         </div>
       </div>
