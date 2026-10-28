@@ -84,7 +84,15 @@ const itemTitles = (el: HTMLElement) =>
 
 const pendingItems = (block: HTMLElement) => block.querySelectorAll('li.chk-item.pending').map((li) => li.text.replace(/\s+/g, ' ').trim())
 
-export interface PlaybookOutline { text: string; sections: string[]; pending: string[]; stage: string }
+export interface PlaybookOutline { text: string; sections: string[]; missing: string[]; pending: string[]; stage: string }
+
+// A section's status tag (Missing, Draft, Done) and, when Missing, the one
+// sentence saying what belongs there.
+function sectionStatus(el: HTMLElement): { status: string; need: string } {
+  const status = (el.querySelector('summary .status-tag')?.text || '').trim()
+  const need = (el.querySelector('.missing-note')?.text || '').replace(/^\s*missing:\s*/i, '').replace(/\s+/g, ' ').trim()
+  return { status, need }
+}
 
 // What Claude is shown: the current version's sections with their items, the
 // pending Work Queue, the stage. Titles are quoted back on apply and matched
@@ -92,19 +100,23 @@ export interface PlaybookOutline { text: string; sections: string[]; pending: st
 export function playbookOutline(html: string): PlaybookOutline {
   const root = parse(html, { comment: true })
   const { current } = versionInfo(root)
-  if (!current) return { text: '', sections: [], pending: [], stage: '' }
+  if (!current) return { text: '', sections: [], missing: [], pending: [], stage: '' }
   const secs = sections(current)
   const stage = metaValue(current, 'Stage')
   const lead = current.querySelector('.lead-summary')?.structuredText.replace(/\s+/g, ' ').trim() || ''
   const parts = [`Stage: ${stage || '(none)'}`, `Lead section: ${lead}`, 'Sections:']
+  const missing: string[] = []
   for (const s of secs) {
     if (QUEUE_TITLE.test(s.title)) continue
+    const { status, need } = sectionStatus(s.el)
+    if (/missing/i.test(status)) missing.push(s.title)
+    const flag = /missing/i.test(status) ? ` [MISSING: ${need || 'not filled in yet'}]` : /draft/i.test(status) ? ' [DRAFT]' : ''
     const items = itemTitles(s.body ?? s.el).slice(0, 40)
-    parts.push(`- "${s.title}"${items.length ? '\n' + items.map((t) => `    * ${t.slice(0, 220)}`).join('\n') : ''}`)
+    parts.push(`- "${s.title}"${flag}${items.length ? '\n' + items.map((t) => `    * ${t.slice(0, 220)}`).join('\n') : ''}`)
   }
   const pending = pendingItems(current)
   parts.push('Work Queue, pending:', ...(pending.length ? pending.map((t) => `- "${t}"`) : ['(none)']))
-  return { text: parts.join('\n').slice(0, MAX_OUTLINE), sections: secs.map((s) => s.title).filter((t) => !QUEUE_TITLE.test(t)), pending, stage }
+  return { text: parts.join('\n').slice(0, MAX_OUTLINE), sections: secs.map((s) => s.title).filter((t) => !QUEUE_TITLE.test(t)), missing, pending, stage }
 }
 
 function metaValue(block: HTMLElement, label: string): string {
@@ -119,7 +131,7 @@ export interface PlaybookUpdate {
   decisions: string[]
   open_questions: string[]
   actions: { title: string; lead: string; support: string[]; deadline_date: string; owners?: string[] }[]
-  section_updates: { section: string; new_section: boolean; title: string; detail: string }[]
+  section_updates: { section: string; new_section: boolean; title: string; detail: string; replaces?: string }[]
   queue_done: string[]
   stage: string
   notes_path: string
@@ -333,9 +345,17 @@ export function applyPlaybookUpdate(html: string, u: PlaybookUpdate): { html: st
     body.insertAdjacentHTML('afterbegin', u.open_questions.map((q) => agendaHtml(q, '', `Open, ${tag}`)).join(''))
     counts.questions = u.open_questions.length
   }
+  // Section updates fill a Missing section (its placeholder goes), revise an
+  // existing item in place when the meeting changed it, or add a new one.
   for (const s of u.section_updates) {
     const body = sectionBody(block, s.section, null, s.section)
-    body.insertAdjacentHTML('afterbegin', agendaHtml(s.title, s.detail, tag))
+    body.querySelectorAll('.missing-note').forEach((n) => n.remove())
+    const old = s.replaces
+      ? body.querySelectorAll('.agenda-item, .action-item, .decision-item').find((el) =>
+        norm(el.querySelector('.agenda-title, .action-title, .decision-title')?.text || '') === norm(s.replaces!))
+      : undefined
+    if (old) old.replaceWith(parse(agendaHtml(s.title, s.detail, `Updated ${tag}`)))
+    else body.insertAdjacentHTML('afterbegin', agendaHtml(s.title, s.detail, tag))
     counts.sections++
   }
   const q = updateQueue(block, u, tag)

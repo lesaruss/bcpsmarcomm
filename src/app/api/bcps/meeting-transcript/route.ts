@@ -197,7 +197,10 @@ async function proposePlaybook(slug: string, transcript: string, meetingDate: st
   const sections = new Set(outline.sections.map((t) => t.toLowerCase()))
   const pending = new Set(outline.pending.map((t) => t.toLowerCase()))
   const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object') : [])
-  parsed.section_updates = list(parsed.section_updates).filter((u) => u.new_section === true || sections.has(String(u.section || '').trim().toLowerCase()))
+  const missing = new Set(outline.missing.map((t) => t.toLowerCase()))
+  parsed.section_updates = list(parsed.section_updates)
+    .filter((u) => u.new_section === true || sections.has(String(u.section || '').trim().toLowerCase()))
+    .map((u) => ({ ...u, fills_missing: missing.has(String(u.section || '').trim().toLowerCase()) }))
   parsed.queue_done = list(parsed.queue_done).filter((q) => pending.has(String(q.item || '').replace(/\s+/g, ' ').trim().toLowerCase()))
   parsed.stage = typeof parsed.stage === 'string' && parsed.stage.trim() ? parsed.stage.trim() : null
   parsed.current_stage = outline.stage
