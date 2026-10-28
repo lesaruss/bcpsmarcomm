@@ -16,6 +16,7 @@ import AssignmentsPage from './AssignmentsPage'
 import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
 import CompleteItemDialog, { type CompletableItem, type InputTarget } from '@/components/bcps/CompleteItemDialog'
 import DocumentsPage, { type PinnedDoc } from './DocumentsPage'
+import NotesPage from './NotesPage'
 import MembersPage from './MembersPage'
 import { WcmCommunityHub, type CertStatus } from './WCMPage'
 import { useBCPSShell } from '@/components/BCPSShell'
@@ -663,26 +664,85 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
 
       {tab === 'overview' && (
         <>
-          {recentNotes.length > 0 && (
-            <div className="home-dept home-section">
-              <div className="home-dept-head"><h3>Recent documents</h3></div>
-              {recentNotes.map((n) => {
-                const d = new Date(n.posted_at)
-                return (
-                  <div key={n.id} className="home-note">
-                    <div className="home-note-date">{d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}<b>{d.getDate()}</b></div>
-                    <div className="home-note-body">
-                      <div className="home-note-title">{n.href ? <a href={n.href}>{n.title}</a> : n.title}</div>
-                      {n.description && <div className="home-note-text">{n.description}</div>}
-                    </div>
-                  </div>
-                )
-              })}
-              <div className="home-actions">
-                <button type="button" className="wcm-hub2-card-btn" onClick={() => setTab('notes')}>All meeting notes</button>
+          {/* Action items and meetings up front (Sean, 2026-10-28): directors
+              review, so their list is what to look at next; the next Hot Lab
+              and their latest meeting notes sit beside it instead of a tab
+              away. */}
+          <div className="home-wcm-cols home-section">
+            <div className="home-wcm-main">
+              <div className="home-dept home-section">
+                <h3 className="home-card-title">Action items</h3>
+                <ol className="home-wsteps">
+                  {leadership ? (
+                    <li>
+                      <b>Read the Platform Plan</b>
+                      <span>Moving bcpsmarcomm.com and browardschools.ai onto District accounts: the Copilot test, costs and timeline.</span>
+                      <button type="button" className="home-link-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=bcps-platform-ownership-migration', { scroll: false })}>Open the plan</button>
+                    </li>
+                  ) : (
+                    <li>
+                      <b>Review the Director Playbook</b>
+                      <span>What the Web Content Manager program expects of your department, refreshed every Thursday.</span>
+                      <button type="button" className="home-link-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=director-department', { scroll: false })}>Open the playbook</button>
+                    </li>
+                  )}
+                  <li>
+                    <b>See what is popular in your {led.length > 1 ? 'departments' : 'department'}</b>
+                    <span>Your most visited pages, where visitors come from, and marketing ideas drawn from your numbers.</span>
+                    <button type="button" className="home-link-btn" onClick={() => setTab('analytics')}>Open Analytics</button>
+                  </li>
+                  {!leadership && (
+                    <li>
+                      <b>Plan a meeting with the District Web Team</b>
+                      <span>{myWindow
+                        ? `Your review window is ${formatWindowRange(myWindow)}. Meet with your team and ours about marketing campaigns or web projects, in your window or sooner.`
+                        : 'Meet with your team and ours about marketing campaigns or web projects.'}</span>
+                      <button type="button" className="home-link-btn" onClick={() => setTab('review')}>See your review window</button>
+                    </li>
+                  )}
+                  {(data.hot_labs?.length ?? 0) > 0 && (
+                    <li>
+                      <b>Catch up on the latest Hot Lab</b>
+                      <span>See what the District Web Team is working through with Web Content Managers each week.</span>
+                      <button type="button" className="home-link-btn" onClick={() => setTab('hotlabs')}>Open Hot Labs</button>
+                    </li>
+                  )}
+                  {!leadership && unconfirmed > 0 && (
+                    <li className="now">
+                      <b>Name your Web Content Manager</b>
+                      <span>{unconfirmed} department{unconfirmed > 1 ? 's' : ''} you lead {unconfirmed > 1 ? 'have' : 'has'} no confirmed WCM yet.</span>
+                      <a className="home-link-btn" href={ROSTER_SIGNUP_URL}>Confirm a WCM</a>
+                    </li>
+                  )}
+                </ol>
               </div>
             </div>
-          )}
+            <div className="home-wcm-side">
+              <div className="home-dept home-section home-hotlab">
+                <div className="home-dept-head">
+                  <h3>Meetings</h3>
+                  {hotLabLive() && <span className="home-live-pill">Hot Lab live now</span>}
+                </div>
+                <p className="home-card-text">Hot Labs run Tuesdays and Thursdays, 11:30 AM to 12:30 PM on Teams. Next: {nextHotLab()}.</p>
+                {recentNotes.length > 0 ? recentNotes.map((n) => {
+                  const d = new Date(n.posted_at)
+                  return (
+                    <div key={n.id} className="home-note">
+                      <div className="home-note-date">{d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}<b>{d.getDate()}</b></div>
+                      <div className="home-note-body">
+                        <div className="home-note-title">{n.href ? <a href={n.href}>{n.title}</a> : n.title}</div>
+                        {n.description && <div className="home-note-text">{n.description}</div>}
+                      </div>
+                    </div>
+                  )
+                }) : <p className="home-card-text">Notes from your department&apos;s meetings appear here.</p>}
+                <div className="home-actions">
+                  <button type="button" className="wcm-hub2-card-btn" onClick={() => setTab('notes')}>All meeting notes</button>
+                  {(data.hot_labs?.length ?? 0) > 0 && <button type="button" className="home-link-btn" onClick={() => setTab('hotlabs')}>Hot Labs</button>}
+                </div>
+              </div>
+            </div>
+          </div>
           <p className="wcm-hub2-intro">{oversight
             ? 'Web Content Managers for every department and where each one stands with the Department WCM Certification.'
             : 'Your Web Content Managers and where each one stands with the Department WCM Certification.'}</p>
@@ -712,7 +772,9 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
       {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} oversight={oversight} />}
       {/* Leadership View sees the full Analytics page, the way the team does. */}
       {tab === 'analytics' && (leadership ? <AnalyticsTabPage /> : <AnalyticsTab led={led} />)}
-      {tab === 'notes' && <NotesTab notes={data.director_notes ?? []} led={led} />}
+      {/* The same Meeting Notes page everyone else has (Sean, 2026-10-28). */}
+      {tab === 'notes' && <NotesPage embedded asEmail={data.viewing_as?.email}
+        extras={(data.director_notes ?? []).filter((n) => !!n.href).map((n) => ({ id: n.id, title: n.title, description: n.description, href: n.href as string, posted_at: n.posted_at }))} />}
       {tab === 'hotlabs' && <DirectorHotLabsTab items={data.hot_labs ?? []} />}
       {tab === 'widgets' && <WidgetsPage embedded />}
       {tab === 'wcm' && <WcmCommunityHub />}
@@ -952,38 +1014,6 @@ function rollUp(months: DepartmentMonth[]): Omit<DepartmentMonth, 'period'> {
     top_pages: Array.from(pages.values()).sort((x, y) => y.visits - x.visits).slice(0, 10)
       .map((p) => ({ title: p.title, path: p.path, visits: p.visits, visitors: p.visitors, avg_seconds: p.visits ? Math.round(p.secs / p.visits) : 0 })),
   }
-}
-
-function NotesTab({ notes, led }: { notes: DirectorNote[]; led: DepartmentSummary[] }) {
-  if (!notes.length) {
-    return (
-      <div className="wcm-hub2-empty">
-        Meeting notes shared with you appear here, newest first. After your department&apos;s review meeting, the recap and your playbook timeline are posted here.
-      </div>
-    )
-  }
-  return (
-    <>
-      <p className="wcm-hub2-intro">Meeting notes and recaps shared with you, newest first.</p>
-      <div className="home-dept">
-        {notes.map((n) => {
-          const d = new Date(n.posted_at)
-          const dept = n.department_id ? led.find((x) => x.id === n.department_id)?.name : null
-          return (
-            <div key={n.id} className="home-note">
-              <div className="home-note-date">{d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}<b>{d.getDate()}</b></div>
-              <div className="home-note-body">
-                <div className="home-note-title">
-                  {n.href ? <a href={n.href}>{n.title}</a> : n.title}
-                </div>
-                <div className="home-note-text">{n.description}{dept ? ` (${dept})` : ''}</div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </>
-  )
 }
 
 /* ─── DOCUMENTS ─────────────────────────────────────── */

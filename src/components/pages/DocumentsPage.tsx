@@ -367,7 +367,9 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
             <div key={section.key} className="docs-section-group">
               <p className="docs-section-desc">{section.description}</p>
 
-              {section.key === 'documents' && (
+              {/* Review-only lists are short (a director has one or two documents),
+                  so they skip search, sort and filters until there are more (Sean, 2026-10-28). */}
+              {section.key === 'documents' && !reviewOnly && (
                 <div className="docs-toolbar">
                   <input type="search" className="docs-search" value={query} onChange={e => setQuery(e.target.value)}
                     placeholder={`Search ${docs.length} document${docs.length === 1 ? '' : 's'}`} aria-label="Search documents" />
@@ -380,7 +382,7 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
                 </div>
               )}
 
-              {section.key === 'documents' && (
+              {section.key === 'documents' && !reviewOnly && (
                 <>
                   <div className="docs-chips" role="group" aria-label="Filter by project">
                     <span className="docs-chips-label">Project</span>
