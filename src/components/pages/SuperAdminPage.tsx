@@ -22,10 +22,11 @@ interface SuperAdminPageProps {
   onShowToast: (msg: string) => void
 }
 
-type AdminTab = 'invites' | 'domain' | 'members' | 'viewas' | 'platform'
+type AdminTab = 'invites' | 'directors' | 'domain' | 'members' | 'viewas' | 'platform'
 
 const ADMIN_TABS: { id: AdminTab; label: string; icon: string }[] = [
   { id: 'invites', label: 'Beta Invitations', icon: '✉️' },
+  { id: 'directors', label: 'Director Invitations', icon: '🏛️' },
   { id: 'domain', label: 'Domain Rules', icon: '🔒' },
   { id: 'members', label: 'All Members', icon: '👥' },
   { id: 'viewas', label: 'View As Access', icon: '👁️' },
@@ -485,6 +486,103 @@ function ViewAsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
   )
 }
 
+// Director Invitations (Sean, 2026-10-28): every department director and the
+// executives over them, from bcps_departments, with who has an account and
+// who has been invited. Send a test to yourself first; then send to the
+// people checked. /api/bcps/director-invite does the work.
+interface DirectorRecipient {
+  email: string
+  name: string
+  departments: string[]
+  role: 'director' | 'executive' | 'leader'
+  has_account: boolean
+  signed_in: boolean
+  invited_at: string | null
+}
+
+function DirectorInvitesTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
+  const [list, setList] = useState<DirectorRecipient[] | null>(null)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [testTo, setTestTo] = useState('sean.russell@browardschools.com')
+  const [busy, setBusy] = useState(false)
+
+  const load = async () => {
+    const r = await fetch('/api/bcps/director-invite', { headers: await authHeaders() })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) { onShowToast(j.error || 'Could not load directors.'); setList([]); return }
+    const rows: DirectorRecipient[] = j.recipients ?? []
+    setList(rows)
+    // Everyone not yet invited starts checked.
+    setPicked(new Set(rows.filter((x) => !x.invited_at).map((x) => x.email)))
+  }
+  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const post = async (payload: object) => {
+    setBusy(true)
+    try {
+      const r = await fetch('/api/bcps/director-invite', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify(payload),
+      })
+      return { ok: r.ok, j: await r.json().catch(() => ({})) }
+    } finally { setBusy(false) }
+  }
+
+  const sendTest = async () => {
+    const { ok, j } = await post({ action: 'test', to: testTo })
+    onShowToast(ok ? `Test sent to ${testTo}, written as it would read for ${j.as}.` : (j.error || 'Could not send the test.'))
+  }
+  const sendPicked = async () => {
+    if (!picked.size) return
+    if (!window.confirm(`Send the BCPS MarComm invitation to ${picked.size} ${picked.size === 1 ? 'person' : 'people'}? New accounts are created for anyone who does not have one.`)) return
+    const { ok, j } = await post({ action: 'send', emails: Array.from(picked) })
+    if (!ok) { onShowToast(j.error || 'Could not send.'); return }
+    onShowToast(j.failed?.length ? `Sent ${j.sent}. ${j.failed.length} failed: ${j.failed.map((f: { email: string }) => f.email).join(', ')}` : `Sent ${j.sent} invitation${j.sent === 1 ? '' : 's'}.`)
+    load()
+  }
+  const toggle = (email: string) => setPicked((p) => { const n = new Set(p); if (n.has(email)) n.delete(email); else n.add(email); return n })
+
+  const roleLabel = (r: DirectorRecipient['role']) => r === 'executive' ? 'Executive' : r === 'leader' ? 'Leader' : 'Director'
+  return (
+    <div>
+      <div className="admin-section-header">
+        <div>
+          <h3>Director Invitations</h3>
+          <p>One email that lets each director into BCPS MarComm: their WCMs, analytics and department report, website review, Hot Labs and meeting notes. People without an account get a set-password link; everyone is added to the Directors group.</p>
+        </div>
+      </div>
+      <div className="invite-form-card">
+        <h4>1. Send yourself a test</h4>
+        <div className="form-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+          <input type="email" className="form-input" style={{ maxWidth: 340 }} value={testTo} onChange={(e) => setTestTo(e.target.value)} aria-label="Send the test to" />
+          <button className="btn btn-outline" disabled={busy || !testTo.trim()} onClick={sendTest}>Send test</button>
+        </div>
+        <h4 style={{ marginTop: 18 }}>2. Send to the people checked below</h4>
+        <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
+          <button className="btn btn-primary" disabled={busy || !picked.size} onClick={sendPicked}>Send to {picked.size} {picked.size === 1 ? 'person' : 'people'}</button>
+        </div>
+      </div>
+      {!list ? <p>Loading directors...</p> : (
+        <div className="invite-table-wrap">
+          <table className="invite-table">
+            <thead><tr><th aria-label="Send"></th><th>Name</th><th>Departments</th><th>Account</th><th>Invited</th></tr></thead>
+            <tbody>
+              {list.map((r) => (
+                <tr key={r.email}>
+                  <td><input type="checkbox" checked={picked.has(r.email)} onChange={() => toggle(r.email)} aria-label={`Send to ${r.name}`} /></td>
+                  <td><div style={{ fontWeight: 700 }}>{r.name}</div><div style={{ fontSize: 11, opacity: 0.7, overflowWrap: 'anywhere' }}>{r.email} · {roleLabel(r.role)}</div></td>
+                  <td style={{ fontSize: 12 }}>{r.departments.length ? r.departments.join(', ') : 'All departments'}</td>
+                  <td>{r.signed_in ? <span className="badge badge-green">Signed in</span> : r.has_account ? <span className="badge badge-yellow">Account, not signed in</span> : <span className="badge badge-gray">No account</span>}</td>
+                  <td style={{ fontSize: 12 }}>{r.invited_at ? new Date(r.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Not yet'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function SuperAdminPage({ onShowToast }: SuperAdminPageProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('invites')
 
@@ -511,6 +609,7 @@ export default function SuperAdminPage({ onShowToast }: SuperAdminPageProps) {
 
       <div className="admin-content">
         {activeTab === 'invites' && <InvitesTab onShowToast={onShowToast} />}
+        {activeTab === 'directors' && <DirectorInvitesTab onShowToast={onShowToast} />}
         {activeTab === 'domain' && <DomainTab onShowToast={onShowToast} />}
         {activeTab === 'members' && <MembersTab onShowToast={onShowToast} />}
         {activeTab === 'viewas' && <ViewAsTab onShowToast={onShowToast} />}
