@@ -492,12 +492,19 @@ function ViewAsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
 // executives over them, from bcps_departments. The page shows who it is from,
 // lets you open any recipient and read the exact email they will get, send
 // yourself a test, send to the people checked, and see sent or failed for
-// each. /api/bcps/director-invite does the work.
+// each. /api/bcps/director-invite does the work. Campaign 2 (V, 2026-10-28)
+// is the Web Content Manager access email, /api/bcps/wcm-campaign, the same
+// shape so this one component drives both.
+const CAMPAIGNS = [
+  { key: 'directors', n: 1, label: 'Director invitation', endpoint: '/api/bcps/director-invite', who: 'directors and executives', noun: 'invitation' },
+  { key: 'wcms', n: 2, label: 'Web Content Manager access', endpoint: '/api/bcps/wcm-campaign', who: 'Web Content Managers on the roster', noun: 'access email' },
+] as const
+type CampaignKey = typeof CAMPAIGNS[number]['key']
 interface DirectorRecipient {
   email: string
   name: string
   departments: string[]
-  role: 'director' | 'executive' | 'leader' | 'function_lead'
+  role: 'director' | 'executive' | 'leader' | 'function_lead' | 'wcm'
   has_account: boolean
   signed_in: boolean
   invited_at: string | null
@@ -507,6 +514,8 @@ interface Sender { from: string; reply_to: string; subject: string }
 interface Preview { to: string; subject: string; html: string; is_new_account: boolean; gets_temp_password: boolean }
 
 function CampaignsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
+  const [campaignKey, setCampaignKey] = useState<CampaignKey>('directors')
+  const campaign = CAMPAIGNS.find((c) => c.key === campaignKey)!
   const [list, setList] = useState<DirectorRecipient[] | null>(null)
   const [sender, setSender] = useState<Sender | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
@@ -515,21 +524,22 @@ function CampaignsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
   const [preview, setPreview] = useState<Preview | null>(null)
 
   const load = async () => {
-    const r = await fetch('/api/bcps/director-invite', { headers: await authHeaders() })
+    setList(null)
+    const r = await fetch(campaign.endpoint, { headers: await authHeaders() })
     const j = await r.json().catch(() => ({}))
-    if (!r.ok) { onShowToast(j.error || 'Could not load directors.'); setList([]); return }
+    if (!r.ok) { onShowToast(j.error || `Could not load the ${campaign.who}.`); setList([]); return }
     const rows: DirectorRecipient[] = j.recipients ?? []
     setList(rows)
     setSender(j.sender ?? null)
     // Everyone not yet invited starts checked.
     setPicked(new Set(rows.filter((x) => !x.invited_at).map((x) => x.email)))
   }
-  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [campaignKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const post = async (payload: object) => {
     setBusy(true)
     try {
-      const r = await fetch('/api/bcps/director-invite', {
+      const r = await fetch(campaign.endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify(payload),
       })
       return { ok: r.ok, j: await r.json().catch(() => ({})) }
@@ -547,15 +557,15 @@ function CampaignsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
   }
   const sendPicked = async () => {
     if (!picked.size) return
-    if (!window.confirm(`Send the BCPS MarComm invitation to ${picked.size} ${picked.size === 1 ? 'person' : 'people'}? New accounts are created for anyone who does not have one. This cannot be undone.`)) return
+    if (!window.confirm(`Send the ${campaign.label} email to ${picked.size} ${picked.size === 1 ? 'person' : 'people'}? New accounts are created for anyone who does not have one. This cannot be undone.`)) return
     const { ok, j } = await post({ action: 'send', emails: Array.from(picked) })
     if (!ok) { onShowToast(j.error || 'Could not send.'); return }
-    onShowToast(j.failed?.length ? `Sent ${j.sent}. ${j.failed.length} failed: ${j.failed.map((f: { email: string }) => f.email).join(', ')}` : `Sent ${j.sent} invitation${j.sent === 1 ? '' : 's'}.`)
+    onShowToast(j.failed?.length ? `Sent ${j.sent}. ${j.failed.length} failed: ${j.failed.map((f: { email: string }) => f.email).join(', ')}` : `Sent ${j.sent} ${campaign.noun}${j.sent === 1 ? '' : 's'}.`)
     load()
   }
   const toggle = (email: string) => setPicked((p) => { const n = new Set(p); if (n.has(email)) n.delete(email); else n.add(email); return n })
 
-  const roleLabel = (r: DirectorRecipient['role']) => r === 'executive' ? 'Executive' : r === 'leader' ? 'Leader' : r === 'function_lead' ? 'Program lead' : 'Director'
+  const roleLabel = (r: DirectorRecipient['role']) => r === 'executive' ? 'Executive' : r === 'leader' ? 'Leader' : r === 'function_lead' ? 'Program lead' : r === 'wcm' ? 'Web Content Manager' : 'Director'
   const day = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const sentCount = (list ?? []).filter((r) => r.last_email?.status === 'sent').length
   const failedCount = (list ?? []).filter((r) => r.last_email && r.last_email.status !== 'sent').length
@@ -567,17 +577,18 @@ function CampaignsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
           <p>Platform emails sent from BCPS MarComm, with replies going to the sender. Pick a campaign, open any recipient to see exactly what they will get, send yourself a test, then send.</p>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-        <div className="invite-form-card" style={{ flex: '1 1 260px', margin: 0, borderColor: '#1672A7' }}>
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#1672A7' }}>Campaign 1 · Open</div>
-          <h4 style={{ margin: '4px 0' }}>Director invitation</h4>
-          <p style={{ margin: 0, fontSize: 13 }}>{list ? `${list.length} directors and executives. ${sentCount} sent${failedCount ? `, ${failedCount} failed` : ''}.` : 'Loading...'}</p>
-        </div>
-        <div className="invite-form-card" style={{ flex: '1 1 260px', margin: 0, opacity: 0.6 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Campaign 2 · Next</div>
-          <h4 style={{ margin: '4px 0' }}>Web Content Manager email</h4>
-          <p style={{ margin: 0, fontSize: 13 }}>Follows the director invitation.</p>
-        </div>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }} role="tablist" aria-label="Campaigns">
+        {CAMPAIGNS.map((c) => {
+          const on = c.key === campaignKey
+          return (
+            <button key={c.key} type="button" role="tab" aria-selected={on} className="invite-form-card" onClick={() => { if (!on) { setPreview(null); setCampaignKey(c.key) } }}
+              style={{ flex: '1 1 260px', margin: 0, textAlign: 'left', cursor: on ? 'default' : 'pointer', font: 'inherit', borderColor: on ? '#1672A7' : undefined, opacity: on ? 1 : 0.75 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: on ? '#1672A7' : undefined }}>Campaign {c.n}{on ? ' · Open' : ''}</div>
+              <h4 style={{ margin: '4px 0' }}>{c.label}</h4>
+              <p style={{ margin: 0, fontSize: 13 }}>{on ? (list ? `${list.length} ${c.who}. ${sentCount} sent${failedCount ? `, ${failedCount} failed` : ''}.` : 'Loading...') : `Open to see the ${c.who}.`}</p>
+            </button>
+          )
+        })}
       </div>
       {sender && (
         <div className="invite-form-card">
@@ -602,7 +613,7 @@ function CampaignsTab({ onShowToast }: { onShowToast: (msg: string) => void }) {
           <button className="btn btn-primary" disabled={busy || !picked.size} onClick={sendPicked}>Send to {picked.size} {picked.size === 1 ? 'person' : 'people'}</button>
         </div>
       </div>
-      {!list ? <p>Loading directors...</p> : (
+      {!list ? <p>Loading the {campaign.who}...</p> : (
         <div className="invite-table-wrap">
           <table className="invite-table">
             <thead><tr><th aria-label="Send"></th><th>Name</th><th>Departments</th><th>Account</th><th>Email</th><th aria-label="Preview"></th></tr></thead>
