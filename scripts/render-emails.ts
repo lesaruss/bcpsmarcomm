@@ -32,6 +32,8 @@ const {
   wcmConfirmationEmail,
   SITE,
 } = require('../src/lib/bcps-portal-account') as typeof import('../src/lib/bcps-portal-account')
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { wcmAccessEmail } = require('../src/lib/bcps-wcm-access-email') as typeof import('../src/lib/bcps-wcm-access-email')
 
 const OUT = join(process.cwd(), 'emails', 'approved')
 const CHECK = process.argv.includes('--check')
@@ -90,6 +92,18 @@ const cases: { name: string; subject: string; html: string }[] = [
       wcmName: WCM, departmentName: DEPT, isNewAccount: false,
       failsafeHref: `${SITE}/login`,
     }),
+  },
+  {
+    // Campaign 2 on the Campaigns tab (V, 2026-10-28): a WCM with no account
+    // gets the set-password button and a temporary password.
+    name: 'wcm-access-new-account',
+    subject: 'Your BCPS MarComm access',
+    html: wcmAccessEmail({ name: WCM, departments: [DEPT] }, `${SITE}/set-password#SAMPLE_ACTION_LINK`, true, 'SampleTemp23'),
+  },
+  {
+    name: 'wcm-access-existing-account',
+    subject: 'Your BCPS MarComm access',
+    html: wcmAccessEmail({ name: WCM, departments: [DEPT] }, `${SITE}/login`, false, null),
   },
 ]
 
