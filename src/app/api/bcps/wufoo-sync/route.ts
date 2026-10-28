@@ -225,10 +225,11 @@ async function sync() {
       let { data, error } = await supabase.from('bcps_marcomm_requests')
         .upsert(row, { onConflict: 'job_number', ignoreDuplicates: true }).select('id')
       if (error) throw new Error(`Entry ${e.EntryId}: ${error.message}`)
-      // The platform form takes job numbers from the same sequence (2026-10-28),
-      // so a Wufoo entry's number can already belong to a form request. Skipping
-      // it would lose the request: import it without a job number instead, with
-      // a note naming the Wufoo entry, so the team can see and number it.
+      // A Wufoo entry's number can already belong to another request (2026-10-28:
+      // the platform form once shared this number line; it now numbers from
+      // 5001). Skipping it would lose the request: import it without a job
+      // number instead, with a note naming the Wufoo entry, so the team can
+      // see and number it.
       let collided = false
       if (!data?.length) {
         const { data: holder } = await supabase.from('bcps_marcomm_requests').select('source').eq('job_number', row.job_number).maybeSingle()
