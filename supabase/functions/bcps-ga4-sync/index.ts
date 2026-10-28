@@ -14,6 +14,7 @@
 // same-address capital-letter variants kept without a title in v33).
 // Department report limit raised to 10,000 rows and every matched department
 // kept 2026-10-28 (v34). Department and unmatched groups keyed apart (v35).
+// Department addresses outside /bcps-departments/ read too (v36).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -328,12 +329,26 @@ Deno.serve(async (req: Request) => {
       range = { startDate: `${backfill}-01`, endDate: `${backfill}-${String(last).padStart(2, '0')}` };
     }
 
+    // v36: a department whose address sits outside /bcps-departments/ (Media
+    // Relations is the newsroom at /about-us/news-room) has its paths read
+    // too. Only those paths are added, so no other site pages get grouped.
+    const outsidePaths = Array.from(new Set(deptPaths.map(dp => dp.path).filter(p => !p.startsWith('/bcps-departments/'))));
+    const deptFilter = outsidePaths.length
+      ? { orGroup: { expressions: [
+          { filter: { fieldName: 'pagePath', stringFilter: { matchType: 'BEGINS_WITH', value: '/bcps-departments/' } } },
+          ...outsidePaths.flatMap(p => [
+            { filter: { fieldName: 'pagePath', stringFilter: { matchType: 'EXACT', value: p } } },
+            { filter: { fieldName: 'pagePath', stringFilter: { matchType: 'BEGINS_WITH', value: p + '/' } } },
+          ]),
+        ] } }
+      : { filter: { fieldName: 'pagePath', stringFilter: { matchType: 'BEGINS_WITH', value: '/bcps-departments/' } } };
+
     const [deptReport, overallReport, allPagesReport] = await Promise.all([
       runGA4Report(accessToken, {
         dateRanges: [range],
         dimensions: [{ name: 'pagePath' }],
         metrics: [{ name: 'sessions' }, { name: 'activeUsers' }, { name: 'engagementRate' }, { name: 'averageSessionDuration' }, { name: 'newUsers' }],
-        dimensionFilter: { filter: { fieldName: 'pagePath', stringFilter: { matchType: 'BEGINS_WITH', value: '/bcps-departments/' } } },
+        dimensionFilter: deptFilter,
         orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
         // v34: was 200, which dropped every page below the 200 busiest, so
         // smaller departments never got a row. Same ceiling as allPagesReport.
