@@ -14,6 +14,7 @@ import DashboardPage from './DashboardPage'
 import MarcommAssignmentsPage from './MarcommAssignmentsPage'
 import AssignmentsPage from './AssignmentsPage'
 import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
+import CompleteItemDialog, { type CompletableItem } from '@/components/bcps/CompleteItemDialog'
 import DocumentsPage, { type PinnedDoc } from './DocumentsPage'
 import MembersPage from './MembersPage'
 import { WcmCommunityHub, type CertStatus } from './WCMPage'
@@ -1025,6 +1026,49 @@ function useDocParam(): [string | null, (slug: string | null) => void] {
 // Toolbar (Sean, 2026-10-26): the caller's buttons (All documents, Open full
 // page) and Edit this page share one row on top, equal widths on a phone;
 // `between` (the transcript upload bar) sits under that row, above the page.
+// Complete buttons (V, 2026-10-28): beside each open Work Queue or Action
+// Items entry this person owns (or every one, for the superadmin), in the
+// version on screen. They are added to the page in the frame, never saved:
+// Edit this page strips them before saving.
+const COMPLETE_BTN = 'bcps-complete-btn'
+const COMPLETE_CSS_ID = 'bcps-complete-style'
+const COMPLETE_CSS = `.${COMPLETE_BTN} { font: inherit; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 9px; margin-left: 10px; border-radius: 4px; border: 1px solid #1672A7; background: #fff; color: #0e4e73; cursor: pointer; vertical-align: middle; } .${COMPLETE_BTN}:hover { background: #1672A7; color: #fff; }`
+const normText = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase()
+
+function stripCompleteButtons(d: Document | HTMLElement) {
+  d.querySelectorAll(`.${COMPLETE_BTN}, #${COMPLETE_CSS_ID}`).forEach((el) => el.remove())
+}
+
+function addCompleteButtons(d: Document, items: CompletableItem[], open: (item: CompletableItem) => void) {
+  stripCompleteButtons(d)
+  if (!items.length) return
+  const checked = d.querySelector('input.ver-radio:checked')
+  const block = (checked && d.querySelector(`.ver-${checked.id.replace(/^ver/, '')}`)) || d.querySelector('main') || d.body
+  const style = d.createElement('style')
+  style.id = COMPLETE_CSS_ID
+  style.textContent = COMPLETE_CSS
+  d.head.appendChild(style)
+  const button = (item: CompletableItem) => {
+    const b = d.createElement('button')
+    b.type = 'button'
+    b.className = COMPLETE_BTN
+    b.textContent = 'Complete'
+    b.setAttribute('aria-label', `Complete: ${item.text}`)
+    b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); open(item) })
+    return b
+  }
+  const queue = items.filter((i) => i.kind === 'queue')
+  block.querySelectorAll('li.chk-item.pending').forEach((li) => {
+    const item = queue.find((i) => i.key === normText(li.textContent || ''))
+    if (item) (li.lastElementChild ?? li).appendChild(button(item))
+  })
+  const actions = items.filter((i) => i.kind === 'action')
+  block.querySelectorAll('.action-item .action-title').forEach((t) => {
+    const item = actions.find((i) => i.key === normText(t.textContent || ''))
+    if (item) t.appendChild(button(item))
+  })
+}
+
 // refresh: bump it to reload the page in the frame (after a transcript update).
 function DocFrame({ slug, title, onOpen, buttons, between, refresh = 0 }: { slug: string; title: string; onOpen: (slug: string) => void; buttons?: React.ReactNode; between?: React.ReactNode; refresh?: number }) {
   const ref = useRef<HTMLIFrameElement>(null)
@@ -1034,6 +1078,8 @@ function DocFrame({ slug, title, onOpen, buttons, between, refresh = 0 }: { slug
   const [saving, setSaving] = useState(false)
   const [note, setNote] = useState('')
   const [reload, setReload] = useState(0)
+  const [completable, setCompletable] = useState<CompletableItem[]>([])
+  const [completing, setCompleting] = useState<CompletableItem | null>(null)
   const opened = useRef<HTMLDetailsElement[]>([])
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
@@ -1056,8 +1102,26 @@ function DocFrame({ slug, title, onOpen, buttons, between, refresh = 0 }: { slug
     })().catch(() => {})
     return () => { live = false }
   }, [slug])
+  useEffect(() => {
+    let live = true
+    setCompletable([])
+    ;(async () => {
+      const token = (await createClient().auth.getSession()).data.session?.access_token
+      if (!token) return
+      const r = await fetch(`/api/bcps/playbook-items?slug=${encodeURIComponent(slug)}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
+      const j = await r.json().catch(() => ({}))
+      if (live) setCompletable(Array.isArray(j.items) ? j.items : [])
+    })().catch(() => {})
+    return () => { live = false }
+  }, [slug, reload, refresh])
+  // The buttons go in once both the page and the list are ready, whichever is last.
+  useEffect(() => {
+    const d = ref.current?.contentDocument
+    if (d?.body && !editing) addCompleteButtons(d, completable, setCompleting)
+  }, [completable, editing])
   const fit = () => {
     const d = ref.current?.contentDocument
+    if (d?.body && !editing) addCompleteButtons(d, completable, setCompleting)
     if (!d?.documentElement) return
     const measure = () => setHeight(Math.max(600, d.documentElement.scrollHeight))
     measure()
@@ -1066,6 +1130,7 @@ function DocFrame({ slug, title, onOpen, buttons, between, refresh = 0 }: { slug
   const startEdit = () => {
     const d = ref.current?.contentDocument
     if (!d) return
+    stripCompleteButtons(d)
     // Open every closed section so all of it can be edited; they close again on save.
     opened.current = Array.from(d.querySelectorAll('details:not([open])')) as HTMLDetailsElement[]
     opened.current.forEach((el) => { el.open = true })
@@ -1082,6 +1147,7 @@ function DocFrame({ slug, title, onOpen, buttons, between, refresh = 0 }: { slug
       opened.current.forEach((el) => { el.open = false })
       const root = d.documentElement.cloneNode(true) as HTMLElement
       root.querySelectorAll('#bcps-embed-script').forEach((el) => el.remove())
+      stripCompleteButtons(root)
       const html = '<!DOCTYPE html>\n' + root.outerHTML
       const token = (await createClient().auth.getSession()).data.session?.access_token
       const r = await fetch('/api/bcps/playbook-edit', {
@@ -1114,6 +1180,10 @@ function DocFrame({ slug, title, onOpen, buttons, between, refresh = 0 }: { slug
         </p>
       )}
       {!editing && between}
+      {completing && (
+        <CompleteItemDialog slug={slug} item={completing} onClose={() => setCompleting(null)}
+          onDone={(message) => { setCompleting(null); setNote(message); setReload((n) => n + 1) }} />
+      )}
       <iframe ref={ref} key={`${slug}-${reload}-${refresh}`} src={`/api/bcps/doc-raw/${encodeURIComponent(slug)}?embed=1`} title={title} onLoad={fit}
         style={{ display: 'block', width: '100%', height, border: editing ? '2px solid var(--blue, #1672A7)' : '1px solid var(--border)', borderRadius: 12, background: '#fff' }} />
     </>

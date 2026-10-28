@@ -86,7 +86,7 @@ function fmtDate(iso: string): string {
 
 // Teams and Zoom export WebVTT. Drop the header, cue numbers and timings, keep
 // "Speaker: words", and join a speaker's consecutive cues into one line.
-function cleanTranscript(raw: string): string {
+export function cleanTranscript(raw: string): string {
   if (!/^﻿?WEBVTT/.test(raw) && !/-->/.test(raw)) return raw.trim()
   const lines: string[] = []
   let last = ''

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase-admin'
+import { anthropicKey } from '@/lib/anthropic-key'
 import { requireBcpsPageAccess, requireNamedPageGrant, requirePlaybookTranscriptAccess } from '@/lib/bcps-auth'
 import { loadAssignments } from '@/lib/bcps-team-home'
 import { PLAYBOOK_PROPOSAL_SCHEMA, PLAYBOOK_SYSTEM, loadPlaybook, playbookPrompt, playbookPayload, filePlaybookNotes } from '@/lib/playbook-meeting-transcript'
 import { playbookOutline, applyPlaybookUpdate } from '@/lib/playbook-update'
+import { resolveOwners } from '@/lib/playbook-items'
 import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadMarcommRows, marcommPrompt, attachCurrent, marcommPayload } from '@/lib/marcomm-meeting-transcript'
 
 // Meeting transcript upload for Web Team Assignments (Sean, 2026-10-21).
@@ -37,16 +39,6 @@ const MAX_TRANSCRIPT = 600_000
 const STATUSES = ['in-progress', 'pending', 'ongoing', 'completed', 'archived']
 
 const svc = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
-// The key lives in the vault (lesaruss_secrets.ANTHROPIC_API_KEY), read with
-// the service role the same way audit-worker reads its key; an env var wins
-// if one is ever set on the project.
-async function anthropicKey(): Promise<string | null> {
-  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY
-  const lesaruss = createServiceClient(process.env.LESARUSS_SUPABASE_URL!, process.env.LESARUSS_SUPABASE_SERVICE_KEY!)
-  const { data } = await lesaruss.from('lesaruss_secrets').select('value').eq('key', 'ANTHROPIC_API_KEY').maybeSingle()
-  return (data?.value as string) || null
-}
 
 async function displayName(userId: string, email: string): Promise<string> {
   const { data } = await svc.from('wcm_cert_users').select('full_name').eq('user_id', userId).maybeSingle()
@@ -219,9 +211,14 @@ async function updatePlaybook(slug: string, notes: ReturnType<typeof playbookPay
   const { data: row } = await svc.from('briefings').select('content, updated_at')
     .eq('brand_slug', 'bcps').eq('type', 'playbook').eq('slug', slug).maybeSingle()
   if (!row) throw new Error('That Playbook was not found.')
+  // Owners are stored on each new Work Queue item, so its Complete button
+  // goes to exactly those people (lib/playbook-items).
+  const { data: readers } = await svc.from('bcps_brief_recipients').select('attendee_name, attendee_email').eq('brief_slug', slug)
+  const people = (readers ?? []).filter((r) => r.attendee_email).map((r) => ({ name: String(r.attendee_name || ''), email: String(r.attendee_email) }))
+  const actions = notes.actions.map((a) => ({ ...a, owners: resolveOwners([a.lead, ...a.support].filter(Boolean).join(', '), people) }))
   const out = applyPlaybookUpdate(String(row.content || ''), {
     meeting_label: meetingLabel, meeting_date: meetingDate, summary: notes.summary, decisions: notes.decisions,
-    open_questions: notes.open_questions, actions: notes.actions, section_updates: notes.section_updates,
+    open_questions: notes.open_questions, actions, section_updates: notes.section_updates,
     queue_done: notes.queue_done, stage: notes.stage, notes_path: notesPath, notes_title: notesTitle,
   })
   const { data: rev, error: revErr } = await svc.from('bcps_doc_revisions')

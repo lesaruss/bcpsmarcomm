@@ -388,3 +388,18 @@ export async function requireNamedPageGrant(req: NextRequest, pageSlug: string):
   if (!grant) return { ok: false, status: 403, error: 'Forbidden' }
   return { ok: true, user }
 }
+
+// Completing a Playbook item from the document (V, 2026-10-28): any signed-in
+// user, plus whether they are the BCPS superadmin. The route decides per item:
+// the item's owner or a superadmin.
+export async function requirePlaybookItemActor(req: NextRequest): Promise<AuthResult & { superadmin?: boolean }> {
+  const user = await userFromRequest(req)
+  if (!user) return { ok: false, status: 401, error: 'Sign in with your BCPS account to continue.' }
+  const { data: roleRow } = await service
+    .from('acl_member_roles')
+    .select('role')
+    .eq('user_id', user.userId)
+    .eq('brand', BRAND)
+    .maybeSingle()
+  return { ok: true, user, superadmin: roleRow?.role === 'superadmin' }
+}
