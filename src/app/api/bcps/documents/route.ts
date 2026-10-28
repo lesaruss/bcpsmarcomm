@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { isSuperadmin, resolvePerson } from '@/lib/bcps-view-as-person'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,7 +64,21 @@ export async function GET(req: NextRequest) {
   const user = await authedUser(req)
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  const role = await roleFor(user.id)
+  // View as (Sean, 2026-10-28): the SuperAdmin previewing a person sees that
+  // person's Documents, computed from their role, groups (including access
+  // queued for first sign-in) and grants. Read-only, like /api/bcps/home?as=.
+  let subjectId = user.id
+  let queuedGids: string[] = []
+  const asEmail = req.nextUrl.searchParams.get('as')
+  if (asEmail) {
+    if (!(await isSuperadmin(svc, user.id))) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    const person = await resolvePerson(svc, asEmail)
+    if (!person) return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
+    subjectId = person.userId
+    queuedGids = person.pendingGroupIds
+  }
+
+  const role = await roleFor(subjectId)
   const isAdmin = role === 'admin' || role === 'superadmin'
 
   // ?content_slug=X - on-demand fetch of one document's full HTML body for
@@ -74,7 +89,7 @@ export async function GET(req: NextRequest) {
     const { data: obj } = await svc.from('acl_objects')
       .select('id, owner_id, doc_url').eq('brand', BRAND).eq('kind', 'document').eq('slug', contentSlug).single()
     if (!obj) return NextResponse.json({ error: 'Document not found.' }, { status: 404 })
-    if (!isAdmin && obj.owner_id !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!isAdmin && obj.owner_id !== subjectId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     if (!isDynamic(obj.doc_url)) return NextResponse.json({ error: 'Not database-backed.' }, { status: 422 })
     const { data: page } = await svc.from('mock_pages')
       .select('content').eq('brand', BRAND).eq('surface', 'brief').eq('slug', contentSlug).single()
@@ -121,22 +136,22 @@ export async function GET(req: NextRequest) {
 
   const objIds = Array.from(new Set(all.map(d => effectiveOf(d).objectId)))
 
-  const { data: gm } = await svc.from('acl_group_members').select('group_id').eq('user_id', user.id)
-  const gids = (gm ?? []).map(g => g.group_id)
+  const { data: gm } = await svc.from('acl_group_members').select('group_id').eq('user_id', subjectId)
+  const gids = Array.from(new Set([...(gm ?? []).map(g => g.group_id), ...queuedGids]))
   const { data: grants } = await svc.from('acl_grants')
     .select('id, object_id, subject_type, subject_id, role')
     .in('object_id', objIds.length ? objIds : ['__none__'])
 
   const grantsFor = (objId: string) => (grants ?? []).filter(g => g.object_id === objId)
   const myGrant = (objId: string) => grantsFor(objId).find(g =>
-    (g.subject_type === 'user' && g.subject_id === user.id) ||
+    (g.subject_type === 'user' && g.subject_id === subjectId) ||
     (g.subject_type === 'group' && gids.includes(g.subject_id)))
 
   // Public means every signed-in BCPS MarComm account (Sean, 2026-10-20);
   // restricted still needs a grant, private only the owner.
   const visible = all.filter(d => {
     const eff = effectiveOf(d)
-    if (eff.ownerId === user.id) return true
+    if (eff.ownerId === subjectId) return true
     if (eff.visibility === 'private') return false
     return isAdmin || eff.visibility === 'public' || !!myGrant(eff.objectId)
   })
@@ -144,13 +159,13 @@ export async function GET(req: NextRequest) {
   // Favorites are each person's own short list (Sean, 2026-10-22: "what I
   // feature shouldn't be featured for everybody"). `featured` in the response
   // now means "this person starred it"; acl_objects.featured is no longer read.
-  const { data: favRows } = await svc.from('bcps_document_favorites').select('slug').eq('user_id', user.id)
+  const { data: favRows } = await svc.from('bcps_document_favorites').select('slug').eq('user_id', subjectId)
   const favorites = new Set((favRows ?? []).map(f => f.slug as string))
 
   const result = visible.map(d => {
     const eff = effectiveOf(d)
     const grant = myGrant(eff.objectId)
-    const can_edit = isAdmin || eff.ownerId === user.id || (!!grant && ['edit', 'manage'].includes(grant.role))
+    const can_edit = isAdmin || eff.ownerId === subjectId || (!!grant && ['edit', 'manage'].includes(grant.role))
     return {
       id: d.id, slug: d.slug, title: d.title, description: d.description,
       type: d.doc_type, date: d.doc_date, date_sort: d.doc_date_sort, icon: d.icon, section: d.section || 'documents',

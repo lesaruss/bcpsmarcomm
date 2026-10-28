@@ -39,7 +39,7 @@ interface Recipient {
   email: string
   name: string
   departments: string[]
-  role: 'director' | 'executive' | 'leader'
+  role: 'director' | 'executive' | 'leader' | 'function_lead'
   has_account: boolean
   signed_in: boolean
   invited_at: string | null
@@ -59,8 +59,9 @@ async function listRecipients(): Promise<Recipient[]> {
     if (!e || !e.endsWith('@' + ALLOWED_DOMAIN)) return
     const cur = byEmail.get(e) ?? { email: e, name, departments: [], role, has_account: false, signed_in: false, invited_at: null }
     if (dept && !cur.departments.includes(dept)) cur.departments.push(dept)
-    // Executive outranks director for the wording of the email.
-    if (role === 'executive') cur.role = 'executive'
+    // Executive outranks director, and both outrank a function lead, for the
+    // wording of the email.
+    if (role === 'executive' || (role === 'director' && cur.role === 'function_lead')) cur.role = role
     if (!cur.name || cur.name === nameFromEmail(e)) cur.name = name || cur.name
     byEmail.set(e, cur)
   }
@@ -69,6 +70,11 @@ async function listRecipients(): Promise<Recipient[]> {
     for (const x of (d.executive_emails ?? []) as string[]) add(x, nameFromEmail(norm(x)), d.name as string, 'executive')
   }
   for (const l of EXTRA_LEADERS) if (!byEmail.has(l.email)) add(l.email, l.name, null, 'leader')
+  // Function leads count as directors (Sean, 2026-10-28): the top person for
+  // a program or function inside a department, whatever their title, such as
+  // Deanna Greist, Coordinator, Home School Education.
+  const { data: leads } = await svc.from('bcps_page_wcm_assignments').select('page_title, wcm_name, wcm_email').eq('is_lead', true)
+  for (const l of leads ?? []) if (l.wcm_email) add(l.wcm_email as string, (l.wcm_name as string) || nameFromEmail(norm(l.wcm_email)), l.page_title as string, 'function_lead')
 
   const list = Array.from(byEmail.values())
   const emails = list.map((r) => r.email)

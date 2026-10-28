@@ -96,12 +96,22 @@ const APP_TRACKERS = ['bcps-web-team-assignments', 'bcps-marcomm-assignments']
 // Documents list, with search at the top. onOpen opens a Playbook in the
 // tab; extras sit above the list; trackers opens the live trackers; pinned
 // adds the audience's own Playbooks.
-export default function DocumentsPage({ embedded = false, onOpen, extras, trackers = {}, pinned = [] }: {
+// reviewOnly (directors, Sean 2026-10-28): directors only review, so they get
+// their pinned Playbooks and what was shared with them specifically, never
+// the public how-to guides written for WCMs. asEmail: the person a SuperAdmin
+// is viewing as, so the list is theirs and not the SuperAdmin's.
+// Shared with directors through a group but written for doing the WCM work,
+// so a review-only list leaves them out.
+const REVIEW_HIDDEN = ['wcm-department']
+
+export default function DocumentsPage({ embedded = false, onOpen, extras, trackers = {}, pinned = [], reviewOnly = false, asEmail }: {
   embedded?: boolean
   onOpen?: (slug: string) => void
   extras?: React.ReactNode
   trackers?: Record<string, () => void>
   pinned?: PinnedDoc[]
+  reviewOnly?: boolean
+  asEmail?: string | null
 } = {}) {
   const supabase = createClient()
   const [preview, setPreview] = useState<Doc | null>(null)
@@ -137,10 +147,11 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
   const load = useCallback(async () => {
     setLoading(true); setErr('')
     const t = await token()
-    const r = await fetch('/api/bcps/documents', { headers: { Authorization: `Bearer ${t}` } })
+    const r = await fetch(`/api/bcps/documents${asEmail ? `?as=${encodeURIComponent(asEmail)}` : ''}`, { headers: { Authorization: `Bearer ${t}` } })
     const j = await r.json()
     if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
-    const listed: Doc[] = (j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'documents')
+    const listed: Doc[] = (j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'documents'
+      && (!reviewOnly || (d.visibility !== 'public' && !REVIEW_HIDDEN.includes(d.slug))))
     const extra: Doc[] = pinned.filter(p => !listed.some(d => d.slug === p.slug)).map(p => ({
       id: `pinned:${p.slug}`, slug: p.slug, title: p.title, description: p.description, type: 'Playbook', date: null, date_sort: null,
       icon: '\u{1F4D8}', section: 'documents', visibility: 'public', sensitive: false, doc_url: p.doc_url, is_dynamic: false,
@@ -151,7 +162,7 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
     setGroups(j.groups ?? []); setMembers(j.members ?? []); setGrants(j.grants ?? [])
     setLoading(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
+  }, [token, asEmail, reviewOnly])
 
   useEffect(() => { load() }, [load])
 

@@ -591,7 +591,10 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
   const almostDone = led.flatMap((d) => d.wcms).filter((w) => !w.certified && w.progress_pct >= 90).length
 
   // Leadership View (Sean, 2026-10-27): a leader with no department site of
-  // their own gets no Run Audit, My WCM Work or My Resources.
+  // their own gets no Run Audit, My WCM Work or My Resources. Every director
+  // is review-only too (Sean, 2026-10-28: they do not perform tasks, they
+  // review), so Run Audit and My Resources are gone for them as well; a
+  // director who is also their department's WCM keeps My WCM Work.
   const tabs: { id: DirectorTab; label: string }[] = leadership ? [
     { id: 'overview', label: 'Overview' },
     { id: 'documents', label: 'Documents' },
@@ -603,7 +606,6 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
   ] : [
     { id: 'overview', label: 'Overview' },
     { id: 'documents', label: 'Documents' },
-    { id: 'audit', label: 'Run Audit' },
     { id: 'review', label: 'Website Review' },
     { id: 'analytics', label: 'Analytics' },
     { id: 'notes', label: 'Meeting Notes' },
@@ -611,7 +613,6 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
     ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets' as DirectorTab, label: 'Widgets' }] : []),
     // A director who is also their department's WCM keeps the WCM cards.
     ...(data.is_wcm ? [{ id: 'wcm' as DirectorTab, label: 'My WCM Work' }] : []),
-    { id: 'tools', label: 'My Resources' },
   ]
   if (page) return <PageUnderTabs tabs={tabs} onChange={(t) => setTab(t as DirectorTab)}>{page}</PageUnderTabs>
 
@@ -705,7 +706,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
           </div>}
         </>
       )}
-      {tab === 'documents' && <DocumentsTab kind={leadership ? 'leadership' : 'director'} canMarcomm={canMarcomm} />}
+      {tab === 'documents' && <DocumentsTab kind={leadership ? 'leadership' : 'director'} canMarcomm={canMarcomm} asEmail={data.viewing_as?.email} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audit' && !leadership && <RunAuditTab depts={led} canRecheck={false} />}
       {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} oversight={oversight} />}
@@ -1280,7 +1281,7 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
   )
 }
 
-function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm' | 'leadership'; team?: boolean; canMarcomm?: boolean }) {
+function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm' | 'leadership'; team?: boolean; canMarcomm?: boolean; asEmail?: string | null }) {
   const [doc, openDoc] = useDocParam()
   const [refresh, setRefresh] = useState(0)
 
@@ -1316,7 +1317,8 @@ function DocumentsTab({ kind, team = false, canMarcomm = false }: { kind: 'super
     ...(team ? { 'bcps-web-team-assignments': () => openDoc('web-team-assignments') } : {}),
     ...(canMarcomm ? { 'bcps-marcomm-assignments': () => window.location.assign(MARCOMM_PATH) } : {}),
   }
-  return <DocumentsPage embedded onOpen={(s) => openDoc(s)} trackers={trackers} pinned={kind === 'director' || kind === 'wcm' || kind === 'leadership' ? PINNED_DOCS[kind] : []} />
+  return <DocumentsPage embedded onOpen={(s) => openDoc(s)} trackers={trackers} pinned={kind === 'director' || kind === 'wcm' || kind === 'leadership' ? PINNED_DOCS[kind] : []}
+    reviewOnly={kind === 'director' || kind === 'leadership'} asEmail={asEmail} />
 }
 
 // MarComm Assignments keeps its own address (/marcomm-assignments); for the
