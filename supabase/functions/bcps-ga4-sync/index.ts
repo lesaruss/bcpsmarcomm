@@ -15,6 +15,7 @@
 // Department report limit raised to 10,000 rows and every matched department
 // kept 2026-10-28 (v34). Department and unmatched groups keyed apart (v35).
 // Department addresses outside /bcps-departments/ read too (v36).
+// Each department's own traffic sources (v37, 2026-10-28).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
@@ -369,6 +370,41 @@ Deno.serve(async (req: Request) => {
       })
     ]);
 
+    // ---- Department traffic sources (v37, 2026-10-28) ----
+    // How visitors reached each department's pages, for the director report.
+    // Its own report, read after the three above, so a failure here costs only
+    // the sources and is reported. bcps_department_analytics.traffic_sources
+    // used to receive the whole site's sources on every department row.
+    const sourcesByDept = new Map<string, Map<string, number>>();
+    let deptSourcesError: string | null = null;
+    try {
+      const deptChannelReport = await runGA4Report(accessToken, {
+        dateRanges: [range],
+        dimensions: [{ name: 'pagePath' }, { name: 'sessionDefaultChannelGroup' }],
+        metrics: [{ name: 'sessions' }],
+        dimensionFilter: deptFilter,
+        limit: 100000
+      });
+      for (const row of (deptChannelReport.rows || [])) {
+        const matched = deptForPath(row.dimensionValues[0].value);
+        if (!matched) continue;
+        const channel = row.dimensionValues[1].value || '(not set)';
+        const m = sourcesByDept.get(matched.id) ?? new Map<string, number>();
+        m.set(channel, (m.get(channel) ?? 0) + parseInt(row.metricValues[0].value));
+        sourcesByDept.set(matched.id, m);
+      }
+    } catch (err: any) {
+      deptSourcesError = err.message;
+    }
+    // Same shape the department profile page reads: [{ source, sessions, pct }].
+    const sourcesFor = (id: string | null) => {
+      const m = id ? sourcesByDept.get(id) : undefined;
+      if (!m) return [];
+      const total = Array.from(m.values()).reduce((n, v) => n + v, 0);
+      return Array.from(m, ([source, sessions]) => ({ source, sessions, pct: total ? (sessions / total * 100).toFixed(1) : '0' }))
+        .sort((a, b) => b.sessions - a.sessions);
+    };
+
     // ---- Departments (aggregate sub-pages under each department path) ----
     const deptAggMap = new Map<string, any>();
     for (const row of (deptReport.rows || [])) {
@@ -417,7 +453,8 @@ Deno.serve(async (req: Request) => {
       sessions: agg.sessions, active_users: agg.active_users, new_users: agg.new_users,
       engagement_rate: agg.sessions > 0 ? agg.totalEngagement / agg.sessions : 0,
       avg_session_duration: agg.sessions > 0 ? agg.totalDuration / agg.sessions : 0,
-      pages: agg.pages.sort((a: any, b: any) => b.sessions - a.sessions).slice(0, 20)
+      pages: agg.pages.sort((a: any, b: any) => b.sessions - a.sessions).slice(0, 20),
+      sources: sourcesFor(agg.dept_id)
     })).sort((a: any, b: any) => b.sessions - a.sessions)
       // v34: every matched department is kept; only unmatched buckets are
       // capped, so the wider report cannot push a small department out.
@@ -622,7 +659,9 @@ Deno.serve(async (req: Request) => {
         monthly_visitors: dept.active_users,
         avg_time_seconds: Math.round(dept.avg_session_duration),
         bounce_rate: Math.round((1 - dept.engagement_rate) * 100) / 100,
-        mobile_pct: null, traffic_sources: trafficSources,
+        mobile_pct: null,
+        // Left as it was when the sources lookup failed.
+        ...(deptSourcesError ? {} : { traffic_sources: sourcesFor(dept.dept_id) }),
         synced_at: new Date().toISOString()
       }, { onConflict: 'department_id,period' });
       results.push(dept.url_slug);
@@ -806,6 +845,8 @@ Deno.serve(async (req: Request) => {
       top_departments: topDepts.length,
       departments_matched: topDepts.filter(d => d.matched).length,
       departments_unmatched: topDepts.filter(d => !d.matched).map(d => d.url_slug),
+      departments_with_sources: sourcesByDept.size,
+      department_sources_error: deptSourcesError,
       top_programs: topPrograms.length,
       top_pages: topPages.length,
       top_pages_titled: topPages.filter(p => titleByPath.has(p.path)).length,

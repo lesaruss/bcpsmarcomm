@@ -96,6 +96,7 @@ interface DepartmentMonth {
 
 interface DepartmentSummary {
   id: string
+  slug: string | null
   name: string
   division: string | null
   website_url: string | null
@@ -451,7 +452,7 @@ async function loadHotLabs(email: string, admin: boolean): Promise<{ title: stri
 
 async function loadDepartments(ids: string[] | null): Promise<DepartmentSummary[]> {
   if (ids !== null && ids.length === 0) return []
-  let dq = svc.from('bcps_departments').select('id, name, division, website_url, audit_status, audit_date, ada_score, current_round').order('name')
+  let dq = svc.from('bcps_departments').select('id, slug, name, division, website_url, audit_status, audit_date, ada_score, current_round').order('name')
   if (ids !== null) dq = dq.in('id', ids)
   const { data: depts } = await dq
   if (!depts?.length) return []
@@ -532,6 +533,7 @@ async function loadDepartments(ids: string[] | null): Promise<DepartmentSummary[
     .filter((d) => !noWebsite.has(d.id))
     .map((d) => ({
       id: d.id,
+      slug: (d.slug as string | null) ?? null,
       name: d.name,
       division: d.division ?? null,
       website_url: d.website_url ?? null,
