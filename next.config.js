@@ -79,6 +79,20 @@ const nextConfig = {
       ],
     },
   },
+  // bcpsmarcomm.com/lab: one short link to the Department WCM Certification
+  // course in LAB (Learning Across Broward), the PD-credit registration that
+  // comes before the platform account (Sean, 2026-10-28). Playbooks are behind
+  // sign-in, so a brand-new WCM needs a link that works before they have one.
+  // Redirects run ahead of middleware, so this works signed out.
+  async redirects() {
+    return [
+      {
+        source: "/lab",
+        destination: "https://broward.truenorthlogic.com/ia/empari/learning2/registration/presentSectionRegistrationDetails?id=sJqNeMYw%2Fg1mZ4w0fRr0qg%3D%3D",
+        permanent: false,
+      },
+    ]
+  },
   async rewrites() {
     return [
       // bcpsmarcomm.com subdomain routing is handled entirely in src/middleware.ts

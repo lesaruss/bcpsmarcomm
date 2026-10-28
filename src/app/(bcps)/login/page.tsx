@@ -584,6 +584,10 @@ export default function BCPSLoginPage() {
                 </button>.
               </p>
               <p style={{ textAlign: 'center', marginTop: '6px', fontSize: '12px', lineHeight: '1.6' }}>
+                New Department WCM? Get your PD credit:{' '}
+                <a href="/lab" target="_blank" rel="noopener" style={{ ...linkStyle, fontSize: '12px', textDecoration: 'none' }}>register for the course in LAB</a>.
+              </p>
+              <p style={{ textAlign: 'center', marginTop: '6px', fontSize: '12px', lineHeight: '1.6' }}>
                 School Web Content Manager?{' '}
                 <a href="/school-registration" style={{ ...linkStyle, fontSize: '12px', textDecoration: 'none' }}>Create your school account</a>.
               </p>
