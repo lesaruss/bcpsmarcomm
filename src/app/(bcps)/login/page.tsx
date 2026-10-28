@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import DuplicateAccountWarning, { checkAccount, type AccountWarning } from '@/components/DuplicateAccountWarning'
+import { isExistingAccount, EXISTING_ACCOUNT_MESSAGE } from '@/lib/signup-existing'
 
 function getSafeNext(): string {
   if (typeof window === 'undefined') return '/'
@@ -158,6 +159,7 @@ export default function BCPSLoginPage() {
       })
       if (signUpError) throw signUpError
       if (!data.user) throw new Error('Registration did not return an account. Please try again.')
+      if (isExistingAccount(data.user)) throw new Error(EXISTING_ACCOUNT_MESSAGE)
 
       const departmentValue = manualDept
         ? (deptQuery.trim() || null)
