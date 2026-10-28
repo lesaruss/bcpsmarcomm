@@ -494,7 +494,7 @@ interface DirectorRecipient {
   email: string
   name: string
   departments: string[]
-  role: 'director' | 'executive' | 'leader'
+  role: 'director' | 'executive' | 'leader' | 'function_lead'
   has_account: boolean
   signed_in: boolean
   invited_at: string | null
@@ -541,7 +541,7 @@ function DirectorInvitesTab({ onShowToast }: { onShowToast: (msg: string) => voi
   }
   const toggle = (email: string) => setPicked((p) => { const n = new Set(p); if (n.has(email)) n.delete(email); else n.add(email); return n })
 
-  const roleLabel = (r: DirectorRecipient['role']) => r === 'executive' ? 'Executive' : r === 'leader' ? 'Leader' : 'Director'
+  const roleLabel = (r: DirectorRecipient['role']) => r === 'executive' ? 'Executive' : r === 'leader' ? 'Leader' : r === 'function_lead' ? 'Program lead' : 'Director'
   return (
     <div>
       <div className="admin-section-header">
