@@ -2558,17 +2558,22 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
 .topbar-title-block p { white-space: nowrap; }
 .topbar-title-block .topbar-home-btn { height: 30px; }
 .topbar-title-block .topbar-home-btn + p { margin-top: 3px; }
+.topbar-home-btn--phone { display: none; }
 @media (max-width: 640px) {
   .topbar-logo { height: 28px; padding-right: 10px; flex-shrink: 0; }
-  /* Phones: the button drops to its house icon so the page name fits. */
-  .topbar-title-row { gap: 8px; }
-  .topbar-title-row .topbar-home-btn { padding: 0 8px; }
-  .topbar-title-row .topbar-home-btn span { display: none; }
-  /* ...and wraps to two lines rather than cutting off after a word. */
+  /* Phones (Sean, 2026-10-28): the page name sits right after the logo, the
+     Dashboard button moves beside the bell, and Sign out drops to the
+     search row. */
+  .topbar-title-row .topbar-home-btn { display: none; }
+  .topbar-home-btn--phone { display: inline-flex; justify-content: center; width: 36px; padding: 0; }
+  /* The name wraps to two lines rather than cutting off after a word. */
   .topbar-left h1.topbar-page-name {
-    font-size: 14px; line-height: 1.2; padding-left: 8px;
+    font-size: 15px; line-height: 1.2; padding-left: 0; border-left: none;
     white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   }
+  .topbar-search { right: 104px; }
+  .search-input { height: 36px; }
+  .topbar-signout { position: absolute; right: 16px; bottom: 14px; height: 36px; width: 80px; }
   .topbar-left { gap: 10px !important; min-width: 0; }
   .topbar-left h1 { font-size: 16px; }
   /* The logo already reads "Broward County Public Schools"; at phone

@@ -429,6 +429,13 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
               <div className="topbar-search">
                 <input type="text" placeholder="Search..." className="search-input" />
               </div>
+              {/* Phones: the Dashboard button moves over here beside the bell,
+                  leaving the page name next to the logo (Sean, 2026-10-28). */}
+              {!SHOW_LEFT_MENU && (activePage !== 'dashboard' || onDashboardTab) && (
+                <button type="button" className="topbar-home-btn topbar-home-btn--phone" onClick={() => handleNavigate('dashboard')} aria-label="Dashboard">
+                  <HomeIcon />
+                </button>
+              )}
               {selfEmail && (
                 <button
                   className="topbar-notif"
@@ -451,6 +458,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
                 </button>
               )}
               <button
+                className="topbar-signout"
                 onClick={handleSignOut}
                 style={{
                   background: 'none', border: '1.5px solid var(--border)', borderRadius: '8px',
