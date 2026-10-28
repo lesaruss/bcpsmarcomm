@@ -243,8 +243,7 @@ export function wcmConfirmationEmail(opts: {
         <li>Register for PD credit in LAB and finish your certification through the link above.</li>
         <li>Your day-to-day standards, responsibilities and tools live in the playbook below - that is the one to bookmark.</li>
       </ul>
-      <p>Your role playbook: <a href="${WCM_PLAYBOOK_URL}">Department Web Content Manager Playbook</a>.</p>
-      ${opts.tempPassword ? tempPasswordHtml(opts.tempPassword) : ''}
+      <p>Your role playbook: <a href="${WCM_PLAYBOOK_URL}">Department Web Content Manager Playbook</a>.</p>${opts.tempPassword ? tempPasswordHtml(opts.tempPassword) : ''}
     `,
     ctaLabel: opts.isNewAccount ? 'Set Up Your Account (Failsafe Link)' : 'Log In (Failsafe Link)',
     ctaHref: opts.failsafeHref,
