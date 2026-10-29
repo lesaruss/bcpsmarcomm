@@ -1,8 +1,8 @@
 // Restricted guides (Sean, 2026-10-30): guides whose content is only for named
 // readers, such as the Website & Platform guide with its costs and ownership
-// terms. Their content lives in src/lib/guides/server and is sent by
-// /api/bcps/guides/[slug] only to readers who pass requireDocumentAccess, so it
-// never ships in the page code. This file is safe for the browser: names and
+// terms. Their content lives in the database (public.bcps_guides), never in
+// this repository, which is public, and is sent by /api/bcps/guides/[slug]
+// only to readers who pass requireDocumentAccess. This file holds names and
 // the documents each guide replaced, nothing more.
 
 export interface RestrictedGuideMeta {
