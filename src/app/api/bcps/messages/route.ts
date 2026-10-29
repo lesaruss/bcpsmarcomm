@@ -54,7 +54,32 @@ async function namesFor(userIds: string[]) {
   const ids = Array.from(new Set(userIds.filter(Boolean)))
   if (!ids.length) return new Map<string, string>()
   const { data } = await svc.from('wcm_cert_users').select('user_id, full_name').in('user_id', ids)
-  return new Map((data ?? []).filter(r => r.full_name).map(r => [r.user_id as string, r.full_name as string]))
+  const names = new Map((data ?? []).filter(r => r.full_name).map(r => [r.user_id as string, r.full_name as string]))
+  // wcm_cert_users is the WCM list, not the roster: members who are not WCMs
+  // (OOC staff, for one) fall back to their auth profile name.
+  await Promise.all(ids.filter(id => !names.has(id)).map(async id => {
+    const { data } = await svc.auth.admin.getUserById(id)
+    const name = data?.user?.user_metadata?.full_name
+    if (typeof name === 'string' && name.trim()) names.set(id, name.trim())
+  }))
+  return names
+}
+
+// A member by email: the WCM list first, then the auth user list, since
+// non-WCM members (OOC staff, for one) only exist there. Same paging as
+// view-as-grants.
+async function personByEmail(email: string): Promise<{ user_id: string; email: string | null } | null> {
+  const { data: person } = await svc.from('wcm_cert_users').select('user_id, email').ilike('email', email).maybeSingle()
+  if (person?.user_id) return { user_id: person.user_id as string, email: (person.email as string) || null }
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await svc.auth.admin.listUsers({ page, perPage: 200 })
+    // A lookup failure is a 500, not a misleading "no account" 404.
+    if (error) throw error
+    const found = data.users.find(u => (u.email || '').toLowerCase() === email)
+    if (found) return { user_id: found.id, email: found.email || null }
+    if (data.users.length < 200) break
+  }
+  return null
 }
 
 // GET: the viewer's conversations, newest activity first, plus an unread
@@ -328,8 +353,8 @@ async function startConversation(viewer: Viewer, body: any) {
 
   const to = String(body?.to_email || '').trim().toLowerCase()
   if (viewer.staff && to) {
-    const { data: person } = await svc.from('wcm_cert_users').select('user_id, email').ilike('email', to).maybeSingle()
-    if (!person?.user_id) return NextResponse.json({ error: `No bcpsmarcomm.com account found for ${to}.` }, { status: 404 })
+    const person = await personByEmail(to)
+    if (!person) return NextResponse.json({ error: `No bcpsmarcomm.com account found for ${to}.` }, { status: 404 })
     const { data: row, error } = await svc.from('wcm_pilot_feedback').insert({
       user_id: person.user_id, email: person.email || to, page: 'Messages', created_at: now,
       message: text, status: 'replied', read_at: now, last_activity_at: now,
