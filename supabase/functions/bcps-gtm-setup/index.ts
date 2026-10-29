@@ -39,8 +39,15 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const CONTAINER_PUBLIC_ID = 'GTM-NTGC6X38';
-// GA4 property 527326342 (browardschools.com), the property BCPS MarComm reads.
-const MEASUREMENT_ID = 'G-B601R4LMEG';
+// GA4 property 527326342 (BCPS Analytics account 386745416), stream
+// "Broward County Public Schools" 13764743736: the property BCPS MarComm reads.
+// Confirmed in GA4 by Sean 2026-10-29. NOT G-B601R4LMEG, the ID the site hands
+// Finalsite's container: that Google tag forwards page views here as a linked
+// destination but keeps Finalsite's custom events in a property bcps.pio
+// cannot see.
+const MEASUREMENT_ID = 'G-EW5DDY3E0Z';
+// The ID on the page today, which loads the Google tag the test relay serves.
+const FINALSITE_GA4_ID = 'G-B601R4LMEG';
 const HOSTNAME = 'www.browardschools.com';
 const API = 'https://tagmanager.googleapis.com/tagmanager/v2';
 
@@ -164,7 +171,7 @@ function relayAllowed(raw: string): boolean {
     if (u.protocol !== 'https:' || u.hostname !== 'www.googletagmanager.com') return false;
     const id = u.searchParams.get('id');
     if (u.pathname === '/gtm.js') return id === CONTAINER_PUBLIC_ID || id === 'GTM-P3BGC7';
-    if (u.pathname === '/gtag/js') return id === MEASUREMENT_ID;
+    if (u.pathname === '/gtag/js') return id === MEASUREMENT_ID || id === FINALSITE_GA4_ID;
     return false;
   } catch { return false; }
 }
@@ -328,6 +335,14 @@ Deno.serve(async (req: Request) => {
         ['video_provider', '{{DLV - video_provider}}'], ['video_percent', '{{DLV - video_percent}}'],
       ], videoTrigger.triggerId));
 
+      // Tag Manager auto-creates a Google tag (dest_ga) for each measurement
+      // ID a GA4 event tag names. Remove any left from an earlier target, so
+      // the container only ever addresses MEASUREMENT_ID.
+      for (const t of (await list()).tags) {
+        const dest = (t.parameter || []).find((x: any) => x.key === 'destinationId')?.value;
+        if (t.type === 'dest_ga' && dest && dest !== MEASUREMENT_ID) await gtm('DELETE', t.path);
+      }
+
       const after = await list();
       return json({
         success: true, workspace: ws.name,
@@ -360,7 +375,7 @@ Deno.serve(async (req: Request) => {
     if (action === 'publish') {
       const created = await gtm('POST', `${ws.path}:create_version`, {
         name: 'Finalsite document and video tracking',
-        notes: 'Built by bcps-gtm-setup (BCPS MarComm). Document-library downloads and Finalsite video plays to G-B601R4LMEG, www.browardschools.com only, no page_view.',
+        notes: 'Built by bcps-gtm-setup (BCPS MarComm). Document-library downloads and Finalsite video plays to G-EW5DDY3E0Z (property 527326342), www.browardschools.com only, no page_view.',
       });
       if (created.compilerError || !created.containerVersion) return json({ success: false, created }, 422);
       const published = await gtm('POST', `${created.containerVersion.path}:publish`);
