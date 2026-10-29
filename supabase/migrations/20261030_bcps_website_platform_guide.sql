@@ -1,8 +1,10 @@
 -- Website & Platform guide (Sean, 2026-10-30): one restricted guide in place of
 -- the BCPS MarComm Launch Plan, the Platform Ownership Migration playbook and
 -- the Google Governance Plan. Its content is served by /api/bcps/guides only to
--- the readers below (requireDocumentAccess): the people named on the documents
--- it replaced, and the Leadership View group that held the migration playbook.
+-- the readers below (requireDocumentAccess), set by Sean on 2026-10-30: the
+-- four who held the Launch Plan (Sean A. Russell, Luis A. Morales, Farrah A.
+-- Wilson, Manuel Castañeda) and Tricia A. Allen, who oversees the website RFP,
+-- plus the Leadership View group that held the migration playbook.
 -- Apply once the code that opens it is live.
 --
 -- The content itself is not in this file or anywhere in the repository, which
@@ -33,7 +35,6 @@ from (values
   ('Luis A. Morales', 'luis.morales@browardschools.com'),
   ('Farrah A. Wilson', 'farrah.wilson@browardschools.com'),
   ('Manuel Castañeda', 'manuel.castaneda@browardschools.com'),
-  ('Iviani Figueroa', 'iviani.figueroa@browardschools.com'),
   ('Tricia A. Allen', 'tricia.allen@browardschools.com')
 ) as r(name, email)
 where not exists (select 1 from public.bcps_brief_recipients x where x.brief_slug = 'website-platform' and lower(x.attendee_email) = r.email);
@@ -53,3 +54,9 @@ from public.acl_objects o, public.acl_groups g
 where o.brand = 'bcps' and o.kind = 'document' and o.slug = 'website-platform'
   and g.name = 'Leadership View'
   and not exists (select 1 from public.acl_grants x where x.object_id = o.id and x.subject_type = 'group' and x.subject_id = g.id);
+
+-- Iviani Figueroa was added to the Platform Ownership Migration playbook on
+-- 2026-10-27 with no recorded approval. Removed at Sean's direction
+-- (2026-10-30).
+delete from public.bcps_brief_recipients
+where brief_slug = 'bcps-platform-ownership-migration' and lower(attendee_email) = 'iviani.figueroa@browardschools.com';
