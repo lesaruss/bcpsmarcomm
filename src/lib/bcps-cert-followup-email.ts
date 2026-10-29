@@ -2,7 +2,7 @@
 // Department WCM who has not finished the certification, in four versions by
 // where they are. It comes from BCPS MarComm in Sean's name, and replies go to
 // his District Outlook. The tone is "how can we help", not a warning: Sean does
-// not want to switch anyone's access off, so the ask is to tell him if Monday
+// not want to switch anyone's access off, so the ask is to tell him if the deadline
 // is not realistic. Pure templates, so the follow-up page previews exactly
 // what sends.
 import { brandedEmail, esc, firstName, SITE } from '@/lib/bcps-portal-account'
@@ -20,15 +20,19 @@ export interface FollowupPerson { name: string; department: string | null; pct: 
 export function followupSubject(p: FollowupPerson): string {
   return {
     near: `You're almost there, ${firstName(p.name)}`,
-    progress: 'Checking in on your WCM certification',
-    'not-started': 'Your WCM certification: how can we help?',
-    'no-account': 'Your WCM certification: how can we help?',
+    progress: 'More time for your WCM certification',
+    'not-started': 'More time for your WCM certification: how can we help?',
+    'no-account': 'More time for your WCM certification: how can we help?',
   }[p.group]
 }
 
-const DUE = 'Friday, October 30'
+// Extended from Friday, Oct 30 (Sean, 2026-10-29). Said as more room, with no
+// reason given; the two Hot Labs before it are where to get help.
+const DUE = 'Thursday, November 5'
+const EXTENDED = `We&rsquo;ve extended the deadline to <strong>${DUE}</strong> to give everyone a little more room.`
+const HOT_LABS = '<p>Hot Lab on Tuesday, November 3 and Thursday, November 5, 11:30 AM to 12:30 PM, is also a good place to get help with any module.</p>'
 const SIGN = '<p>Thank you,<br>Sean A. Russell<br>District Webmaster, Office of Communications</p>'
-const help = (verb: 'finishing' | 'starting') => `<p>If anything is keeping you from ${verb}, or you don&rsquo;t think you&rsquo;ll make it by Monday, just reply to this email or message me on Teams and let me know how we can support you. We would much rather help you get there than hold anything up.</p>`
+const help = (verb: 'finishing' | 'starting') => `<p>If anything is keeping you from ${verb}, or you don&rsquo;t think you&rsquo;ll make it by November 5, just reply to this email or message me on Teams and let me know how we can support you. We would much rather help you get there than hold anything up.</p>`
 
 // The button sits right after what to do, ahead of the ask for help and the
 // sign-off, so it is not the last thing in the email.
@@ -44,31 +48,32 @@ export function followupEmail(p: FollowupPerson, trackedUrl: (url: string) => st
       heading: 'You&rsquo;re almost there',
       body: `${hi}
         <p>You&rsquo;re <strong>${p.pct}%</strong> of the way through the Department WCM Certification, so you&rsquo;re nearly done. Thank you for the time you&rsquo;ve put in.</p>
-        <p>The course is due ${DUE}, and it stays open through the weekend. Pick up where you left off; your progress is saved.</p>
-        ${button('Finish your certification', trackedUrl(CERT_URL))}${help('finishing')}${SIGN}`,
+        <p>${EXTENDED} Pick up where you left off; your progress is saved.</p>
+        ${button('Finish your certification', trackedUrl(CERT_URL))}${help('finishing')}${HOT_LABS}${SIGN}`,
     },
     progress: {
-      heading: 'Checking in on your certification',
+      heading: 'More time for your certification',
       body: `${hi}
         <p>You&rsquo;re <strong>${p.pct}%</strong> of the way through the Department WCM Certification. Thank you for working on it.</p>
-        <p>It&rsquo;s due ${DUE}, and the course stays open through the weekend, so there&rsquo;s still time. Your progress saves as you go, so short sittings work well.</p>
+        <p>${EXTENDED} Your progress saves as you go, so short sittings work well.</p>
         ${button('Continue the certification', trackedUrl(CERT_URL))}
-        <p>If you don&rsquo;t think you&rsquo;ll finish by Monday, reply and tell me what would help: a quick one-on-one, help with a module, or a little more time. We&rsquo;ll work it out together.</p>
-        ${SIGN}`,
+        <p>If you don&rsquo;t think you&rsquo;ll finish by November 5, reply and tell me what would help: a quick one-on-one, help with a module, or a little more time. We&rsquo;ll work it out together.</p>
+        ${HOT_LABS}${SIGN}`,
     },
     'not-started': {
       heading: 'How can we help?',
       body: `${hi}
         <p>As ${dept}&rsquo;s Web Content Manager, you&rsquo;re asked to complete the Department WCM Certification. It looks like you haven&rsquo;t started yet, and that&rsquo;s okay. We know this is a busy time of year.</p>
-        <p>The course is self-paced and saves your progress. It&rsquo;s due ${DUE}, and it stays open through the weekend.</p>
-        ${button('Start the certification', trackedUrl(CERT_URL))}${help('starting')}${SIGN}`,
+        <p>${EXTENDED} The course is self-paced and saves your progress, so you can take it in short sittings.</p>
+        ${button('Start the certification', trackedUrl(CERT_URL))}${help('starting')}${HOT_LABS}${SIGN}`,
     },
     'no-account': {
       heading: 'How can we help?',
       body: `${hi}
         <p>As ${dept}&rsquo;s Web Content Manager, you&rsquo;re asked to complete the Department WCM Certification. It looks like you haven&rsquo;t registered yet, and that&rsquo;s okay. We know this is a busy time of year.</p>
-        <p>The first step is registering through LAB, so the hours count toward your PD credit. LAB then gives you the link to create your BCPS MarComm account and start. The course is self-paced, due ${DUE}, and stays open through the weekend.</p>
-        ${button('Register and start', trackedUrl(LAB_URL))}${help('starting')}${SIGN}`,
+        <p>The first step is registering through LAB, so the hours count toward your PD credit. LAB then gives you the link to create your BCPS MarComm account and start. The course is self-paced.</p>
+        <p>${EXTENDED}</p>
+        ${button('Register and start', trackedUrl(LAB_URL))}${help('starting')}${HOT_LABS}${SIGN}`,
     },
   }
   const v = bodies[p.group]

@@ -76,7 +76,7 @@ const CERT_SHIELD_SRC = '/brand/wcm-certified-shield-2026.png'
 const HOT_LAB_JOIN_URL = 'https://teams.microsoft.com/meet/264785803068551?p=uQvBT8hLfn90fHBTN0'
 const DIRECTOR_PLAYBOOK_URL = '/playbooks/director-department'
 // Department certification deadline (Sept 30 applies to schools only).
-const DEPT_CERT_DEADLINE = 'October 30, 2026'
+const DEPT_CERT_DEADLINE = 'November 5, 2026'
 // Director videos (Sean, 2026-10-01). For now each one is a still image with
 // Sean's narration until he records a scroll-through of the dashboard to
 // replace it. Stills live in the public bcps-public bucket, dashboard-media/.

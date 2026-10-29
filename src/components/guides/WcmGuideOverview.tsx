@@ -61,11 +61,11 @@ function actionsFor(v: GuideViewer, w: ReviewWindow | null): Action[] {
     const progress = v.cert.total ? `${v.cert.done} of ${v.cert.total} pages done.` : v.cert.pct ? `${v.cert.pct}% done.` : 'You have not started yet.'
     out.push({
       title: t <= CERT_DUE ? `Finish your certification by ${fmtGuideDate(CERT_DUE, { weekday: 'long', month: 'long', day: 'numeric' })}`
-        : t <= CERT_CHECK ? `Finish your certification before the end of the day ${fmtGuideDate(CERT_CHECK, { weekday: 'long', month: 'long', day: 'numeric' })}`
-        : 'Finish your certification to restore editing access',
-      body: t <= CERT_CHECK
-        ? `${progress} The course stays open through the weekend. Anyone not finished at the end of the day Monday, November 2 has editing access to their department website paused until they finish.`
-        : `${progress} Editing access to your department website is paused until you finish, and restored as soon as you do.`,
+        : t <= CERT_CHECK ? 'Finish your certification this week'
+        : 'Finish your certification',
+      body: t <= CERT_DUE
+        ? `${progress} Your progress saves as you go. If anything is in the way, send us a message and we will help.`
+        : `${progress} The deadline has passed. Finish as soon as you can, and send us a message if you need help.`,
       href: '/certification/departments/dashboard',
       label: v.cert.pct > 0 ? 'Continue certification' : 'Start certification',
     })
@@ -160,7 +160,7 @@ export default function WcmGuideOverview({ viewer }: { viewer?: GuideViewer | nu
         <div className="home-dept">
           <div className="guide-date-label">Certification</div>
           <b>{viewer?.cert.certified ? 'Certified' : `Due ${fmtGuideDate(CERT_DUE, { month: 'short', day: 'numeric' })}`}</b>
-          <span>{viewer?.cert.certified ? 'Your certificate and badge are on the course page.' : 'Editing access is paused for anyone not finished at the end of the day Monday, Nov 2.'}</span>
+          <span>{viewer?.cert.certified ? 'Your certificate and badge are on the course page.' : 'Stuck on a module? Bring it to Hot Lab or send us a message.'}</span>
         </div>
         <div className="home-dept">
           <div className="guide-date-label">Next Hot Lab</div>

@@ -807,9 +807,9 @@ export const HUB_TABS: { id: HubTab; label: string; intro: string }[] = [
   { id: 'learn', label: 'Learn', intro: 'Hot Labs, recordings, and a direct line to the District Web Team.' },
 ]
 
-// Department WCM certification deadline (Oct 30, 2026; Sept 30 applies to
+// Department WCM certification deadline (Nov 5, 2026, extended from Oct 30; Sept 30 applies to
 // schools only), confirmed at the Sept 29 Hot Lab.
-const DEPT_CERT_DEADLINE = 'October 30, 2026'
+const DEPT_CERT_DEADLINE = 'November 5, 2026'
 
 export type CertStatus =
   | { state: 'loading' }
