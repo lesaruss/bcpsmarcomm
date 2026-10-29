@@ -60,9 +60,10 @@ async function audit(actor: string, action: string, detail: unknown) {
 // so keys (slug, loc_nbr, program_slug + school_loc) never change on update.
 const FIELDS = {
   theme: ['name', 'kind', 'description', 'sort_order'],
-  school: ['name', 'site_url', 'address', 'city', 'zip', 'grades', 'levels', 'region', 'lat', 'lng', 'sort_order'],
+  school: ['name', 'site_url', 'logo_url', 'address', 'city', 'zip', 'grades', 'levels', 'region', 'lat', 'lng', 'sort_order'],
   program: ['theme_slug', 'name', 'grades_note', 'description', 'sort_order'],
   offering: ['tracks', 'note', 'sort_order'],
+  event: ['title', 'starts_at', 'all_day', 'location', 'url', 'description', 'school_loc', 'featured'],
 } as const
 
 const TABLE = {
@@ -70,7 +71,19 @@ const TABLE = {
   school: 'bcps_magnet_schools',
   program: 'bcps_magnet_programs',
   offering: 'bcps_magnet_offerings',
+  event: 'bcps_magnet_events',
 } as const
+
+// Keys that identify a row; they never change on update.
+const KEY_COL: Record<Kind, string> = { theme: 'slug', school: 'loc_nbr', program: 'slug', offering: 'id', event: 'id' }
+
+// School Choice window (bcps_magnet_settings 'school_choice'): dates as
+// YYYY-MM-DD, read in Eastern time by the embed.
+function schoolChoiceValue(v: Record<string, any>) {
+  const day = (d: unknown) => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null)
+  const text = (t: unknown) => (typeof t === 'string' && t.trim() ? t.trim() : null)
+  return { opens: day(v.opens), closes: day(v.closes), apply_url: text(v.apply_url), message: text(v.message) }
+}
 
 type Kind = keyof typeof TABLE
 
@@ -115,24 +128,28 @@ async function geocode(address?: string | null, city?: string | null, zip?: stri
   }
 }
 
-// GET /api/bcps/magnet-programs - all four tables for the admin editor
+// GET /api/bcps/magnet-programs - every table and the School Choice window for the admin editor
 export async function GET(req: NextRequest) {
   const user = await requireEditor(req)
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const [themes, schools, programs, offerings] = await Promise.all([
+  const [themes, schools, programs, offerings, events, settings] = await Promise.all([
     svc.from(TABLE.theme).select('*').order('sort_order'),
     svc.from(TABLE.school).select('*').order('name'),
     svc.from(TABLE.program).select('*').order('sort_order'),
     svc.from(TABLE.offering).select('*').order('sort_order'),
+    svc.from(TABLE.event).select('*').order('starts_at'),
+    svc.from('bcps_magnet_settings').select('key, value'),
   ])
-  const failed = [themes, schools, programs, offerings].find(r => r.error)
+  const failed = [themes, schools, programs, offerings, events, settings].find(r => r.error)
   if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 })
 
   const res = NextResponse.json({
     ok: true,
     themes: themes.data ?? [], schools: schools.data ?? [],
     programs: programs.data ?? [], offerings: offerings.data ?? [],
+    events: events.data ?? [],
+    school_choice: schoolChoiceValue((settings.data ?? []).find(r => r.key === 'school_choice')?.value ?? {}),
   })
   res.headers.set('Cache-Control', 'no-store')
   return res
@@ -187,17 +204,36 @@ export async function POST(req: NextRequest) {
         await audit(user.id, 'magnet_offering_create', { program_slug, school_loc })
         return NextResponse.json({ ok: true, row: data }, { status: 201 })
       }
+      case 'event_create': {
+        const row = pick('event', body)
+        if (!row.title || !row.starts_at) return NextResponse.json({ error: 'title and date required.' }, { status: 400 })
+        const { data, error } = await svc.from(TABLE.event).insert(row).select().single()
+        if (error) throw error
+        await audit(user.id, 'magnet_event_create', { title: row.title, starts_at: row.starts_at })
+        return NextResponse.json({ ok: true, row: data }, { status: 201 })
+      }
+      case 'school_choice_update': {
+        const value = schoolChoiceValue(body)
+        if (value.opens && value.closes && value.opens > value.closes) return NextResponse.json({ error: 'The window must open before it closes.' }, { status: 400 })
+        const { error } = await svc.from('bcps_magnet_settings')
+          .upsert({ key: 'school_choice', value, updated_at: now() })
+        if (error) throw error
+        await audit(user.id, 'magnet_school_choice_update', value)
+        return NextResponse.json({ ok: true, school_choice: value })
+      }
       case 'theme_update':
       case 'school_update':
       case 'program_update':
-      case 'offering_update': {
+      case 'offering_update':
+      case 'event_update': {
         const kind = a.split('_')[0] as Kind
-        const keyCol = kind === 'school' ? 'loc_nbr' : kind === 'offering' ? 'id' : 'slug'
+        const keyCol = KEY_COL[kind]
         const key = body[keyCol]
         if (!key) return NextResponse.json({ error: `${keyCol} required.` }, { status: 400 })
         const updates = pick(kind, body)
         if (kind === 'school' && 'name' in updates && !updates.name) return NextResponse.json({ error: 'name required.' }, { status: 400 })
         if ((kind === 'theme' || kind === 'program') && 'name' in updates && !updates.name) return NextResponse.json({ error: 'name required.' }, { status: 400 })
+        if (kind === 'event' && (('title' in updates && !updates.title) || ('starts_at' in updates && !updates.starts_at))) return NextResponse.json({ error: 'title and date required.' }, { status: 400 })
         // A new address moves the map pin unless the editor also set coordinates.
         if (kind === 'school' && ['address', 'city', 'zip'].some(f => f in updates) && !('lat' in updates || 'lng' in updates)) {
           const { data: cur } = await svc.from(TABLE.school).select('address, city, zip').eq('loc_nbr', key).maybeSingle()
@@ -215,9 +251,10 @@ export async function POST(req: NextRequest) {
       case 'theme_delete':
       case 'school_delete':
       case 'program_delete':
-      case 'offering_delete': {
+      case 'offering_delete':
+      case 'event_delete': {
         const kind = a.split('_')[0] as Kind
-        const keyCol = kind === 'school' ? 'loc_nbr' : kind === 'offering' ? 'id' : 'slug'
+        const keyCol = KEY_COL[kind]
         const key = body[keyCol]
         if (!key) return NextResponse.json({ error: `${keyCol} required.` }, { status: 400 })
         if (kind === 'theme') {
