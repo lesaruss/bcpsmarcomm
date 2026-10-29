@@ -26,6 +26,10 @@ import { useBCPSShell } from '@/components/BCPSShell'
 import SharedViewAsButton from '@/components/ViewAsButton'
 import type { AuditV3 } from '@/components/bcps/AuditViewer'
 import SiteAudit from '@/components/bcps/SiteAudit'
+import Guide from '@/components/guides/Guide'
+import WcmGuideOverview, { type GuideViewer } from '@/components/guides/WcmGuideOverview'
+import { guideForDoc } from '@/lib/guides'
+import { WCM_DEPARTMENT_GUIDE } from '@/lib/guides/wcm-department'
 import { SAMPLE_SUPERADMIN_ID, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
 import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
@@ -1031,10 +1035,10 @@ function rollUp(months: DepartmentMonth[]): Omit<DepartmentMonth, 'period'> {
 const PINNED_DOCS: Record<'director' | 'wcm' | 'leadership', PinnedDoc[]> = {
   director: [
     { slug: 'director-department', title: 'Director Playbook', description: 'What directors need to know about the Web Content Manager program, refreshed every Thursday.', doc_url: DIRECTOR_PLAYBOOK_URL },
-    { slug: 'wcm-department', title: 'Department WCM Playbook', description: 'The detailed version your WCM works from: certification, the audit, Hot Lab and tools.', doc_url: '/playbooks/wcm-department' },
+    { slug: 'wcm-department', title: 'Department WCM Guide', description: 'The guide your WCM works from: getting started, certification, the audit and the website review.', doc_url: '/playbooks/wcm-department' },
   ],
   wcm: [
-    { slug: 'wcm-department', title: 'Department WCM Playbook', description: 'Certification, your audit, Hot Lab and tools, refreshed every Thursday.', doc_url: '/playbooks/wcm-department' },
+    { slug: 'wcm-department', title: 'Department WCM Guide', description: 'Getting started, certification, your audit and your website review, step by step. Refreshed every Thursday.', doc_url: '/playbooks/wcm-department' },
     { slug: 'score-100-checklist', title: 'Department Page Checklist', description: 'Exactly what the department audit checks, with the Finalsite steps for each item.', doc_url: '/playbooks/wcm-department/score-100-checklist' },
   ],
   // Leadership View (Sean, 2026-10-27): the platform plan, not the WCM program guides.
@@ -1359,6 +1363,18 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
   const [leadsNote, setLeadsNote] = useState('')
   useEffect(() => { setLeadsNote('') }, [doc])
 
+  // A guide, or a document a guide replaced, opens as the guide (Sean,
+  // 2026-10-29). Here, for directors and the team, its Overview has no one's
+  // progress on it; a WCM reads it on their own Guide tab.
+  const guide = doc ? guideForDoc(doc) : null
+  if (guide) {
+    return (
+      <div className="home-section">
+        <Guide def={guide.guide} initialTab={guide.tab} overview={<WcmGuideOverview />}
+          actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>} />
+      </div>
+    )
+  }
   if (doc === 'web-team-assignments' && team) {
     return (
       <div className="home-section">
@@ -1493,7 +1509,7 @@ function DirectorFaq() {
 // process, the windows and how to work through the audit.
 // Oct 13 (V): Website Review folds into Run Audit, opened from a button at the
 // top right of the tab, so the guide and the results are in one place.
-type WcmTab = 'overview' | 'documents' | 'audit' | 'analytics' | 'marcomm' | 'widgets' | 'tools'
+type WcmTab = 'overview' | 'guide' | 'documents' | 'audit' | 'analytics' | 'marcomm' | 'widgets' | 'tools'
 
 function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?: boolean; onNavigate: Navigate; page?: React.ReactNode }) {
   const router = useRouter()
@@ -1511,8 +1527,27 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
   const name = firstName(data)
   const { pages } = useBCPSShell()
   const canMarcomm = !preview && !!pages?.includes('marcomm-assignments')
+  const [doc] = useDocParam()
+  const docGuide = tab === 'documents' && doc ? guideForDoc(doc) : null
+  const guideRedirect = docGuide?.guide.slug === WCM_DEPARTMENT_GUIDE.slug
+    ? `/?page=dashboard&tab=guide${docGuide.tab === 'overview' ? '' : `&gs=${docGuide.tab}`}` : null
+  useEffect(() => {
+    if (guideRedirect) router.replace(guideRedirect, { scroll: false })
+  }, [guideRedirect, router])
+  const openWcmGuide = () => router.push('/?page=dashboard&tab=guide', { scroll: false })
+  const viewer: GuideViewer = {
+    name,
+    cert,
+    departments: mine.map((d) => ({
+      name: d.name, division: d.division, audit_status: d.audit_status,
+      findings_open: d.findings_open, findings_fixed: d.findings_fixed, audited: !!d.web_review,
+    })),
+  }
   const tabs: { id: WcmTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
+    // The Department WCM Guide (Sean, 2026-10-29): the Playbook and the
+    // other WCM documents in one place, its Overview drawn for this WCM.
+    { id: 'guide', label: 'Guide' },
     // A WCM who is also in the Marcomm Meeting finds MarComm Assignments
     // under Documents (Sean, 2026-10-16 and 2026-10-20).
     { id: 'documents', label: 'Documents' },
@@ -1535,9 +1570,9 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
         <p>Your certification, your department&apos;s website, and everything you need to keep it current.</p>
         <div className="home-actions">
           {cert.certified
-            ? <a className="home-btn" href="/briefs/bcps-wcm-cert-complete-2026-27">Certified: what&apos;s next</a>
+            ? <button type="button" className="home-btn" onClick={() => openWcmGuide()}>Certified: what&apos;s next</button>
             : <a className="home-btn" href="/certification/departments/dashboard">{cert.pct > 0 ? 'Continue certification' : 'Start certification'}</a>}
-          <button type="button" className="wcm-hub2-card-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=wcm-department', { scroll: false })}>Department WCM Playbook</button>
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => openWcmGuide()}>Department WCM Guide</button>
         </div>
       </div>
 
@@ -1570,7 +1605,7 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
                 <b>Finish your certification</b>
                 <span>{cert.certified ? 'Done. Your certificate and what comes next are on the What\u2019s Next page.' : `The Department WCM Certification is due ${DEPT_CERT_DEADLINE}. It covers how the audit works.`}</span>
                 {cert.certified
-                  ? <a className="home-link-btn" href="/briefs/bcps-wcm-cert-complete-2026-27">See what&apos;s next</a>
+                  ? <button type="button" className="home-link-btn" onClick={() => openWcmGuide()}>See what&apos;s next</button>
                   : <a className="wcm-hub2-card-btn" href="/certification/departments/dashboard">Open certification</a>}
               </li>
               {mine.length > 0 && (
@@ -1582,9 +1617,9 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
               )}
               {/* The Start Here cards, as steps (Sean, 2026-10-20). */}
               <li>
-                <b>Review the Department WCM Playbook weekly</b>
-                <span>Everything current for Department WCMs, refreshed every Thursday from that week's Hot Labs and updates.</span>
-                <button type="button" className="home-link-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=wcm-department', { scroll: false })}>Open the playbook</button>
+                <b>Check the Department WCM Guide each week</b>
+                <span>Every step from getting started to your website review, in one place with search. Refreshed every Thursday from that week's Hot Labs.</span>
+                <button type="button" className="home-link-btn" onClick={() => openWcmGuide()}>Open the guide</button>
               </li>
               <li>
                 <b>Check your roster status</b>
@@ -1604,8 +1639,9 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
           {mine.map((d) => <WcmDepartmentCards key={d.id} dept={d} showName={mine.length > 1} onAudit={() => setTab('audit')} />)}
         </>
       )}
+      {tab === 'guide' && <Guide def={WCM_DEPARTMENT_GUIDE} overview={<WcmGuideOverview viewer={viewer} />} />}
       {tab === 'widgets' && <WidgetsPage embedded />}
-      {tab === 'documents' && <DocumentsTab kind="wcm" canMarcomm={canMarcomm} />}
+      {tab === 'documents' && !docGuide && <DocumentsTab kind="wcm" canMarcomm={canMarcomm} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audit' && <RunAuditTab depts={mine} canRecheck guide={guide} onGuide={setGuide} wcm />}
       {tab === 'analytics' && <AnalyticsTab led={mine} />}
