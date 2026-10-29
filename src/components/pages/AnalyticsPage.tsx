@@ -13,8 +13,8 @@ async function authHeaders(): Promise<Record<string, string>> {
 import React, { useState, useEffect, useCallback } from 'react'
 import TrafficTrend, { type TrafficPoint } from '@/components/bcps/TrafficTrend'
 import {
-  fmt, fmtTime, SERIES, INK, INK_MUTED,
-  type Campaign, type CampaignDay,
+  fmt, fmtTime, SERIES, INK, INK_MUTED, InteractionTables, interactionTotals,
+  type Campaign, type CampaignDay, type Interactions,
 } from '@/components/bcps/CampaignReport'
 
 // ─── Period types ─────────────────────────────────────────────────────────────
@@ -162,6 +162,9 @@ interface Snapshot {
   // Added 2026-10-27 (bcps-ga4-sync v28): every path that served the 404
   // page in the window. Absent on snapshots written before then.
   dead_pages?: DeadPageRow[]
+  // Added 2026-10-29 (bcps-ga4-sync v38): downloads, video plays and
+  // outbound link clicks across the whole site. Absent before then.
+  interactions?: Interactions | null
   traffic_sources: Record<string, number>
   synced_at: string
 }
@@ -172,6 +175,7 @@ const BWS = 'https://www.browardschools.com'
 const ANALYTICS_TABS = [
   ['pages', 'Top Pages'],
   ['dead', 'Dead Pages'],
+  ['downloads', 'Downloads & Video'],
   ['departments', 'Top Departments'],
   ['programs', 'Programs & Services'],
   ['sources', 'Traffic Sources'],
@@ -546,7 +550,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'pages' | 'dead' | 'campaigns' | 'departments' | 'programs' | 'sources'>('pages')
+  const [activeTab, setActiveTab] = useState<'pages' | 'dead' | 'downloads' | 'campaigns' | 'departments' | 'programs' | 'sources'>('pages')
 
   // Campaigns
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
@@ -1033,6 +1037,23 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
           </div>
         </div>
       )}
+
+      {/* Downloads & Video Tab (Sean, 2026-10-29: "I want it added for all
+          pages"). The same tables the campaign report uses, for the whole site. */}
+      {activeTab === 'downloads' && (() => {
+        const t = interactionTotals(snapshot?.interactions)
+        return (
+          <div>
+            <p style={{ fontSize: 11.5, color: '#94a3b8', margin: '0 0 12px', maxWidth: 720, lineHeight: 1.6 }}>
+              Files downloaded, videos played and links to other websites clicked anywhere on browardschools.com in the last 30 days, busiest first.
+              {snapshot?.interactions && <> {t.downloads.toLocaleString('en-US')} downloads, {t.plays.toLocaleString('en-US')} video plays, {t.clicks.toLocaleString('en-US')} clicks to other sites across the top 200 of each.</>}
+            </p>
+            <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '18px 20px' }}>
+              <InteractionTables data={snapshot?.interactions} origin={BWS} scope="site" />
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Departments Tab */}
       {activeTab === 'departments' && (

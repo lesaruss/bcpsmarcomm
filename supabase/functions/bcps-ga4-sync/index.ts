@@ -16,16 +16,23 @@
 // kept 2026-10-28 (v34). Department and unmatched groups keyed apart (v35).
 // Department addresses outside /bcps-departments/ read too (v36).
 // Each department's own traffic sources (v37, 2026-10-28).
+// Downloads, video plays and outbound link clicks, for the whole site and
+// every campaign (v38, 2026-10-29; links, names and video rows corrected and
+// the list of recorded events added in v39, cut-off file links dropped in v40,
+// title dash pattern spelled by char code in v41).
 //
 // Deploys are still made against Supabase, not from this file. Update both
 // together: this copy is the reviewable record, and a change made only here
 // does not ship.
 //
-// This is DENO code, not Node: it imports over jsr: and uses the Deno global,
+// This is DENO code, not Node: it imports over npm: and uses the Deno global,
 // neither of which resolves under the app's TypeScript config. "supabase" is
 // excluded in tsconfig.json for exactly that reason. Do not remove that
 // exclusion - it fails `next build` at the typecheck step, not at runtime.
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+// Imported from npm rather than jsr since v38: the Supabase bundler timed out
+// fetching jsr.io/@supabase/supabase-js/meta.json on every deploy attempt
+// 2026-10-29. Same package, same createClient.
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -125,7 +132,10 @@ function cleanTitle(raw: string | undefined): string | null {
   // Drop a trailing " | Site" / " - Site" segment naming the District.
   // The capture group keeps the separators, so a dash inside the title
   // itself survives exactly as written.
-  const parts = t.split(/(\s+[|\u2013\u2014-]\s+)/);
+  // En and em dash by char code (v41): the Supabase deploy connector turns a
+  // backslash-u escape into the literal dash, which left the deployed copy
+  // differing from this file.
+  const parts = t.split(new RegExp(`(\\s+[|${String.fromCharCode(0x2013, 0x2014)}-]\\s+)`));
   while (parts.length > 1 && /broward|bcps/i.test(parts[parts.length - 1])) parts.splice(-2, 2);
   const name = parts.join('').trim();
   if (!name || SITE_NAME.test(name)) return null;
@@ -235,6 +245,166 @@ function campaignPathFilter(paths: string[], includeSubpages: boolean) {
   }
   if (expressions.length === 0) return null;
   return { orGroup: { expressions } };
+}
+
+// ---- Downloads, video and outbound links (added 2026-10-29, v38) ----------
+//
+// Sean, 2026-10-29, after Iviani asked for one-pager, toolkit and video
+// numbers on Referendum 2026: "I want it added for all pages. That's something
+// we've always wanted to track." Read for the whole site (the snapshot) and
+// for every campaign, from GA4's enhanced measurement events:
+//   file_download                     - a PDF/doc/zip link was clicked.
+//   click with outbound = true        - a link off the site (a Drive or
+//                                       Canva toolkit is one of these, not a
+//                                       download).
+//   video_start/progress/complete     - an embedded YouTube video was played.
+//                                       GA4 records these only for YouTube
+//                                       embeds with the JS API enabled, so
+//                                       an empty list is not proof nobody
+//                                       watched.
+//
+// Every row carries the page it happened on (pagePath), so a file linked from
+// several pages shows where each download came from. eventCount is additive
+// across rows; totalUsers is de-duplicated per row only and must not be summed.
+//
+// Measured on the first v38 run (2026-10-29), and handled below:
+//   - GA4 cuts every event parameter at 100 characters, so linkUrl for a
+//     Finalsite file arrives truncated mid-name. fileName holds the file's
+//     full PATH ("/images/v.../browardschoolscom/.../vision.pdf"), so the link
+//     is rebuilt as linkUrl's origin + fileName, and the name is its last part.
+//   - YouTube adds a per-day playlist code (list=TLGG...) to videoUrl, which
+//     split one video into a row per day. Videos are grouped by title and
+//     page, and the link is the plain watch?v= address.
+//   - Finalsite document links (/fs/resource-manager/view/<id>) redirect on
+//     the server to the file, so GA4 records NO download for them, and the
+//     Finalsite video player is not one GA4 can see. Referendum 2026's
+//     one-pager, toolkit and promo video are all of this kind. `events` lists
+//     every event GA4 did record on the pages, so a zero can be told apart
+//     from tracking that is not there.
+const INTERACTION_LIMIT = 200;
+
+type Run = (body: object) => Promise<any>;
+
+const val = (v: string | undefined) => (v && v !== '(not set)' ? v : '');
+
+function lastPart(path: string): string {
+  const seg = path.replace(/\/+$/, '').split('/').pop() || '';
+  try { return decodeURIComponent(seg); } catch { return seg; }
+}
+
+// The plain watch address for a YouTube URL, without the playlist code.
+function cleanVideoUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const id = u.searchParams.get('v') || (u.hostname.endsWith('youtu.be') ? u.pathname.slice(1) : '');
+    return id ? `https://www.youtube.com/watch?v=${id}` : url;
+  } catch { return url; }
+}
+
+async function readInteractions(run: Run, dateRanges: object[], pageFilter: object | undefined) {
+  const withPages = (eventFilter: object) =>
+    pageFilter ? { andGroup: { expressions: [eventFilter, pageFilter] } } : eventFilter;
+  const eventIs = (name: string) => ({ filter: { fieldName: 'eventName', stringFilter: { matchType: 'EXACT', value: name } } });
+  const metrics = [{ name: 'eventCount' }, { name: 'totalUsers' }];
+  const orderBys = [{ metric: { metricName: 'eventCount' }, desc: true }];
+  const videoEvents = { filter: { fieldName: 'eventName', inListFilter: { values: ['video_start', 'video_progress', 'video_complete'] } } };
+
+  const [dlReport, linkReport, videoReport, videoUrlReport, eventReport] = await Promise.all([
+    run({
+      dateRanges, metrics, orderBys, limit: INTERACTION_LIMIT,
+      dimensions: [{ name: 'linkUrl' }, { name: 'fileName' }, { name: 'fileExtension' }, { name: 'linkText' }, { name: 'pagePath' }],
+      dimensionFilter: withPages(eventIs('file_download')),
+    }),
+    run({
+      dateRanges, metrics, orderBys, limit: INTERACTION_LIMIT,
+      dimensions: [{ name: 'linkUrl' }, { name: 'linkDomain' }, { name: 'pagePath' }],
+      dimensionFilter: withPages({ andGroup: { expressions: [
+        eventIs('click'),
+        { filter: { fieldName: 'outbound', stringFilter: { matchType: 'EXACT', value: 'true' } } },
+      ] } }),
+    }),
+    run({
+      dateRanges, metrics, orderBys, limit: INTERACTION_LIMIT * 3,
+      dimensions: [{ name: 'videoTitle' }, { name: 'pagePath' }, { name: 'eventName' }],
+      dimensionFilter: withPages(videoEvents),
+    }),
+    // Only to find each title's link; counts come from the report above.
+    run({
+      dateRanges, metrics, orderBys, limit: 1000,
+      dimensions: [{ name: 'videoTitle' }, { name: 'videoUrl' }],
+      dimensionFilter: withPages(eventIs('video_start')),
+    }),
+    run({
+      dateRanges, metrics, orderBys, limit: 50,
+      dimensions: [{ name: 'eventName' }],
+      ...(pageFilter ? { dimensionFilter: pageFilter } : {}),
+    }),
+  ]);
+
+  const downloads = (dlReport.rows || []).map((r: any) => {
+    const [link, file, ext, text, page] = r.dimensionValues.map((d: any) => val(d.value));
+    let url = link;
+    let linkPath = link;
+    try {
+      const u = new URL(link);
+      linkPath = u.pathname;
+      if (file.startsWith('/')) url = u.origin + file;
+    } catch { /* not a full URL: keep it as recorded */ }
+    const fileLabel = lastPart(file) || lastPart(linkPath);
+    const extension = ext.replace(/^\./, '').toLowerCase();
+    // A path over 100 characters is cut off too, so its rebuilt link would
+    // not open. It keeps its name and loses the link.
+    if (extension && !url.toLowerCase().endsWith('.' + extension)) url = '';
+    // The words on the link ("Informational One-Pager") read better than a
+    // file name, when GA4 has them. Finalsite appends a screen-reader note.
+    const label = text.replace(/\s*\(opens in new window\/tab\)\s*$/i, '');
+    return {
+      name: label || fileLabel || '(unnamed file)',
+      file: label ? fileLabel : '',
+      extension,
+      url, page,
+      count: parseInt(r.metricValues[0].value),
+      people: parseInt(r.metricValues[1].value),
+    };
+  });
+
+  const links = (linkReport.rows || []).map((r: any) => {
+    const [url, domain, page] = r.dimensionValues.map((d: any) => val(d.value));
+    return {
+      url, domain, page,
+      count: parseInt(r.metricValues[0].value),
+      people: parseInt(r.metricValues[1].value),
+    };
+  });
+
+  // One row per video per page, with its start, progress and completion
+  // counts side by side. People is the start row's totalUsers: how many
+  // people pressed play.
+  const urlByTitle = new Map<string, string>();
+  for (const r of (videoUrlReport.rows || [])) {
+    const [title, url] = r.dimensionValues.map((d: any) => val(d.value));
+    if (title && url && !urlByTitle.has(title)) urlByTitle.set(title, cleanVideoUrl(url));
+  }
+  const videoMap = new Map<string, any>();
+  for (const r of (videoReport.rows || [])) {
+    const [title, page, event] = r.dimensionValues.map((d: any) => val(d.value));
+    const key = `${title}|${page}`;
+    const v = videoMap.get(key) ?? { title: title || '(untitled video)', url: urlByTitle.get(title) ?? '', page, starts: 0, progress: 0, completes: 0, people: 0 };
+    const count = parseInt(r.metricValues[0].value);
+    if (event === 'video_start') { v.starts += count; v.people += parseInt(r.metricValues[1].value); }
+    else if (event === 'video_progress') v.progress += count;
+    else if (event === 'video_complete') v.completes += count;
+    videoMap.set(key, v);
+  }
+  const videos = Array.from(videoMap.values()).sort((a, b) => b.starts - a.starts).slice(0, INTERACTION_LIMIT);
+
+  const events = (eventReport.rows || []).map((r: any) => ({
+    name: r.dimensionValues[0].value,
+    count: parseInt(r.metricValues[0].value),
+    people: parseInt(r.metricValues[1].value),
+  }));
+
+  return { downloads, videos, links, events };
 }
 
 // Who may run a sync (2026-10-05, service key rotation). This used to rely on
@@ -615,6 +785,15 @@ Deno.serve(async (req: Request) => {
       deadError = err.message;
     }
 
+    // ---- Downloads, video and outbound links, whole site (v38) ----
+    let interactions: any = null;
+    let interactionsError: string | null = null;
+    try {
+      interactions = await readInteractions(body => runGA4Report(accessToken, body), [range], undefined);
+    } catch (err: any) {
+      interactionsError = err.message;
+    }
+
     const topPrograms = (programs || []).map((p: any) => {
       const base = (p.path as string).replace(/\/$/, '');
       const matched = allPages.filter(pg => pg.path === base || pg.path.startsWith(base + '/'));
@@ -645,6 +824,7 @@ Deno.serve(async (req: Request) => {
       // Left as it was on a failed lookup, so one bad GA4 call cannot wipe
       // the list the team is working from.
       ...(deadError ? {} : { dead_pages: deadPages }),
+      ...(interactions ? { interactions } : {}),
       top_school_pages: [],
       top_project_pages: [],
       traffic_sources: trafficSources,
@@ -748,6 +928,17 @@ Deno.serve(async (req: Request) => {
           })
         ]);
 
+        // Downloads, video and outbound links on this campaign's pages (v38).
+        // Its own try: a failure costs only these lists, and the previous
+        // ones are kept rather than replaced with an empty list.
+        let interactions: any = null;
+        let interactionsError: string | null = null;
+        try {
+          interactions = await readInteractions(run, dateRanges, filter);
+        } catch (err: any) {
+          interactionsError = err.message;
+        }
+
         const t = totalsReport.rows?.[0]?.metricValues;
         const uniqueVisitors = t ? parseInt(t[0].value) : 0;
         const pageViews      = t ? parseInt(t[1].value) : 0;
@@ -798,6 +989,7 @@ Deno.serve(async (req: Request) => {
           engagement_rate: Math.round(engagementRate * 10000) / 10000,
           channels: mapDim(channelReport),
           devices: mapDim(deviceReport),
+          ...(interactions ? { interactions } : {}),
           synced_at: new Date().toISOString()
         }, { onConflict: 'campaign_id,period' });
 
@@ -833,6 +1025,10 @@ Deno.serve(async (req: Request) => {
           devices: mapDim(deviceReport).length,
           engagement_rate: Math.round(engagementRate * 10000) / 10000,
           new_users: newUsers,
+          downloads: interactions ? interactions.downloads.reduce((n: number, d: any) => n + d.count, 0) : null,
+          video_starts: interactions ? interactions.videos.reduce((n: number, v: any) => n + v.starts, 0) : null,
+          outbound_clicks: interactions ? interactions.links.reduce((n: number, l: any) => n + l.count, 0) : null,
+          interactions_error: interactionsError,
         });
       } catch (err: any) {
         // One bad campaign must not take the whole sync down with it.
@@ -857,6 +1053,10 @@ Deno.serve(async (req: Request) => {
       dead_pages_suggestion_check_error: deadSuggestError,
       dead_pages_capped: deadCapped,
       dead_pages_error: deadError,
+      downloads: interactions?.downloads.length ?? null,
+      videos: interactions?.videos.length ?? null,
+      outbound_links: interactions?.links.length ?? null,
+      interactions_error: interactionsError,
       programs_with_traffic: topPrograms.filter(p => p.sessions > 0).length,
       campaigns_synced: campaignResults.filter(c => !c.error && !c.skipped).length,
       campaigns: campaignResults
