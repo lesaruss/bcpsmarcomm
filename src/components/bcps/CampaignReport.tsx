@@ -84,6 +84,55 @@ export interface CampaignDimension {
   page_views: number
 }
 
+// Downloads, video plays and outbound link clicks, written by bcps-ga4-sync
+// v38 for the whole site and for every campaign. count/starts add up across
+// rows; people is de-duplicated within one row only and never summed.
+export interface DownloadRow {
+  // The link's own words when GA4 has them ("Informational One-Pager"),
+  // otherwise the file name. `file` is the file name when `name` is the
+  // link text, so both can be shown.
+  name: string
+  file?: string
+  extension: string
+  url: string
+  page: string
+  count: number
+  people: number
+}
+
+export interface VideoRow {
+  title: string
+  url: string
+  page: string
+  starts: number
+  progress: number
+  completes: number
+  people: number
+}
+
+export interface LinkRow {
+  url: string
+  domain: string
+  page: string
+  count: number
+  people: number
+}
+
+// Every event GA4 recorded on the pages (v39), so a zero above can be told
+// apart from tracking that is not there.
+export interface EventRow {
+  name: string
+  count: number
+  people: number
+}
+
+export interface Interactions {
+  downloads: DownloadRow[]
+  videos: VideoRow[]
+  links: LinkRow[]
+  events?: EventRow[]
+}
+
 export interface CampaignMetrics {
   period: string
   unique_visitors: number | null
@@ -99,6 +148,8 @@ export interface CampaignMetrics {
   engagement_rate: number | null
   channels: CampaignDimension[]
   devices: CampaignDimension[]
+  // Added 2026-10-29 (bcps-ga4-sync v38). null until the first sync after.
+  interactions?: Interactions | null
 }
 
 export interface Campaign {
@@ -524,6 +575,196 @@ export function ShareRows({ rows, total }: { rows: CampaignDimension[]; total: n
   )
 }
 
+// ─── Downloads, video and outbound links ─────────────────────────────────────
+//
+// Sean, 2026-10-29: "I want it added for all pages." One implementation,
+// used by the campaign report's Downloads & Video tab and by the site-wide tab
+// on the Analytics page, so the two can never count differently.
+export function interactionTotals(i: Interactions | null | undefined) {
+  return {
+    downloads: (i?.downloads ?? []).reduce((n, d) => n + d.count, 0),
+    plays: (i?.videos ?? []).reduce((n, v) => n + v.starts, 0),
+    clicks: (i?.links ?? []).reduce((n, l) => n + l.count, 0),
+  }
+}
+
+const TH: React.CSSProperties = { fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.4px', color: '#b0b8c4', padding: '8px 10px', borderBottom: '1px solid ' + GRID, whiteSpace: 'nowrap' }
+const TD: React.CSSProperties = { padding: '8px 10px', fontSize: 12, verticalAlign: 'top' }
+const NUM: React.CSSProperties = { ...TD, fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap' }
+const SHOWN = 10
+
+function PageLink({ origin, path }: { origin: string; path: string }) {
+  if (!path) return <span style={{ color: INK_MUTED }}>—</span>
+  return (
+    <a href={`${origin}${path}`} target="_blank" rel="noopener noreferrer"
+      style={{ fontSize: 11, color: '#1672A7', textDecoration: 'none', fontWeight: 600, wordBreak: 'break-all' }}>{path}</a>
+  )
+}
+
+function InteractionSection({ title, note, empty, headers, rows, total }: {
+  title: string; note: string; empty: string
+  headers: string[]; rows: React.ReactNode[]; total: string
+}) {
+  const [all, setAll] = useState(false)
+  const shown = all ? rows : rows.slice(0, SHOWN)
+  return (
+    <div style={{ marginBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 4 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: INK_MUTED }}>{title}</div>
+        {rows.length > 0 && <div style={{ fontSize: 11.5, fontWeight: 700, color: INK }}>{total}</div>}
+      </div>
+      <div style={{ fontSize: 10.5, color: INK_MUTED, marginBottom: 10, lineHeight: 1.5 }}>{note}</div>
+      {rows.length === 0 ? (
+        <p style={{ fontSize: 12, color: INK_MUTED, margin: 0 }}>{empty}</p>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
+            <thead>
+              <tr>{headers.map((h, i) => <th key={h} style={{ ...TH, textAlign: i === 0 || i === headers.length - 1 ? 'left' : 'right' }}>{h}</th>)}</tr>
+            </thead>
+            <tbody>{shown}</tbody>
+          </table>
+        </div>
+      )}
+      {rows.length > SHOWN && (
+        <button onClick={() => setAll(v => !v)}
+          style={{ marginTop: 8, fontSize: 10.5, fontWeight: 700, color: '#1672A7', background: '#e8f1f8', border: 'none', cursor: 'pointer', padding: '4px 10px', borderRadius: 5, fontFamily: 'inherit' }}>
+          {all ? 'Show fewer' : `Show all ${rows.length}`}
+        </button>
+      )}
+    </div>
+  )
+}
+
+export function InteractionTables({ data, origin, scope }: {
+  data: Interactions | null | undefined
+  origin: string
+  scope: 'campaign' | 'site'
+}) {
+  if (!data) {
+    return (
+      <p style={{ fontSize: 12, color: INK_MUTED, margin: 0, lineHeight: 1.6 }}>
+        Not pulled yet. Downloads, video plays and outbound links are read on every
+        sync from October 29, 2026 onward, so they appear after the next sync.
+      </p>
+    )
+  }
+  const where = scope === 'campaign' ? 'on this campaign’s pages' : 'anywhere on the site'
+  const t = interactionTotals(data)
+  const r = (n: number) => n.toLocaleString('en-US')
+
+  return (
+    <div>
+      <InteractionSection
+        title="Downloads"
+        note={`Clicks on a file link (PDF, Word, PowerPoint, spreadsheet, zip) ${where}. Each row is one file on one page, so a file linked from two pages shows twice.`}
+        empty="No file downloads recorded in this window."
+        headers={['File', 'Downloads', 'People', 'From page']}
+        total={`${r(t.downloads)} downloads`}
+        rows={data.downloads.map((d, i) => (
+          <tr key={`${d.url}|${d.page}|${i}`} style={{ borderBottom: '1px solid #f3f4f6' }}>
+            <td style={TD}>
+              {d.url
+                ? <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ color: INK, fontWeight: 700, textDecoration: 'none', wordBreak: 'break-word' }}>{d.name}</a>
+                : <span style={{ fontWeight: 700, wordBreak: 'break-word' }}>{d.name}</span>}
+              {d.extension && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: '#1672A7', background: '#e8f1f8', padding: '1px 5px', borderRadius: 4, textTransform: 'uppercase' }}>{d.extension}</span>}
+              {d.file && d.file !== d.name && <div style={{ fontSize: 10.5, color: INK_MUTED, wordBreak: 'break-all' }}>{d.file}</div>}
+            </td>
+            <td style={NUM}>{r(d.count)}</td>
+            <td style={{ ...NUM, fontWeight: 600, color: '#555' }}>{r(d.people)}</td>
+            <td style={TD}><PageLink origin={origin} path={d.page} /></td>
+          </tr>
+        ))}
+      />
+
+      <InteractionSection
+        title="Video plays"
+        note={`Plays of an embedded YouTube video ${where}. Analytics cannot see a video in the website\u2019s own player, or a YouTube embed that blocks tracking, so a video missing here may still have been watched.`}
+        empty="No video plays recorded in this window. If there is a video here, it is one analytics cannot see. For a YouTube video, its view count in YouTube is the number to use."
+        headers={['Video', 'Plays', 'Watched to end', 'People', 'Page']}
+        total={`${r(t.plays)} plays`}
+        rows={data.videos.map((v, i) => (
+          <tr key={`${v.url}|${v.page}|${i}`} style={{ borderBottom: '1px solid #f3f4f6' }}>
+            <td style={TD}>
+              {v.url
+                ? <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ color: INK, fontWeight: 700, textDecoration: 'none', wordBreak: 'break-word' }}>{v.title}</a>
+                : <span style={{ fontWeight: 700, wordBreak: 'break-word' }}>{v.title}</span>}
+            </td>
+            <td style={NUM}>{r(v.starts)}</td>
+            <td style={{ ...NUM, fontWeight: 600, color: '#555' }}>
+              {r(v.completes)}{v.starts > 0 && <span style={{ color: INK_MUTED, fontWeight: 500 }}> ({pct(v.completes, v.starts)}%)</span>}
+            </td>
+            <td style={{ ...NUM, fontWeight: 600, color: '#555' }}>{r(v.people)}</td>
+            <td style={TD}><PageLink origin={origin} path={v.page} /></td>
+          </tr>
+        ))}
+      />
+
+      <InteractionSection
+        title="Links off the site"
+        note={`Clicks on a link to another website ${where}. A toolkit kept in Google Drive or Canva is counted here, not as a download.`}
+        empty="No outbound link clicks recorded in this window."
+        headers={['Link', 'Clicks', 'People', 'From page']}
+        total={`${r(t.clicks)} clicks`}
+        rows={data.links.map((l, i) => (
+          <tr key={`${l.url}|${l.page}|${i}`} style={{ borderBottom: '1px solid #f3f4f6' }}>
+            <td style={TD}>
+              <a href={l.url || undefined} target="_blank" rel="noopener noreferrer" style={{ color: INK, fontWeight: 700, textDecoration: 'none', wordBreak: 'break-all' }}>{l.domain || l.url || '(unknown)'}</a>
+              {l.url && <div style={{ fontSize: 10.5, color: INK_MUTED, wordBreak: 'break-all' }}>{l.url}</div>}
+            </td>
+            <td style={NUM}>{r(l.count)}</td>
+            <td style={{ ...NUM, fontWeight: 600, color: '#555' }}>{r(l.people)}</td>
+            <td style={TD}><PageLink origin={origin} path={l.page} /></td>
+          </tr>
+        ))}
+      />
+
+      {(data.events ?? []).length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: INK_MUTED, marginBottom: 4 }}>
+            Everything analytics recorded {where}
+          </div>
+          <div style={{ fontSize: 10.5, color: INK_MUTED, marginBottom: 10, lineHeight: 1.5 }}>
+            If something is not on this list, analytics cannot see it. A
+            document link that goes through the website&rsquo;s document library
+            (/fs/resource-manager/) or a video in the website&rsquo;s own player is not
+            recorded, so it cannot appear above until tracking is added for it.
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {data.events!.map(e => (
+              <span key={e.name} style={{ fontSize: 11, background: '#f5f7f9', border: '1px solid ' + GRID, borderRadius: 999, padding: '3px 10px', color: '#333' }}>
+                {EVENT_LABELS[e.name] ?? e.name} <strong style={{ color: INK }}>{r(e.count)}</strong>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p style={{ fontSize: 10.5, color: INK_MUTED, margin: 0, lineHeight: 1.6 }}>
+        People is counted once per row. Someone who downloaded two files counts in
+        both rows, so the People column does not add up to a total.
+      </p>
+    </div>
+  )
+}
+
+// Plain names for GA4's built-in events. Anything else shows as GA4 named it.
+const EVENT_LABELS: Record<string, string> = {
+  page_view: 'Page views',
+  session_start: 'Visits started',
+  user_engagement: 'Engaged views',
+  first_visit: 'First visits to the site',
+  scroll: 'Scrolled to the bottom',
+  click: 'Clicks to other sites',
+  file_download: 'File downloads',
+  video_start: 'Video plays',
+  video_progress: 'Video progress marks',
+  video_complete: 'Videos watched to the end',
+  form_start: 'Forms started',
+  form_submit: 'Forms submitted',
+  view_search_results: 'Site searches',
+}
+
 // This report is a PAGE, not a document, and it navigates by tabs.
 //
 // Sean, 2026-09-22: "we don't have to make things documents if it's on a web
@@ -539,6 +780,7 @@ const REPORT_TABS = [
   ['rundown', 'Rundown'],
   ['traffic', 'Traffic'],
   ['sources', 'Sources & Devices'],
+  ['downloads', 'Downloads & Video'],
   ['pages', 'Pages'],
 ] as const
 type ReportTab = typeof REPORT_TABS[number][0]
@@ -552,6 +794,7 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
   const link = campaign.primary_url || (campaign.page_paths[0] ? origin + campaign.page_paths[0] : null)
   const sessions = m?.sessions ?? 0
   const deviceTotal = (m?.devices ?? []).reduce((s, d) => s + d.sessions, 0)
+  const it = m?.interactions ? interactionTotals(m.interactions) : null
 
   const summary = [
     campaign.name,
@@ -563,6 +806,9 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
     m?.engagement_rate != null ? `Engaged visits: ${Math.round(m.engagement_rate * 100)}%` : '',
     m?.new_users != null ? `New visitors: ${m.new_users}` : '',
     (m?.channels ?? []).length ? `Top source: ${m!.channels[0].name}` : '',
+    it ? `File downloads: ${it.downloads}` : '',
+    it ? `Video plays: ${it.plays}` : '',
+    it ? `Clicks to other sites: ${it.clicks}` : '',
     '',
     m ? `Source: GA4, ${windowLabel(campaign, 'long')}. Pulled ${new Date(m.synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' })}.` : 'No data pulled yet.',
   ].filter(Boolean).join('\n')
@@ -608,6 +854,8 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
           {stat('Avg. Time on Page', fmtTime(m?.avg_time_seconds ?? 0), 'Engagement per view')}
           {m?.engagement_rate != null && stat('Engaged Visits', `${Math.round(m.engagement_rate * 100)}%`, 'Stayed, not bounced')}
           {m?.new_users != null && stat('New Visitors', `${pct(m.new_users, m.unique_visitors ?? 0)}%`, 'First time on the site')}
+          {it && stat('Downloads', fmt(it.downloads), 'File links clicked')}
+          {it && stat('Video Plays', fmt(it.plays), 'Embedded video started')}
         </div>
         {copyEnabled && (
           <button
@@ -678,6 +926,12 @@ export function CampaignReportBody({ campaign, copyEnabled = true }: { campaign:
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.6px', color: INK_MUTED, marginBottom: 12 }}>What they used</div>
               <ShareRows rows={m?.devices ?? []} total={deviceTotal} />
             </div>
+          </div>
+        )}
+
+        {tab === 'downloads' && (
+          <div role="tabpanel" id="panel-downloads" aria-labelledby="tab-downloads">
+            <InteractionTables data={m?.interactions} origin={origin} scope="campaign" />
           </div>
         )}
 
