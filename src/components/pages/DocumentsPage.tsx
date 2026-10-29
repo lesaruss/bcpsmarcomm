@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useEffectiveRole } from '@/components/BCPSShell'
-import { REPLACED_DOCS } from '@/lib/guides'
+import { GUIDES, REPLACED_DOCS } from '@/lib/guides'
 
 interface Doc {
   id: string
@@ -156,6 +156,12 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
     const listed: Doc[] = (j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'documents'
       && !REPLACED_DOCS.has(d.slug)
       && (!reviewOnly || (d.visibility !== 'public' && !REVIEW_HIDDEN.includes(d.slug))))
+    // A document that is now a guide is listed as the guide (Sean,
+    // 2026-10-30): its catalog entry still carries the old playbook's name.
+    listed.forEach((d, i) => {
+      const g = GUIDES[d.slug]
+      if (g) listed[i] = { ...d, title: g.title, type: 'Guide', description: `Everything for ${g.audience}, in one place, ${g.cadence}.` }
+    })
     const extra: Doc[] = pinned.filter(p => !listed.some(d => d.slug === p.slug)).map(p => ({
       id: `pinned:${p.slug}`, slug: p.slug, title: p.title, description: p.description, type: 'Playbook', date: null, date_sort: null,
       icon: '\u{1F4D8}', section: 'documents', visibility: 'public', sensitive: false, doc_url: p.doc_url, is_dynamic: false,
