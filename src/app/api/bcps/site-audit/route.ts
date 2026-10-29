@@ -32,6 +32,11 @@ import { sendEmail } from '@/lib/resend'
 //        EEO/ADA pages): the WCM marks them for reclassification; until the
 //        District Web Team decides, their items leave the WCM's walk and do
 //        not count toward the re-audit (migration 20261020_bcps_page_reclass).
+// Page-level WCMs (Sean, 2026-10-29): a WCM whose roster row names a part of
+// the department (sub_department) and who is assigned pages in it
+// (bcps_page_wcm_assignments) sees only those pages and the pages under them,
+// and the department's other WCMs no longer see them. Deanna Greist keeps the
+// Home School Education page; Allan Llanos keeps the rest of Magnet.
 // Departments: admins, the department's WCM and its director may view.
 // Schools: admins only for now.
 export const dynamic = 'force-dynamic'
@@ -61,6 +66,36 @@ async function canViewSchool(caller: { email: string; userId?: string }, schoolI
   if (!gids.length) return false
   const { data: groups } = await supabase.from('acl_groups').select('name').eq('brand', 'bcps').in('id', gids)
   return (groups ?? []).some((g) => g.name === 'District Web Team')
+}
+
+type PageFilter = ((url: string) => boolean) | null
+
+function pathOf(url: string): string {
+  try { return new URL(url).pathname.replace(/\/+$/, '') } catch { return '' }
+}
+const under = (path: string, root: string) => path === root || path.startsWith(root + '/')
+
+// Which of a department's pages this WCM works on. Admins and directors see
+// every page (null).
+async function pageFilter(departmentId: string, email: string, wcm: boolean, admin: boolean): Promise<PageFilter> {
+  if (admin || !wcm) return null
+  const [{ data: assigned }, { data: rosters }] = await Promise.all([
+    supabase.from('bcps_page_wcm_assignments').select('page_path, wcm_email').eq('department_id', departmentId),
+    supabase.from('bcps_wcm_roster').select('id').eq('matched_department_id', departmentId),
+  ])
+  if (!assigned?.length) return null
+  const rosterIds = (rosters ?? []).map((r) => r.id as string)
+  const { data: partial } = rosterIds.length
+    ? await supabase.from('bcps_wcm_roster_members').select('wcm_email').in('roster_id', rosterIds).not('sub_department', 'is', null)
+    : { data: [] as { wcm_email: string | null }[] }
+  const scoped = new Set((partial ?? []).map((m) => (m.wcm_email || '').trim().toLowerCase()).filter(Boolean))
+  const roots = (who: (e: string) => boolean) => (assigned ?? [])
+    .filter((a) => scoped.has((a.wcm_email || '').trim().toLowerCase()) && who((a.wcm_email || '').trim().toLowerCase()))
+    .map((a) => (a.page_path as string).replace(/\/+$/, ''))
+  const mine = roots((e) => e === email)
+  if (mine.length) return (url) => mine.some((r) => under(pathOf(url), r))
+  const theirs = roots((e) => e !== email)
+  return theirs.length ? (url) => !theirs.some((r) => under(pathOf(url), r)) : null
 }
 
 async function access(req: NextRequest, owner: { department_id?: string | null; school_id?: string | null }) {
@@ -138,8 +173,9 @@ export async function GET(req: NextRequest) {
   const latest = new Map<string, NonNullable<typeof results>[number]>()
   for (const r of results ?? []) if (r.site_page_id && !latest.has(r.site_page_id)) latest.set(r.site_page_id, r)
   const legacyMain = (results ?? []).find((r) => !r.site_page_id)
-  const list = (pages ?? []).map((p) => ({ ...p, result: latest.get(p.id) ?? (p.is_main ? legacyMain ?? null : null) }))
-  if (!list.length && legacyMain) list.push({ id: 'main', url: legacyMain.page_url ?? '', title: null, is_main: true, active: true, source: 'main', result: legacyMain })
+  const keep = owner.department_id ? await pageFilter(owner.department_id, ok.caller.email, ok.wcm, ok.caller.admin) : null
+  const list = (pages ?? []).filter((p) => !keep || keep(p.url)).map((p) => ({ ...p, result: latest.get(p.id) ?? (p.is_main ? legacyMain ?? null : null) }))
+  if (!list.length && legacyMain && !keep) list.push({ id: 'main', url: legacyMain.page_url ?? '', title: null, is_main: true, active: true, source: 'main', result: legacyMain })
   const scored = list.filter((p) => p.result?.overall_score != null)
 
   // Every red and amber check on every page's latest audit, slimmed to what
@@ -317,15 +353,15 @@ async function resolveReclass(req: NextRequest, body: { request_id?: string; out
 }
 
 // The red and amber items on each page's latest audit, and how many are marked done.
-async function openItems(departmentId: string) {
+async function openItems(departmentId: string, keep: PageFilter = null) {
   const [{ data: pages }, { data: results }, { data: flagged }] = await Promise.all([
-    supabase.from('bcps_site_pages').select('id').eq('department_id', departmentId).eq('active', true),
+    supabase.from('bcps_site_pages').select('id, url').eq('department_id', departmentId).eq('active', true),
     supabase.from('bcps_audit_results').select('id, site_page_id, checks').eq('department_id', departmentId).gte('audit_version', 3).not('site_page_id', 'is', null).order('audited_at', { ascending: false }).limit(300),
     supabase.from('bcps_page_reclass_requests').select('site_page_id').eq('department_id', departmentId).eq('status', 'open'),
   ])
   // A page waiting on reclassification is not the WCM's to fix.
   const away = new Set((flagged ?? []).map((f) => f.site_page_id as string))
-  const live = new Set((pages ?? []).map((p) => p.id as string).filter((id) => !away.has(id)))
+  const live = new Set((pages ?? []).filter((p) => !keep || keep(p.url as string)).map((p) => p.id as string).filter((id) => !away.has(id)))
   const latest = new Map<string, { id: string; checks: unknown }>()
   for (const r of results ?? []) if (live.has(r.site_page_id as string) && !latest.has(r.site_page_id as string)) latest.set(r.site_page_id as string, r)
   const items: { result_id: string; check_id: string }[] = []
@@ -356,7 +392,7 @@ async function markItem(req: NextRequest, body: { department_id?: string; result
     }, { onConflict: 'result_id,check_id' })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
-  const progress = await openItems(body.department_id)
+  const progress = await openItems(body.department_id, await pageFilter(body.department_id, ok.caller.email, ok.wcm, ok.caller.admin))
   return NextResponse.json({ ok: true, total: progress.total, done: progress.done })
 }
 
@@ -365,7 +401,7 @@ async function submitFixes(req: NextRequest, body: { department_id?: string }) {
   const ok = await access(req, { department_id: body.department_id })
   if (!ok.ok) return NextResponse.json({ error: 'Not allowed' }, { status: ok.status })
   if (!ok.wcm && !ok.caller.admin) return NextResponse.json({ error: 'Only this department\u2019s WCM can request a re-audit.' }, { status: 403 })
-  const progress = await openItems(body.department_id)
+  const progress = await openItems(body.department_id, await pageFilter(body.department_id, ok.caller.email, ok.wcm, ok.caller.admin))
   if (progress.done < progress.total) return NextResponse.json({ error: `Mark every item done first: ${progress.done} of ${progress.total} so far.` }, { status: 409 })
   const now = new Date().toISOString()
   // The submission goes on the department's latest round, the same fields
