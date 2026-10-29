@@ -49,6 +49,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/tagmanager.edit.containers',
   'https://www.googleapis.com/auth/tagmanager.edit.containerversions',
   'https://www.googleapis.com/auth/tagmanager.publish',
+  'https://www.googleapis.com/auth/analytics.readonly',
 ].join(' ');
 
 // The listener tested 2026-10-29 in Chromium against the Finalsite player from
@@ -154,9 +155,29 @@ function ga4Event(name: string, eventName: string, params: [string, string][], t
   };
 }
 
+// TEMPORARY test relay (2026-10-29), removed once the pre-publish test passes.
+// The sandbox that tests the container cannot reach googletagmanager.com, so
+// GET ?relay=<url> returns these public Google scripts and nothing else.
+function relayAllowed(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== 'https:' || u.hostname !== 'www.googletagmanager.com') return false;
+    const id = u.searchParams.get('id');
+    if (u.pathname === '/gtm.js') return id === CONTAINER_PUBLIC_ID || id === 'GTM-P3BGC7';
+    if (u.pathname === '/gtag/js') return id === MEASUREMENT_ID;
+    return false;
+  } catch { return false; }
+}
+
 Deno.serve(async (req: Request) => {
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body, null, 1), { status, headers: { 'Content-Type': 'application/json' } });
+  if (req.method === 'GET') {
+    const target = new URL(req.url).searchParams.get('relay') || '';
+    if (!relayAllowed(target)) return json({ success: false, error: 'not allowed' }, 403);
+    const r = await fetch(target);
+    return new Response(await r.text(), { status: r.status, headers: { 'Content-Type': 'application/javascript' } });
+  }
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     if (!(await callerAllowed(req, supabase))) return json({ success: false, error: 'unauthorized' }, 401);
@@ -177,6 +198,41 @@ Deno.serve(async (req: Request) => {
       if (!r.ok) throw new Error(`GTM ${method} ${path} -> ${r.status}: ${text.slice(0, 600)}`);
       return text ? JSON.parse(text) : {};
     };
+
+    // Which GA4 properties the service account can see, which measurement IDs
+    // feed the District property, and whether Finalsite's own events
+    // (file_downloads_by_extension, resource_video_played, ...) ever reached
+    // it. Read only. Added after the pre-publish test showed Finalsite's
+    // container sending those events to G-B601R4LMEG while property 527326342
+    // has never reported them.
+    if (action === 'ga4') {
+      const get = async (url: string) => {
+        const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        return { status: r.status, body: await r.json().catch(() => null) };
+      };
+      const summaries = await get('https://analyticsadmin.googleapis.com/v1beta/accountSummaries');
+      const streams = await get('https://analyticsadmin.googleapis.com/v1beta/properties/527326342/dataStreams');
+      const report = await fetch('https://analyticsdata.googleapis.com/v1beta/properties/527326342:runReport', {
+        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dateRanges: [{ startDate: '2024-01-01', endDate: 'today' }],
+          dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }],
+          dimensionFilter: { filter: { fieldName: 'eventName', inListFilter: { values: [
+            'file_downloads_by_extension', 'resource_video_played', 'resource_video_complete', 'click_accordion', 'internal_link_click', 'external_link_click',
+          ] } } },
+        }),
+      });
+      return json({
+        success: true,
+        account_summaries: summaries.status === 200
+          ? (summaries.body.accountSummaries || []).map((a: any) => ({ account: a.account, name: a.displayName, properties: (a.propertySummaries || []).map((p: any) => `${p.property} ${p.displayName}`) }))
+          : summaries,
+        district_streams: streams.status === 200
+          ? (streams.body.dataStreams || []).map((s: any) => ({ name: s.displayName, measurementId: s.webStreamData?.measurementId, uri: s.webStreamData?.defaultUri }))
+          : streams,
+        finalsite_events_in_527326342: await report.json(),
+      });
+    }
 
     // Find the container by its public ID across every account the service
     // account can see.
@@ -269,6 +325,25 @@ Deno.serve(async (req: Request) => {
         triggers: after.triggers.map((t: any) => ({ name: t.name, type: t.type, id: t.triggerId })),
         variables: after.variables.map((v: any) => v.name),
         builtins: after.builtins.map((b: any) => b.type),
+      });
+    }
+
+    // Saves the workspace as a version WITHOUT publishing, and returns the
+    // "Latest" environment's preview parameters, so the exact build can be
+    // loaded and tested before it reaches a single visitor.
+    if (action === 'version') {
+      const created = await gtm('POST', `${ws.path}:create_version`, {
+        name: 'Finalsite document and video tracking (pre-publish test)',
+        notes: 'Built by bcps-gtm-setup (BCPS MarComm). Not published.',
+      });
+      if (created.compilerError || !created.containerVersion) return json({ success: false, created }, 422);
+      const { environment: envs = [] } = await gtm('GET', `${container.path}/environments`);
+      const latest = envs.find((e: any) => e.type === 'latest');
+      return json({
+        success: true,
+        version: created.containerVersion.containerVersionId,
+        tags: (created.containerVersion.tag || []).map((t: any) => ({ name: t.name, type: t.type, parameter: t.parameter, firingTriggerId: t.firingTriggerId })),
+        preview: latest ? { gtm_auth: latest.authorizationCode, gtm_preview: `env-${latest.environmentId}` } : null,
       });
     }
 
