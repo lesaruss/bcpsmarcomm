@@ -53,7 +53,7 @@ export function DepartmentReportView({ dept, months, cur, prev, dead, ideas, syn
         :root { --bcps-blue:#1672A7; --bcps-blue-dark:#0e4e73; --bcps-green:#16750C; --bcps-orange:#C55326;
                 --border:rgba(0,0,0,0.10); --surface:#fff; --surface2:#fafafa; --text-50:rgba(26,26,26,0.6); }
         *,*::before,*::after { box-sizing:border-box; }
-        body { margin:0; background:#f5f5f5; color:#1a1a1a; font-family:Arial,Helvetica,Verdana,sans-serif; line-height:1.55; }
+        body { margin:0; background:#f5f5f5; color:#1a1a1a; font-family:'Open Sans', Arial,Helvetica,Verdana,sans-serif; line-height:1.55; }
         header.bcps-header { position:fixed; top:0; left:0; right:0; z-index:200; height:64px; background:#fff;
           border-bottom:3px solid var(--bcps-blue); display:flex; align-items:center; padding:0 28px; gap:20px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
         .bcps-logo-link { display:flex; align-items:center; }

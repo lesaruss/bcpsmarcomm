@@ -45,7 +45,7 @@ export default async function DepartmentReportPage({ params }: Props) {
   if (!user) redirect(`/login?next=${encodeURIComponent(`/reports/departments/${slug}`)}`)
   if (!(await checkDepartmentReportAccess(db, user, dept as ReportDepartment))) {
     return (
-      <main style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'Arial, Helvetica, sans-serif', padding: '80px 24px', textAlign: 'center' }}>
+      <main style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: "'Open Sans', Arial, Helvetica, sans-serif", padding: '80px 24px', textAlign: 'center' }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: '#1a1a1a' }}>You do not have access to this report</h1>
         <p style={{ fontSize: 13, color: '#666', maxWidth: 480, margin: '10px auto 0', lineHeight: 1.6 }}>
           Department reports are shared with the department&apos;s director and the leaders who oversee it. Ask the District Web Team if you need access.

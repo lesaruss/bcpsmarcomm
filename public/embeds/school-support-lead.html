@@ -28,6 +28,8 @@
   that lead's name once above their schools instead of on every card.
 -->
 <style>
+  /* Form controls do not inherit the page font by default; without this they render in the browser's system font. */
+  button, input, select, textarea { font-family: inherit; }
   #dwt-module, #dwt-module * { box-sizing: border-box; }
   #dwt-module {
     /* BCPS brand colors only (Vanessa, 2026-10-12): Blue, Green, Orange,

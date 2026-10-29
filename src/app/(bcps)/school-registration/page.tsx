@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase'
 // this school" check happen in /api/banner/school-register; this page then
 // signs the WCM in and sends them to their school home.
 
-const FONT = "'Montserrat', sans-serif"
+const FONT = "'Open Sans', sans-serif"
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '11px 14px', borderRadius: '8px',

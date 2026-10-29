@@ -245,7 +245,7 @@ const styles: Record<string, React.CSSProperties> = {
   modal: {
     position: 'relative', background: '#fff', borderRadius: 12, padding: '32px 28px',
     width: '100%', maxWidth: 420, boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
-    fontFamily: "'Montserrat', sans-serif",
+    fontFamily: "'Open Sans', sans-serif",
   },
   close: {
     position: 'absolute', top: 12, right: 14, background: 'none', border: 'none',

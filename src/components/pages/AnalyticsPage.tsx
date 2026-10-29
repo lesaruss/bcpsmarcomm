@@ -288,7 +288,7 @@ function CampaignForm({
   const [isPublic, setIsPublic] = useState(initial?.is_public !== false)
 
   const input: React.CSSProperties = {
-    width: '100%', fontSize: 12, fontFamily: 'Montserrat, sans-serif',
+    width: '100%', fontSize: 12, fontFamily: 'Open Sans, sans-serif',
     padding: '8px 10px', border: '1px solid rgba(0,0,0,0.15)', borderRadius: 7,
     outline: 'none', color: '#1a1a1a', background: '#fff',
   }
@@ -401,7 +401,7 @@ function CampaignTile({ campaign }: { campaign: Campaign }) {
     <a href={`/campaigns/${campaign.slug}`}
       style={{
         textAlign: 'left', background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10,
-        padding: '16px 18px', cursor: 'pointer', fontFamily: 'Montserrat, sans-serif', width: '100%',
+        padding: '16px 18px', cursor: 'pointer', fontFamily: 'Open Sans, sans-serif', width: '100%',
         display: 'flex', flexDirection: 'column', gap: 12, transition: 'box-shadow .12s, border-color .12s',
         textDecoration: 'none', color: 'inherit',
       }}
@@ -459,7 +459,7 @@ export function PeriodSelector({
 
   const btnBase: React.CSSProperties = {
     fontSize: 11, fontWeight: 700, padding: '6px 14px', border: 'none', borderRadius: 6,
-    cursor: 'pointer', transition: 'all .12s', fontFamily: 'Montserrat, sans-serif',
+    cursor: 'pointer', transition: 'all .12s', fontFamily: 'Open Sans, sans-serif',
   }
 
   return (
@@ -485,7 +485,7 @@ export function PeriodSelector({
         <select
           value={period.calYear}
           onChange={e => setPeriod(p => ({ ...p, calYear: Number(e.target.value) }))}
-          style={{ fontSize: 12, fontWeight: 700, padding: '6px 10px', border: '1px solid rgba(0,0,0,.15)', borderRadius: 7, color: '#1a1a1a', background: '#fff', cursor: 'pointer', fontFamily: 'Montserrat, sans-serif' }}>
+          style={{ fontSize: 12, fontWeight: 700, padding: '6px 10px', border: '1px solid rgba(0,0,0,.15)', borderRadius: 7, color: '#1a1a1a', background: '#fff', cursor: 'pointer', fontFamily: 'Open Sans, sans-serif' }}>
           {calYears.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       )}
@@ -495,7 +495,7 @@ export function PeriodSelector({
         <select
           value={period.schoolStart}
           onChange={e => setPeriod(p => ({ ...p, schoolStart: Number(e.target.value) }))}
-          style={{ fontSize: 12, fontWeight: 700, padding: '6px 10px', border: '1px solid rgba(0,0,0,.15)', borderRadius: 7, color: '#1a1a1a', background: '#fff', cursor: 'pointer', fontFamily: 'Montserrat, sans-serif' }}>
+          style={{ fontSize: 12, fontWeight: 700, padding: '6px 10px', border: '1px solid rgba(0,0,0,.15)', borderRadius: 7, color: '#1a1a1a', background: '#fff', cursor: 'pointer', fontFamily: 'Open Sans, sans-serif' }}>
           {schoolYears.map(y => (
             <option key={y} value={y}>{y}&ndash;{String(y + 1).slice(-2)}</option>
           ))}
@@ -506,13 +506,13 @@ export function PeriodSelector({
       {period.mode === 'custom' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-            style={{ fontSize: 12, padding: '6px 8px', border: '1px solid rgba(0,0,0,.15)', borderRadius: 7, fontFamily: 'Montserrat, sans-serif', color: '#1a1a1a' }} />
+            style={{ fontSize: 12, padding: '6px 8px', border: '1px solid rgba(0,0,0,.15)', borderRadius: 7, fontFamily: 'Open Sans, sans-serif', color: '#1a1a1a' }} />
           <span style={{ fontSize: 12, color: '#94a3b8' }}>to</span>
           <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-            style={{ fontSize: 12, padding: '6px 8px', border: '1px solid rgba(0,0,0,.15)', borderRadius: 7, fontFamily: 'Montserrat, sans-serif', color: '#1a1a1a' }} />
+            style={{ fontSize: 12, padding: '6px 8px', border: '1px solid rgba(0,0,0,.15)', borderRadius: 7, fontFamily: 'Open Sans, sans-serif', color: '#1a1a1a' }} />
           {customFrom && customTo && (
             <button onClick={onApply}
-              style={{ fontSize: 11, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontFamily: 'Montserrat, sans-serif' }}>
+              style={{ fontSize: 11, fontWeight: 700, background: '#1672A7', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontFamily: 'Open Sans, sans-serif' }}>
               Apply
             </button>
           )}
@@ -740,13 +740,13 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   const pr = getPeriodRange(period)
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, color: '#94a3b8', fontSize: 14, fontFamily: 'Montserrat, sans-serif' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, color: '#94a3b8', fontSize: 14, fontFamily: 'Open Sans, sans-serif' }}>
       Loading analytics...
     </div>
   )
 
   if (error) return (
-    <div style={{ padding: 32, textAlign: 'center', color: '#b91c1c', fontSize: 13, fontFamily: 'Montserrat, sans-serif' }}>
+    <div style={{ padding: 32, textAlign: 'center', color: '#b91c1c', fontSize: 13, fontFamily: 'Open Sans, sans-serif' }}>
       {error} <button onClick={load} style={{ marginLeft: 8, color: '#1672A7', cursor: 'pointer', background: 'none', border: 'none', fontWeight: 700 }}>Retry</button>
     </div>
   )
@@ -759,7 +759,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
   const prevTopDept = prevDepts[0]
 
   return (
-    <div className="an-page" style={{ fontFamily: 'Montserrat, sans-serif', color: '#1a1a1a', padding: '0 0 40px' }}>
+    <div className="an-page" style={{ fontFamily: 'Open Sans, sans-serif', color: '#1a1a1a', padding: '0 0 40px' }}>
       <style>{ANALYTICS_LAYOUT_CSS}</style>
 
       {/* Period Selector */}
@@ -926,7 +926,7 @@ export default function AnalyticsPage({ onShowToast, canSync = false, canManageC
             value={query}
             onChange={e => { setQuery(e.target.value); setPagesPage(0); setDeadPage(0); setDeptPage(0); setProgPage(0) }}
             placeholder={activeTab === 'pages' || activeTab === 'dead' ? 'Search pages...' : activeTab === 'departments' ? 'Search departments...' : 'Search programs & services...'}
-            style={{ width: '100%', maxWidth: 360, fontSize: 12, fontFamily: 'Montserrat, sans-serif', padding: '8px 12px', border: '1px solid rgba(0,0,0,0.15)', borderRadius: 8, outline: 'none', color: '#1a1a1a' }}
+            style={{ width: '100%', maxWidth: 360, fontSize: 12, fontFamily: 'Open Sans, sans-serif', padding: '8px 12px', border: '1px solid rgba(0,0,0,0.15)', borderRadius: 8, outline: 'none', color: '#1a1a1a' }}
           />
           {q && (
             <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 10 }}>

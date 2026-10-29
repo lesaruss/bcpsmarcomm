@@ -90,7 +90,7 @@ export default function SetPasswordPage() {
     width: '100%', padding: '11px 14px', borderRadius: '8px',
     background: '#0f1923', border: '1px solid rgba(255,255,255,0.1)',
     color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-    fontFamily: "'Montserrat', sans-serif", letterSpacing: '0.1em',
+    fontFamily: "'Open Sans', sans-serif", letterSpacing: '0.1em',
   }
 
   return (
@@ -98,7 +98,7 @@ export default function SetPasswordPage() {
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #0a1628 0%, #0e2a45 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: "'Montserrat', sans-serif", padding: '24px',
+      fontFamily: "'Open Sans', sans-serif", padding: '24px',
     }}>
       <div style={{ width: '100%', maxWidth: '420px' }}>
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
@@ -156,7 +156,7 @@ export default function SetPasswordPage() {
                   width: '100%', padding: '12px', background: 'linear-gradient(135deg, #1672A7, #0e4e73)',
                   border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: '800',
                   textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer',
-                  opacity: loading ? 0.7 : 1, fontFamily: "'Montserrat', sans-serif",
+                  opacity: loading ? 0.7 : 1, fontFamily: "'Open Sans', sans-serif",
                 }}>
                   {loading ? 'Saving...' : 'Set Password and Continue'}
                 </button>

@@ -202,7 +202,7 @@ export default async function AdminDashboard() {
 }
 
 const S: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f0f4f8', fontFamily: "'Montserrat', sans-serif" },
+  page: { minHeight: '100vh', background: '#f0f4f8', fontFamily: "'Open Sans', sans-serif" },
   header: { background: '#fff', borderBottom: '3px solid #1672A7', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', gap: 16 },
   headerTitle: { display: 'block', fontSize: 16, fontWeight: 700, color: '#0e4e73' },
   headerSub: { display: 'block', fontSize: 11, color: '#888' },

@@ -57,7 +57,7 @@ export default function WelcomePage() {
   }
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Montserrat', sans-serif", background: '#f0f4f8' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Open Sans', sans-serif", background: '#f0f4f8' }}>
       <span style={{ fontSize: 14, color: '#888' }}>Loading...</span>
     </div>
   )
@@ -65,8 +65,8 @@ export default function WelcomePage() {
   const hasStarted = completedSet.size > 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', fontFamily: "'Montserrat', sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <div style={{ display: 'flex', flexDirection: 'column', fontFamily: "'Open Sans', sans-serif" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
       {step === 0 && (
         <div style={{ padding: '32px 32px' }}>

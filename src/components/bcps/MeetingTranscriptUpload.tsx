@@ -505,7 +505,7 @@ export default function MeetingTranscriptUpload({ onApplied, tracker = 'web-team
 }
 
 const CSS = `
-.mtu-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0 10px; padding: 10px 20px; background: #fff; border: 1px solid rgba(0,0,0,0.09); border-radius: 8px; font-family: 'Montserrat', -apple-system, 'Segoe UI', sans-serif; font-size: 13px; color: rgba(26,26,26,0.7); }
+.mtu-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0 10px; padding: 10px 20px; background: #fff; border: 1px solid rgba(0,0,0,0.09); border-radius: 8px; font-family: 'Open Sans', -apple-system, 'Segoe UI', sans-serif; font-size: 13px; color: rgba(26,26,26,0.7); }
 .mtu-bar.one-line { flex-wrap: nowrap; margin: 16px 0; padding: 8px 8px 8px 16px; }
 .mtu-bar.one-line > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mtu-bar.one-line .mtu-btn { flex-shrink: 0; }
@@ -514,7 +514,7 @@ const CSS = `
 .mtu-btn.ghost { background: #fff; color: #0e4e73; }
 .mtu-btn:disabled { opacity: 0.5; cursor: default; }
 .mtu-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; justify-content: center; align-items: flex-start; padding: 40px 16px; overflow-y: auto; }
-.mtu-panel { background: #fff; border-radius: 10px; width: min(860px, 100%); padding: 24px 28px; font-family: 'Montserrat', -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; box-sizing: border-box; }
+.mtu-panel { background: #fff; border-radius: 10px; width: min(860px, 100%); padding: 24px 28px; font-family: 'Open Sans', -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; box-sizing: border-box; }
 .mtu-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .mtu-head h2 { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; margin: 0; }
 .mtu-panel h3 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #0e4e73; margin: 22px 0 10px; }
