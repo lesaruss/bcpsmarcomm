@@ -35,8 +35,9 @@ export interface GuideDef {
   eyebrow: string
   title: string
   audience: string
-  // Date the content was last refreshed (YYYY-MM-DD).
+  // Date the content was last refreshed (YYYY-MM-DD), and how often it is.
   updated: string
+  cadence: string
   tabs: GuideTab[]
   changes: GuideChange[]
   // Older documents folded into this guide, by slug, and the tab each one
