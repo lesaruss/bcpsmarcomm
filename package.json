@@ -16,6 +16,7 @@
     "@sparticuz/chromium": "^149.0.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",
+    "@vercel/functions": "3.10.1",
     "axe-core": "^4.12.1",
     "mediabunny": "1.61.3",
     "next": "14.2.15",
