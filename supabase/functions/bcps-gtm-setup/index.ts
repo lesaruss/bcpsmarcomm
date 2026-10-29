@@ -197,11 +197,20 @@ Deno.serve(async (req: Request) => {
     if (!secret) throw new Error('Could not load the service account key');
     const token = await getAccessToken(secret.value);
 
+    // The Tag Manager API caps this Cloud project's calls per minute, and a
+    // build makes about 25 (a v6 build hit 429 RESOURCE_EXHAUSTED partway
+    // through, 2026-10-29). On 429, wait and retry instead of failing.
     const gtm = async (method: string, path: string, body?: unknown) => {
-      const r = await fetch(path.startsWith('http') ? path : `${API}/${path}`, {
-        method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      });
+      let r: Response;
+      for (let attempt = 0; ; attempt++) {
+        r = await fetch(path.startsWith('http') ? path : `${API}/${path}`, {
+          method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        if (r.status !== 429 || attempt >= 5) break;
+        await r.body?.cancel();
+        await new Promise(res => setTimeout(res, 12000));
+      }
       const text = await r.text();
       if (!r.ok) throw new Error(`GTM ${method} ${path} -> ${r.status}: ${text.slice(0, 600)}`);
       return text ? JSON.parse(text) : {};
