@@ -73,7 +73,7 @@ export default async function CompletePage() {
               brief's recipient list by the bcps_cert_complete_add_recipient trigger, so
               this link always opens for the person who just earned the certificate. */}
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="/briefs/bcps-wcm-cert-complete-2026-27" style={S.dashBtn}>What&apos;s Next</a>
+            <a href="/?page=dashboard&tab=guide&gs=certify" style={S.dashBtn}>What&apos;s Next</a>
             <a href={SHIELD_SRC} download="BCPS-WCM-Certified-2026.png" style={S.badgeBtn}>Download badge</a>
           </div>
           <p style={S.badgeHint}>Add the badge to your email signature. In Outlook, open Signatures, then insert the downloaded image.</p>

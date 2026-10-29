@@ -50,9 +50,8 @@ export const TOOLS: Tool[] = [
   { label: 'ADA Manager', desc: 'Full-site school scans and issue detail.', group: 'Websites', page: 'ada-manager', gate: 'ada-manager' },
 
   { label: 'Department Certification', desc: 'The Department WCM Certification course.', group: 'Learn', page: 'bcps-certification', gate: 'bcps-certification' },
-  { label: 'Department WCM Playbook', desc: 'Everything current for department WCMs.', group: 'Learn', href: '/playbooks/wcm-department', gate: 'wcm' },
+  { label: 'Department WCM Guide', desc: 'Everything for department WCMs, step by step.', group: 'Learn', href: '/?page=dashboard&tab=documents&doc=wcm-department', gate: 'wcm' },
   { label: 'Director Playbook', desc: 'Every update for directors.', group: 'Learn', href: '/playbooks/director-department', gate: 'wcm' },
-  { label: 'Registration: Getting Started', desc: 'How WCMs register for the program.', group: 'Learn', href: '/playbooks/bcps-wcm-registration-2026-27', gate: 'wcm' },
 
   { label: 'My Profile', desc: 'Your name, photo and contact details.', group: 'People', page: 'profile', gate: 'profile' },
   { label: 'My Records', desc: 'Your employee records.', group: 'People', page: 'employee-records', gate: 'employee-records' },
@@ -79,6 +78,6 @@ export const TOP_TOOLS: Record<'superadmin' | 'comms' | 'appsvc' | 'director' | 
   comms: ['Web Team Assignments', 'Banner Submissions', 'Proud Points', 'Departments', 'WCM Roster', 'Documents', 'Meeting Notes', 'Widgets'],
   appsvc: ['Web Team Assignments', 'ADA Scanner', 'ADA Manager', 'School Profiles', 'Banner Submissions', 'Proud Points', 'Documents', 'Widgets'],
   director: ['Request MarComm Support', 'Director Playbook', 'WCM Roster', 'Meeting Notes', 'Documents', 'Department Certification', 'My Profile'],
-  wcm: ['Department Certification', 'Request MarComm Support', 'Department WCM Playbook', 'ADA Scanner', 'Documents', 'Meeting Notes', 'My Profile'],
+  wcm: ['Department Certification', 'Request MarComm Support', 'Department WCM Guide', 'ADA Scanner', 'Documents', 'Meeting Notes', 'My Profile'],
   member: ['Department Certification', 'Registration: Getting Started', 'Director Playbook', 'Documents', 'WCM Roster', 'My Profile'],
 }

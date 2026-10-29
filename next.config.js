@@ -91,6 +91,13 @@ const nextConfig = {
         destination: "https://broward.truenorthlogic.com/ia/empari/learning2/registration/presentSectionRegistrationDetails?id=sJqNeMYw%2Fg1mZ4w0fRr0qg%3D%3D",
         permanent: false,
       },
+      // Certification Complete: What's Next is now the Certification tab of
+      // the Department WCM Guide (Sean, 2026-10-29).
+      {
+        source: "/briefs/bcps-wcm-cert-complete-2026-27",
+        destination: "/?page=dashboard&tab=guide&gs=certify",
+        permanent: false,
+      },
     ]
   },
   async rewrites() {

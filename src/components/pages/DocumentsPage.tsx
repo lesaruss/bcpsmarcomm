@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useEffectiveRole } from '@/components/BCPSShell'
+import { REPLACED_DOCS } from '@/lib/guides'
 
 interface Doc {
   id: string
@@ -150,7 +151,10 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
     const r = await fetch(`/api/bcps/documents${asEmail ? `?as=${encodeURIComponent(asEmail)}` : ''}`, { headers: { Authorization: `Bearer ${t}` } })
     const j = await r.json()
     if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
+    // Documents a guide replaced are left out, so each topic has one home
+    // (Sean, 2026-10-29). Their addresses still open the guide.
     const listed: Doc[] = (j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'documents'
+      && !REPLACED_DOCS.has(d.slug)
       && (!reviewOnly || (d.visibility !== 'public' && !REVIEW_HIDDEN.includes(d.slug))))
     const extra: Doc[] = pinned.filter(p => !listed.some(d => d.slug === p.slug)).map(p => ({
       id: `pinned:${p.slug}`, slug: p.slug, title: p.title, description: p.description, type: 'Playbook', date: null, date_sort: null,

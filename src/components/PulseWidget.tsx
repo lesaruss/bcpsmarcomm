@@ -38,10 +38,11 @@ const TICKER_MESSAGES: TickerMessage[] = [
   // copy promised a "rollout timeline", which that playbook does not
   // contain, so the line now names the playbook itself.
   {
-    text: 'The Department WCM Playbook is live.',
-    linkText: 'View the Playbook',
-    linkHref: '/playbooks/wcm-department',
-    docTitle: 'Department WCM Playbook',
+    // The Playbook became the Department WCM Guide (Sean, 2026-10-29), which
+    // opens in the dashboard rather than the document preview.
+    text: 'New: the Department WCM Guide, everything for WCMs in one place.',
+    linkText: 'Open the Guide',
+    linkHref: '/?page=dashboard&tab=documents&doc=wcm-department',
   },
 ]
 

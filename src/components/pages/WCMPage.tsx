@@ -848,7 +848,7 @@ function CertStatusPanel({ status }: { status: CertStatus }) {
         <div className="wcm-hub2-status-sub">Issued {issued}</div>
         <div className="wcm-hub2-status-actions">
           <a className="wcm-hub2-status-btn" href="/certification/departments/complete">View certificate</a>
-          <a className="wcm-hub2-status-link" href="/briefs/bcps-wcm-cert-complete-2026-27">What&apos;s next</a>
+          <a className="wcm-hub2-status-link" href="/?page=dashboard&tab=guide&gs=certify">What&apos;s next</a>
         </div>
       </div>
     )
@@ -932,7 +932,7 @@ export function WcmCommunityHub({ previewCert }: { previewCert?: CertStatus } = 
       ) : tabs.length === 0 ? (
         <div className="wcm-hub2-empty">
           {loadError ? 'The hub could not load right now. ' : 'Nothing is posted yet. '}
-          In the meantime, the <a href="/playbooks/wcm-department">Department WCM Playbook</a> has everything current.
+          In the meantime, the <a href="/playbooks/wcm-department">Department WCM Guide</a> has everything current.
         </div>
       ) : (
         <>
@@ -1029,7 +1029,7 @@ export function WcmHubCards({ tab, certified }: { tab: HubTab; certified: boolea
     return (
       <div className="wcm-hub2-empty">
         {loadError ? 'These cards could not load right now. ' : 'Nothing is posted here yet. '}
-        In the meantime, the <a href="/playbooks/wcm-department">Department WCM Playbook</a> has everything current.
+        In the meantime, the <a href="/playbooks/wcm-department">Department WCM Guide</a> has everything current.
       </div>
     )
   }
