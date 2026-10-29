@@ -23,6 +23,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
   title: 'Department WCM Guide',
   audience: 'Department Web Content Managers',
   updated: '2026-10-29',
+  cadence: 'refreshed every Thursday',
   replaces: {
     'bcps-wcm-registration-2026-27': 'start',
     'bcps-wcm-cert-complete-2026-27': 'certify',

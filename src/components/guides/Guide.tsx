@@ -128,7 +128,7 @@ export default function Guide({ def, overview, initialTab, actions }: {
         <div className="guide-head-text">
           <div className="home-hero-label">{def.eyebrow}</div>
           <h1 className="guide-title">{def.title}</h1>
-          <p className="guide-meta">For {def.audience}. Updated {fmtGuideDate(def.updated)}, refreshed every Thursday.</p>
+          <p className="guide-meta">For {def.audience}. Updated {fmtGuideDate(def.updated)}, {def.cadence}.</p>
         </div>
         <div className="guide-head-tools">
           <input
@@ -196,7 +196,7 @@ export default function Guide({ def, overview, initialTab, actions }: {
           ) : active === GUIDE_OVERVIEW ? overview : active === CHANGES ? (
             <div className="home-dept">
               <h2 className="guide-h2">What&apos;s New</h2>
-              <p className="guide-intro">Every change to this guide, newest first. A short email each Monday points here.</p>
+              <p className="guide-intro">Every change to this guide, newest first.</p>
               <ul className="guide-changes">
                 {def.changes.map((c) => (
                   <li key={c.date}><b>{fmtGuideDate(c.date)}</b><span>{c.text}</span></li>

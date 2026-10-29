@@ -30,6 +30,8 @@ import Guide from '@/components/guides/Guide'
 import WcmGuideOverview, { type GuideViewer } from '@/components/guides/WcmGuideOverview'
 import { guideForDoc } from '@/lib/guides'
 import { WCM_DEPARTMENT_GUIDE } from '@/lib/guides/wcm-department'
+import { MARCOMM_TEAM_GUIDE } from '@/lib/guides/marcomm-team'
+import MarcommGuideOverview from '@/components/guides/MarcommGuideOverview'
 import { SAMPLE_SUPERADMIN_ID, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
 import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
@@ -1047,6 +1049,16 @@ const PINNED_DOCS: Record<'director' | 'wcm' | 'leadership', PinnedDoc[]> = {
   ],
 }
 
+// The MarComm Team Guide, listed for anyone who has MarComm Assignments.
+const MARCOMM_GUIDE_PIN: PinnedDoc = { slug: MARCOMM_TEAM_GUIDE.slug, title: 'MarComm Team Guide', description: 'The weekly Marcomm Meeting, MarComm Assignments and requests, with where the team is this week.', doc_url: `/playbooks/${MARCOMM_TEAM_GUIDE.slug}` }
+
+// Each guide's Overview: the WCM one is drawn from the dashboard's data on
+// the WCM's own Guide tab, so here it shows no one's progress; the MarComm
+// one reads the tracker itself.
+function guideOverview(slug: string) {
+  return slug === MARCOMM_TEAM_GUIDE.slug ? <MarcommGuideOverview /> : <WcmGuideOverview />
+}
+
 // Opens a doc inside the Documents tab; null goes back to the list.
 function useDocParam(): [string | null, (slug: string | null) => void] {
   const router = useRouter()
@@ -1370,7 +1382,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
   if (guide) {
     return (
       <div className="home-section">
-        <Guide def={guide.guide} initialTab={guide.tab} overview={<WcmGuideOverview />}
+        <Guide def={guide.guide} initialTab={guide.tab} overview={guideOverview(guide.guide.slug)}
           actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>} />
       </div>
     )
@@ -1408,7 +1420,8 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
     ...(team ? { 'bcps-web-team-assignments': () => openDoc('web-team-assignments') } : {}),
     ...(canMarcomm ? { 'bcps-marcomm-assignments': () => window.location.assign(MARCOMM_PATH) } : {}),
   }
-  return <DocumentsPage embedded onOpen={(s) => openDoc(s)} trackers={trackers} pinned={kind === 'director' || kind === 'wcm' || kind === 'leadership' ? PINNED_DOCS[kind] : []}
+  const pinned = [...(kind === 'director' || kind === 'wcm' || kind === 'leadership' ? PINNED_DOCS[kind] : []), ...(canMarcomm ? [MARCOMM_GUIDE_PIN] : [])]
+  return <DocumentsPage embedded onOpen={(s) => openDoc(s)} trackers={trackers} pinned={pinned}
     reviewOnly={kind === 'director' || kind === 'leadership'} asEmail={asEmail} />
 }
 
@@ -1797,18 +1810,22 @@ function MemberHome({ data, onNavigate }: { data: HomeData; onNavigate: Navigate
 
 /* ─── MARCOMM MEETING ────────────────────────────────── */
 // Marcomm Meeting members whose only role here is MarComm Assignments (Sean,
-// 2026-10-16). Their job on the site is keeping their own items current, so
-// the home is the list itself with a short how-to above it.
+// 2026-10-16). Since 2026-10-29 (Sean) they land on the MarComm Team Guide:
+// where the team is this week, their own items and the next meeting, with
+// MarComm Assignments one tab over at its own address.
 function MarcommHome({ data }: { data: HomeData }) {
+  const [tab, setTab] = useHomeTab()
   const name = firstName(data)
+  const tabs = [
+    { id: 'overview', label: 'Guide' },
+    { id: 'marcomm', label: 'MarComm Assignments' },
+  ]
   return (
     <div className="home">
-      <div className="home-hero">
-        <div className="home-hero-label">BCPS MarComm Meeting</div>
-        <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome to MarComm Assignments'}</h1>
-        <p>Keep your items current before each Marcomm Meeting: click <b>My items</b>, open a request, set its status and add a note. Everyone sees your updates right away.</p>
-      </div>
-      <MarcommAssignmentsPage embedded />
+      <HomeTabs tabs={tabs} active={tab === 'marcomm' ? 'marcomm' : 'overview'} onChange={setTab} />
+      {tab === 'marcomm'
+        ? <MarcommAssignmentsPage embedded />
+        : <Guide def={MARCOMM_TEAM_GUIDE} overview={<MarcommGuideOverview name={name} />} />}
     </div>
   )
 }

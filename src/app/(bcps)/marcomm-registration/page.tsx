@@ -47,7 +47,7 @@ export default function MarcommRegistrationWelcomePage() {
             <span className="wp-eyebrow">MarComm Meeting</span>
             <h1>Welcome to MarComm Assignments</h1>
             <p className="wp-lead" style={{ maxWidth: '52ch', margin: '18px auto 0' }}>
-              Create your account so you can update your own items before each Marcomm Meeting.
+              Create your account so you can check your own items before each Marcomm Meeting.
             </p>
             <p className="wp-hint">Use Next, or your arrow keys, to move through.</p>
           </div>
@@ -71,8 +71,10 @@ export default function MarcommRegistrationWelcomePage() {
             <li>
               <span className="wp-mk">2</span>
               <div>
-                <div className="wp-nt">You update your own items</div>
-                <div className="wp-nd">Post your status and notes any time, not only during the meeting.</div>
+                {/* Since 2026-10-21 only the tracker's editors change it (Jennifer
+                    Hodder records updates in the meeting); everyone else views. */}
+                <div className="wp-nt">You see your own items</div>
+                <div className="wp-nd">My items shows what you lead or support, with every note, any time.</div>
               </div>
             </li>
             <li>
@@ -129,8 +131,8 @@ export default function MarcommRegistrationWelcomePage() {
         </section>
 
         <section className={step(3)}>
-          <span className="wp-eyebrow">Updating Your Items</span>
-          <h2>How to update what you own.</h2>
+          <span className="wp-eyebrow">Your Items</span>
+          <h2>How to get ready for each meeting.</h2>
           <ul className="wp-need">
             <li>
               <span className="wp-mk">1</span>
@@ -149,19 +151,19 @@ export default function MarcommRegistrationWelcomePage() {
             <li>
               <span className="wp-mk">3</span>
               <div>
-                <div className="wp-nt">Set the status</div>
-                <div className="wp-nd">In Progress, Needs Info, Scheduled, On Hold, Completed and more.</div>
+                <div className="wp-nt">Check the status and date</div>
+                <div className="wp-nd">In Progress, Needs Info, Scheduled and more. A date marked Overdue is past its date needed.</div>
               </div>
             </li>
             <li>
               <span className="wp-mk">4</span>
               <div>
-                <div className="wp-nt">Add a note</div>
-                <div className="wp-nd">Type it, or use Record to speak it. Each note is dated and shows your name.</div>
+                <div className="wp-nt">Bring a one-line update</div>
+                <div className="wp-nd">Jennifer Hodder records it on the request during the meeting, as a dated note.</div>
               </div>
             </li>
           </ul>
-          <p className="wp-hint">Updates save as you make them, and the team sees them right away.</p>
+          <p className="wp-hint">The MarComm Team Guide on your home page walks through the whole week.</p>
         </section>
 
         <section className={step(4, 'wp-center')}>
