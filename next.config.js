@@ -93,6 +93,13 @@ const nextConfig = {
       },
       // Certification Complete: What's Next is now the Certification tab of
       // the Department WCM Guide (Sean, 2026-10-29).
+      // The Website & Platform guide has no playbook page of its own; its
+      // address opens it in the dashboard (Sean, 2026-10-30).
+      {
+        source: "/playbooks/website-platform",
+        destination: "/?page=dashboard&tab=documents&doc=website-platform",
+        permanent: false,
+      },
       // Start Here: Web Content Manager Onboarding folded into the guide's
       // Getting Started tab (Sean, 2026-10-30).
       {

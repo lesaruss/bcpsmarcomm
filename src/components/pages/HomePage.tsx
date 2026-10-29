@@ -29,6 +29,8 @@ import SiteAudit from '@/components/bcps/SiteAudit'
 import Guide from '@/components/guides/Guide'
 import WcmGuideOverview, { type GuideViewer } from '@/components/guides/WcmGuideOverview'
 import { guideForDoc } from '@/lib/guides'
+import { restrictedGuideForDoc } from '@/lib/guides/restricted'
+import RestrictedGuide from '@/components/guides/RestrictedGuide'
 import { WCM_DEPARTMENT_GUIDE } from '@/lib/guides/wcm-department'
 import { MARCOMM_TEAM_GUIDE } from '@/lib/guides/marcomm-team'
 import MarcommGuideOverview from '@/components/guides/MarcommGuideOverview'
@@ -660,7 +662,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
             : 'Your department\u2019s website at a glance: the people who keep it current, how many families and staff use it, when your website review is, and the support behind it. Everything here updates on its own.'}</p>
           <div className="home-actions">
             {leadership ? <>
-              <button type="button" className="home-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=bcps-platform-ownership-migration', { scroll: false })}>Open the Platform Plan</button>
+              <button type="button" className="home-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=website-platform', { scroll: false })}>Open the Platform Plan</button>
               <span className="home-hint">Moving the platform onto District accounts</span>
             </> : <>
               <button type="button" className="home-btn" onClick={openDirectorGuide}>Open the Director Guide</button>
@@ -706,7 +708,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
                     <li>
                       <b>Read the Platform Plan</b>
                       <span>Moving bcpsmarcomm.com and browardschools.ai onto District accounts: the Copilot test, costs and timeline.</span>
-                      <button type="button" className="home-link-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=bcps-platform-ownership-migration', { scroll: false })}>Open the plan</button>
+                      <button type="button" className="home-link-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=website-platform', { scroll: false })}>Open the plan</button>
                     </li>
                   ) : (
                     <li>
@@ -1066,7 +1068,7 @@ const PINNED_DOCS: Record<'director' | 'wcm' | 'leadership', PinnedDoc[]> = {
   ],
   // Leadership View (Sean, 2026-10-27): the platform plan, not the WCM program guides.
   leadership: [
-    { slug: 'bcps-platform-ownership-migration', title: 'BCPS Platform Ownership Migration', description: 'Moving bcpsmarcomm.com and browardschools.ai onto District accounts: the Copilot test, costs and timeline.', doc_url: '/playbooks/bcps-platform-ownership-migration' },
+    { slug: 'website-platform', title: 'Website & Platform', description: 'Moving bcpsmarcomm.com and browardschools.ai onto District accounts, the phases, costs and decisions, in one guide.', doc_url: '/playbooks/website-platform' },
   ],
 }
 
@@ -1401,6 +1403,16 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
   // A guide, or a document a guide replaced, opens as the guide (Sean,
   // 2026-10-29). Here, for directors and the team, its Overview has no one's
   // progress on it; a WCM reads it on their own Guide tab.
+  // A restricted guide's content comes from the server, for its readers only.
+  const restricted = doc ? restrictedGuideForDoc(doc) : null
+  if (restricted) {
+    return (
+      <div className="home-section">
+        <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab}
+          actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>} />
+      </div>
+    )
+  }
   const guide = doc ? guideForDoc(doc) : null
   if (guide) {
     return (

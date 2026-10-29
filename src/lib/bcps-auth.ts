@@ -284,6 +284,50 @@ export async function requireBcpsPageAccess(req: NextRequest, pageSlug: string):
 // meeting. The leads are the Playbook's own metadata.transcript_admins
 // (emails), set when the Playbook is built from the template; a superadmin
 // always has it. Anyone else gets a 403 and the bar stays hidden.
+// A restricted document's readers (Sean, 2026-10-30, for guides whose content
+// is served by /api/bcps/guides rather than shipped in the page code). The
+// same three ways in as the Documents list: admins by role, anyone named on
+// the document's bcps_brief_recipients list, and anyone holding a grant on its
+// acl_objects document row, directly or through a group. A document with no
+// row and no recipients stays admin-only rather than falling open.
+export async function requireDocumentAccess(req: NextRequest, slug: string): Promise<AuthResult> {
+  const user = await userFromRequest(req)
+  if (!user) return { ok: false, status: 401, error: 'Sign in with your BCPS account to continue.' }
+
+  const { data: roleRow } = await service
+    .from('acl_member_roles')
+    .select('role')
+    .eq('user_id', user.userId)
+    .eq('brand', BRAND)
+    .maybeSingle()
+  if (roleRow?.role === 'admin' || roleRow?.role === 'superadmin') return { ok: true, user }
+
+  const { data: recipients } = await service
+    .from('bcps_brief_recipients')
+    .select('attendee_email')
+    .eq('brief_slug', slug)
+  if ((recipients ?? []).some(r => (r.attendee_email || '').trim().toLowerCase() === user.email)) return { ok: true, user }
+
+  const { data: doc } = await service
+    .from('acl_objects')
+    .select('id')
+    .eq('brand', BRAND)
+    .eq('kind', 'document')
+    .eq('slug', slug)
+    .maybeSingle()
+  if (!doc) return { ok: false, status: 403, error: 'Forbidden' }
+
+  const [{ data: gm }, { data: grants }] = await Promise.all([
+    service.from('acl_group_members').select('group_id').eq('user_id', user.userId),
+    service.from('acl_grants').select('subject_type, subject_id').eq('object_id', doc.id),
+  ])
+  const gids = (gm ?? []).map(g => g.group_id)
+  const allowed = (grants ?? []).some(g =>
+    (g.subject_type === 'user' && g.subject_id === user.userId) ||
+    (g.subject_type === 'group' && gids.includes(g.subject_id)))
+  return allowed ? { ok: true, user } : { ok: false, status: 403, error: 'Forbidden' }
+}
+
 export async function requirePlaybookTranscriptAccess(req: NextRequest, playbookSlug: string): Promise<AuthResult> {
   const user = await userFromRequest(req)
   if (!user) return { ok: false, status: 401, error: 'Sign in with your BCPS account to continue.' }

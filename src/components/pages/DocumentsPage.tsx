@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useEffectiveRole } from '@/components/BCPSShell'
 import { GUIDES, REPLACED_DOCS } from '@/lib/guides'
+import { RESTRICTED_GUIDES } from '@/lib/guides/restricted'
 
 interface Doc {
   id: string
@@ -159,7 +160,7 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
     // A document that is now a guide is listed as the guide (Sean,
     // 2026-10-30): its catalog entry still carries the old playbook's name.
     listed.forEach((d, i) => {
-      const g = GUIDES[d.slug]
+      const g = GUIDES[d.slug] ?? RESTRICTED_GUIDES[d.slug]
       if (g) listed[i] = { ...d, title: g.title, type: 'Guide', description: `Everything for ${g.audience}, in one place, ${g.cadence}.` }
     })
     const extra: Doc[] = pinned.filter(p => !listed.some(d => d.slug === p.slug)).map(p => ({

@@ -2,6 +2,7 @@ import type { GuideDef } from './types'
 import { WCM_DEPARTMENT_GUIDE } from './wcm-department'
 import { MARCOMM_TEAM_GUIDE } from './marcomm-team'
 import { DIRECTOR_DEPARTMENT_GUIDE } from './director-department'
+import { RESTRICTED_GUIDES } from './restricted'
 
 // Every guide, by the document slug it stands in for. Opening that slug, or
 // one of the documents it replaces, in the dashboard opens the guide.
@@ -21,4 +22,7 @@ export function guideForDoc(slug: string): { guide: GuideDef; tab: string } | nu
 
 // Documents a guide replaced, left out of the Documents list so each topic
 // has one home. Their addresses still work and open the guide.
-export const REPLACED_DOCS = new Set(Object.values(GUIDES).flatMap((g) => Object.keys(g.replaces)))
+export const REPLACED_DOCS = new Set([
+  ...Object.values(GUIDES).flatMap((g) => Object.keys(g.replaces)),
+  ...Object.values(RESTRICTED_GUIDES).flatMap((g) => Object.keys(g.replaces)),
+])
