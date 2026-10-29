@@ -182,8 +182,9 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     if (!(await callerAllowed(req, supabase))) return json({ success: false, error: 'unauthorized' }, 401);
 
-    let action = 'inspect';
-    try { action = (await req.json())?.action || 'inspect'; } catch { /* default */ }
+    let payload: any = {};
+    try { payload = (await req.json()) || {}; } catch { /* default */ }
+    const action: string = payload.action || 'inspect';
 
     const { data: secret } = await supabase.from('lesaruss_secrets').select('value').eq('key', 'GA4_SERVICE_ACCOUNT_BCPS').single();
     if (!secret) throw new Error('Could not load the service account key');
@@ -222,8 +223,17 @@ Deno.serve(async (req: Request) => {
           ] } } },
         }),
       });
+      // Optional read-only report against the District property, for
+      // questions like which data streams feed it (streamId, streamName).
+      const custom = payload.report
+        ? await (await fetch('https://analyticsdata.googleapis.com/v1beta/properties/527326342:runReport', {
+            method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload.report),
+          })).json()
+        : null;
       return json({
         success: true,
+        custom_report: custom,
         account_summaries: summaries.status === 200
           ? (summaries.body.accountSummaries || []).map((a: any) => ({ account: a.account, name: a.displayName, properties: (a.propertySummaries || []).map((p: any) => `${p.property} ${p.displayName}`) }))
           : summaries,
