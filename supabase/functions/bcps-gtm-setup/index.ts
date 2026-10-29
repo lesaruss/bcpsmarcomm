@@ -335,12 +335,32 @@ Deno.serve(async (req: Request) => {
         ['video_provider', '{{DLV - video_provider}}'], ['video_percent', '{{DLV - video_percent}}'],
       ], videoTrigger.triggerId));
 
+      // An explicit Google tag for MEASUREMENT_ID that sends NO page view.
+      // Measured 2026-10-29 in the blocked-hit browser test: with only the
+      // auto-created Google tag (dest_ga, ignoreDupeGtagConfigCalls on), this
+      // container's events were dropped whenever Finalsite's container was on
+      // the page, because Finalsite's Google tag already configures
+      // G-EW5DDY3E0Z as a linked destination and the auto tag then skips its
+      // own setup. Alone, the same events arrived complete. Configuring the ID
+      // here with send_page_view false lets the events through while page
+      // views keep coming only from Finalsite's tag.
+      cur = await list();
+      await upsert('tags', {
+        name: 'Google tag - District property (no page view)', type: 'googtag',
+        firingTriggerId: ['2147479573'], // built-in Initialization - All Pages
+        parameter: [
+          tpl('tagId', MEASUREMENT_ID),
+          { type: 'list', key: 'configSettingsTable', list: [
+            { type: 'map', map: [tpl('parameter', 'send_page_view'), tpl('parameterValue', 'false')] },
+          ] },
+        ],
+      });
+
       // Tag Manager auto-creates a Google tag (dest_ga) for each measurement
-      // ID a GA4 event tag names. Remove any left from an earlier target, so
-      // the container only ever addresses MEASUREMENT_ID.
+      // ID a GA4 event tag names. The explicit Google tag above replaces it,
+      // so remove every one, including any left from an earlier target.
       for (const t of (await list()).tags) {
-        const dest = (t.parameter || []).find((x: any) => x.key === 'destinationId')?.value;
-        if (t.type === 'dest_ga' && dest && dest !== MEASUREMENT_ID) await gtm('DELETE', t.path);
+        if (t.type === 'dest_ga') await gtm('DELETE', t.path);
       }
 
       const after = await list();
