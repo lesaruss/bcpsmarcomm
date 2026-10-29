@@ -38,6 +38,7 @@ import ProudPointsPage from '@/components/pages/ProudPointsPage'
 import MySubmissionsPage from '@/components/pages/MySubmissionsPage'
 import MessagesPage from '@/components/pages/MessagesPage'
 import SchoolProfilesPage from '@/components/pages/SchoolProfilesPage'
+import CertFollowupPage from '@/components/pages/CertFollowupPage'
 import { SAMPLE_SUPERADMIN_ID, type UserRole } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
 import { MARCOMM_PATH } from '@/lib/types'
@@ -131,6 +132,7 @@ function HomeInner() {
       {nav.page === 'bcps-assignments'       && <AssignmentsPage />}
       {nav.page === 'employee-records'         && <EmployeeRecordsPage />}
       {nav.page === 'reports'                  && effectiveRole === 'superadmin' && <ReportsPage />}
+      {nav.page === 'cert-followup'            && effectiveRole === 'superadmin' && <CertFollowupPage onShowToast={showToast} />}
       {nav.page === 'bcps-certification'       && <CertificationPage />}
       {nav.page === 'members'                  && <MembersPage />}
       {nav.page === 'community-relations'      && <CommunityRelationsPage />}

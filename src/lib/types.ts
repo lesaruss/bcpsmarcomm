@@ -18,6 +18,7 @@ export type PageId =
   | 'department'
   | 'school'
   | 'reports'
+  | 'cert-followup'
   | 'documents'
   | 'permissions'
   | 'registrations'
