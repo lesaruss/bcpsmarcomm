@@ -324,6 +324,56 @@
   .info .tag { background: var(--white); }
   .info-links { display: flex; flex-direction: column; gap: 6px; list-style: none; }
 
+  /* SCHOOL LOGOS (2026-10-29): the school's own logo from its Finalsite site,
+     or its initials when there is none. */
+  .logo { flex-shrink: 0; width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--border); background: var(--white); object-fit: contain; padding: 3px; }
+  .logo-mono { display: grid; place-items: center; padding: 0; background: var(--blue-faint); color: var(--blue-dark); font-family: var(--font-head); font-weight: 700; font-size: 14px; border-color: rgba(22,114,167,0.2); }
+  .logo-lg { width: 72px; height: 72px; border-radius: 12px; padding: 5px; }
+  .logo-lg.logo-mono { font-size: 24px; }
+  .card-as-link .name-row { display: flex; gap: 10px; align-items: center; }
+  .profile-title { display: flex; gap: 14px; align-items: center; }
+  .pop .name-row { display: flex; gap: 8px; align-items: center; }
+  .pop .logo { width: 32px; height: 32px; }
+
+  /* FEATURED EVENT COUNTDOWN and SCHOOL CHOICE BANNER (2026-10-29) */
+  .banner {
+    margin: 14px 20px 0; border-radius: var(--radius); padding: 12px 16px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+  }
+  .banner-event { background: var(--blue-dark); color: #fff; }
+  .banner-choice { background: #FFF6E5; border: 1px solid #F2C46D; color: var(--text); }
+  .banner-text { flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px; }
+  .banner-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.85; }
+  .banner-title { font-family: var(--font-head); font-size: 16px; font-weight: 700; line-height: 1.3; }
+  .banner-sub { font-size: 12.5px; opacity: 0.9; }
+  .count { display: flex; gap: 6px; }
+  .count-unit { min-width: 54px; text-align: center; border-radius: 6px; padding: 5px 6px; background: rgba(255,255,255,0.12); }
+  .count-unit b { display: block; font-family: var(--font-head); font-size: 20px; line-height: 1.1; }
+  .count-unit span { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85; }
+  .banner-choice .count-unit { background: var(--white); border: 1px solid #F2C46D; }
+  .banner a.banner-btn {
+    display: inline-flex; align-items: center; gap: 5px; text-decoration: none; font-weight: 700; font-size: 13px;
+    border-radius: 6px; padding: 7px 13px; background: var(--white); color: var(--blue-dark);
+  }
+  .banner-choice a.banner-btn { background: var(--blue); color: #fff; }
+  .banner a.banner-btn:hover { text-decoration: underline; }
+  .banner a.banner-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  .tab-choice { color: #8A5A00; }
+  .preview-flag { font-size: 11px; font-weight: 700; background: #8A5A00; color: #fff; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+  .choice-panel { padding: 16px 20px 22px; background: var(--bg); display: grid; gap: 12px; }
+  .choice-panel[hidden], .controls[hidden], .results-bar[hidden] { display: none; }
+  .choice-panel h2 { font-family: var(--font-head); font-size: 16px; color: var(--text); }
+  .steps { list-style: none; counter-reset: step; display: grid; gap: 8px; }
+  .steps li { counter-increment: step; display: flex; gap: 10px; align-items: flex-start; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; font-size: 13px; color: var(--text-mid); }
+  .steps li::before { content: counter(step); flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+  .event-list { list-style: none; display: grid; gap: 8px; }
+  .event-item { display: flex; gap: 10px; align-items: flex-start; }
+  .event-date { flex-shrink: 0; width: 46px; text-align: center; border: 1px solid var(--border); border-radius: 6px; background: var(--white); line-height: 1.1; padding: 4px 0; }
+  .event-date b { display: block; font-family: var(--font-head); font-size: 17px; color: var(--blue-dark); }
+  .event-date span { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+  .event-body { font-size: 12.5px; color: var(--text-mid); }
+  .event-body strong { color: var(--text); font-size: 13px; }
+
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   @media (max-width: 560px) {
@@ -331,6 +381,9 @@
     .tab { flex: 1; padding: 9px 8px; }
     .controls, .results-bar, .info, .crumb, .profile-head, .profile-body { padding-left: 14px; padding-right: 14px; }
     .profile-head h1 { font-size: 20px; }
+    .banner { margin-left: 14px; margin-right: 14px; }
+    .choice-panel { padding-left: 14px; padding-right: 14px; }
+    .count-unit { min-width: 46px; }
     .search-row { flex-direction: column; align-items: stretch; }
     .filter-row select { flex: 1 1 100%; }
     .filter-row .spacer { display: none; }
@@ -342,11 +395,14 @@
 </head>
 <body>
 
+<div id="banners"></div>
+
 <div id="listView">
 <div class="tabs" role="tablist" aria-label="Browse magnet programs">
   <button type="button" class="tab" role="tab" id="tab-schools" aria-controls="results" aria-selected="true" data-mode="schools">Browse by School</button>
   <button type="button" class="tab" role="tab" id="tab-programs" aria-controls="results" aria-selected="false" data-mode="programs">Browse by Program</button>
   <button type="button" class="tab" role="tab" id="tab-map" aria-controls="mapPanel" aria-selected="false" data-mode="map">Map</button>
+  <button type="button" class="tab tab-choice" role="tab" id="tab-choice" aria-controls="choicePanel" aria-selected="false" data-mode="choice" hidden>School Choice</button>
 </div>
 
 <div class="controls">
@@ -381,6 +437,7 @@
   <div id="map" role="region" aria-label="Map of magnet schools"></div>
   <p class="map-note" id="mapNote" hidden></p>
 </div>
+<section class="choice-panel" id="choicePanel" role="tabpanel" aria-labelledby="tab-choice" hidden></section>
 <div class="pagination" id="pagination"></div>
 </div>
 
@@ -402,6 +459,10 @@
       <li><a class="card-link" href="https://www.browardschools.com/bcps-departments/academics/magnet-programs/transportation-zones" target="_blank" rel="noopener noreferrer">Transportation Zones<span class="sr-only"> (opens in a new tab)</span></a></li>
     </ul>
   </section>
+  <section id="eventsInfo" hidden>
+    <h2>Upcoming events</h2>
+    <ul class="event-list" id="eventsList"></ul>
+  </section>
 </div>
 
 <script>
@@ -410,6 +471,9 @@ let THEMES = {};      // slug -> theme
 let SCHOOLS = [];     // magnet schools, each with .offerings
 let PROGRAMS = [];    // magnet programs, each with .offerings
 let SCHOOL_BY_LOC = {};
+let EVENTS = [];      // upcoming events, soonest first (bcps_magnet_events)
+let CHOICE = null;    // School Choice window (bcps_magnet_settings 'school_choice')
+let choiceShown = false, choicePreview = false;
 
 // State
 let mode = 'schools';
@@ -426,6 +490,7 @@ const SORTS = {
   programs: [['name', 'Name (A-Z)'], ['theme', 'Program theme'], ['count', 'Most schools']],
 };
 SORTS.map = SORTS.schools;  // the Map tab shows schools; its sort is hidden
+SORTS.choice = SORTS.schools;  // the School Choice tab has no list
 
 const ICON = {
   pin: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>',
@@ -444,6 +509,45 @@ function highlight(text, query) {
   if (!query) return escapeHtml(text);
   const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
   return escapeHtml(text).replace(re, '<mark>$1</mark>');
+}
+
+// A school's logo, or its initials when it has none or the image fails. The
+// name is always next to it, so the image is decorative.
+function initials(name) {
+  return name.split(/\s+/).filter(w => /^[A-Za-z]/.test(w)).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+function logoHtml(s, cls = '') {
+  if (s.logo_url) return `<img class="logo ${cls}" src="${escapeHtml(s.logo_url)}" alt="" loading="lazy" data-initials="${escapeHtml(initials(s.name))}" onerror="logoFallback(this)">`;
+  return `<span class="logo logo-mono ${cls}" aria-hidden="true">${escapeHtml(initials(s.name))}</span>`;
+}
+function logoFallback(img) {
+  const span = document.createElement('span');
+  span.className = img.className + ' logo-mono';
+  span.setAttribute('aria-hidden', 'true');
+  span.textContent = img.dataset.initials;
+  img.replaceWith(span);
+}
+
+// DATES. Events and the School Choice window are in Eastern time.
+const TZ = 'America/New_York';
+const fmt = (opts) => new Intl.DateTimeFormat('en-US', { timeZone: TZ, ...opts });
+const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+function dayDiff(a, b) {  // whole days from YYYY-MM-DD a to b
+  const t = (x) => { const [y, m, d] = x.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((t(b) - t(a)) / 864e5);
+}
+function longDate(day) {  // YYYY-MM-DD as "Friday, January 15"
+  const [y, m, d] = day.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(Date.UTC(y, m - 1, d)));
+}
+function eventWhen(ev) {
+  const d = new Date(ev.starts_at);
+  const day = fmt({ weekday: 'long', month: 'long', day: 'numeric' }).format(d);
+  return ev.all_day ? day : `${day}, ${fmt({ hour: 'numeric', minute: '2-digit' }).format(d)}`;
+}
+function eventOver(ev) {
+  const start = new Date(ev.starts_at);
+  return ev.all_day ? ymd(start) < ymd(new Date()) : Date.now() > start.getTime() + 2 * 36e5;
 }
 
 function siteLink(s) {
@@ -519,7 +623,7 @@ function schoolCard(s, q) {
   return `<a class="card card-as-link" href="${profileHref(s.loc_nbr)}" id="school-${s.loc_nbr}">
     <span class="card-body">
       <span class="top"><span class="label">${escapeHtml(s.grades)}</span><span class="where">${highlight(s.city, q)} · ${n} magnet program${n === 1 ? '' : 's'}</span></span>
-      <span class="card-name">${highlight(s.name, q)}</span>
+      <span class="name-row">${logoHtml(s)}<span class="card-name">${highlight(s.name, q)}</span></span>
       <span class="meta-row">${ICON.pin}<span>${highlight(s.address, q)}, ${escapeHtml(s.city)}, FL ${escapeHtml(s.zip)}</span></span>
       ${tagList(tags, 4)}
     </span>
@@ -632,6 +736,21 @@ function isFiltered() {
 }
 
 function render() {
+  // The School Choice tab is a guide, not a list: no search, filters or pages.
+  const onChoice = mode === 'choice';
+  document.getElementById('choicePanel').hidden = !onChoice;
+  document.querySelector('.controls').hidden = onChoice;
+  document.querySelector('.results-bar').hidden = onChoice;
+  if (onChoice) {
+    document.getElementById('results').hidden = true;
+    document.getElementById('mapPanel').hidden = true;
+    renderPagination(0);
+    renderChoicePanel();
+    syncHash();
+    saveState();
+    postHeight();
+    return;
+  }
   const q = activeSearch.toLowerCase().trim();
   const filtered = getFiltered();
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -697,7 +816,7 @@ function clearFilters(doRender = true) {
 
 // Event listeners
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { if (t.dataset.mode !== mode) setMode(t.dataset.mode); }));
-const TAB_MODES = ['schools', 'programs', 'map'];
+const TAB_MODES = ['schools', 'programs', 'map'];  // 'choice' joins while School Choice is open
 document.querySelector('.tabs').addEventListener('keydown', e => {
   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
   const i = TAB_MODES.indexOf(mode) + (e.key === 'ArrowRight' ? 1 : -1);
@@ -731,7 +850,7 @@ async function init() {
   try {
     const [themes, schools, programs, offerings] = await Promise.all([
       getRows('bcps_magnet_themes?select=slug,name,kind,description,sort_order&order=sort_order.asc'),
-      getRows('bcps_magnet_schools?select=loc_nbr,name,site_url,address,city,zip,grades,levels,lat,lng,sort_order&order=sort_order.asc'),
+      getRows('bcps_magnet_schools?select=loc_nbr,name,site_url,logo_url,address,city,zip,grades,levels,lat,lng,sort_order&order=sort_order.asc'),
       getRows('bcps_magnet_programs?select=slug,theme_slug,name,grades_note,description,sort_order&order=sort_order.asc'),
       getRows('bcps_magnet_offerings?select=program_slug,school_loc,tracks,note,sort_order&order=sort_order.asc'),
     ]);
@@ -756,6 +875,23 @@ async function init() {
   } catch (e) {
     SCHOOLS = []; PROGRAMS = [];
   }
+  // Events and the School Choice window are extras: if they fail to load, the
+  // explorer still works without them.
+  try {
+    const since = new Date(Date.now() - 864e5).toISOString();
+    const [evs, sets] = await Promise.all([
+      getRows('bcps_magnet_events?select=id,title,starts_at,all_day,location,url,description,school_loc,featured&starts_at=gte.' + encodeURIComponent(since) + '&order=starts_at.asc'),
+      getRows('bcps_magnet_settings?select=key,value&key=eq.school_choice'),
+    ]);
+    EVENTS = evs.filter(ev => !eventOver(ev));
+    CHOICE = sets[0] ? sets[0].value : null;
+  } catch (e) {
+    EVENTS = []; CHOICE = null;
+  }
+  setupSchoolChoice();
+  renderBanners();
+  renderEventsInfo();
+  setInterval(renderBanners, 30000);
 
   const themeSel = document.getElementById('themeFilter');
   Object.values(THEMES).filter(t => t.kind === 'magnet' && PROGRAMS.some(p => p.theme_slug === t.slug)).forEach(t => {
@@ -781,6 +917,115 @@ function applyHash() {
   if (h.startsWith('school-')) { location.replace(profileHref(h.slice(7))); return; }
   if (h.startsWith('program-')) { location.replace(programHref(h.slice(8))); return; }
   setMode(TAB_MODES.includes(h) ? h : 'schools');
+}
+
+// SCHOOL CHOICE. Between the window's open and close dates (Eastern) the
+// widget shows a banner with the days left to apply and a School Choice tab;
+// outside it both are hidden. ?preview=school-choice shows them any time, so
+// the season can be reviewed before it opens.
+function setupSchoolChoice() {
+  const today = ymd(new Date());
+  const c = CHOICE || {};
+  const open = !!(c.opens && c.closes && today >= c.opens && today <= c.closes);
+  choicePreview = !open && new URLSearchParams(location.search).get('preview') === 'school-choice';
+  choiceShown = open || choicePreview;
+  document.getElementById('tab-choice').hidden = !choiceShown;
+  if (choiceShown && !TAB_MODES.includes('choice')) TAB_MODES.push('choice');
+}
+
+// The close date to count to. A preview without dates uses a sample date 30
+// days out and says so.
+function choiceCloses() {
+  if (CHOICE && CHOICE.closes) return { day: CHOICE.closes, sample: false };
+  return { day: ymd(new Date(Date.now() + 30 * 864e5)), sample: true };
+}
+function applyUrl() {
+  return (CHOICE && CHOICE.apply_url) || 'https://www.browardschools.com/bcps-departments/academics/magnet-programs/how-to-apply';
+}
+function daysLeftText(left) {
+  return left <= 0 ? 'Last day to apply' : `${left} day${left === 1 ? '' : 's'} left to apply`;
+}
+
+function countUnits(ms) {
+  const mins = Math.max(0, Math.floor(ms / 6e4));
+  const units = [[Math.floor(mins / 1440), 'day'], [Math.floor(mins / 60) % 24, 'hour'], [mins % 60, 'min']];
+  return {
+    html: units.map(([n, u]) => `<div class="count-unit"><b>${n}</b><span>${u}${n === 1 ? '' : 's'}</span></div>`).join(''),
+    label: units.map(([n, u]) => `${n} ${u}${n === 1 ? '' : 's'}`).join(', '),
+  };
+}
+
+// Banners above the tabs: School Choice (while open) and the next featured
+// event with a live countdown, refreshed every 30 seconds.
+function renderBanners() {
+  const out = [];
+  if (choiceShown) {
+    const { day, sample } = choiceCloses();
+    const left = dayDiff(ymd(new Date()), day);
+    out.push(`<section class="banner banner-choice" aria-label="School Choice">
+      <div class="banner-text">
+        <span class="banner-kicker">School Choice${choicePreview ? '<span class="preview-flag">Preview</span>' : ''}</span>
+        <span class="banner-title">${escapeHtml((CHOICE && CHOICE.message) || 'School Choice applications are open.')}</span>
+        <span class="banner-sub">${daysLeftText(left)} · Closes ${escapeHtml(longDate(day))}${sample ? ' (sample date until the window is set)' : ''}</span>
+      </div>
+      <a class="banner-btn" href="${escapeHtml(applyUrl())}" target="_blank" rel="noopener noreferrer">Apply now<span class="sr-only"> (opens in a new tab)</span> ${ICON.ext}</a>
+    </section>`);
+  }
+  const ev = EVENTS.find(e => e.featured && !eventOver(e));
+  if (ev) {
+    const start = new Date(ev.starts_at).getTime();
+    const today = ev.all_day ? ymd(new Date(ev.starts_at)) === ymd(new Date()) : Date.now() >= start;
+    const school = ev.school_loc && SCHOOL_BY_LOC[ev.school_loc];
+    const where = [ev.location, school && school.name].filter(Boolean).join(' · ');
+    const c = countUnits(start - Date.now());
+    out.push(`<section class="banner banner-event" aria-label="Upcoming event">
+      <div class="banner-text">
+        <span class="banner-kicker">${today ? 'Happening today' : 'Coming up'}</span>
+        <span class="banner-title">${escapeHtml(ev.title)}</span>
+        <span class="banner-sub">${escapeHtml(eventWhen(ev))}${where ? ' · ' + escapeHtml(where) : ''}</span>
+      </div>
+      ${today ? '' : `<div class="count" role="timer" aria-label="Starts in ${c.label}">${c.html}</div>`}
+      ${ev.url ? `<a class="banner-btn" href="${escapeHtml(ev.url)}" target="_blank" rel="noopener noreferrer">Details<span class="sr-only"> about ${escapeHtml(ev.title)} (opens in a new tab)</span> ${ICON.ext}</a>` : ''}
+    </section>`);
+  }
+  document.getElementById('banners').innerHTML = out.join('');
+  postHeight();
+}
+
+function eventItem(ev, showSchool) {
+  const d = new Date(ev.starts_at);
+  const school = showSchool && ev.school_loc && SCHOOL_BY_LOC[ev.school_loc];
+  const where = [ev.location, school && school.name].filter(Boolean).join(' · ');
+  const title = ev.url
+    ? `<a class="card-link" href="${escapeHtml(ev.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(ev.title)}<span class="sr-only"> (opens in a new tab)</span></a>`
+    : `<strong>${escapeHtml(ev.title)}</strong>`;
+  return `<li class="event-item">
+    <span class="event-date" aria-hidden="true"><span>${fmt({ month: 'short' }).format(d)}</span><b>${fmt({ day: 'numeric' }).format(d)}</b></span>
+    <span class="event-body">${title}<br>${escapeHtml(eventWhen(ev))}${where ? ' · ' + escapeHtml(where) : ''}${ev.description ? '<br>' + escapeHtml(ev.description) : ''}</span>
+  </li>`;
+}
+
+function renderEventsInfo() {
+  const list = EVENTS.slice(0, 5);
+  document.getElementById('eventsInfo').hidden = !list.length;
+  document.getElementById('eventsList').innerHTML = list.map(ev => eventItem(ev, true)).join('');
+}
+
+// The School Choice tab: what to do, in order, with the deadline and events.
+function renderChoicePanel() {
+  const { day, sample } = choiceCloses();
+  const left = dayDiff(ymd(new Date()), day);
+  const link = (href, text) => `<a class="card-link" href="${href}" target="_blank" rel="noopener noreferrer">${text}<span class="sr-only"> (opens in a new tab)</span></a>`;
+  document.getElementById('choicePanel').innerHTML = `
+    <h2>School Choice${choicePreview ? '<span class="preview-flag">Preview</span>' : ''}</h2>
+    <p class="profile-lede">${daysLeftText(left)}. Applications close ${escapeHtml(longDate(day))}${sample ? ' (sample date until the window is set)' : ''}.</p>
+    <ol class="steps">
+      <li><span>Explore programs: <a class="card-link" href="${location.pathname}">browse by school</a>, <a class="card-link" href="${location.pathname}#programs">browse by program</a>, or see them on the <a class="card-link" href="${location.pathname}#map">map</a>.</span></li>
+      <li><span>Check eligibility. Open to Florida residents in grades K-12; kindergarten applicants must be five by September 1. Some middle and high school programs require auditions or academic criteria; iCAN, ACES and STEM do not.</span></li>
+      <li><span>Visit an open house: ${link('https://www.browardschools.com/bcps-departments/academics/magnet-programs/open-houses', 'Open Houses')}. Check ${link('https://www.browardschools.com/bcps-departments/academics/magnet-programs/transportation-zones', 'Transportation Zones')} too.</span></li>
+      <li><span>Apply before the deadline: ${link(escapeHtml(applyUrl()), 'How to Apply')}.</span></li>
+    </ol>
+    ${EVENTS.length ? `<h2>Upcoming events</h2><ul class="event-list">${EVENTS.map(ev => eventItem(ev, true)).join('')}</ul>` : ''}`;
 }
 
 // MAP TAB. Leaflet loads the first time the Map tab opens, so the list views
@@ -818,7 +1063,7 @@ function mapPopup(s) {
   const tags = s.offerings.map(o => `<li><a class="tag" href="${programHref(o.program.slug)}">${escapeHtml(o.program.name)}</a></li>`);
   return `<div class="pop">
     <span class="where">${escapeHtml(s.grades)} · ${escapeHtml(s.city)} · ${n} magnet program${n === 1 ? '' : 's'}</span>
-    <a class="card-name name-link" href="${profileHref(s.loc_nbr)}">${escapeHtml(s.name)}</a>
+    <span class="name-row">${logoHtml(s)}<a class="card-name name-link" href="${profileHref(s.loc_nbr)}">${escapeHtml(s.name)}</a></span>
     <span class="meta-row">${ICON.pin}<span>${escapeHtml(s.address)}, ${escapeHtml(s.city)}, FL ${escapeHtml(s.zip)}</span></span>
     ${tagList(tags, 4)}
     <span class="pop-links">
@@ -924,7 +1169,7 @@ function renderSchoolPage(loc) {
   view.innerHTML = `${back}
     <header class="profile-head">
       <div class="eyebrow">Magnet school</div>
-      <h1>${escapeHtml(s.name)}</h1>
+      <div class="profile-title">${logoHtml(s, 'logo-lg')}<h1>${escapeHtml(s.name)}</h1></div>
       <div class="card-badges">
         <span class="badge badge-grade">${escapeHtml(s.grades)}</span>
         <span class="badge badge-city">${escapeHtml(s.city)}</span>
@@ -937,6 +1182,10 @@ function renderSchoolPage(loc) {
       </div>
     </header>
     <section class="profile-body" aria-labelledby="pageHeading">
+      ${(() => {
+        const evs = EVENTS.filter(ev => ev.school_loc === s.loc_nbr);
+        return evs.length ? `<h2>Upcoming events at ${escapeHtml(s.name)}</h2><ul class="event-list">${evs.map(ev => eventItem(ev, false)).join('')}</ul>` : '';
+      })()}
       <h2 id="pageHeading">Magnet programs at ${escapeHtml(s.name)}</h2>
       ${s.offerings.map(o => {
         const p = o.program;
