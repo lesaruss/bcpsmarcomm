@@ -93,7 +93,7 @@ const S: Record<string, React.CSSProperties> = {
   shield: { display: 'block', width: 200, maxWidth: '70%', height: 'auto', margin: '0 auto 24px' },
   badgeBtn: { display: 'inline-block', padding: '12px 28px', background: '#fff', color: '#1672A7', border: '2px solid #1672A7', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none' },
   badgeHint: { fontSize: 12, color: '#777', margin: '12px 0 0' },
-  page: { minHeight: '100vh', background: '#f0f4f8', fontFamily: "'Montserrat', sans-serif" },
+  page: { minHeight: '100vh', background: '#f0f4f8', fontFamily: "'Open Sans', sans-serif" },
   header: { background: '#fff', borderBottom: '3px solid #1672A7', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', gap: 16 },
   headerTitle: { display: 'block', fontSize: 16, fontWeight: 700, color: '#0e4e73' },
   headerSub: { display: 'block', fontSize: 11, color: '#888' },

@@ -3,15 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Open Sans: the browardschools.com theme font, so the embed reads as part of the Finalsite page it sits in (Sean, 2026-10-29). -->
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <title>Find It Fast - BCPS Back to School</title>
 <style>
+  /* Form controls do not inherit the page font by default; without this they render in the browser's system font. */
+  #fif-module button, #fif-module input, #fif-module select { font-family: inherit; }
   #fif-module, #fif-module * { box-sizing: border-box; }
   #fif-module {
     /* BCPS brand kit (verified 2026-08-13): official BCPS Blue as the primary
        accent, plus the navy/gold pairing from the Student AI Council module so
        this widget matches the Charter School Directory and reads as one family
-       of BCPS-built tools. Century Gothic for headlines, Arial for body - the
-       approved BCPS fonts, both web-safe with no external font load. */
+       of BCPS-built tools. Open Sans, the browardschools.com theme font, loaded
+       in the head (Sean, 2026-10-29); Arial is the fallback. */
     --fif-navy: #0C2340;
     --fif-navy-2: #13315C;
     --fif-accent: #1672A7;
@@ -22,8 +28,8 @@
     --fif-muted: #767676;
     --fif-border: #e2e6ea;
     --fif-bg-tint: #EBF1F8;
-    --fif-font-head: "Century Gothic", "Apple Gothic", Arial, Helvetica, sans-serif;
-    font-family: Arial, Helvetica, sans-serif;
+    --fif-font-head: "Open Sans", Arial, Helvetica, sans-serif;
+    font-family: "Open Sans", Arial, Helvetica, sans-serif;
     background: #ffffff;
     color: var(--fif-text);
     max-width: 960px;

@@ -1,7 +1,7 @@
 // The request forms' look (MarComm Request Form, 2026-10-08), shared by
 // /marcomm-request and /calendar-request.
 export const REQUEST_FORM_CSS = `
-.mcr { min-height: 100vh; background: #f5f5f5; font-family: 'Montserrat', -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; }
+.mcr { min-height: 100vh; background: #f5f5f5; font-family: 'Open Sans', -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; }
 .mcr-header { position: sticky; top: 0; z-index: 10; height: 64px; background: #fff; border-bottom: 3px solid #1672A7; display: flex; align-items: center; gap: 18px; padding: 0 28px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 .mcr-header img { height: 42px; width: auto; }
 .mcr-header .div { width: 1px; height: 32px; background: rgba(0,0,0,0.12); }

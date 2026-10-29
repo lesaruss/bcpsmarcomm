@@ -65,7 +65,7 @@ export default function EmailSettingsPage() {
 }
 
 const CSS = `
-.es { max-width: 720px; margin: 0 auto; padding: 32px 20px 60px; font-family: 'Montserrat', -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; }
+.es { max-width: 720px; margin: 0 auto; padding: 32px 20px 60px; font-family: 'Open Sans', -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; }
 .es-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #C55326; }
 .es h1 { font-size: 26px; font-weight: 900; text-transform: uppercase; margin: 4px 0 8px; }
 .es-lede { font-size: 14px; line-height: 1.6; color: rgba(26,26,26,0.75); margin: 0 0 20px; }

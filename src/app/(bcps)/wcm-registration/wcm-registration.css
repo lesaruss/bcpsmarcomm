@@ -4,7 +4,7 @@
   --wp-border:rgba(0,0,0,0.10);--wp-accent:#1672A7;--wp-accent-text:#0e4e73;--wp-ink-deep:#0e4e73;
   --wp-maxw:820px;
   width:100%;
-  font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  font-family:'Open Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   background:var(--wp-bg);color:var(--wp-ink);line-height:1.55;
 }
 .wp-root *{box-sizing:border-box;}

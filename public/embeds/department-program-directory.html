@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Open Sans: the browardschools.com theme font, so the embed reads as part of the Finalsite page it sits in (Sean, 2026-10-29). -->
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <title>Department &amp; Program Directory - Broward County Public Schools</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -10,7 +14,7 @@
   /* Layout: one search bar over filter rows, then results grouped by topic
      (or A-Z, or best match while searching) in a two-column card grid.
      Same BCPS tokens as the Charter School and II&DL embeds: BCPS Blue for
-     interaction, teal for Programs, Century Gothic headlines, Arial body, and
+     interaction, teal for Programs, Open Sans (the browardschools.com font), and
      no internal page title, since the destination page supplies its own.
      <html data-theme="light"> pins light mode on browardschools.com; the dark
      tokens only apply where the widget is previewed outside the site. */
@@ -30,8 +34,8 @@
     --surface: #FFFFFF;
     --bg: #F5F7FA;
     --radius: 8px;
-    --font-head: "Century Gothic", "Apple Gothic", "URW Gothic", Futura, Arial, Helvetica, sans-serif;
-    --font-body: Arial, Helvetica, sans-serif;
+    --font-head: "Open Sans", Arial, Helvetica, sans-serif;
+    --font-body: "Open Sans", Arial, Helvetica, sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {

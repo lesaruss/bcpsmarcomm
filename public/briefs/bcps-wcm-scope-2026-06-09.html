@@ -6,7 +6,7 @@
 <title>WCM Scope Review - June 9, 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --bcps-blue: #1672A7;
@@ -23,7 +23,7 @@
     --text-30: rgba(26,26,26,0.35);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
+  body { font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-weight: 400; line-height: 1.6; }
   :focus-visible { outline: 3px solid var(--bcps-blue); outline-offset: 3px; }
   a { color: inherit; text-decoration: none; }
 
@@ -96,7 +96,7 @@
   .acc-trigger {
     width: 100%; background: none; border: none; padding: 14px 20px;
     display: flex; align-items: center; gap: 12px; cursor: pointer;
-    text-align: left; font-family: "Montserrat", sans-serif;
+    text-align: left; font-family: "Open Sans", sans-serif;
     transition: background 0.12s;
   }
   .acc-trigger:hover { background: var(--surface2); }
@@ -123,13 +123,13 @@
     background: #f8fbfd; border: 1px solid rgba(22,114,167,0.18);
     border-radius: 6px; padding: 20px 22px; font-size: 13px;
     color: var(--text); line-height: 1.8; white-space: pre-wrap;
-    font-family: "Montserrat", sans-serif; position: relative;
+    font-family: "Open Sans", sans-serif; position: relative;
   }
   .template-subject { font-size: 12px; font-weight: 800; text-transform: uppercase;
     letter-spacing: 0.12em; color: var(--bcps-blue); margin-bottom: 12px; }
   .template-copy-btn {
     position: absolute; top: 12px; right: 14px;
-    font-family: "Montserrat", sans-serif; font-size: 10px; font-weight: 800;
+    font-family: "Open Sans", sans-serif; font-size: 10px; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.1em; padding: 5px 12px;
     border-radius: 4px; border: 1.5px solid var(--bcps-blue);
     color: var(--bcps-blue); background: #fff; cursor: pointer;
@@ -683,18 +683,18 @@ function copyTemplate(id, btn) {
 </script>
 
 <!-- PASSWORD GATE OVERLAY -->
-<div id="pw-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(14,78,115,0.97);align-items:center;justify-content:center;flex-direction:column;gap:20px;font-family:'Montserrat',sans-serif;">
+<div id="pw-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(14,78,115,0.97);align-items:center;justify-content:center;flex-direction:column;gap:20px;font-family:'Open Sans',sans-serif;">
   <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" style="height:52px;width:auto;margin-bottom:8px;">
   <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.22em;color:rgba(255,255,255,0.6);margin-bottom:4px;">Internal Document - Access Required</div>
   <div style="background:#fff;border-radius:10px;padding:32px 36px;max-width:360px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
     <div style="font-size:13px;font-weight:700;color:#1a1a1a;margin-bottom:6px;">Enter Access Password</div>
     <div style="font-size:12px;color:#767676;margin-bottom:18px;">Your access will be saved for <span id="pw-days-label">14</span> days on this device.</div>
     <input id="pw-input" type="password" placeholder="Password" autocomplete="off"
-      style="width:100%;border:1.5px solid rgba(0,0,0,0.15);border-radius:6px;padding:10px 14px;font-size:15px;font-family:'Montserrat',sans-serif;outline:none;margin-bottom:10px;"
+      style="width:100%;border:1.5px solid rgba(0,0,0,0.15);border-radius:6px;padding:10px 14px;font-size:15px;font-family:'Open Sans',sans-serif;outline:none;margin-bottom:10px;"
       onkeydown="if(event.key==='Enter')document.getElementById('pw-submit').click()">
     <div id="pw-error" style="font-size:11px;color:#C55326;min-height:16px;margin-bottom:8px;"></div>
     <button id="pw-submit"
-      style="width:100%;background:#1672A7;color:#fff;border:none;border-radius:6px;padding:11px;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;cursor:pointer;font-family:'Montserrat',sans-serif;">
+      style="width:100%;background:#1672A7;color:#fff;border:none;border-radius:6px;padding:11px;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;cursor:pointer;font-family:'Open Sans',sans-serif;">
       Unlock
     </button>
   </div>
@@ -704,14 +704,14 @@ function copyTemplate(id, btn) {
 <style>
   #header-actions { display:flex; align-items:center; gap:10px; margin-left:auto; }
   #edit-btn {
-    font-family:'Montserrat',sans-serif; font-size:11px; font-weight:800;
+    font-family:'Open Sans',sans-serif; font-size:11px; font-weight:800;
     text-transform:uppercase; letter-spacing:0.12em; padding:7px 16px;
     border-radius:5px; cursor:pointer; border:1.5px solid var(--bcps-blue);
     color:var(--bcps-blue); background:#fff; transition:background 0.15s,color 0.15s;
   }
   #edit-btn.active { background:var(--bcps-blue); color:#fff; }
   #download-btn {
-    display:none; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:800;
+    display:none; font-family:'Open Sans',sans-serif; font-size:11px; font-weight:800;
     text-transform:uppercase; letter-spacing:0.12em; padding:7px 16px;
     border-radius:5px; cursor:pointer; border:1.5px solid var(--bcps-green);
     color:var(--bcps-green); background:#fff;

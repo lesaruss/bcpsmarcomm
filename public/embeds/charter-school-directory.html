@@ -3,8 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Open Sans: the browardschools.com theme font, so the embed reads as part of the Finalsite page it sits in (Sean, 2026-10-29). -->
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <title>Charter School Directory - Broward County Public Schools</title>
 <style>
+  /* Form controls do not inherit the page font by default; without this they render in the browser's system font. */
+  button, input, select, textarea { font-family: inherit; }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
@@ -13,8 +19,9 @@
        here by design (Sean, 2026-08-21) - the navy/gold module-header treatment read
        as off-brand rather than "district," and was dropped in favor of this module
        just being clean content, with the destination page supplying its own heading.
-       Fonts: Century Gothic for headlines, Arial for body - the two approved BCPS
-       fonts we have web-safe fallback stacks for (no webfont). */
+       Font: Open Sans, the browardschools.com theme font, loaded below so the
+       embed reads as part of the Finalsite page (Sean, 2026-10-29). Arial is the
+       fallback. Century Gothic/Arial are BCPS's print fonts; websites are exempt. */
     --blue: #1672A7;
     --blue-dark: #0E4E73;
     --blue-faint: #EBF1F8;
@@ -27,8 +34,8 @@
     --white: #FFFFFF;
     --bg: #F5F7FA;
     --radius: 8px;
-    --font-head: "Century Gothic", "Apple Gothic", Arial, Helvetica, sans-serif;
-    --font-body: Arial, Helvetica, sans-serif;
+    --font-head: "Open Sans", Arial, Helvetica, sans-serif;
+    --font-body: "Open Sans", Arial, Helvetica, sans-serif;
   }
 
   body {
