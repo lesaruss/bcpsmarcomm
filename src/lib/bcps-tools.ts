@@ -61,6 +61,7 @@ export const TOOLS: Tool[] = [
   { label: 'Note Approvals', desc: 'Notes waiting to publish.', group: 'SuperAdmin', page: 'pulse-approvals', gate: 'pulse-approvals', superadmin: true },
   { label: 'Registrations', desc: 'New sign-ups waiting on approval.', group: 'SuperAdmin', page: 'registrations', gate: 'registrations', superadmin: true },
   { label: 'Reports', desc: 'Program reports and exports.', group: 'SuperAdmin', page: 'reports', gate: 'reports', superadmin: true },
+  { label: 'Certification Follow-up', desc: 'WCMs still finishing the certification: progress, follow-up emails, opens and clicks.', group: 'SuperAdmin', page: 'cert-followup', gate: 'cert-followup', superadmin: true, icon: 'reports' },
 ]
 
 // My Resources groups (Sean, 2026-10-23: fewer categories that make sense

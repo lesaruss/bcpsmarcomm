@@ -38,6 +38,7 @@ export const SUPERADMIN_PAGES: readonly PageId[] = [
   'marcomm',
   'graphics',
   'reports',
+  'cert-followup',
   'pulse-approvals',
   'registrations',
 ]

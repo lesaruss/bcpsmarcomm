@@ -96,6 +96,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'wcm-roster':             { title: 'WCM Roster',            sub: 'District Web Team' },
   'banner-submissions':     { title: 'Banner Submissions',    sub: 'School Homepage Banners' },
   'proud-points':           { title: 'Proud Points',          sub: 'School Homepage Highlights' },
+  'cert-followup':          { title: 'Certification Follow-up', sub: 'WCMs Still Finishing the Certification' },
   'my-submissions':         { title: 'Your Submissions',      sub: 'Banners & Proud Points' },
   messages:                 { title: 'Messages',              sub: 'Inbox & Conversations' },
 }
