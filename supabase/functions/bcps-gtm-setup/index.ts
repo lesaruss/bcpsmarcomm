@@ -27,7 +27,16 @@
 // POST {"action": "inspect"}  - what the service account can see. Read only.
 // POST {"action": "build"}    - creates or updates the variables, triggers and
 //                               tags in the Default Workspace. Safe to rerun.
+// POST {"action": "version"}  - saves an unpublished version and returns its
+//                               preview parameters, for testing first.
 // POST {"action": "publish"}  - versions the workspace and publishes it.
+// POST {"action": "ga4"}      - read-only GA4 checks of property 527326342.
+//
+// Published 2026-10-29 as container version 5, after a browser test on the
+// live Referendum 2026 page with every Google Analytics hit captured and
+// blocked: page views unchanged (1 per load), the one-pager click arriving as
+// file_download and the promo video as video_start/progress/complete, all in
+// G-EW5DDY3E0Z. The test's temporary script relay was removed afterwards (v8).
 //
 // Same caller check as bcps-ga4-sync: the bearer must be the project service
 // key. Deploys are made against Supabase; keep this file identical to the
@@ -46,8 +55,6 @@ const CONTAINER_PUBLIC_ID = 'GTM-NTGC6X38';
 // destination but keeps Finalsite's custom events in a property bcps.pio
 // cannot see.
 const MEASUREMENT_ID = 'G-EW5DDY3E0Z';
-// The ID on the page today, which loads the Google tag the test relay serves.
-const FINALSITE_GA4_ID = 'G-B601R4LMEG';
 const HOSTNAME = 'www.browardschools.com';
 const API = 'https://tagmanager.googleapis.com/tagmanager/v2';
 
@@ -162,29 +169,9 @@ function ga4Event(name: string, eventName: string, params: [string, string][], t
   };
 }
 
-// TEMPORARY test relay (2026-10-29), removed once the pre-publish test passes.
-// The sandbox that tests the container cannot reach googletagmanager.com, so
-// GET ?relay=<url> returns these public Google scripts and nothing else.
-function relayAllowed(raw: string): boolean {
-  try {
-    const u = new URL(raw);
-    if (u.protocol !== 'https:' || u.hostname !== 'www.googletagmanager.com') return false;
-    const id = u.searchParams.get('id');
-    if (u.pathname === '/gtm.js') return id === CONTAINER_PUBLIC_ID || id === 'GTM-P3BGC7';
-    if (u.pathname === '/gtag/js') return id === MEASUREMENT_ID || id === FINALSITE_GA4_ID;
-    return false;
-  } catch { return false; }
-}
-
 Deno.serve(async (req: Request) => {
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body, null, 1), { status, headers: { 'Content-Type': 'application/json' } });
-  if (req.method === 'GET') {
-    const target = new URL(req.url).searchParams.get('relay') || '';
-    if (!relayAllowed(target)) return json({ success: false, error: 'not allowed' }, 403);
-    const r = await fetch(target);
-    return new Response(await r.text(), { status: r.status, headers: { 'Content-Type': 'application/javascript' } });
-  }
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     if (!(await callerAllowed(req, supabase))) return json({ success: false, error: 'unauthorized' }, 401);
