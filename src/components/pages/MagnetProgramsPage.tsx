@@ -7,26 +7,53 @@
 // enables once something changed, delete with confirm, and an add form at the
 // bottom. The data is four linked tables, so it is split into tabs: Programs
 // (with the schools that offer each one, and each school's pathways), Schools
-// and Themes. Pathways/academies are edited one per line.
+// and Themes. Pathways/academies are edited one per line. Events (2026-10-29)
+// holds the upcoming events the widget counts down to, and the School Choice
+// window that switches the widget's School Choice banner on and off by date.
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 
 interface Theme { slug: string; name: string; kind: 'magnet' | 'innovative'; description: string | null; sort_order: number }
 interface School {
-  loc_nbr: string; name: string; site_url: string | null; address: string | null; city: string | null
+  loc_nbr: string; name: string; site_url: string | null; logo_url: string | null; address: string | null; city: string | null
   zip: string | null; grades: string | null; levels: string[]; region: string | null
   lat: number | null; lng: number | null; sort_order: number
 }
 interface Program { slug: string; theme_slug: string; name: string; grades_note: string | null; description: string | null; sort_order: number }
 interface Offering { id: string; program_slug: string; school_loc: string; tracks: string[]; note: string | null; sort_order: number }
+interface MagnetEvent {
+  id: string; title: string; starts_at: string; all_day: boolean; location: string | null; url: string | null
+  description: string | null; school_loc: string | null; featured: boolean
+}
+interface SchoolChoice { opens: string | null; closes: string | null; apply_url: string | null; message: string | null }
 
-type Tab = 'programs' | 'schools' | 'themes'
+type Tab = 'programs' | 'schools' | 'themes' | 'events'
 const LEVELS = ['Elementary', 'Middle', 'High']
 const BLUE = '#1672A7'
 const EMPTY_PROGRAM = { name: '', theme_slug: '', grades_note: '', description: '' }
 const EMPTY_SCHOOL = { loc_nbr: '', name: '', grades: '', address: '', city: '', zip: '', site_url: '', levels: [] as string[] }
 const EMPTY_THEME = { name: '', kind: 'magnet', description: '' }
+const EMPTY_EVENT = { title: '', date: '', time: '', location: '', url: '', description: '', school_loc: '', featured: false }
+const EMPTY_CHOICE: SchoolChoice = { opens: null, closes: null, apply_url: null, message: null }
+
+// Event times are entered and shown in Eastern time, whatever the editor's own
+// time zone, and stored as an instant.
+const TZ = 'America/New_York'
+function easternParts(iso: string) {
+  const d = new Date(iso)
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+  const time = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(d).replace(/^24/, '00')
+  return { date, time }
+}
+function easternToIso(date: string, time: string) {
+  const t = time || '00:00'
+  for (const off of ['-05:00', '-04:00']) {
+    const d = new Date(`${date}T${t}:00${off}`)
+    if (easternParts(d.toISOString()).time === t) return d.toISOString()
+  }
+  return new Date(`${date}T${t}:00-05:00`).toISOString()
+}
 
 const C = {
   card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, marginBottom: 12 } as React.CSSProperties,
@@ -49,6 +76,10 @@ export default function MagnetProgramsPage() {
   const [schools, setSchools] = useState<School[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
   const [offerings, setOfferings] = useState<Offering[]>([])
+  const [events, setEvents] = useState<MagnetEvent[]>([])
+  const [choice, setChoice] = useState<SchoolChoice>(EMPTY_CHOICE)
+  const [choiceEdit, setChoiceEdit] = useState<SchoolChoice | null>(null)
+  const [newEvent, setNewEvent] = useState(EMPTY_EVENT)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -70,6 +101,7 @@ export default function MagnetProgramsPage() {
     const j = await r.json()
     if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
     setThemes(j.themes); setSchools(j.schools); setPrograms(j.programs); setOfferings(j.offerings)
+    setEvents(j.events ?? []); setChoice(j.school_choice ?? EMPTY_CHOICE)
     setLoading(false)
   }, [token])
 
@@ -107,26 +139,38 @@ export default function MagnetProgramsPage() {
     offeringsFor(p.slug).some(o => (schoolByLoc[o.school_loc]?.name ?? '').toLowerCase().includes(q)))
   const shownSchools = schools.filter(s => !q || s.name.toLowerCase().includes(q) || (s.city ?? '').toLowerCase().includes(q) || s.loc_nbr.includes(q))
   const shownThemes = themes.filter(t => !q || t.name.toLowerCase().includes(q))
+  const shownEvents = events.filter(ev => !q || ev.title.toLowerCase().includes(q) || (ev.location ?? '').toLowerCase().includes(q))
+  const choiceVal = choiceEdit ?? choice
 
   const switchTab = (t: Tab) => { setTab(t); setQuery(''); setShowNew(false) }
 
   if (loading) return <div style={{ padding: 32 }}>Loading Magnet Program Explorer content...</div>
 
-  const total = tab === 'programs' ? programs.length : tab === 'schools' ? schools.length : themes.length
-  const shown = tab === 'programs' ? shownPrograms.length : tab === 'schools' ? shownSchools.length : shownThemes.length
+  const total = { programs: programs.length, schools: schools.length, themes: themes.length, events: events.length }[tab]
+  const shown = { programs: shownPrograms.length, schools: shownSchools.length, themes: shownThemes.length, events: shownEvents.length }[tab]
+  const noun = { programs: 'program', schools: 'school', themes: 'theme', events: 'event' }[tab]
+  // An event's Save sends its date and time as one starts_at.
+  const eventPayload = (ev: MagnetEvent, e: any) => {
+    const { date, time, ...rest } = e
+    const cur = easternParts(ev.starts_at)
+    const allDay = rest.all_day ?? ev.all_day
+    return (date !== undefined || time !== undefined || rest.all_day !== undefined)
+      ? { ...rest, starts_at: easternToIso(date ?? cur.date, allDay ? '' : (time ?? cur.time)) }
+      : rest
+  }
 
   return (
     <div style={{ padding: 32, maxWidth: 1100, fontFamily: 'inherit' }}>
       <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Magnet Program Explorer</h1>
       <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 16px' }}>
-        Edit the programs, schools and themes shown in the Magnet Program Explorer widget. Changes here go live
+        Edit the programs, schools, themes and events shown in the Magnet Program Explorer widget. Changes here go live
         on bcpsmarcomm.com immediately, no code push or deploy needed.
       </p>
 
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e5e7eb', marginBottom: 14 }} role="tablist">
-        {(['programs', 'schools', 'themes'] as Tab[]).map(t => (
+        {(['programs', 'schools', 'themes', 'events'] as Tab[]).map(t => (
           <button key={t} role="tab" aria-selected={tab === t} style={C.tab(tab === t)} onClick={() => switchTab(t)}>
-            {t === 'programs' ? `Programs (${programs.length})` : t === 'schools' ? `Schools (${schools.length})` : `Themes (${themes.length})`}
+            {{ programs: `Programs (${programs.length})`, schools: `Schools (${schools.length})`, themes: `Themes (${themes.length})`, events: `Events & School Choice (${events.length})` }[t]}
           </button>
         ))}
       </div>
@@ -135,7 +179,7 @@ export default function MagnetProgramsPage() {
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
         <input style={{ ...C.input, maxWidth: 360 }} value={query} onChange={e => setQuery(e.target.value)}
-          placeholder={tab === 'programs' ? 'Search programs by name, theme, or school...' : tab === 'schools' ? 'Search schools by name, city, or location number...' : 'Search themes...'} />
+          placeholder={{ programs: 'Search programs by name, theme, or school...', schools: 'Search schools by name, city, or location number...', themes: 'Search themes...', events: 'Search events...' }[tab]} />
         <span style={{ fontSize: 12, color: '#9ca3af' }}>Showing {shown} of {total}</span>
       </div>
 
@@ -239,6 +283,13 @@ export default function MagnetProgramsPage() {
                 {s.lat == null || s.lng == null ? 'Not on the map yet. ' : ''}Filled from the address when it changes; type here only to move the pin.
               </div>
             </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              {val(k, s, 'logo_url')
+                ? <img src={val(k, s, 'logo_url')} alt="" style={{ width: 36, height: 36, objectFit: 'contain', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff' }} />
+                : <div style={{ width: 36, height: 36, borderRadius: 6, background: '#EBF1F8', color: '#0E4E73', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 800 }}>{s.name.slice(0, 2).toUpperCase()}</div>}
+              <input style={{ ...C.input, flex: 1 }} placeholder="Logo image URL (square works best; blank shows the school's initials)" disabled={busy}
+                value={val(k, s, 'logo_url')} onChange={e => setEdit(k, 'logo_url', e.target.value)} />
+            </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input style={{ ...C.input, flex: 1, minWidth: 240 }} placeholder="School website URL" disabled={busy}
                 value={val(k, s, 'site_url')} onChange={e => setEdit(k, 'site_url', e.target.value)} />
@@ -287,17 +338,117 @@ export default function MagnetProgramsPage() {
         )
       })}
 
+      {/* EVENTS & SCHOOL CHOICE */}
+      {tab === 'events' && (
+        <div style={{ ...C.card, borderColor: '#bfd4e6' }}>
+          <div style={C.sublabel}>School Choice window</div>
+          <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 10px' }}>
+            Between these dates the widget shows a School Choice banner with the days left to apply. Outside them it is hidden.
+            {' '}Preview it any time by adding <code>?preview=school-choice</code> to the widget address.
+          </p>
+          <div style={C.row3}>
+            <label style={{ fontSize: 12 }}>Opens<input type="date" style={C.input} disabled={busy} value={choiceVal.opens ?? ''}
+              onChange={e => setChoiceEdit({ ...choiceVal, opens: e.target.value || null })} /></label>
+            <label style={{ fontSize: 12 }}>Closes<input type="date" style={C.input} disabled={busy} value={choiceVal.closes ?? ''}
+              onChange={e => setChoiceEdit({ ...choiceVal, closes: e.target.value || null })} /></label>
+            <div style={{ fontSize: 12, color: '#6b7280', alignSelf: 'center' }}>
+              {choice.opens && choice.closes ? `Set: ${choice.opens} to ${choice.closes}` : 'Not set, so the banner is hidden.'}
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+            <input style={C.input} placeholder="Banner message" disabled={busy} value={choiceVal.message ?? ''}
+              onChange={e => setChoiceEdit({ ...choiceVal, message: e.target.value })} />
+            <input style={C.input} placeholder="Apply link" disabled={busy} value={choiceVal.apply_url ?? ''}
+              onChange={e => setChoiceEdit({ ...choiceVal, apply_url: e.target.value })} />
+          </div>
+          <button style={C.btn} disabled={busy || !choiceEdit}
+            onClick={async () => { if (await act({ action: 'school_choice_update', ...choiceEdit })) setChoiceEdit(null) }}>Save</button>
+        </div>
+      )}
+      {tab === 'events' && shownEvents.map(ev => {
+        const k = 'event:' + ev.id
+        const cur = easternParts(ev.starts_at)
+        const allDay = edits[k]?.all_day ?? ev.all_day
+        const past = new Date(ev.starts_at).getTime() < Date.now() - 864e5
+        return (
+          <div key={ev.id} style={{ ...C.card, opacity: past ? 0.6 : 1 }}>
+            <div style={C.row3}>
+              <input style={C.input} placeholder="Event title" disabled={busy}
+                value={val(k, ev, 'title')} onChange={e => setEdit(k, 'title', e.target.value)} />
+              <input type="date" style={C.input} disabled={busy} value={edits[k]?.date ?? cur.date} onChange={e => setEdit(k, 'date', e.target.value)} />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="time" style={C.input} disabled={busy || allDay} value={allDay ? '' : (edits[k]?.time ?? cur.time)} onChange={e => setEdit(k, 'time', e.target.value)} />
+                <label style={{ fontSize: 12, display: 'flex', gap: 4, alignItems: 'center', whiteSpace: 'nowrap' }}>
+                  <input type="checkbox" disabled={busy} checked={allDay} onChange={e => setEdit(k, 'all_day', e.target.checked)} /> All day
+                </label>
+              </div>
+            </div>
+            <div style={C.row3}>
+              <input style={C.input} placeholder="Location (optional)" disabled={busy} value={val(k, ev, 'location')} onChange={e => setEdit(k, 'location', e.target.value)} />
+              <input style={C.input} placeholder="Link for details or RSVP (optional)" disabled={busy} value={val(k, ev, 'url')} onChange={e => setEdit(k, 'url', e.target.value)} />
+              <select style={C.sel} disabled={busy} value={val(k, ev, 'school_loc')} onChange={e => setEdit(k, 'school_loc', e.target.value)}>
+                <option value="">District-wide event</option>
+                {schools.map(sc => <option key={sc.loc_nbr} value={sc.loc_nbr}>At {sc.name}</option>)}
+              </select>
+            </div>
+            <textarea style={{ ...C.area, marginBottom: 8 }} rows={2} disabled={busy} placeholder="Short description (optional)"
+              value={val(k, ev, 'description')} onChange={e => setEdit(k, 'description', e.target.value)} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <label style={{ fontSize: 12, display: 'flex', gap: 4, alignItems: 'center' }}>
+                <input type="checkbox" disabled={busy} checked={edits[k]?.featured ?? ev.featured} onChange={e => setEdit(k, 'featured', e.target.checked)} />
+                Featured: count down to it at the top of the widget
+              </label>
+              <span style={{ flex: 1 }} />
+              {past && <span style={{ fontSize: 11, color: '#6b7280' }}>Past events are hidden from the widget.</span>}
+              <button style={C.btn} disabled={busy || !edits[k]} onClick={() => act({ action: 'event_update', id: ev.id, ...eventPayload(ev, edits[k]) }, k)}>Save</button>
+              <button style={C.btnDanger} disabled={busy} onClick={() => { if (confirm(`Remove "${ev.title}"?`)) act({ action: 'event_delete', id: ev.id }) }}>Delete</button>
+            </div>
+          </div>
+        )
+      })}
+
       {shown === 0 && (
         <div style={{ ...C.card, color: '#9ca3af', textAlign: 'center' }}>Nothing matches "{query}".</div>
       )}
 
       {/* ADD NEW */}
       <div style={{ ...C.card, background: '#f9fafb' }}>
-        <div style={C.sublabel}>{showNew ? `New ${tab.slice(0, -1)}` : ' '}</div>
+        <div style={C.sublabel}>{showNew ? `New ${noun}` : ' '}</div>
         {!showNew && (
           <button style={{ ...C.btn, borderColor: BLUE, color: BLUE }} disabled={busy} onClick={() => setShowNew(true)}>
-            + Add {tab.slice(0, -1)}
+            + Add {noun}
           </button>
+        )}
+        {showNew && tab === 'events' && (
+          <>
+            <div style={C.row3}>
+              <input style={C.input} placeholder="Event title *" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} />
+              <input type="date" style={C.input} aria-label="Date *" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} />
+              <input type="time" style={C.input} aria-label="Time (blank = all day)" value={newEvent.time} onChange={e => setNewEvent({ ...newEvent, time: e.target.value })} />
+            </div>
+            <div style={C.row3}>
+              <input style={C.input} placeholder="Location" value={newEvent.location} onChange={e => setNewEvent({ ...newEvent, location: e.target.value })} />
+              <input style={C.input} placeholder="Link for details or RSVP" value={newEvent.url} onChange={e => setNewEvent({ ...newEvent, url: e.target.value })} />
+              <select style={C.sel} value={newEvent.school_loc} onChange={e => setNewEvent({ ...newEvent, school_loc: e.target.value })}>
+                <option value="">District-wide event</option>
+                {schools.map(sc => <option key={sc.loc_nbr} value={sc.loc_nbr}>At {sc.name}</option>)}
+              </select>
+            </div>
+            <textarea style={{ ...C.area, marginBottom: 8 }} rows={2} placeholder="Short description" value={newEvent.description}
+              onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <label style={{ fontSize: 12, display: 'flex', gap: 4, alignItems: 'center' }}>
+                <input type="checkbox" checked={newEvent.featured} onChange={e => setNewEvent({ ...newEvent, featured: e.target.checked })} /> Featured
+              </label>
+              <button style={C.btnPrimary} disabled={busy || !newEvent.title || !newEvent.date}
+                onClick={async () => {
+                  const { date, time, ...rest } = newEvent
+                  if (await act({ action: 'event_create', ...rest, all_day: !time, starts_at: easternToIso(date, time) })) { setNewEvent(EMPTY_EVENT); setShowNew(false) }
+                }}>Add event</button>
+              <button style={C.btn} onClick={() => { setShowNew(false); setNewEvent(EMPTY_EVENT) }}>Cancel</button>
+            </div>
+            <p style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>Times are Eastern. Leave the time blank for an all-day event. An event at a school also shows on that school&apos;s page.</p>
+          </>
         )}
         {showNew && tab === 'programs' && (
           <>
