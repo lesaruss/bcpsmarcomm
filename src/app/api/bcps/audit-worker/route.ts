@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID, timingSafeEqual } from 'crypto'
+import { waitUntil } from '@vercel/functions'
 import { discoverDeptPages, discoverSchoolPages, runAndSavePageAudit } from '@/lib/dept-audit-run'
 
-// Audit worker (Sean, 2026-10-07). pg_cron calls this every 4 minutes while
+// Audit worker (Sean, 2026-10-07). pg_cron calls this every 2 minutes while
 // bcps_audit_queue has work (migrations 20261007_bcps_audit_monthly and
 // 20261007_bcps_site_audit). Two kinds of job:
 //   site  find the site's pages (a department's left menu; a school's
@@ -149,13 +150,20 @@ async function runPageJob(job: Job): Promise<string> {
   return `page ${page.url}: ${saved.out.score.score}`
 }
 
-export async function POST(req: NextRequest) {
-  if (!(await authorized(req))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+// Runs up to MAX_JOBS queued jobs, one at a time, inside BUDGET_MS. A job
+// already running means another tick is still working, so this one leaves it
+// be: browardschools.com keeps seeing one page at a time. A job stuck running
+// for 10 minutes is reclaimed by bcps_claim_audit_job.
+async function drainQueue(): Promise<{ done: string[]; error?: string; busy?: boolean }> {
+  const { count, error: busyErr } = await supabase.from('bcps_audit_queue').select('id', { count: 'exact', head: true })
+    .eq('status', 'running').gte('started_at', new Date(Date.now() - 10 * 60_000).toISOString())
+  if (busyErr) return { done: [], error: busyErr.message }
+  if (count) return { done: [], busy: true }
   const t0 = Date.now()
   const done: string[] = []
   for (let i = 0; i < MAX_JOBS && Date.now() - t0 < BUDGET_MS; i++) {
     const { data: jobs, error: claimErr } = await supabase.rpc('bcps_claim_audit_job')
-    if (claimErr) return NextResponse.json({ error: claimErr.message, done }, { status: 500 })
+    if (claimErr) return { done, error: claimErr.message }
     const job = (jobs as Job[] | null)?.[0]
     if (!job) break
     try {
@@ -170,5 +178,26 @@ export async function POST(req: NextRequest) {
       break // leave the retry for the next tick instead of hammering the same page
     }
   }
-  return NextResponse.json({ ok: true, done, idle: done.length === 0 })
+  return { done }
+}
+
+// The pg_cron tick (bcps-audit-worker-tick) calls this through pg_net, which
+// holds one of its few request slots until the response arrives. Waiting for
+// the jobs held a slot up to 240 s and stalled every other pg_net call, the
+// email jobs included (registry PGNET-LONG-REQUEST-HOLDS-QUEUE, Sean
+// 2026-10-29). So the call answers at once and the jobs finish in the
+// background (waitUntil keeps the function alive up to maxDuration).
+// ?wait=1 runs them inline and returns what was done, for testing by hand.
+export async function POST(req: NextRequest) {
+  if (!(await authorized(req))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (req.nextUrl.searchParams.get('wait') === '1') {
+    const { done, error, busy } = await drainQueue()
+    if (error) return NextResponse.json({ error, done }, { status: 500 })
+    return NextResponse.json({ ok: true, done, idle: done.length === 0, busy: !!busy })
+  }
+  waitUntil(drainQueue().then(({ done, error }) => {
+    if (error) console.error('[audit-worker] claim failed:', error)
+    else if (done.length) console.log('[audit-worker]', done.join(' | '))
+  }).catch((e) => console.error('[audit-worker]', e instanceof Error ? e.message : e)))
+  return NextResponse.json({ ok: true, started: true }, { status: 202 })
 }

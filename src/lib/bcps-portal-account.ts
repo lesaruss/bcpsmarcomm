@@ -48,7 +48,7 @@ export function esc(v: string): string {
 // ctaLabel/ctaHref are optional as a pair - omit both for a confirmation
 // email that isn't asking the reader to click through to anything yet
 // (the director's account-created-but-not-invited email, added 2026-09-12).
-export function brandedEmail(opts: { heading: string; body: string; ctaLabel?: string; ctaHref?: string; footNote?: string }) {
+export function brandedEmail(opts: { heading: string; body: string; ctaLabel?: string; ctaHref?: string; footNote?: string; footer?: string }) {
   return `
     <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a">
       <div style="background:#0e4e73;padding:20px 28px;border-radius:8px 8px 0 0">
@@ -67,7 +67,7 @@ export function brandedEmail(opts: { heading: string; body: string; ctaLabel?: s
         ${opts.footNote ? `<p style="font-size:12px;color:#767676;margin-top:22px">${opts.footNote}</p>` : ''}
       </div>
       <p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:14px">
-        This is an automated message from the BCPS Web Team Portal.
+        ${opts.footer ?? 'This is an automated message from the BCPS Web Team Portal.'}
       </p>
     </div>
   `

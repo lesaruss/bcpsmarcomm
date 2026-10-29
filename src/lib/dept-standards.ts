@@ -292,14 +292,18 @@ export const STANDARD_CHECKS: StdCheck[] = [
   },
   {
     id: 'single-column', area: 'Layout', course: C.layoutStandards,
-    title: 'Single-column layout, with no side-by-side columns',
-    why: 'All department landing and overview pages must use a single-column layout. Multi-column layouts break on phones, are harder to scan, and do not match the district standard.',
+    title: 'Single-column page layout',
+    why: 'All department landing and overview pages must use a single-column page layout. Pages laid out in two columns all the way down break on phones, are harder to scan, and do not match the district standard. A small section placed side by side, such as Important Links or a logo beside your introduction, is fine.',
     steps: ['In Compose Mode, click the building block icon, then "Edit page layout, banners and themes", and confirm the page is single column.', 'For any two- or three-column layout element, drag its content out into the single column.', 'Use accordion or tab elements (Add Element, Layout tab) to organize what was in the side column.'],
     run: ({ facts }) => {
+      // The standard is the page layout (Sean, Oct 29 Hot Lab): pages brought
+      // over from SchoolWires split into two columns all the way down. A
+      // section set side by side inside a single-column page (Important
+      // Links, a logo beside the intro) is allowed.
       const pageOne = /fsOneColumnLayout/.test(facts.pageLayoutClass) || !facts.pageLayoutClass
-      if (pageOne && facts.multiColumn.length === 0) return { status: 'pass', detail: 'The page and everything on it is single column.', targets: [] }
-      const d = !pageOne ? 'The page itself uses a multi-column layout.' : `${facts.multiColumn.length} section${facts.multiColumn.length === 1 ? ' places' : 's place'} content side by side in columns.`
-      return { status: 'fail', detail: d, targets: facts.multiColumn.map((m) => t(m.ref, 'Side-by-side columns')) }
+      const n = facts.multiColumn.length
+      if (pageOne) return { status: 'pass', detail: n ? `The page is single column. ${n} section${n === 1 ? ' sits' : 's sit'} side by side inside it, which is fine.` : 'The page and everything on it is single column.', targets: [] }
+      return { status: 'fail', detail: 'The page itself uses a multi-column layout.', targets: facts.multiColumn.map((m) => t(m.ref, 'Side-by-side columns')) }
     },
   },
   {
@@ -438,6 +442,13 @@ export const A11Y_ROWS: { axeIds: string[]; title: string; course: CourseRef }[]
 export interface AxeLikeViolation { id: string; impact: string | null; description: string; help?: string; helpUrl?: string; nodeCount: number; nodes?: { target: string; html: string }[] }
 
 /** inContent says whether an axe selector points inside the department's own content area (#fsPageContent); template elements never count. */
+// The glossary's Finalsite-owned rules, plus Finalsite's image markup
+// (aria-allowed-role) found on every page in the Oct 28 Audit Error Guide.
+const FINALSITE_MARKUP_RULES = new Set(['aria-allowed-role'])
+function finalsiteRule(axeId: string): boolean {
+  return FINALSITE_MARKUP_RULES.has(axeId) || lookupAxeEntry(axeId)?.owner === 'finalsite'
+}
+
 export function accessibilityRows(violations: AxeLikeViolation[], inContent: (sel: string) => boolean, own: { headingSkips?: StdFacts['headingSkips'] } = {}): { rows: CheckResult[]; finalsite: AxeLikeViolation[] } {
   const finalsite: AxeLikeViolation[] = []
   const used = new Set<string>()
@@ -445,9 +456,15 @@ export function accessibilityRows(violations: AxeLikeViolation[], inContent: (se
   // (slick-cloned); the copies sit in the content area but are generated, so
   // a WCM cannot edit them in Composer (Sean, Oct 27 Hot Lab: Safety &
   // Security Operations' aria-hidden-focus, marker off the screenshot).
-  const wcmOwns = (n: { target: string; html: string }) => inContent(n.target) && !/\bslick-cloned\b/.test(n.html)
+  // AudioEye's script writes its own attributes onto page content
+  // (aria-describedby="audioeye_new_window_message"); the WCM cannot remove
+  // them in Composer (Audit Error Guide, Oct 28).
+  const wcmOwns = (n: { target: string; html: string }) => inContent(n.target) && !/\bslick-cloned\b/.test(n.html) && !/audioeye/i.test(n.html)
+  // Rules that are Finalsite's wherever the element sits, because the markup
+  // comes from Finalsite's own elements (Sean, Oct 29 Hot Lab: Finalsite
+  // items filtered off WCM lists; Audit Error Guide decision 4).
   const rows: CheckResult[] = A11Y_ROWS.map((row) => {
-    const hits = violations.filter((v) => row.axeIds.includes(v.id))
+    const hits = violations.filter((v) => row.axeIds.includes(v.id) && !finalsiteRule(v.id))
     hits.forEach((v) => used.add(v.id))
     // Only elements in the WCM's content area count against them.
     const nodes = hits.flatMap((v) => (v.nodes ?? []).filter(wcmOwns).map((n) => ({ v, n })))
@@ -476,6 +493,7 @@ export function accessibilityRows(violations: AxeLikeViolation[], inContent: (se
     }
   })
   for (const v of violations) {
+    if (finalsiteRule(v.id)) { finalsite.push(v); continue }
     const mine = (v.nodes ?? []).filter(wcmOwns)
     // A rule whose only hits sit in the template (header, menus, footer) or
     // in generated slideshow copies is Finalsite's.

@@ -51,7 +51,7 @@ export const TOOLS: Tool[] = [
 
   { label: 'Department Certification', desc: 'The Department WCM Certification course.', group: 'Learn', page: 'bcps-certification', gate: 'bcps-certification' },
   { label: 'Department WCM Guide', desc: 'Everything for department WCMs, step by step.', group: 'Learn', href: '/?page=dashboard&tab=documents&doc=wcm-department', gate: 'wcm' },
-  { label: 'Director Playbook', desc: 'Every update for directors.', group: 'Learn', href: '/playbooks/director-department', gate: 'wcm' },
+  { label: 'Director Guide', desc: 'Everything for directors, step by step.', group: 'Learn', href: '/?page=dashboard&tab=documents&doc=director-department', gate: 'wcm' },
 
   { label: 'My Profile', desc: 'Your name, photo and contact details.', group: 'People', page: 'profile', gate: 'profile' },
   { label: 'My Records', desc: 'Your employee records.', group: 'People', page: 'employee-records', gate: 'employee-records' },
@@ -61,6 +61,7 @@ export const TOOLS: Tool[] = [
   { label: 'Note Approvals', desc: 'Notes waiting to publish.', group: 'SuperAdmin', page: 'pulse-approvals', gate: 'pulse-approvals', superadmin: true },
   { label: 'Registrations', desc: 'New sign-ups waiting on approval.', group: 'SuperAdmin', page: 'registrations', gate: 'registrations', superadmin: true },
   { label: 'Reports', desc: 'Program reports and exports.', group: 'SuperAdmin', page: 'reports', gate: 'reports', superadmin: true },
+  { label: 'Certification Follow-up', desc: 'WCMs still finishing the certification: progress, follow-up emails, opens and clicks.', group: 'SuperAdmin', page: 'cert-followup', gate: 'cert-followup', superadmin: true, icon: 'reports' },
 ]
 
 // My Resources groups (Sean, 2026-10-23: fewer categories that make sense
@@ -77,7 +78,7 @@ export const TOP_TOOLS: Record<'superadmin' | 'comms' | 'appsvc' | 'director' | 
   superadmin: ['Web Team Assignments', 'Banner Submissions', 'Proud Points', 'WCM Roster', 'Documents', 'Meeting Notes', 'Widgets', 'Permissions'],
   comms: ['Web Team Assignments', 'Banner Submissions', 'Proud Points', 'Departments', 'WCM Roster', 'Documents', 'Meeting Notes', 'Widgets'],
   appsvc: ['Web Team Assignments', 'ADA Scanner', 'ADA Manager', 'School Profiles', 'Banner Submissions', 'Proud Points', 'Documents', 'Widgets'],
-  director: ['Request MarComm Support', 'Director Playbook', 'WCM Roster', 'Meeting Notes', 'Documents', 'Department Certification', 'My Profile'],
+  director: ['Request MarComm Support', 'Director Guide', 'WCM Roster', 'Meeting Notes', 'Documents', 'Department Certification', 'My Profile'],
   wcm: ['Department Certification', 'Request MarComm Support', 'Department WCM Guide', 'ADA Scanner', 'Documents', 'Meeting Notes', 'My Profile'],
-  member: ['Department Certification', 'Registration: Getting Started', 'Director Playbook', 'Documents', 'WCM Roster', 'My Profile'],
+  member: ['Department Certification', 'Department WCM Guide', 'Director Guide', 'Documents', 'WCM Roster', 'My Profile'],
 }

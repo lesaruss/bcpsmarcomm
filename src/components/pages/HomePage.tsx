@@ -30,6 +30,10 @@ import Guide from '@/components/guides/Guide'
 import WcmGuideOverview, { type GuideViewer } from '@/components/guides/WcmGuideOverview'
 import { guideForDoc } from '@/lib/guides'
 import { WCM_DEPARTMENT_GUIDE } from '@/lib/guides/wcm-department'
+import { MARCOMM_TEAM_GUIDE } from '@/lib/guides/marcomm-team'
+import MarcommGuideOverview from '@/components/guides/MarcommGuideOverview'
+import DirectorGuideOverview, { type DirectorViewer } from '@/components/guides/DirectorGuideOverview'
+import { DIRECTOR_DEPARTMENT_GUIDE } from '@/lib/guides/director-department'
 import { SAMPLE_SUPERADMIN_ID, Icons } from '@/components/Sidebar'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
 import { TOOLS, TOOL_GROUPS, TOP_TOOLS, type Tool } from '@/lib/bcps-tools'
@@ -554,7 +558,7 @@ const SAMPLE_TEAM_ASSIGNMENTS: Assignment[] = [
 ]
 
 /* ─── DIRECTOR ─────────────────────────────────────────── */
-type DirectorTab = 'overview' | 'documents' | 'marcomm' | 'audit' | 'review' | 'analytics' | 'notes' | 'hotlabs' | 'widgets' | 'wcm' | 'tools'
+type DirectorTab = 'overview' | 'guide' | 'documents' | 'marcomm' | 'audit' | 'review' | 'analytics' | 'notes' | 'hotlabs' | 'widgets' | 'wcm' | 'tools'
 
 // The review window that matters most to this director: the open one, else
 // the next upcoming one, else the last one (their departments may span
@@ -613,6 +617,9 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
     ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets' as DirectorTab, label: 'Widgets' }] : []),
   ] : [
     { id: 'overview', label: 'Overview' },
+    // The Director Guide (Sean, 2026-10-29), in place of the Director
+    // Playbook, its Overview drawn for this director.
+    { id: 'guide', label: 'Guide' },
     { id: 'documents', label: 'Documents' },
     { id: 'review', label: 'Website Review' },
     { id: 'analytics', label: 'Analytics' },
@@ -622,6 +629,21 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
     // A director who is also their department's WCM keeps the WCM cards.
     ...(data.is_wcm ? [{ id: 'wcm' as DirectorTab, label: 'My WCM Work' }] : []),
   ]
+  // The Director Playbook's address (and the documents list) opens the Guide tab.
+  const [doc] = useDocParam()
+  const guideRedirect = !leadership && tab === 'documents' && doc === DIRECTOR_DEPARTMENT_GUIDE.slug ? '/?page=dashboard&tab=guide' : null
+  useEffect(() => {
+    if (guideRedirect) router.replace(guideRedirect, { scroll: false })
+  }, [guideRedirect, router])
+  const openDirectorGuide = () => router.push('/?page=dashboard&tab=guide', { scroll: false })
+  const viewer: DirectorViewer = {
+    name,
+    oversight,
+    departments: led.map((d) => ({
+      name: d.name, division: d.division, audit_status: d.audit_status,
+      wcms: d.wcms.map((x) => ({ name: x.name, certified: x.certified, progress_pct: x.progress_pct, has_account: x.has_account })),
+    })),
+  }
   if (page) return <PageUnderTabs tabs={tabs} onChange={(t) => setTab(t as DirectorTab)}>{page}</PageUnderTabs>
 
   return (
@@ -641,8 +663,8 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
               <button type="button" className="home-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=bcps-platform-ownership-migration', { scroll: false })}>Open the Platform Plan</button>
               <span className="home-hint">Moving the platform onto District accounts</span>
             </> : <>
-              <button type="button" className="home-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=director-department', { scroll: false })}>Open the Director Playbook</button>
-              <span className="home-hint">Every update for directors, in one place</span>
+              <button type="button" className="home-btn" onClick={openDirectorGuide}>Open the Director Guide</button>
+              <span className="home-hint">Everything for directors, in one place</span>
             </>}
           </div>
         </div>
@@ -688,9 +710,9 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
                     </li>
                   ) : (
                     <li>
-                      <b>Review the Director Playbook</b>
-                      <span>What the Web Content Manager program expects of your department, refreshed every Thursday.</span>
-                      <button type="button" className="home-link-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=director-department', { scroll: false })}>Open the playbook</button>
+                      <b>Read the Director Guide</b>
+                      <span>What the Web Content Manager program asks of your department and where you stand, refreshed every Thursday.</span>
+                      <button type="button" className="home-link-btn" onClick={openDirectorGuide}>Open the guide</button>
                     </li>
                   )}
                   <li>
@@ -773,7 +795,8 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
           </div>}
         </>
       )}
-      {tab === 'documents' && <DocumentsTab kind={leadership ? 'leadership' : 'director'} canMarcomm={canMarcomm} asEmail={data.viewing_as?.email} />}
+      {tab === 'guide' && !leadership && <Guide def={DIRECTOR_DEPARTMENT_GUIDE} overview={<DirectorGuideOverview viewer={viewer} />} />}
+      {tab === 'documents' && !guideRedirect && <DocumentsTab kind={leadership ? 'leadership' : 'director'} canMarcomm={canMarcomm} asEmail={data.viewing_as?.email} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audit' && !leadership && <RunAuditTab depts={led} canRecheck={false} />}
       {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} oversight={oversight} />}
@@ -1034,7 +1057,7 @@ function rollUp(months: DepartmentMonth[]): Omit<DepartmentMonth, 'period'> {
 // Playbooks each dashboard always lists, even before a catalog grant exists.
 const PINNED_DOCS: Record<'director' | 'wcm' | 'leadership', PinnedDoc[]> = {
   director: [
-    { slug: 'director-department', title: 'Director Playbook', description: 'What directors need to know about the Web Content Manager program, refreshed every Thursday.', doc_url: DIRECTOR_PLAYBOOK_URL },
+    { slug: 'director-department', title: 'Director Guide', description: 'What the Web Content Manager program asks of your department, and where you stand. Refreshed every Thursday.', doc_url: DIRECTOR_PLAYBOOK_URL },
     { slug: 'wcm-department', title: 'Department WCM Guide', description: 'The guide your WCM works from: getting started, certification, the audit and the website review.', doc_url: '/playbooks/wcm-department' },
   ],
   wcm: [
@@ -1045,6 +1068,18 @@ const PINNED_DOCS: Record<'director' | 'wcm' | 'leadership', PinnedDoc[]> = {
   leadership: [
     { slug: 'bcps-platform-ownership-migration', title: 'BCPS Platform Ownership Migration', description: 'Moving bcpsmarcomm.com and browardschools.ai onto District accounts: the Copilot test, costs and timeline.', doc_url: '/playbooks/bcps-platform-ownership-migration' },
   ],
+}
+
+// The MarComm Team Guide, listed for anyone who has MarComm Assignments.
+const MARCOMM_GUIDE_PIN: PinnedDoc = { slug: MARCOMM_TEAM_GUIDE.slug, title: 'MarComm Team Guide', description: 'The weekly Marcomm Meeting, MarComm Assignments and requests, with where the team is this week.', doc_url: `/playbooks/${MARCOMM_TEAM_GUIDE.slug}` }
+
+// Each guide's Overview: the WCM and Director ones are drawn from the
+// dashboard's data on that person's own Guide tab, so here they show no one's
+// progress; the MarComm one reads the tracker itself.
+function guideOverview(slug: string) {
+  if (slug === MARCOMM_TEAM_GUIDE.slug) return <MarcommGuideOverview />
+  if (slug === DIRECTOR_DEPARTMENT_GUIDE.slug) return <DirectorGuideOverview />
+  return <WcmGuideOverview />
 }
 
 // Opens a doc inside the Documents tab; null goes back to the list.
@@ -1370,7 +1405,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
   if (guide) {
     return (
       <div className="home-section">
-        <Guide def={guide.guide} initialTab={guide.tab} overview={<WcmGuideOverview />}
+        <Guide def={guide.guide} initialTab={guide.tab} overview={guideOverview(guide.guide.slug)}
           actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>} />
       </div>
     )
@@ -1408,7 +1443,8 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
     ...(team ? { 'bcps-web-team-assignments': () => openDoc('web-team-assignments') } : {}),
     ...(canMarcomm ? { 'bcps-marcomm-assignments': () => window.location.assign(MARCOMM_PATH) } : {}),
   }
-  return <DocumentsPage embedded onOpen={(s) => openDoc(s)} trackers={trackers} pinned={kind === 'director' || kind === 'wcm' || kind === 'leadership' ? PINNED_DOCS[kind] : []}
+  const pinned = [...(kind === 'director' || kind === 'wcm' || kind === 'leadership' ? PINNED_DOCS[kind] : []), ...(canMarcomm ? [MARCOMM_GUIDE_PIN] : [])]
+  return <DocumentsPage embedded onOpen={(s) => openDoc(s)} trackers={trackers} pinned={pinned}
     reviewOnly={kind === 'director' || kind === 'leadership'} asEmail={asEmail} />
 }
 
@@ -1437,9 +1473,9 @@ function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: D
   return (
     <div className="wcm-hub2-grid">
       <div className="wcm-hub2-card">
-        <h3>Director Playbook</h3>
-        <p>Every update for directors in one place: deadlines, the review schedule, and what is expected of your department.</p>
-        <a className="wcm-hub2-card-btn" href={`/?page=dashboard&tab=documents&doc=director-department`}>Open the playbook</a>
+        <h3>Director Guide</h3>
+        <p>Everything for directors in one place: deadlines, the review schedule, and what is expected of your department.</p>
+        <a className="wcm-hub2-card-btn" href={`/?page=dashboard&tab=documents&doc=director-department`}>Open the guide</a>
       </div>
       <div className="wcm-hub2-card">
         <h3>Request a meeting</h3>
@@ -1779,9 +1815,9 @@ function MemberHome({ data, onNavigate }: { data: HomeData; onNavigate: Navigate
           <a className="wcm-hub2-card-btn" href={ROSTER_SIGNUP_URL}>Confirm your WCM</a>
         </div>
         <div className="wcm-hub2-card">
-          <h3>Director Playbook</h3>
+          <h3>Director Guide</h3>
           <p>How the Web Content Manager program works and what is expected of each department.</p>
-          <a className="wcm-hub2-card-btn" href={`/?page=dashboard&tab=documents&doc=director-department`}>Open the playbook</a>
+          <a className="wcm-hub2-card-btn" href={`/?page=dashboard&tab=documents&doc=director-department`}>Open the guide</a>
         </div>
         <div className="wcm-hub2-card">
           <h3>Ask the District Web Team</h3>
@@ -1797,18 +1833,22 @@ function MemberHome({ data, onNavigate }: { data: HomeData; onNavigate: Navigate
 
 /* ─── MARCOMM MEETING ────────────────────────────────── */
 // Marcomm Meeting members whose only role here is MarComm Assignments (Sean,
-// 2026-10-16). Their job on the site is keeping their own items current, so
-// the home is the list itself with a short how-to above it.
+// 2026-10-16). Since 2026-10-29 (Sean) they land on the MarComm Team Guide:
+// where the team is this week, their own items and the next meeting, with
+// MarComm Assignments one tab over at its own address.
 function MarcommHome({ data }: { data: HomeData }) {
+  const [tab, setTab] = useHomeTab()
   const name = firstName(data)
+  const tabs = [
+    { id: 'overview', label: 'Guide' },
+    { id: 'marcomm', label: 'MarComm Assignments' },
+  ]
   return (
     <div className="home">
-      <div className="home-hero">
-        <div className="home-hero-label">BCPS MarComm Meeting</div>
-        <h1 className="home-title">{name ? `Welcome, ${name}` : 'Welcome to MarComm Assignments'}</h1>
-        <p>Keep your items current before each Marcomm Meeting: click <b>My items</b>, open a request, set its status and add a note. Everyone sees your updates right away.</p>
-      </div>
-      <MarcommAssignmentsPage embedded />
+      <HomeTabs tabs={tabs} active={tab === 'marcomm' ? 'marcomm' : 'overview'} onChange={setTab} />
+      {tab === 'marcomm'
+        ? <MarcommAssignmentsPage embedded />
+        : <Guide def={MARCOMM_TEAM_GUIDE} overview={<MarcommGuideOverview name={name} />} />}
     </div>
   )
 }

@@ -356,7 +356,7 @@ const SECTIONS: NavSection[] = [
     // The Department WCM Guide opens in the dashboard (Sean, 2026-10-29); it
     // replaced the Playbook and Registration: Getting Started documents.
     { id: 'pb-wcm-department', label: 'Department WCM Guide', href: '/?page=dashboard&tab=documents&doc=wcm-department', requires: 'wcm' },
-    { id: 'pb-director-department', label: 'Director Playbook', href: '/playbooks/director-department', requires: 'wcm', inlineDoc: true },
+    { id: 'pb-director-department', label: 'Director Guide', href: '/?page=dashboard&tab=documents&doc=director-department', requires: 'wcm' },
   ] },
   // District Web Team - 2026-09-04, Sean: these are the DWT-facing tools
   // still being tested (banners, school profiles, ADA, Google governance),

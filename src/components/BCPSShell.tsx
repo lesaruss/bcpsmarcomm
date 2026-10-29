@@ -96,6 +96,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'wcm-roster':             { title: 'WCM Roster',            sub: 'District Web Team' },
   'banner-submissions':     { title: 'Banner Submissions',    sub: 'School Homepage Banners' },
   'proud-points':           { title: 'Proud Points',          sub: 'School Homepage Highlights' },
+  'cert-followup':          { title: 'Certification Follow-up', sub: 'WCMs Still Finishing the Certification' },
   'my-submissions':         { title: 'Your Submissions',      sub: 'Banners & Proud Points' },
   messages:                 { title: 'Messages',              sub: 'Inbox & Conversations' },
 }
@@ -289,6 +290,22 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const { title, sub } = PAGE_TITLES[activePage]
     ?? (catalogTool ? { title: catalogTool.label, sub: PAGE_TITLES['dashboard'].sub } : PAGE_TITLES['dashboard'])
 
+  // A page that opens with its own heading keeps it, and the topbar drops its
+  // copy of the name so it does not read twice (Patricia Sapp, Oct 29 Hot Lab:
+  // "two department headers" after the Dashboard button change). Watched
+  // because pages render their heading after their data loads.
+  const mainRef = useRef<HTMLDivElement>(null)
+  const [pageNamesItself, setPageNamesItself] = useState(false)
+  useEffect(() => {
+    const el = mainRef.current
+    if (!el) return
+    const check = () => setPageNamesItself(!!Array.from(el.querySelectorAll('h1')).find((h) => !h.closest('header.topbar')))
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(el, { childList: true, subtree: true })
+    return () => obs.disconnect()
+  }, [activePage])
+
   // The page set in force right now: the previewed subject's while previewing,
   // otherwise the signed-in user's own.
   // The sample Superadmin identity previews the admin tier, so it keeps the
@@ -371,7 +388,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
           onOpenDoc={(title, url) => setDocPreview({ title, url })}
         />}
 
-        <div className="main-area">
+        <div className="main-area" ref={mainRef}>
           {/* Global Topbar */}
           <header className="topbar">
             <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -401,7 +418,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
                     <button type="button" className="topbar-home-btn" onClick={() => handleNavigate('dashboard')} aria-label="Dashboard">
                       <HomeIcon /> <span>Dashboard</span>
                     </button>
-                    {!onDashboardTab && <h1 className="topbar-page-name">{title}</h1>}
+                    {!onDashboardTab && !pageNamesItself && <h1 className="topbar-page-name">{title}</h1>}
                   </div>
                   <p>{PAGE_TITLES['dashboard'].sub}</p>
                 </div>

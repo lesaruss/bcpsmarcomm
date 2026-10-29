@@ -51,6 +51,9 @@ export async function sendEmail(opts: {
   // Inline images (cid:) or files, fetched by Resend from `path`. Stored on
   // the log row's context so a replay sends the same attachments.
   attachments?: EmailAttachment[]
+  // A display name for this message only, e.g. "Sean A. Russell via BCPS
+  // MarComm"; the address stays notifications@bcpsmarcomm.com.
+  fromName?: string
 }): Promise<{ ok: boolean; error?: string; logged_id?: string }> {
   const to = asArray(opts.to)!
   const cc = asArray(opts.cc)
@@ -74,7 +77,7 @@ export async function sendEmail(opts: {
     }
   } catch { /* logging must never block a send */ }
 
-  const result = await deliver({ to, cc, subject: opts.subject, html: opts.html, replyTo: opts.replyTo, attachments: opts.attachments })
+  const result = await deliver({ to, cc, subject: opts.subject, html: opts.html, replyTo: opts.replyTo, attachments: opts.attachments, fromName: opts.fromName })
 
   try {
     const client = db()
@@ -108,6 +111,7 @@ export async function deliver(opts: {
   html: string
   replyTo?: string | null
   attachments?: EmailAttachment[] | null
+  fromName?: string | null
 }): Promise<{ ok: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) return { ok: false, error: 'RESEND_API_KEY not configured' }
@@ -120,7 +124,7 @@ export async function deliver(opts: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: EMAIL_FROM,
+        from: opts.fromName ? `${opts.fromName.replace(/[<>"]/g, '')} <${EMAIL_FROM.match(/<([^>]+)>/)?.[1]}>` : EMAIL_FROM,
         to: opts.to,
         subject: opts.subject,
         html: opts.html,
