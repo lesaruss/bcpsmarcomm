@@ -282,8 +282,9 @@ function CampaignForm({
   const [primaryUrl, setPrimaryUrl] = useState(initial?.primary_url ?? '')
   const [owner, setOwner] = useState(initial?.owner ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
-  // Default on for a new campaign, matching the column default: a report is
-  // shareable unless someone decides otherwise.
+  // Default on for a new campaign, matching the column default: every
+  // signed-in user can read it unless someone restricts it. Every report needs
+  // a sign-in either way (Sean, 2026-10-29).
   const [isPublic, setIsPublic] = useState(initial?.is_public !== false)
 
   const input: React.CSSProperties = {
@@ -334,11 +335,11 @@ function CampaignForm({
         <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)}
           style={{ marginTop: 2, width: 15, height: 15, cursor: 'pointer', accentColor: '#1672A7' }} />
         <span style={{ fontSize: 11.5, color: '#555', lineHeight: 1.55 }}>
-          <strong style={{ color: '#1a1a1a' }}>Anyone with the link can view this report.</strong>{' '}
-          Leave this on to hand the report to a chief, a vendor or anyone else without
-          them needing an account. Turn it off and the report is restricted to the
-          Office of Communications, named individuals and District admins. Either way
-          it stays out of search engines.
+          <strong style={{ color: '#1a1a1a' }}>Anyone signed in to BCPS MarComm can view this report.</strong>{' '}
+          Leave this on to share the report with anyone who has a BCPS MarComm sign-in.
+          Turn it off and the report is restricted to the Office of Communications,
+          named individuals and District admins. Every report needs a sign-in either
+          way, and none are listed in search engines.
         </span>
       </label>
 
@@ -428,7 +429,7 @@ function CampaignTile({ campaign }: { campaign: Campaign }) {
           background: campaign.is_public ? 'rgba(22,114,167,.10)' : 'rgba(133,79,11,.10)',
           color: campaign.is_public ? '#0e4e73' : '#854F0B',
         }}>
-          {campaign.is_public ? 'Public link' : 'Restricted'}
+          {campaign.is_public ? 'All signed-in users' : 'Restricted'}
         </span>
       </div>
     </a>

@@ -129,17 +129,13 @@ export async function middleware(request: NextRequest) {
     // /briefs/ and /playbooks/ are no longer public (Sean, 2026-10-20): every
     // BCPS document needs a BCPS MarComm sign-in, which any BCPS employee can
     // create. Signed out, they land on /login and return after signing in.
-    pathname.startsWith('/embeds/') ||
-    // Campaign reports (/campaigns/[slug]). Per-campaign: a campaign with
-    // is_public = true is readable by anyone with the link, which is the whole
-    // point of it (Sean, 2026-09-22: shared with the chief and others, no
-    // obstacles). A campaign with is_public = false still falls through to
-    // checkCampaignReportAccess inside the route, which is default deny.
     //
-    // This entry only stops the middleware bouncing every /campaigns/ request
-    // to /login before that per-campaign decision can be made. The route, not
-    // this list, is what decides.
-    pathname.startsWith('/campaigns/')
+    // /campaigns/ followed on 2026-10-29 (Sean: "make it where it's only
+    // available to people who are logged into the platform... now that more
+    // and more people are accessing it"). It is deliberately absent from this
+    // list, so a signed-out visitor to a campaign report is sent to /login
+    // with ?next= and returns to the report after signing in.
+    pathname.startsWith('/embeds/')
 
   if (isPublic) return supabaseResponse
 

@@ -6,13 +6,18 @@
 // Analytics page. It should open the way a doc opens - its own page, its own
 // header, its own URL - so it can be handed to someone.
 //
-// ACCESS IS PER CAMPAIGN, decided by bcps_campaigns.is_public.
+// EVERY CAMPAIGN REPORT NEEDS A SIGN-IN (Sean, 2026-10-29: "make it where it's
+// only available to people who are logged into the platform... now that more
+// and more people are accessing it"). Until then a campaign with is_public =
+// true was readable by anyone with the link (Sean, 2026-09-22). Signed out, the
+// middleware sends the visitor to /login?next=, and this page checks again so
+// it never depends on the middleware alone.
 //
-// is_public = true  -> anyone with the link can read it, no sign-in. Sean,
-//   2026-09-22: "let's just make that public... we may need to share it with
-//   the chief and a whole bunch of other people. And I don't want to create any
-//   unnecessary obstacles." A campaign report is aggregate traffic about an
-//   already-public District page, so this is a reasonable thing to hand out.
+// Who may read it, once signed in, is still per campaign:
+//
+// is_public = true  -> anyone signed in to BCPS MarComm. The column keeps its
+//   name so no migration is needed; it now means "every signed-in user", which
+//   is what the Analytics page labels it.
 // is_public = false -> checkCampaignReportAccess, which is DEFAULT DENY: BCPS
 //   admins, the Office of Communications group, and named individuals holding a
 //   direct grant.
@@ -21,8 +26,7 @@
 // public-unless-recipients-exist: a restricted campaign must mean nobody by
 // default, not everybody. See src/lib/bcps-campaign-access.ts.
 //
-// Public campaigns stay noindex (see generateMetadata): shareable by link is
-// not the same as listed in Google under "Broward referendum analytics".
+// Reports stay noindex (see generateMetadata) as a second guard.
 //
 // The SHELL follows canon-bcps-doc-template-standard: fixed BCPS-blue header
 // with the District logo linked back to the dashboard, a meta row, a plain
@@ -62,6 +66,11 @@ export default async function CampaignReportPage({ params }: Props) {
   const { slug } = await params
   await headers()
 
+  // Signed in, always, and before the campaign is looked up, so a signed-out
+  // visitor cannot tell a real report address from a made-up one.
+  const user = await getSessionUser()
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/campaigns/${slug}`)}`)
+
   const db = campaignServiceClient()
   if (!db) notFound()
 
@@ -72,13 +81,11 @@ export default async function CampaignReportPage({ params }: Props) {
     .maybeSingle()
   if (!campaign) notFound()
 
-  // A public campaign short-circuits every check: no session needed, nothing
-  // to deny. A restricted one falls back to the default-deny gate.
+  // An all-users campaign needs nothing more than the sign-in above; a
+  // restricted one falls back to the default-deny gate.
   const isPublic = campaign.is_public === true
   let denied = false
   if (!isPublic) {
-    const user = await getSessionUser()
-    if (!user) redirect(`/login?next=${encodeURIComponent(`/campaigns/${slug}`)}`)
     const access = await checkCampaignReportAccess(db, user.id)
     denied = !access.allowed
   }
@@ -162,7 +169,7 @@ export default async function CampaignReportPage({ params }: Props) {
             background: isPublic ? 'rgba(22,114,167,.10)' : 'rgba(133,79,11,.10)',
             color: isPublic ? 'var(--bcps-blue-dark)' : '#854F0B',
           }}>
-            {isPublic ? 'Public link' : 'Restricted'}
+            {isPublic ? 'All signed-in users' : 'Restricted'}
           </span>
         </div>
         {campaign.description && (
@@ -171,7 +178,7 @@ export default async function CampaignReportPage({ params }: Props) {
         <CampaignReportBody campaign={full} />
         <p style={{ fontSize: 10.5, color: 'var(--text-50)', marginTop: 24, lineHeight: 1.6, maxWidth: 780 }}>
           {isPublic
-            ? 'Anyone with this link can open this report, no sign-in needed. It is not listed in search engines. Numbers refresh from GA4 on each sync, so the link stays current rather than going stale the way an exported copy would.'
+            ? 'Anyone signed in to BCPS MarComm can open this report with this link. Numbers refresh from GA4 on each sync, so the link stays current rather than going stale the way an exported copy would.'
             : 'This report is not public. It is shared with the Office of Communications and named individuals. Numbers refresh from GA4 on each sync, so the link stays current rather than going stale the way an exported copy would.'}
         </p>
       </main>
