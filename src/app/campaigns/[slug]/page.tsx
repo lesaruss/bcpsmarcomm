@@ -33,6 +33,11 @@
 // green-labelled lead section that always stays open, full width, no centred
 // column.
 //
+// TYPE is Open Sans, the District website's font (browardschools.com theme
+// default_25), matching the Parents & Families portal page Farrah approved
+// (Sean, 2026-10-29). Arial, Century Gothic and Verdana are BCPS's approved
+// fonts for print and digital publications; the guide exempts websites.
+//
 // The BODY navigates by tabs, not accordions. Sean, 2026-09-22: "we don't have
 // to make things documents if it's on a web page." The page keeps everything
 // that makes it shareable - its own URL, the header, the access gate - while
@@ -92,7 +97,7 @@ export default async function CampaignReportPage({ params }: Props) {
 
   if (denied) {
     return (
-      <main style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'Arial, Helvetica, sans-serif', padding: '80px 24px', textAlign: 'center' }}>
+      <main style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: "'Open Sans', Arial, sans-serif", padding: '80px 24px', textAlign: 'center' }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: '#1a1a1a' }}>You do not have access to this report</h1>
         <p style={{ fontSize: 13, color: '#666', maxWidth: 480, margin: '10px auto 0', lineHeight: 1.6 }}>
           Campaign reports are shared with the Office of Communications and a small
@@ -126,7 +131,7 @@ export default async function CampaignReportPage({ params }: Props) {
                 --border:rgba(0,0,0,0.10); --surface:#fff; --surface2:#fafafa; --text-50:rgba(26,26,26,0.55); }
         *,*::before,*::after { box-sizing:border-box; }
         body { margin:0; background:#f5f5f5; color:#1a1a1a;
-               font-family:Arial,Helvetica,Verdana,sans-serif; line-height:1.55; }
+               font-family:'Open Sans',Arial,Helvetica,sans-serif; line-height:1.55; }
         header.bcps-header { position:fixed; top:0; left:0; right:0; z-index:200; height:64px;
           background:#fff; border-bottom:3px solid var(--bcps-blue); display:flex;
           align-items:center; padding:0 28px; gap:20px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }

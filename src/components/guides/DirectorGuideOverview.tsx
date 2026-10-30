@@ -2,7 +2,7 @@
 
 import { windowForDivision, formatWindowRange, windowState, type ReviewWindow } from '@/lib/review-windows'
 import { DIRECTOR_DEPARTMENT_GUIDE as G } from '@/lib/guides/director-department'
-import { CERT_DUE, CERT_CHECK, HOT_LAB_JOIN_URL } from '@/lib/guides/wcm-department'
+import { CERT_DUE, HOT_LAB_JOIN_URL } from '@/lib/guides/wcm-department'
 import { fmtGuideDate } from './Guide'
 
 // The Director Guide's Overview (Sean, 2026-10-29), drawn from the director's
@@ -67,10 +67,10 @@ export default function DirectorGuideOverview({ viewer }: { viewer?: DirectorVie
     if (notCertified.length) {
       const who = viewer.oversight ? `${notCertified.length} WCM${notCertified.length === 1 ? ' has' : 's have'} not finished.` : `${notCertified.map((x) => `${x.name} (${x.has_account ? `${x.progress_pct}%` : 'not signed up'})`).join(', ')}.`
       actions.push({
-        title: t <= CERT_CHECK ? 'Check in on certification' : 'Help your WCM finish certification',
-        body: t <= CERT_CHECK
-          ? `${who} Certification is due ${fmtGuideDate(CERT_DUE, { weekday: 'long', month: 'long', day: 'numeric' })}. Anyone not finished at the end of the day Monday, November 2 loses editing access until they complete it.`
-          : `${who} Editing access to your department's pages is paused until they finish, and restored as soon as they do.`,
+        title: t <= CERT_DUE ? 'Check in on certification' : 'Help your WCM finish certification',
+        body: t <= CERT_DUE
+          ? `${who} Certification is due ${fmtGuideDate(CERT_DUE, { weekday: 'long', month: 'long', day: 'numeric' })}. A quick check-in helps; after the deadline the District Web Team follows up with anyone who has not finished.`
+          : `${who} The District Web Team is following up with each of them. A check-in from you helps.`,
         href: '#guide/cert/help', label: 'How to help',
       })
     }
@@ -135,7 +135,7 @@ export default function DirectorGuideOverview({ viewer }: { viewer?: DirectorVie
         <div className="home-dept">
           <div className="guide-date-label">Certification</div>
           <b>{viewer && wcms.length && !notCertified.length ? 'All certified' : `Due ${fmtGuideDate(CERT_DUE, { month: 'short', day: 'numeric' })}`}</b>
-          <span>{viewer && wcms.length ? `${wcms.length - notCertified.length} of ${wcms.length} of your WCMs certified.` : 'Editing access is paused for anyone not finished at the end of the day Monday, Nov 2.'}</span>
+          <span>{viewer && wcms.length ? `${wcms.length - notCertified.length} of ${wcms.length} of your WCMs certified.` : 'A quick check-in with your WCM helps them finish.'}</span>
         </div>
         <div className="home-dept">
           <div className="guide-date-label">{w ? 'Your website review' : 'Website reviews'}</div>

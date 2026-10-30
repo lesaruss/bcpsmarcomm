@@ -24,7 +24,7 @@ interface TickerMessage { text: string; linkText: string | null; linkHref: strin
 
 const TICKER_MESSAGES: TickerMessage[] = [
   {
-    text: 'Reminder: Department WCM certification course must be completed by October 30.',
+    text: 'Reminder: the Department WCM certification is due Thursday, November 5.',
     linkText: null,
     linkHref: '?page=bcps-certification',
   },

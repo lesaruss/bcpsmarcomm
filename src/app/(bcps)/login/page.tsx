@@ -270,12 +270,12 @@ export default function BCPSLoginPage() {
     width: '100%', padding: '11px 14px', borderRadius: '8px',
     background: '#f8fafc', border: '1px solid #d1d5db',
     color: '#111827', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-    fontFamily: "'Montserrat', sans-serif",
+    fontFamily: "'Open Sans', sans-serif",
   }
 
   const linkStyle: React.CSSProperties = {
     background: 'none', border: 'none', color: '#0e4e73', cursor: 'pointer',
-    fontSize: '13px', fontWeight: 700, fontFamily: "'Montserrat', sans-serif", padding: 0,
+    fontSize: '13px', fontWeight: 700, fontFamily: "'Open Sans', sans-serif", padding: 0,
   }
 
   return (
@@ -283,7 +283,7 @@ export default function BCPSLoginPage() {
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #f4f7fb 0%, #e7eef6 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: "'Montserrat', sans-serif", padding: '24px',
+      fontFamily: "'Open Sans', sans-serif", padding: '24px',
     }}>
       <div style={{ width: '100%', maxWidth: '420px' }}>
 
@@ -317,7 +317,7 @@ export default function BCPSLoginPage() {
                 style={{
                   flex: 1, padding: '9px', borderRadius: '8px', border: 'none', cursor: 'pointer',
                   fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
-                  fontFamily: "'Montserrat', sans-serif",
+                  fontFamily: "'Open Sans', sans-serif",
                   background: mode === 'signin' ? '#ffffff' : 'transparent',
                   color: mode === 'signin' ? '#0e4e73' : '#6b7280',
                   boxShadow: mode === 'signin' ? '0 1px 4px rgba(0,0,0,0.10)' : 'none',
@@ -331,7 +331,7 @@ export default function BCPSLoginPage() {
                 style={{
                   flex: 1, padding: '9px', borderRadius: '8px', border: 'none', cursor: 'pointer',
                   fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
-                  fontFamily: "'Montserrat', sans-serif",
+                  fontFamily: "'Open Sans', sans-serif",
                   background: mode === 'register' ? '#ffffff' : 'transparent',
                   color: mode === 'register' ? '#0e4e73' : '#6b7280',
                   boxShadow: mode === 'register' ? '0 1px 4px rgba(0,0,0,0.10)' : 'none',
@@ -382,7 +382,7 @@ export default function BCPSLoginPage() {
                   width: '100%', padding: '12px', background: 'linear-gradient(135deg, #1672A7, #0e4e73)',
                   border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 800,
                   textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer',
-                  opacity: loading ? 0.7 : 1, fontFamily: "'Montserrat', sans-serif",
+                  opacity: loading ? 0.7 : 1, fontFamily: "'Open Sans', sans-serif",
                 }}>
                   {loading ? 'Sending...' : 'Send Reset Link'}
                 </button>
@@ -496,7 +496,7 @@ export default function BCPSLoginPage() {
                   width: '100%', padding: '12px', background: 'linear-gradient(135deg, #1672A7, #0e4e73)',
                   border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 800,
                   textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer',
-                  opacity: regLoading ? 0.7 : 1, fontFamily: "'Montserrat', sans-serif",
+                  opacity: regLoading ? 0.7 : 1, fontFamily: "'Open Sans', sans-serif",
                 }}>
                   {regLoading ? 'Creating account...' : 'Create Account'}
                 </button>
@@ -517,7 +517,7 @@ export default function BCPSLoginPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 gap: '10px', fontSize: '13px', fontWeight: 700, color: '#1e293b',
                 transition: 'opacity 0.15s',
-                opacity: loading ? 0.7 : 1, fontFamily: "'Montserrat', sans-serif",
+                opacity: loading ? 0.7 : 1, fontFamily: "'Open Sans', sans-serif",
                 marginBottom: '20px',
               }}>
                 <svg width="18" height="18" viewBox="0 0 24 24">
@@ -569,7 +569,7 @@ export default function BCPSLoginPage() {
                   width: '100%', padding: '12px', background: 'linear-gradient(135deg, #1672A7, #0e4e73)',
                   border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 800,
                   textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer',
-                  opacity: loading ? 0.7 : 1, fontFamily: "'Montserrat', sans-serif",
+                  opacity: loading ? 0.7 : 1, fontFamily: "'Open Sans', sans-serif",
                 }}>
                   {loading ? 'Signing in...' : 'Sign In'}
                 </button>

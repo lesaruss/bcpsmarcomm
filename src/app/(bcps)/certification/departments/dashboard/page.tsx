@@ -41,7 +41,7 @@ export default function DashboardPage() {
   }, [])
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Montserrat', sans-serif", background: '#f0f4f8' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Open Sans', sans-serif", background: '#f0f4f8' }}>
       <span style={{ fontSize: 14, color: '#888' }}>Loading...</span>
     </div>
   )
@@ -81,8 +81,8 @@ export default function DashboardPage() {
   const allDone = completedCount === totalPages
 
   return (
-    <div style={{ fontFamily: "'Montserrat', sans-serif", background: '#f0f4f8', minHeight: 'calc(100vh - 60px)' }}>
-      <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <div style={{ fontFamily: "'Open Sans', sans-serif", background: '#f0f4f8', minHeight: 'calc(100vh - 60px)' }}>
+      <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       {certUser?.is_admin && (
         <div style={{ padding: '8px 32px', background: '#fffbe6', borderBottom: '1px solid #ffe58f', fontSize: 12, fontWeight: 700 }}>
           <a href="/certification/departments/admin" style={{ color: '#1672A7', textDecoration: 'none' }}>Admin View</a>

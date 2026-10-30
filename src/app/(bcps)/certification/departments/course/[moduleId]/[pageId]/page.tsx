@@ -984,7 +984,7 @@ export default function CoursePlayerPage({ params }: Props) {
 }
 
 const S: Record<string, React.CSSProperties> = {
-  loading: { padding: 40, fontFamily: "'Montserrat', sans-serif", fontSize: 15 },
+  loading: { padding: 40, fontFamily: "'Open Sans', sans-serif", fontSize: 15 },
   saving: { fontSize: 12, color: '#1672A7', fontStyle: 'italic' },
   outlineBtn: { background: 'none', border: '1px solid #e0e8ef', borderRadius: 8, cursor: 'pointer', padding: '7px 9px', display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 },
   modalCloseBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#888', lineHeight: 1, padding: '2px 6px' },

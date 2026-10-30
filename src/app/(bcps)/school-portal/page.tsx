@@ -254,7 +254,7 @@ export default function SchoolPortalPage() {
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 40, height: 40, border: '3px solid #E2E8F0', borderTopColor: '#2B5F8F', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
           <style>{`@keyframes spin { to { transform: rotate(360deg); }}`}</style>
-          <p style={{ color: '#64748B', fontFamily: 'Montserrat, sans-serif' }}>Loading your ADA scan portal...</p>
+          <p style={{ color: '#64748B', fontFamily: 'Open Sans, sans-serif' }}>Loading your ADA scan portal...</p>
         </div>
       </div>
     )
@@ -267,9 +267,9 @@ export default function SchoolPortalPage() {
           <div style={{ fontSize: 32, marginBottom: 16 }}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" style={{ margin: '0 auto' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
-          <h2 style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700, color: '#1E293B', marginBottom: 12 }}>Access Error</h2>
-          <p style={{ fontFamily: 'Montserrat, sans-serif', color: '#64748B', lineHeight: 1.6 }}>{error}</p>
-          <a href="mailto:webmaster@bcps.net" style={{ display: 'inline-block', marginTop: 24, padding: '10px 20px', background: '#2B5F8F', color: '#fff', borderRadius: 8, textDecoration: 'none', fontFamily: 'Montserrat, sans-serif', fontWeight: 600, fontSize: 14 }}>
+          <h2 style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: 700, color: '#1E293B', marginBottom: 12 }}>Access Error</h2>
+          <p style={{ fontFamily: 'Open Sans, sans-serif', color: '#64748B', lineHeight: 1.6 }}>{error}</p>
+          <a href="mailto:webmaster@bcps.net" style={{ display: 'inline-block', marginTop: 24, padding: '10px 20px', background: '#2B5F8F', color: '#fff', borderRadius: 8, textDecoration: 'none', fontFamily: 'Open Sans, sans-serif', fontWeight: 600, fontSize: 14 }}>
             Contact Web Team
           </a>
         </div>
@@ -280,13 +280,13 @@ export default function SchoolPortalPage() {
   const navBtnStyle = (active: boolean): React.CSSProperties => ({
     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
     padding: '9px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-    fontFamily: 'Montserrat, sans-serif', fontSize: 13.5, fontWeight: 700, textAlign: 'left',
+    fontFamily: 'Open Sans, sans-serif', fontSize: 13.5, fontWeight: 700, textAlign: 'left',
     background: active ? 'rgba(43,95,143,0.1)' : 'transparent',
     color: active ? '#2B5F8F' : '#475569',
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'Montserrat, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'Open Sans, sans-serif' }}>
 
       {/* Top bar */}
       <header style={{ background: '#2B5F8F', padding: '0 32px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -357,7 +357,7 @@ export default function SchoolPortalPage() {
                     background: scanning || !school?.site_url ? '#E2E8F0' : '#2B5F8F',
                     color: scanning || !school?.site_url ? '#94A3B8' : '#fff',
                     border: 'none', borderRadius: 10, cursor: scanning ? 'default' : 'pointer',
-                    fontWeight: 800, fontSize: 14, fontFamily: 'Montserrat, sans-serif',
+                    fontWeight: 800, fontSize: 14, fontFamily: 'Open Sans, sans-serif',
                   }}
                 >
                   {scanning ? 'Scanning…' : 'Run ADA Scan'}

@@ -10,10 +10,12 @@ export const HOT_LAB_JOIN_URL = 'https://teams.microsoft.com/meet/26478580306855
 export const LAB_SHORT_LINK = 'https://bcpsmarcomm.com/lab'
 export const FINALSITE_URL = 'https://www.browardschools.com/fs/admin'
 export const IIQ_URL = 'https://browardschools.incidentiq.com/'
-// Department WCM certification: due date, and the day editing access is
-// checked (end of the day) and paused for anyone not finished.
-export const CERT_DUE = '2026-10-30'
-export const CERT_CHECK = '2026-11-02'
+// Department WCM certification: due date, and the day the District Web Team
+// reviews who has not finished and follows up with each one. Extended from
+// Oct 30 to Thursday, Nov 5 (Sean, 2026-10-29); no one's access is switched
+// off on a date, so nothing here says so.
+export const CERT_DUE = '2026-11-05'
+export const CERT_CHECK = '2026-11-09'
 
 const ext = (href: string, label: string) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`
 
@@ -81,7 +83,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
           id: 'deadline',
           title: 'The deadline, and what happens after it',
           html: `
-<p>Certification is due <b>Friday, October 30, 2026</b>. The course stays open through the weekend. At the end of the day <b>Monday, November 2</b>, the District Web Team checks who has not finished, and access to edit your department website is paused until you complete it. It is restored once you finish.</p>
+<p>Certification is due <b>Thursday, November 5, 2026</b>, extended from October 30 to give everyone a little more room. If anything is in the way, or you need more time, <a href="#feedback" data-msg="I need help finishing the certification: ">tell us</a> and we will work it out with you. After the deadline, the District Web Team follows up with anyone who has not finished.</p>
 <p>New WCMs complete the course before update access is granted. If someone new has just taken over your pages, <a href="#feedback" data-msg="A new Web Content Manager just took over our department pages: ">tell us</a> and we will fast-track them.</p>
 <p><a class="guide-btn" href="/certification/departments/dashboard">Open the certification course</a></p>`,
         },
@@ -414,6 +416,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
   ],
   changes: [
     { date: '2026-10-30', text: 'Start Here: Web Content Manager Onboarding folded in: what to do when you cannot sign in, and how to get the tools that come with hands-on training. The earlier documents are listed under Hot Lab & Help, for reference.' },
+    { date: '2026-10-29', text: 'Certification extended to Thursday, November 5. Hot Labs on Tuesday, November 3 and Thursday, November 5 are the place to get help finishing.' },
     { date: '2026-10-29', text: 'The Department WCM Playbook, Registration: Getting Started, and Certification Complete: What\'s Next are now one guide, with an Overview built for you, a tab for each step, and search. From the October 29 Hot Lab: check that your audit lists only your pages, side-by-side sections are allowed, what to do with past dates, how to ask for help, and items only Finalsite can fix. Added Tell your department\'s story. 45 department WCMs certified, the course open through the weekend, and the check at the end of the day Monday, November 2.' },
     { date: '2026-10-28', text: 'Added Requesting updates across schools (an Incident IQ ticket to Application Services first). From the October 27 Hot Lab: working an audit item step by step, review items, what Draft means, heading order, finding your page in Finalsite, and your department\'s Analytics tab.' },
     { date: '2026-10-22', text: 'Editing access is paused starting Monday, November 2 for anyone not certified, and restored once they finish. The audit includes pages linked from your main page, shows when each page was checked, and lets you mark items done, request a re-audit and flag pages for reclassification.' },
