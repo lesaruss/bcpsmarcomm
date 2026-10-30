@@ -184,6 +184,11 @@ export const DIRECTOR_DEPARTMENT_GUIDE: GuideDef = {
 <p><a class="guide-btn" href="#feedback">Send a message</a></p>`,
         },
         {
+          id: 'reference',
+          title: 'The earlier Director Playbook',
+          html: `<p>Everything in it is now in this guide. It is kept as it was, for reference: <a href="/playbooks/director-department?standalone=1" target="_blank" rel="noopener">Director Playbook, as of October 29, 2026</a>.</p>`,
+        },
+        {
           id: 'current',
           title: 'How this guide stays current',
           html: `<p>This guide is refreshed every <b>Thursday by 5 PM</b>, and a short email the following Monday points back here with what changed. See <a href="#guide/changes">What's New</a>. Something missing? <a href="#feedback" data-msg="Feedback on the Director Guide: ">Tell us</a>.</p>`,

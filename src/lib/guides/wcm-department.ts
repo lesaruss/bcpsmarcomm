@@ -24,11 +24,12 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
   eyebrow: 'BCPS MarComm',
   title: 'Department WCM Guide',
   audience: 'Department Web Content Managers',
-  updated: '2026-10-29',
+  updated: '2026-10-30',
   cadence: 'refreshed every Thursday',
   replaces: {
     'bcps-wcm-registration-2026-27': 'start',
     'bcps-wcm-cert-complete-2026-27': 'certify',
+    'bcps-wcm-start-here': 'start',
   },
   tabs: [
     {
@@ -59,6 +60,11 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
 <p><b>What your director does.</b> It takes less than five minutes and needs no sign-in: pick the department, enter their District email, and review the WCMs on file. Submit if the list is right, or remove and add people (adding someone needs their personnel number). A submission from anyone other than the director is flagged for review.</p>
 <p><b>What happens after.</b> The District Web Team reviews every submission. Once it is approved, you and your director each get a confirmation email, and you are added to Hot Lab and your division's Teams chat.</p>
 <p><b>Check where you stand</b> on the <a href="/?page=members">Members</a> page. Your WCM Roster badge reads <b>Confirmed</b> (your director submitted and it was approved), <b>On roster</b> (the District Web Team added you) or <b>Unassigned</b> (your director still needs to submit).</p>`,
+        },
+        {
+          id: 'signin',
+          title: 'Can\u2019t sign in?',
+          html: `<p>Most sign-in trouble is a registration that was never finished, so check that you completed both steps: LAB first, then your account here. Still stuck? <a href="#feedback" data-msg="I cannot sign in to BCPS MarComm: ">Tell us right away</a>: nothing else in this guide works until you can sign in.</p>`,
         },
         {
           id: 'coverage',
@@ -349,6 +355,11 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
 </ul>`,
         },
         {
+          id: 'training',
+          title: 'Tools that come with hands-on training',
+          html: `<p>A few tools here, like the Find It Fast editor, are not turned on for every WCM. They are granted person by person after a short hands-on walkthrough set up around what your role needs. If your work calls for one, bring it to <a href="#guide/help/hotlab">Hot Lab</a> or <a href="#feedback" data-msg="I would like training on this tool: ">send us a message</a>. Once you are trained, the tool appears in your menu. A colleague who needs the same tool asks the same way.</p>`,
+        },
+        {
           id: 'schools',
           title: 'Requesting updates across schools',
           html: `<p>If your department needs schools to add or update information on their websites, start with an ${ext(IIQ_URL, 'Incident IQ ticket to Application Services')}. Application Services will:</p>
@@ -386,6 +397,15 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
           html: `<p>This guide is refreshed every <b>Thursday by 5 PM</b> from that week's Hot Labs and updates, and a short email the following <b>Monday</b> points back here with what changed. The guide is always the current version: the email is just the pointer. See <a href="#guide/changes">What's New</a> for every change.</p>`,
         },
         {
+          id: 'reference',
+          title: 'Earlier documents',
+          html: `<p>Everything in these is now in this guide. They are kept as they were, for reference.</p>
+<ul>
+  <li><a href="/playbooks/wcm-department?standalone=1" target="_blank" rel="noopener">Department WCM Playbook</a>, as of October 29, 2026, including the September 10 Kickoff recap.</li>
+  <li><a href="/playbooks/bcps-wcm-registration-2026-27?standalone=1" target="_blank" rel="noopener">Registration: Getting Started</a></li>
+</ul>`,
+        },
+        {
           id: 'feedback',
           title: 'Tell us what this guide is missing',
           html: `<p>Something unclear, out of date, or missing? Tell us and it goes into the next Thursday refresh.</p>
@@ -395,6 +415,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
     },
   ],
   changes: [
+    { date: '2026-10-30', text: 'Start Here: Web Content Manager Onboarding folded in: what to do when you cannot sign in, and how to get the tools that come with hands-on training. The earlier documents are listed under Hot Lab & Help, for reference.' },
     { date: '2026-10-29', text: 'Certification extended to Thursday, November 5. Hot Labs on Tuesday, November 3 and Thursday, November 5 are the place to get help finishing.' },
     { date: '2026-10-29', text: 'The Department WCM Playbook, Registration: Getting Started, and Certification Complete: What\'s Next are now one guide, with an Overview built for you, a tab for each step, and search. From the October 29 Hot Lab: check that your audit lists only your pages, side-by-side sections are allowed, what to do with past dates, how to ask for help, and items only Finalsite can fix. Added Tell your department\'s story. 45 department WCMs certified, the course open through the weekend, and the check at the end of the day Monday, November 2.' },
     { date: '2026-10-28', text: 'Added Requesting updates across schools (an Incident IQ ticket to Application Services first). From the October 27 Hot Lab: working an audit item step by step, review items, what Draft means, heading order, finding your page in Finalsite, and your department\'s Analytics tab.' },

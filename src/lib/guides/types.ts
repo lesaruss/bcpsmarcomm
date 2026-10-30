@@ -43,4 +43,7 @@ export interface GuideDef {
   // Older documents folded into this guide, by slug, and the tab each one
   // now lives in. Opening one of them opens the guide there instead.
   replaces: Record<string, string>
+  // A restricted guide's Overview, served with its content by
+  // /api/bcps/guides (other guides draw theirs in a component).
+  overview?: GuideSection[]
 }
