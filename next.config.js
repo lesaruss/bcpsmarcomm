@@ -95,6 +95,12 @@ const nextConfig = {
       // the Department WCM Guide (Sean, 2026-10-29).
       // The Website & Platform guide has no playbook page of its own; its
       // address opens it in the dashboard (Sean, 2026-10-30).
+      // BCPS Powered by AI is a restricted guide too (Sean, 2026-10-30).
+      {
+        source: "/playbooks/bcps-powered-by-ai",
+        destination: "/?page=dashboard&tab=documents&doc=bcps-powered-by-ai",
+        permanent: false,
+      },
       {
         source: "/playbooks/website-platform",
         destination: "/?page=dashboard&tab=documents&doc=website-platform",

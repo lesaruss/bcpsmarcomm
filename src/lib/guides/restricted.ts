@@ -26,6 +26,19 @@ export const RESTRICTED_GUIDES: Record<string, RestrictedGuideMeta> = {
       'google-governance-plan': 'analytics',
     },
   },
+  // BCPS Powered by AI (Sean, 2026-10-30): the case study of browardschools.ai
+  // for senior leadership, with the progress tracker, recognition and the
+  // GA4 numbers, in place of the tracker and the site listed on their own.
+  'bcps-powered-by-ai': {
+    slug: 'bcps-powered-by-ai',
+    title: 'BCPS Powered by AI',
+    audience: 'District leadership and the teams behind browardschools.ai',
+    cadence: 'updated as the project moves',
+    replaces: {
+      'bcps-ai-progress-tracker': 'tracker',
+      'bcps-powered-by-ai-site': 'overview',
+    },
+  },
 }
 
 export function restrictedGuideForDoc(slug: string): { guide: RestrictedGuideMeta; tab: string } | null {

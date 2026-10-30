@@ -2646,6 +2646,14 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
 .guide-body ol.guide-steps > li { counter-increment: gstep; position: relative; padding: 8px 0 8px 38px; border-top: 1px solid var(--border); margin: 0; }
 .guide-body ol.guide-steps > li:first-child { border-top: 0; }
 .guide-body ol.guide-steps > li::before { content: counter(gstep); position: absolute; left: 0; top: 8px; width: 26px; height: 26px; border-radius: 50%; background: var(--blue-xlight); color: #0e4e73; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+.guide-body .guide-embed { width: 100%; height: 720px; border: 1px solid var(--border); border-radius: 8px; background: #fff; display: block; margin: 6px 0 10px; }
+.guide-body .guide-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 4px 0 12px; }
+.guide-body .guide-stat { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.guide-body .guide-stat strong { display: block; font-size: 22px; font-weight: 800; color: #0e4e73; line-height: 1.2; }
+.guide-body .guide-stat span { font-size: 12px; }
+.guide-body table { width: 100%; border-collapse: collapse; margin: 0 0 10px; font-size: 13px; }
+.guide-body th, .guide-body td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--border); vertical-align: top; }
+.guide-body th { font-weight: 800; color: #0e4e73; }
 .guide-btn { display: inline-block; background: var(--blue); color: #fff; font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 8px; text-decoration: none; margin: 4px 8px 0 0; }
 .guide-btn:hover { background: var(--blue-dark); }
 .guide-btn.guide-btn-outline { background: #fff; color: #0e4e73; border: 1px solid var(--blue); }
