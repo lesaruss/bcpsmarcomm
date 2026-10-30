@@ -1069,21 +1069,21 @@ function rollUp(months: DepartmentMonth[]): Omit<DepartmentMonth, 'period'> {
 // Playbooks each dashboard always lists, even before a catalog grant exists.
 const PINNED_DOCS: Record<'director' | 'wcm' | 'leadership', PinnedDoc[]> = {
   director: [
-    { slug: 'director-department', title: 'Director Guide', description: 'What the Web Content Manager program asks of your department, and where you stand. Refreshed every Thursday.', doc_url: DIRECTOR_PLAYBOOK_URL },
-    { slug: 'wcm-department', title: 'Department WCM Guide', description: 'The guide your WCM works from: getting started, certification, the audit and the website review.', doc_url: '/playbooks/wcm-department' },
+    { slug: 'director-department', title: 'Director Guide', description: 'What the Web Content Manager program asks of your department, and where you stand. Refreshed every Thursday.', doc_url: DIRECTOR_PLAYBOOK_URL, project: 'Departments' },
+    { slug: 'wcm-department', title: 'Department WCM Guide', description: 'The guide your WCM works from: getting started, certification, the audit and the website review.', doc_url: '/playbooks/wcm-department', project: 'Departments' },
   ],
   wcm: [
-    { slug: 'wcm-department', title: 'Department WCM Guide', description: 'Getting started, certification, your audit and your website review, step by step. Refreshed every Thursday.', doc_url: '/playbooks/wcm-department' },
-    { slug: 'score-100-checklist', title: 'Department Page Checklist', description: 'Exactly what the department audit checks, with the Finalsite steps for each item.', doc_url: '/playbooks/wcm-department/score-100-checklist' },
+    { slug: 'wcm-department', title: 'Department WCM Guide', description: 'Getting started, certification, your audit and your website review, step by step. Refreshed every Thursday.', doc_url: '/playbooks/wcm-department', project: 'Departments' },
+    { slug: 'score-100-checklist', title: 'Department Page Checklist', description: 'Exactly what the department audit checks, with the Finalsite steps for each item.', doc_url: '/playbooks/wcm-department/score-100-checklist', project: 'Departments' },
   ],
   // Leadership View (Sean, 2026-10-27): the platform plan, not the WCM program guides.
   leadership: [
-    { slug: 'website-platform', title: 'Website & Platform', description: 'Moving bcpsmarcomm.com and browardschools.ai onto District accounts, the phases, costs and decisions, in one guide.', doc_url: '/playbooks/website-platform' },
+    { slug: 'website-platform', title: 'Website & Platform', description: 'Moving bcpsmarcomm.com and browardschools.ai onto District accounts, the phases, costs and decisions, in one guide.', doc_url: '/playbooks/website-platform', project: 'District Web Team' },
   ],
 }
 
 // The MarComm Team Guide, listed for anyone who has MarComm Assignments.
-const MARCOMM_GUIDE_PIN: PinnedDoc = { slug: MARCOMM_TEAM_GUIDE.slug, title: 'MarComm Team Guide', description: 'The weekly Marcomm Meeting, MarComm Assignments and requests, with where the team is this week.', doc_url: `/playbooks/${MARCOMM_TEAM_GUIDE.slug}` }
+const MARCOMM_GUIDE_PIN: PinnedDoc = { slug: MARCOMM_TEAM_GUIDE.slug, title: 'MarComm Team Guide', description: 'The weekly Marcomm Meeting, MarComm Assignments and requests, with where the team is this week.', doc_url: `/playbooks/${MARCOMM_TEAM_GUIDE.slug}`, project: 'MarComm' }
 
 // Each guide's Overview: the WCM and Director ones are drawn from the
 // dashboard's data on that person's own Guide tab, so here they show no one's

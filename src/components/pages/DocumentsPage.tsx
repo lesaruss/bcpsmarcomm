@@ -15,7 +15,7 @@ interface Doc {
   date: string | null
   date_sort: string | null
   icon: string | null
-  section: 'documents' | 'meeting-notes' | 'records'
+  section: 'documents' | 'meeting-notes' | 'records' | 'archive'
   visibility: string
   sensitive: boolean
   doc_url: string
@@ -71,7 +71,14 @@ const SECTIONS = [
 
 // A document a dashboard always lists for its audience, whether or not a
 // catalog grant exists yet (a director has no group to grant to).
-export type PinnedDoc = { slug: string; title: string; description: string; doc_url: string }
+export type PinnedDoc = { slug: string; title: string; description: string; doc_url: string; project?: string }
+
+// Every document is filed under one of four groups (Sean, 2026-10-30), in
+// place of free-form projects and the Type filter, which said little. The
+// group is kept in acl_objects.project. Archived documents (section
+// 'archive') leave the list; admins can still find them under Archived.
+const DOC_GROUPS = ['District Web Team', 'Departments', 'Schools', 'MarComm']
+const ARCHIVED = '__archived'
 
 // Playbooks are served for framing by /api/bcps/doc-raw; their /playbooks/
 // address sends a signed-in reader into the dashboard instead.
@@ -133,11 +140,8 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
   const [activeTab, setActiveTab] = useState<string>('documents')
   const [sortMode, setSortMode] = useState<SortMode>('date_desc')
   const [query, setQuery] = useState('')
-  // Quick filters (Sean and Vanessa, 2026-10-22), like Find It Fast: by
-  // project (BCPS Central, School Websites, ...) and by type (Playbook,
-  // Plan, Guide, Tracker, ...). Empty means all.
+  // Quick filter by group, favorites or Archived. Empty means all.
   const [projectFilter, setProjectFilter] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
 
   // View-as aware, per Sean 2026-09-10: previewing a WCM must not leave
   // the real admin's controls on screen. Server-side access is unchanged.
@@ -154,7 +158,7 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
     if (!r.ok) { setErr(j.error || 'Failed to load'); setLoading(false); return }
     // Documents a guide replaced are left out, so each topic has one home
     // (Sean, 2026-10-29). Their addresses still open the guide.
-    const listed: Doc[] = (j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'documents'
+    const listed: Doc[] = (j.documents ?? []).filter((d: Doc) => ((d.section || 'documents') === 'documents' || (d.section === 'archive' && !reviewOnly))
       && !REPLACED_DOCS.has(d.slug)
       && (!reviewOnly || (d.visibility !== 'public' && !REVIEW_HIDDEN.includes(d.slug))))
     // A document that is now a guide is listed as a Guide (Sean,
@@ -168,7 +172,7 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
     const extra: Doc[] = pinned.filter(p => !listed.some(d => d.slug === p.slug)).map(p => ({
       id: `pinned:${p.slug}`, slug: p.slug, title: p.title, description: p.description, type: GUIDES[p.slug] ? 'Guide' : 'Playbook', date: null, date_sort: null,
       icon: '\u{1F4D8}', section: 'documents', visibility: 'public', sensitive: false, doc_url: p.doc_url, is_dynamic: false,
-      can_edit: false, featured: true, series_id: null, series_title: null, effective_object_id: '',
+      can_edit: false, featured: true, project: p.project ?? null, series_id: null, series_title: null, effective_object_id: '',
     }))
     setDocs([...extra, ...listed])
     setRole(j.role)
@@ -315,6 +319,8 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
         .docs-tab:hover { color: #1a1a1a; }
         .docs-tab-active { color: #1672A7; border-bottom-color: #1672A7; }
         .docs-section-group { margin-bottom: 48px; }
+        .docs-group { margin-bottom: 32px; }
+        .docs-group-label { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.14em; color: #1672A7; margin: 0 0 12px 0; }
         .docs-section-label { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #1672A7; margin: 0 0 6px 0; }
         .docs-section-desc { font-size: 12px; color: rgba(26,26,26,0.45); margin: 0 0 20px 0; font-weight: 600; }
         .docs-section-divider { height: 1px; background: rgba(0,0,0,0.07); margin-bottom: 20px; }
@@ -327,9 +333,6 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
         .doc-title { font-size: 16px; font-weight: 700; color: #1a1a1a; margin: 0; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
         .doc-description { font-size: 13px; color: rgba(26,26,26,0.55); margin: 0 0 14px 0; line-height: 1.5; }
         .doc-meta { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.09); font-size: 11px; color: rgba(26,26,26,0.35); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
-        .doc-type { background: rgba(22,114,167,0.10); color: #1672A7; padding: 3px 8px; border-radius: 3px; }
-        .doc-type-notes { background: rgba(22,117,12,0.08); color: #16750C; padding: 3px 8px; border-radius: 3px; }
-        .doc-type-record { background: rgba(197,83,38,0.07); color: #7d3018; padding: 3px 8px; border-radius: 3px; }
         .doc-badge-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
         .doc-star-btn { border: none; background: none; cursor: pointer; font-size: 17px; line-height: 1; color: #9ca3af; padding: 0; }
         .doc-star-btn:hover { color: #B45309; }
@@ -369,14 +372,18 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
 
         {SECTIONS.filter(section => section.key === activeTab).map(section => {
           const q = query.trim().toLowerCase()
-          const sectionDocs = sortDocs(docs.filter(d => (d.section || 'documents') === section.key && (!APP_TRACKERS.includes(d.slug) || !!trackers[d.slug]))
-            .filter(d => !q || [d.title, d.description, d.type, d.date, d.project].some(v => (v || '').toLowerCase().includes(q)))
-            .filter(d => !projectFilter || (projectFilter === '__favorites' ? d.featured : d.project === projectFilter))
-            .filter(d => !typeFilter || (d.type || '').toLowerCase() === typeFilter), sortMode)
-          const listed = docs.filter(d => (d.section || 'documents') === section.key && (!APP_TRACKERS.includes(d.slug) || !!trackers[d.slug]))
-          const projects = Array.from(new Set(listed.map(d => d.project).filter(Boolean) as string[])).sort()
-          const types = Array.from(new Set(listed.map(d => (d.type || '').toLowerCase()).filter(Boolean))).sort()
-          const typeLabel = (t: string) => listed.find(d => (d.type || '').toLowerCase() === t)?.type || t
+          const archivedView = projectFilter === ARCHIVED
+          const inView = (d: Doc) => (archivedView ? d.section === 'archive' : (d.section || 'documents') === section.key)
+            && (!APP_TRACKERS.includes(d.slug) || !!trackers[d.slug])
+          const sectionDocs = sortDocs(docs.filter(inView)
+            .filter(d => !q || [d.title, d.description, d.date, d.project].some(v => (v || '').toLowerCase().includes(q)))
+            .filter(d => !projectFilter || archivedView || (projectFilter === '__favorites' ? d.featured : d.project === projectFilter)), sortMode)
+          const archivedCount = docs.filter(d => d.section === 'archive').length
+          // One heading per group, in the fixed order; anything not filed yet
+          // shows last under Not filed so it is easy to spot and file.
+          const grouped = archivedView ? [{ name: 'Archived', docs: sectionDocs }]
+            : [...DOC_GROUPS, ''].map(g => ({ name: g || 'Not filed', docs: sectionDocs.filter(d => g ? d.project === g : !DOC_GROUPS.includes(d.project || '')) }))
+              .filter(g => g.docs.length > 0)
 
           return (
             <div key={section.key} className="docs-section-group">
@@ -399,20 +406,15 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
 
               {section.key === 'documents' && !reviewOnly && (
                 <>
-                  <div className="docs-chips" role="group" aria-label="Filter by project">
-                    <span className="docs-chips-label">Project</span>
+                  <div className="docs-chips" role="group" aria-label="Filter by group">
                     <button type="button" className={`docs-chip${!projectFilter ? ' on' : ''}`} aria-pressed={!projectFilter} onClick={() => setProjectFilter('')}>All</button>
                     <button type="button" className={`docs-chip${projectFilter === '__favorites' ? ' on' : ''}`} aria-pressed={projectFilter === '__favorites'} onClick={() => setProjectFilter(projectFilter === '__favorites' ? '' : '__favorites')}>{'\u2605'} My favorites</button>
-                    {projects.map(pr => (
+                    {DOC_GROUPS.map(pr => (
                       <button key={pr} type="button" className={`docs-chip${projectFilter === pr ? ' on' : ''}`} aria-pressed={projectFilter === pr} onClick={() => setProjectFilter(projectFilter === pr ? '' : pr)}>{pr}</button>
                     ))}
-                  </div>
-                  <div className="docs-chips" role="group" aria-label="Filter by type">
-                    <span className="docs-chips-label">Type</span>
-                    <button type="button" className={`docs-chip${!typeFilter ? ' on' : ''}`} aria-pressed={!typeFilter} onClick={() => setTypeFilter('')}>All</button>
-                    {types.map(t => (
-                      <button key={t} type="button" className={`docs-chip${typeFilter === t ? ' on' : ''}`} aria-pressed={typeFilter === t} onClick={() => setTypeFilter(typeFilter === t ? '' : t)}>{typeLabel(t)}</button>
-                    ))}
+                    {isAdmin && archivedCount > 0 && (
+                      <button type="button" className={`docs-chip${archivedView ? ' on' : ''}`} aria-pressed={archivedView} onClick={() => setProjectFilter(archivedView ? '' : ARCHIVED)}>Archived ({archivedCount})</button>
+                    )}
                   </div>
                 </>
               )}
@@ -420,10 +422,12 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
               <div className="docs-section-divider" />
 
               {sectionDocs.length === 0 ? (
-                <div style={{ fontSize: 13, color: '#9ca3af' }}>{query.trim() || projectFilter || typeFilter ? 'No document matches those filters.' : 'Nothing here yet.'}</div>
-              ) : (
+                <div style={{ fontSize: 13, color: '#9ca3af' }}>{query.trim() || projectFilter ? 'No document matches those filters.' : 'Nothing here yet.'}</div>
+              ) : grouped.map(group => (
+              <div key={group.name} className="docs-group">
+              {(grouped.length > 1 || archivedView) && <h2 className="docs-group-label">{group.name}</h2>}
               <div className="docs-grid">
-                {sectionDocs.map(doc => {
+                {group.docs.map(doc => {
                   const badge = accessBadge(doc)
                   const openPanel = panel[doc.slug]
                   const dgrants = grantsFor(doc.effective_object_id)
@@ -469,21 +473,25 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
                         </button>}
                       </div>
 
-                      <div className="doc-meta">
-                        <span className="doc-type">{doc.type}</span>
-                        <span>{doc.date}</span>
-                      </div>
+                      {doc.date && <div className="doc-meta"><span>{doc.date}</span></div>}
 
                       {openPanel === 'access' && isAdmin && (
                         <div className="doc-panel">
                           <form style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12 }}
                             onSubmit={async (e) => {
                               e.preventDefault()
-                              const v = String(new FormData(e.currentTarget).get('project') || '').trim()
-                              if (await act({ action: 'meta_update', slug: doc.slug, project: v || null })) { showToast(v ? `Filed under ${v}.` : 'Removed from its project.'); await load() }
+                              const v = String(new FormData(e.currentTarget).get('project') || '')
+                              const payload = v === ARCHIVED
+                                ? { action: 'meta_update', slug: doc.slug, section: 'archive' }
+                                : { action: 'meta_update', slug: doc.slug, section: 'documents', project: v || null }
+                              if (await act(payload)) { showToast(v === ARCHIVED ? `${doc.title} archived.` : v ? `Filed under ${v}.` : 'Left unfiled.'); await load() }
                             }}>
-                            <span style={A.sublabel}>Project</span>
-                            <input name="project" list="docs-projects" defaultValue={doc.project || ''} placeholder="e.g. BCPS Central" style={{ ...A.sel, flex: 1 }} />
+                            <span style={A.sublabel}>Group</span>
+                            <select name="project" defaultValue={doc.section === 'archive' ? ARCHIVED : (doc.project || '')} style={{ ...A.sel, flex: 1 }} aria-label={`Group for ${doc.title}`}>
+                              <option value="">Not filed</option>
+                              {DOC_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                              <option value={ARCHIVED}>Archived</option>
+                            </select>
                             <button type="submit" style={A.btn} disabled={busy}>Save</button>
                           </form>
                           {doc.transcript_leads !== undefined && (
@@ -500,7 +508,6 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
                               <button type="submit" style={A.btn} disabled={busy}>Save</button>
                             </form>
                           )}
-                          <datalist id="docs-projects">{Array.from(new Set(docs.map(d => d.project).filter(Boolean) as string[])).map(pr => <option key={pr} value={pr} />)}</datalist>
                           <div style={A.sublabel}>Who can access {doc.title}</div>
                           {doc.series_id && (
                             <div className="doc-series-note">
@@ -605,7 +612,8 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
                   )
                 })}
               </div>
-              )}
+              </div>
+              ))}
             </div>
           )
         })}
