@@ -157,14 +157,16 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
     const listed: Doc[] = (j.documents ?? []).filter((d: Doc) => (d.section || 'documents') === 'documents'
       && !REPLACED_DOCS.has(d.slug)
       && (!reviewOnly || (d.visibility !== 'public' && !REVIEW_HIDDEN.includes(d.slug))))
-    // A document that is now a guide is listed as the guide (Sean,
-    // 2026-10-30): its catalog entry still carries the old playbook's name.
+    // A document that is now a guide is listed as a Guide (Sean,
+    // 2026-10-30). Its name comes from the catalog, so a rename made here
+    // (Edit > Name) shows everywhere; the guide's own wording fills in only
+    // when the catalog has no description.
     listed.forEach((d, i) => {
       const g = GUIDES[d.slug] ?? RESTRICTED_GUIDES[d.slug]
-      if (g) listed[i] = { ...d, title: g.title, type: 'Guide', description: `Everything for ${g.audience}, in one place, ${g.cadence}.` }
+      if (g) listed[i] = { ...d, type: 'Guide', description: d.description || `Everything for ${g.audience}, in one place, ${g.cadence}.` }
     })
     const extra: Doc[] = pinned.filter(p => !listed.some(d => d.slug === p.slug)).map(p => ({
-      id: `pinned:${p.slug}`, slug: p.slug, title: p.title, description: p.description, type: 'Playbook', date: null, date_sort: null,
+      id: `pinned:${p.slug}`, slug: p.slug, title: p.title, description: p.description, type: GUIDES[p.slug] ? 'Guide' : 'Playbook', date: null, date_sort: null,
       icon: '\u{1F4D8}', section: 'documents', visibility: 'public', sensitive: false, doc_url: p.doc_url, is_dynamic: false,
       can_edit: false, featured: true, series_id: null, series_title: null, effective_object_id: '',
     }))
@@ -241,7 +243,9 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
 
   const openContent = async (d: Doc) => {
     toggle(d.slug, 'content')
-    if (panel[d.slug] === 'content' || contentDraft[d.slug] !== undefined) return
+    // Only legacy /briefs/ documents have raw content to load here; asking
+    // for any other kind returned "Not database-backed" as an error banner.
+    if (!d.is_dynamic || panel[d.slug] === 'content' || contentDraft[d.slug] !== undefined) return
     setContentLoading(prev => ({ ...prev, [d.slug]: true }))
     const t = await token()
     const r = await fetch(`/api/bcps/documents?content_slug=${encodeURIComponent(d.slug)}`, { headers: { Authorization: `Bearer ${t}` } })
@@ -524,6 +528,23 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
 
                       {openPanel === 'content' && isAdmin && (
                         <div className="doc-panel">
+                          {/* Name and description (Sean, 2026-10-30): how this document is
+                              listed everywhere, pinned items and search included. */}
+                          <form style={{ display: 'grid', gap: 6, marginBottom: 14 }}
+                            onSubmit={async (e) => {
+                              e.preventDefault()
+                              const f = new FormData(e.currentTarget)
+                              const title = String(f.get('title') || '').trim()
+                              const description = String(f.get('description') || '').trim()
+                              if (!title) { showToast('A name is required.'); return }
+                              if (await act({ action: 'meta_update', slug: doc.slug, title, description })) { showToast(`Saved as ${title}.`); await load() }
+                            }}>
+                            <span style={A.sublabel}>Name</span>
+                            <input name="title" defaultValue={doc.title} style={A.sel} aria-label={`Name of ${doc.title}`} />
+                            <span style={A.sublabel}>Description</span>
+                            <textarea name="description" defaultValue={doc.description || ''} rows={2} style={{ ...A.sel, resize: 'vertical', fontFamily: 'inherit' }} aria-label={`Description of ${doc.title}`} />
+                            <div><button type="submit" style={A.btnPrimary} disabled={busy}>Save name and description</button></div>
+                          </form>
                           <div style={A.sublabel}>Edit content</div>
                           {doc.is_dynamic ? (
                             <>
@@ -549,8 +570,12 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
                               <input type="file" accept="application/pdf" disabled={busy}
                                 onChange={e => { const f = e.target.files?.[0]; if (f) replacePdf(doc, f) }} />
                             </div>
+                          ) : GUIDES[doc.slug] || RESTRICTED_GUIDES[doc.slug] ? (
+                            <div style={{ fontSize: 12, color: '#6b7280' }}>This guide is built into BCPS MarComm, so its pages are changed through the District Web Team. Use <strong>Request an edit</strong> to say what should change.</div>
+                          ) : isPlaybook(doc.doc_url) ? (
+                            <div style={{ fontSize: 12, color: '#6b7280' }}>Open it and use <strong>Edit this page</strong> at the top to change its content, or <strong>Request an edit</strong> to ask the District Web Team.</div>
                           ) : (
-                            <div style={{ fontSize: 12, color: '#9ca3af' }}>This document isn&apos;t database-backed yet and can&apos;t be edited here.</div>
+                            <div style={{ fontSize: 12, color: '#6b7280' }}>This is a fixed page. Use <strong>Request an edit</strong> to ask the District Web Team for a change.</div>
                           )}
                         </div>
                       )}
