@@ -28,8 +28,8 @@ import type { AuditV3 } from '@/components/bcps/AuditViewer'
 import SiteAudit from '@/components/bcps/SiteAudit'
 import Guide from '@/components/guides/Guide'
 import WcmGuideOverview, { type GuideViewer } from '@/components/guides/WcmGuideOverview'
-import { guideForDoc } from '@/lib/guides'
-import { restrictedGuideForDoc } from '@/lib/guides/restricted'
+import { guideForDoc, GUIDES } from '@/lib/guides'
+import { restrictedGuideForDoc, RESTRICTED_GUIDES } from '@/lib/guides/restricted'
 import RestrictedGuide from '@/components/guides/RestrictedGuide'
 import { WCM_DEPARTMENT_GUIDE } from '@/lib/guides/wcm-department'
 import { MARCOMM_TEAM_GUIDE } from '@/lib/guides/marcomm-team'
@@ -604,6 +604,14 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
   const period = withAnalytics[0]?.analytics?.period
   const almostDone = led.flatMap((d) => d.wcms).filter((w) => !w.certified && w.progress_pct >= 90).length
 
+  // A director who is also the WCM of a department they lead (Tia Gale,
+  // School Choice; Sean, 2026-10-30) does that department's audit too: the
+  // same Run Audit a WCM gets, for those departments only.
+  const myEmail = (data.email || '').trim().toLowerCase()
+  const wcmDepts = data.is_wcm && !leadership
+    ? led.filter((d) => d.wcms.some((w) => (w.email || '').trim().toLowerCase() === myEmail))
+    : []
+
   // Leadership View (Sean, 2026-10-27): a leader with no department site of
   // their own gets no Run Audit, My WCM Work or My Resources. Every director
   // is review-only too (Sean, 2026-10-28: they do not perform tasks, they
@@ -628,7 +636,9 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
     { id: 'notes', label: 'Meeting Notes' },
     ...((data.hot_labs?.length ?? 0) > 0 ? [{ id: 'hotlabs' as DirectorTab, label: 'Hot Labs' }] : []),
     ...((data.widgets?.length ?? 0) > 0 ? [{ id: 'widgets' as DirectorTab, label: 'Widgets' }] : []),
-    // A director who is also their department's WCM keeps the WCM cards.
+    // A director who is also their department's WCM keeps the WCM cards, and
+    // the Run Audit their WCM work needs.
+    ...(wcmDepts.length ? [{ id: 'audit' as DirectorTab, label: 'Run Audit' }] : []),
     ...(data.is_wcm ? [{ id: 'wcm' as DirectorTab, label: 'My WCM Work' }] : []),
   ]
   // The Director Playbook's address (and the documents list) opens the Guide tab.
@@ -800,7 +810,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
       {tab === 'guide' && !leadership && <Guide def={DIRECTOR_DEPARTMENT_GUIDE} overview={<DirectorGuideOverview viewer={viewer} />} />}
       {tab === 'documents' && !guideRedirect && <DocumentsTab kind={leadership ? 'leadership' : 'director'} canMarcomm={canMarcomm} asEmail={data.viewing_as?.email} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
-      {tab === 'audit' && !leadership && <RunAuditTab depts={led} canRecheck={false} />}
+      {tab === 'audit' && wcmDepts.length > 0 && <RunAuditTab depts={wcmDepts} canRecheck wcm />}
       {tab === 'review' && <ReviewTab led={led} myWindow={myWindow} oversight={oversight} />}
       {/* Leadership View sees the full Analytics page, the way the team does. */}
       {tab === 'analytics' && (leadership ? <AnalyticsTabPage /> : <AnalyticsTab led={led} />)}
@@ -2516,6 +2526,33 @@ type HotLabLink = { title: string; date: string; url: string }
 // "Show hidden" brings them back to unhide.
 type ToolPrefs = { stars: string[] | null; hidden: string[] }
 const prefsKey = (userId: string) => `bcps-tool-prefs:${userId}`
+// Guides (Sean, 2026-10-30): everyone's Guide tab opens their own guide;
+// SuperAdmins and the District Web Team, who support every audience, get this
+// menu of the guides instead. Each opens in place under Documents. Restricted
+// guides (Website & Platform) are listed for SuperAdmins only.
+function GuidesMenu({ showRestricted }: { showRestricted: boolean }) {
+  const router = useRouter()
+  const open = (slug: string) => router.push(`/?page=dashboard&tab=documents&doc=${encodeURIComponent(slug)}`, { scroll: false })
+  const list = [
+    ...Object.values(GUIDES).map((g) => ({ slug: g.slug, title: g.title, audience: g.audience, cadence: g.cadence })),
+    ...(showRestricted ? Object.values(RESTRICTED_GUIDES).map((g) => ({ slug: g.slug, title: g.title, audience: g.audience, cadence: g.cadence })) : []),
+  ]
+  return (
+    <>
+      <p className="wcm-hub2-intro">Every guide, by who it is for. Open one to see it the way its readers do.</p>
+      <div className="home-dept-grid">
+        {list.map((g) => (
+          <div key={g.slug} className="home-dept">
+            <div className="home-dept-head"><h3>{g.title}</h3></div>
+            <p className="home-card-text">For {g.audience}, {g.cadence}.</p>
+            <button type="button" className="wcm-hub2-card-btn" onClick={() => open(g.slug)}>Open {g.title}</button>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
 function ToolsPanel({ kind, onNavigate, kb = [], hotLabs = [] }: { kind: keyof typeof TOP_TOOLS; onNavigate: (page: PageId) => void; kb?: KbArticle[]; hotLabs?: HotLabLink[] }) {
   const router = useRouter()
   const { pages, role, viewAs } = useBCPSShell()
@@ -2909,6 +2946,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, 
   const name = firstName(data)
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'guides', label: 'Guides' },
     // Documents holds Web Team Assignments and MarComm Assignments together,
     // since both matter equally (Sean, 2026-10-20).
     { id: 'documents', label: 'Documents' },
@@ -2959,6 +2997,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, 
       {tab === 'schools' && <SchoolsPage />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} depts={data.departments} />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
+      {tab === 'guides' && <GuidesMenu showRestricted />}
       {tab === 'tools' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
       {tab === 'admin' && <ToolsPanel kind="superadmin" onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
       {tab === 'ops' && <DashboardPage onNavigate={onNavigate} viewAsUserId={viewAsUserId} />}
@@ -2995,6 +3034,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   const tabs = kind === 'comms'
     ? [
         { id: 'overview', label: 'Overview' },
+        { id: 'guides', label: 'Guides' },
         ...schoolsTab,
         { id: 'documents', label: 'Documents' },
         { id: 'audits', label: 'Run Audit' },
@@ -3006,6 +3046,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       ]
     : [
         { id: 'overview', label: 'Overview' },
+        { id: 'guides', label: 'Guides' },
         ...schoolsTab,
         { id: 'documents', label: 'Documents' },
         { id: 'ada', label: 'ADA' },
@@ -3069,6 +3110,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         : <AdaPanel ada={th.ada} onNavigate={onNavigate} />)}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'wcm' && <WcmCommunityHub />}
+      {tab === 'guides' && <GuidesMenu showRestricted={!!data.is_superadmin} />}
       {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
     </div>
   )
