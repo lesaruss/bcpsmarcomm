@@ -2557,8 +2557,8 @@ select:not([multiple]):not([size])::-ms-expand { display: none; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .topbar-title-block p { white-space: nowrap; }
-.topbar-title-block .topbar-home-btn { height: 30px; }
-.topbar-title-block .topbar-home-btn + p { margin-top: 3px; }
+/* The Dashboard button matches the logo's height (Sean, 2026-11-02). */
+.topbar-title-block .topbar-home-btn { height: 40px; padding: 0 14px; font-size: 14px; }
 .topbar-home-btn--phone { display: none; }
 @media (max-width: 640px) {
   .topbar-logo { height: 28px; padding-right: 10px; flex-shrink: 0; }

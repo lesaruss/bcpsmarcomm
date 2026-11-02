@@ -47,7 +47,10 @@ export async function GET(
   // ?embed=1: shown inside the dashboard's Documents tab (Sean, 2026-10-20).
   // Links to another Playbook or doc open in the tab; every other link leaves
   // the frame instead of loading inside it.
-  const body = req.nextUrl.searchParams.get('embed') === '1' ? withEmbedScript(doc.content) : doc.content
+  // ?bare=1: framed somewhere else inside the platform (the Documents
+  // lightbox): the header comes off, links behave normally.
+  const sp = req.nextUrl.searchParams
+  const body = sp.get('embed') === '1' ? withEmbedScript(doc.content) : sp.get('bare') === '1' ? withEmbedStyle(doc.content) : doc.content
 
   return new NextResponse(body, {
     headers: {
@@ -73,9 +76,27 @@ document.addEventListener('click', function (e) {
 }, true);
 </script>`
 
+// Inside BCPS MarComm a document shows no header of its own (Sean,
+// 2026-11-02): the platform's top bar is already there, so the doc's fixed
+// BCPS header bar and its skip link are hidden and the page starts at the
+// title. Open full page and the public /playbooks/ URL serve the document
+// without ?embed=1, so they keep the header. id lets the in-place editor
+// strip it before saving, like the script.
+const EMBED_STYLE = `<style id="bcps-embed-style">
+header.bcps-header, .skip-link { display: none !important; }
+main { padding-top: 28px !important; }
+@media (max-width: 640px) { main { padding-top: 20px !important; } }
+</style>`
+
+function withEmbedStyle(html: string): string {
+  const h = html.toLowerCase().indexOf('</head>')
+  return h === -1 ? EMBED_STYLE + html : html.slice(0, h) + EMBED_STYLE + html.slice(h)
+}
+
 function withEmbedScript(html: string): string {
-  const i = html.toLowerCase().lastIndexOf('</body>')
-  return i === -1 ? html + EMBED_SCRIPT : html.slice(0, i) + EMBED_SCRIPT + html.slice(i)
+  const styled = withEmbedStyle(html)
+  const i = styled.toLowerCase().lastIndexOf('</body>')
+  return i === -1 ? styled + EMBED_SCRIPT : styled.slice(0, i) + EMBED_SCRIPT + styled.slice(i)
 }
 
 async function sha256HexPrefix(input: string, len: number): Promise<string> {

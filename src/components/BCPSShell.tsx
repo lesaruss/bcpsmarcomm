@@ -420,7 +420,8 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
                     </button>
                     {!onDashboardTab && !pageNamesItself && <h1 className="topbar-page-name">{title}</h1>}
                   </div>
-                  <p>{PAGE_TITLES['dashboard'].sub}</p>
+                  {/* No District name under the button (Sean, 2026-11-02):
+                      the logo beside it already says it. */}
                 </div>
               ) : (
                 <div className="topbar-title-block">
