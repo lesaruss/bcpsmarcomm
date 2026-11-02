@@ -1357,7 +1357,7 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
       d.designMode = 'off'
       opened.current.forEach((el) => { el.open = false })
       const root = d.documentElement.cloneNode(true) as HTMLElement
-      root.querySelectorAll('#bcps-embed-script, #bcps-embed-style').forEach((el) => el.remove())
+      root.querySelectorAll('#bcps-embed-script, #bcps-embed-style, #bcps-doc-breadcrumb').forEach((el) => el.remove())
       stripCompleteButtons(root)
       const html = '<!DOCTYPE html>\n' + root.outerHTML
       const token = (await createClient().auth.getSession()).data.session?.access_token
