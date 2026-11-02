@@ -47,6 +47,15 @@ export const STATUS_LABEL: Record<Status, string> = {
   letter_sent: 'Letter sent',
 }
 
+// Practice applications (Sean, 2026-11-03): a project name that starts with
+// TEST (for example "TEST Palm Grove") marks the application as a practice
+// run so staff can try the whole process on their own. Practice applications
+// email only the address typed in (no copy or alert to the shared inbox),
+// never trigger a due-soon reminder, are left out of the CSV export, and are
+// the only ones staff can delete.
+export const isTestProject = (name: string | null | undefined) => /^\s*\[?test\b/i.test(name ?? '')
+export const TEST_SUBJECT_PREFIX = '[TEST] '
+
 export const todayEastern = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
 
 // Business days skip Saturdays, Sundays and the days District offices are

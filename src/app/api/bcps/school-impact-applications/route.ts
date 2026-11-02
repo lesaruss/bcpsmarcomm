@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/resend'
 import {
   SIA_SLUG, SIA_BUCKET, SIA_TABLE, SIA_INBOX, SIA_FROM_NAME, SIA_REVIEW_DAYS, SLOTS, MAX_BYTES, ALLOWED_FILE,
-  type Attachments, type Slot, type Status, addBusinessDays, todayEastern, acceptedEmail, needsInfoEmail,
+  type Attachments, type Slot, type Status, addBusinessDays, todayEastern, acceptedEmail, needsInfoEmail, TEST_SUBJECT_PREFIX,
 } from '@/lib/school-impact'
 
 export const dynamic = 'force-dynamic'
@@ -21,6 +21,8 @@ export const dynamic = 'force-dynamic'
 // POST {action:'file_url', path}            5-minute download link
 // POST {action:'upload_url', id, slot, name, size}  staff adds a file
 // POST {action:'attach', id, slot, name, path}      records the uploaded file
+// DELETE {id}          removes a PRACTICE application (project name starts
+//                      with TEST) and its files; real ones are never deletable
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -129,9 +131,11 @@ export async function PATCH(req: NextRequest) {
 
   let emailed: boolean | null = null
   if (mail) {
+    // A practice application (project name starts with TEST) emails only the
+    // address typed in: no copy to the shared inbox.
     const r = await sendEmail({
-      to: app.applicant_email, cc: SIA_INBOX, replyTo: SIA_INBOX, fromName: SIA_FROM_NAME,
-      subject: mail.subject, html: mail.html, kind: mail.kind, context: { application_id: app.id, reference: app.reference },
+      to: app.applicant_email, ...(app.is_test ? {} : { cc: SIA_INBOX }), replyTo: SIA_INBOX, fromName: SIA_FROM_NAME,
+      subject: (app.is_test ? TEST_SUBJECT_PREFIX : '') + mail.subject, html: mail.html, kind: mail.kind, context: { application_id: app.id, reference: app.reference },
     })
     emailed = r.ok
   }
@@ -180,4 +184,22 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ error: 'Unknown action.' }, { status: 400 })
+}
+
+export async function DELETE(req: NextRequest) {
+  const user = await requireEditor(req)
+  if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  let body: Record<string, unknown>
+  try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid request.' }, { status: 400 }) }
+  const id = s(body.id, 40)
+  const { data: app } = await svc.from(SIA_TABLE).select('id, reference, is_test, attachments').eq('id', id).maybeSingle()
+  if (!app) return NextResponse.json({ error: 'Application not found.' }, { status: 404 })
+  if (!app.is_test) return NextResponse.json({ error: 'Only practice applications (project name starting with TEST) can be deleted. Mark a real one Letter sent when it is done.' }, { status: 400 })
+  const att = (app.attachments ?? {}) as Attachments
+  const paths = Object.values(att).flatMap(list => (list ?? []).map(f => f.path)).filter(p => p.startsWith('applications/'))
+  if (paths.length) await svc.storage.from(SIA_BUCKET).remove(paths)
+  const { error } = await svc.from(SIA_TABLE).delete().eq('id', id).eq('is_test', true)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await svc.from('acl_audit').insert({ brand: BRAND, actor_id: user.id, action: 'school-impact-test-deleted', object_id: null, detail: { reference: app.reference, by: user.email } })
+  return NextResponse.json({ ok: true })
 }

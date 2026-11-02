@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   const today = todayEastern()
   const { data, error } = await supabase.from(SIA_TABLE)
     .select('id, reference, project_name, applicant_name, due_date')
-    .eq('status', 'accepted').is('reminder_sent_at', null).not('due_date', 'is', null)
+    .eq('status', 'accepted').eq('is_test', false).is('reminder_sent_at', null).not('due_date', 'is', null)
     .order('due_date')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   const due = (data ?? []).map(a => ({ ...a, left: businessDaysBetween(today, a.due_date as string) }))

@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/resend'
 import {
   SIA_BUCKET, SIA_TABLE, SIA_INBOX, SIA_FROM_NAME, SIA_TRACKER_URL, APPLICATION_TYPES, APPLICANT_SLOTS, SLOTS,
   MAX_FILES_PER_SLOT, MAX_BYTES, ALLOWED_FILE, type Attachments, type Slot, esc, todayEastern, receivedEmail,
+  isTestProject, TEST_SUBJECT_PREFIX,
 } from '@/lib/school-impact'
 
 export const dynamic = 'force-dynamic'
@@ -151,6 +152,9 @@ export async function POST(req: NextRequest) {
     .ilike('applicant_email', agentEmail).gte('submitted_at', since)
   if ((count ?? 0) >= RATE_LIMIT) return NextResponse.json({ error: 'Too many applications from this email in the last hour. Please try again later.' }, { status: 429 })
 
+  // A project name starting with TEST is a practice run (see lib/school-impact).
+  const isTest = isTestProject(data.project.project_name)
+
   const { data: ref, error: refError } = await supabase.rpc('bcps_school_impact_next_ref')
   if (refError || !ref) return NextResponse.json({ error: 'Could not assign a reference number. Please try again.' }, { status: 500 })
 
@@ -166,6 +170,7 @@ export async function POST(req: NextRequest) {
     data,
     attachments,
     history: [{ at: new Date().toISOString(), status: 'new', by: 'applicant' }],
+    is_test: isTest,
   }).select('id, reference, submitted_at').single()
   if (error || !row) return NextResponse.json({ error: 'Your application could not be saved. Please try again.' }, { status: 500 })
 
@@ -173,10 +178,13 @@ export async function POST(req: NextRequest) {
   const submitted = todayEastern()
   const mail = receivedEmail({ reference: row.reference, applicant_name: data.agent.name, project_name: data.project.project_name, submitted })
   await sendEmail({
-    to: agentEmail, cc: SIA_INBOX, replyTo: SIA_INBOX, fromName: SIA_FROM_NAME,
-    subject: mail.subject, html: mail.html,
+    to: agentEmail, ...(isTest ? {} : { cc: SIA_INBOX }), replyTo: SIA_INBOX, fromName: SIA_FROM_NAME,
+    subject: (isTest ? TEST_SUBJECT_PREFIX : '') + mail.subject, html: mail.html,
     kind: 'school-impact-received', context: { application_id: row.id, reference: row.reference },
   })
+
+  // A practice run never alerts the shared inbox.
+  if (isTest) return NextResponse.json({ ok: true, reference: row.reference, submitted_at: row.submitted_at })
 
   const fileList = APPLICANT_SLOTS.filter(k => attachments[k]?.length)
     .map(k => `<li>${esc(SLOTS[k])}: ${esc(attachments[k]!.map(f => f.name).join(', '))}</li>`).join('')
