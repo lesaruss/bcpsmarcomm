@@ -49,16 +49,34 @@ export const STATUS_LABEL: Record<Status, string> = {
 
 export const todayEastern = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
 
-// Business days skip Saturdays and Sundays. District holidays are not
-// counted out; staff can adjust a due date in the tracker when one falls in
-// the window.
+// Business days skip Saturdays, Sundays and the days District offices are
+// closed (Sean + Glennika D. Gordon, 2026-11-03). The closed days are the
+// yellow "Schools and Administrative Offices Closed" days on the Broward
+// County Public Schools 2026/27 school calendar. Days when only schools are
+// closed (green: part of Thanksgiving week, winter break, Mar 10, spring
+// break) are business days, because the offices are open, and so are
+// employee planning days. The calendar ends June 30, 2027: until the
+// 2027/28 calendar is added below, later closed days are not counted out and
+// staff can still change a due date in the tracker.
+export const SIA_CLOSED_DATES: readonly string[] = [
+  '2026-09-07', '2026-09-21', '2026-11-11', '2026-11-25', '2026-11-26', '2026-11-27',
+  '2026-12-23', '2026-12-24', '2026-12-25', '2026-12-30', '2026-12-31',
+  '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31',
+]
+export const SIA_CALENDAR_THROUGH = '2027-06-30'
+const CLOSED = new Set(SIA_CLOSED_DATES)
+
+function isBusinessDay(d: Date): boolean {
+  const wd = d.getUTCDay()
+  return wd !== 0 && wd !== 6 && !CLOSED.has(d.toISOString().slice(0, 10))
+}
+
 export function addBusinessDays(isoDate: string, days: number): string {
   const d = new Date(`${isoDate}T12:00:00Z`)
   let left = days
   while (left > 0) {
     d.setUTCDate(d.getUTCDate() + 1)
-    const wd = d.getUTCDay()
-    if (wd !== 0 && wd !== 6) left--
+    if (isBusinessDay(d)) left--
   }
   return d.toISOString().slice(0, 10)
 }
@@ -73,8 +91,7 @@ export function businessDaysBetween(fromIso: string, toIso: string): number {
   let n = 0
   while (d < end) {
     d.setUTCDate(d.getUTCDate() + 1)
-    const wd = d.getUTCDay()
-    if (wd !== 0 && wd !== 6) n++
+    if (isBusinessDay(d)) n++
   }
   return n
 }

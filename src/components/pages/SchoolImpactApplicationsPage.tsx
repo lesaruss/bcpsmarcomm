@@ -321,7 +321,7 @@ function Detail({ app, today, busy, setBusy, api, onBack, onSaved, onError }: {
           <label style={{ fontSize: 12, fontWeight: 700 }}>School Board Number (internal)
             <input style={{ ...C.input, marginTop: 4 }} value={sbn} onChange={e => setSbn(e.target.value)} /></label>
           {(app.status === 'accepted' || app.status === 'letter_sent') && (
-            <label style={{ fontSize: 12, fontWeight: 700 }}>Due date (adjust for District holidays)
+            <label style={{ fontSize: 12, fontWeight: 700 }}>Due date (skips weekends and District closed days; you can change it)
               <input type="date" style={{ ...C.input, marginTop: 4 }} value={due} onChange={e => setDue(e.target.value)} /></label>
           )}
         </div>
