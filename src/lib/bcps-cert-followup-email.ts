@@ -14,6 +14,8 @@ export const FOLLOWUP_FROM_NAME = 'Sean A. Russell via BCPS MarComm'
 export const FOLLOWUP_REPLY_TO = 'sean.russell@browardschools.com'
 export const CERT_URL = `${SITE}/certification`
 export const LAB_URL = `${SITE}/lab`
+export const CERT_COMPLETE_URL = `${SITE}/certification/departments/complete`
+export const GUIDE_URL = `${SITE}/playbooks/wcm-department`
 
 export interface FollowupPerson { name: string; department: string | null; pct: number; group: FollowupGroup }
 
@@ -23,6 +25,7 @@ export function followupSubject(p: FollowupPerson): string {
     progress: 'More time for your WCM certification',
     'not-started': 'More time for your WCM certification: how can we help?',
     'no-account': 'More time for your WCM certification: how can we help?',
+    completed: "Congratulations, you've completed the Department WCM Certification",
   }[p.group]
 }
 
@@ -74,6 +77,16 @@ export function followupEmail(p: FollowupPerson, trackedUrl: (url: string) => st
         <p>The first step is registering through LAB, so the hours count toward your PD credit. LAB then gives you the link to create your BCPS MarComm account and start. The course is self-paced.</p>
         <p>${EXTENDED}</p>
         ${button('Register and start', trackedUrl(LAB_URL))}${help('starting')}${HOT_LABS}${SIGN}`,
+    },
+    completed: {
+      heading: 'Congratulations',
+      body: `${hi}
+        <p>Congratulations on completing the Department WCM Certification. Thank you for the time and care you put into it. This email is your official confirmation of completion.</p>
+        <p>We will confirm your completion in LAB after the end of this week, so you can receive your credit there.</p>
+        <p>Hot Lab is tomorrow, Tuesday, November 3, and again on Thursday, November 5, 11:30 AM to 12:30 PM. Tomorrow we&rsquo;ll focus on the audits and a few other important updates. We look forward to seeing you there.</p>
+        ${button('View your certificate and badge', trackedUrl(CERT_COMPLETE_URL))}
+        <p>We also want you to have the new Department WCM Guide. It replaces the old Department WCM Playbook and brings together everything you need to know in one place: how to run your department&rsquo;s site, the audit and checklist, the certification, and the Hot Lab notes. Take a look at <a href="${GUIDE_URL}">the Department WCM Guide</a> (you&rsquo;ll be asked to sign in first). New this week: a five-step walkthrough of the audit, at the start of Your Audit.</p>
+        <p>If anything in the guide is unclear or you have questions about it, reply to this email and tell me. We&rsquo;ll use your feedback to make it better.</p>${SIGN}`,
     },
   }
   const v = bodies[p.group]

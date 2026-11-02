@@ -78,7 +78,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
     setSender(j.sender)
     setAsOf(j.as_of)
     // The first load for a campaign checks everyone not yet emailed in it.
-    setPicked((cur) => cur ?? new Set((j.people as Person[]).filter((p) => !p.email_status).map((p) => p.email)))
+    setPicked((cur) => cur ?? new Set((j.people as Person[]).filter((p) => !p.email_status && p.group !== 'completed').map((p) => p.email)))
   }, [])
   useEffect(() => {
     load(campaign)
@@ -127,7 +127,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
     const list = people ?? []
     const sent = list.filter((p) => p.email_status)
     return {
-      total: list.length,
+      total: list.filter((p) => p.group !== 'completed').length,
       sent: sent.length,
       opened: sent.filter((p) => p.email_status!.opened_at).length,
       clicked: sent.filter((p) => p.email_status!.clicked_at).length,

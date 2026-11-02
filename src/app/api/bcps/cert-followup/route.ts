@@ -139,16 +139,18 @@ async function listPeople(campaign: string): Promise<Person[]> {
   const people: Person[] = []
   for (const [email, info] of Array.from(byEmail)) {
     const ids = uidsOf.get(email) ?? []
-    if (ids.some((id) => certified.has(id) || dwtUsers.has(id))) continue
+    // A District Web Team account keeps the person out. A certified WCM stays
+    // in, as the Completed group (congratulations), not in the left-to-certify count.
+    if (ids.some((id) => dwtUsers.has(id))) continue
+    const isCertified = ids.some((id) => certified.has(id))
     const uid = ids[0]
     const pct = pctOf.get(email) ?? 0
-    if (pct >= 100) continue
     const track = (tracks ?? []).find((t) => norm(t.email as string) === email)
     const lastOut = (outbound ?? []).find((o) => ((o.to_addresses ?? []) as string[]).some((t) => norm(t) === email))
     people.push({
       email, name: info.name, department: info.department, pct, has_account: !!uid,
       last_active: uid ? (ids.map((id) => activeOf.get(id) ?? null).filter(Boolean).sort().pop() ?? null) : null,
-      group: followupGroup(pct, !!uid),
+      group: followupGroup(pct, !!uid, isCertified),
       email_status: track ? {
         sent_at: track.sent_at as string, opened_at: track.opened_at as string | null, open_count: track.open_count as number,
         clicked_at: track.clicked_at as string | null, click_count: track.click_count as number, pct_at_send: track.pct_at_send as number | null,
