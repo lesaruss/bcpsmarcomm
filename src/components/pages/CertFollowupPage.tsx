@@ -20,7 +20,7 @@ interface Person {
   has_account: boolean
   last_active: string | null
   group: FollowupGroup
-  email_status: { sent_at: string; opened_at: string | null; open_count: number; clicked_at: string | null; click_count: number; pct_at_send: number | null } | null
+  email_status: { sent_at: string; opened_at: string | null; open_count: number; clicked_at: string | null; click_count: number; pct_at_send: number | null; replied_at: string | null; reply_subject: string | null } | null
   failed: string | null
 }
 interface Preview { to: string; subject: string; html: string }
@@ -260,6 +260,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
                                 <span className="badge badge-gray">Sent {stamp(s.sent_at)}</span>
                                 {s.opened_at && <span className="badge badge-yellow">Opened {stamp(s.opened_at)}{s.open_count > 1 ? ` · ${s.open_count}x` : ''}</span>}
                                 {s.clicked_at && <span className="badge badge-green">Clicked {stamp(s.clicked_at)}</span>}
+                                {s.replied_at && <span className="badge badge-green" title={s.reply_subject ?? ''}>Replied {stamp(s.replied_at)}</span>}
                               </div>}
                         </td>
                         <td><button className="btn btn-outline" style={{ padding: '4px 10px', fontSize: 12 }} disabled={busy} onClick={() => openPreview(p.email)}>Preview</button></td>

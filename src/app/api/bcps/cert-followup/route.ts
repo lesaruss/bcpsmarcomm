@@ -49,7 +49,7 @@ interface Person {
   last_active: string | null
   group: FollowupGroup
   email_status: {
-    sent_at: string; opened_at: string | null; open_count: number; clicked_at: string | null; click_count: number; pct_at_send: number | null
+    sent_at: string; opened_at: string | null; open_count: number; clicked_at: string | null; click_count: number; pct_at_send: number | null; replied_at: string | null; reply_subject: string | null
   } | null
   failed: string | null
 }
@@ -131,7 +131,7 @@ async function listPeople(campaign: string): Promise<Person[]> {
   const uids = Array.from(new Set(Array.from(uidsOf.values()).flat()))
   const [{ data: activity }, { data: tracks }, { data: outbound }] = await Promise.all([
     uids.length ? svc.from('bcps_cert_last_activity').select('user_id, last_active').in('user_id', uids) : Promise.resolve({ data: [] }),
-    svc.from('bcps_email_tracking').select('email, sent_at, opened_at, open_count, clicked_at, click_count, pct_at_send').eq('campaign', campaign).order('sent_at', { ascending: false }),
+    svc.from('bcps_email_tracking').select('email, sent_at, opened_at, open_count, clicked_at, click_count, pct_at_send, replied_at, reply_subject').eq('campaign', campaign).order('sent_at', { ascending: false }),
     svc.from('bcps_outbound_emails').select('to_addresses, status, last_error, created_at').eq('kind', KIND).order('created_at', { ascending: false }).limit(500),
   ])
   const activeOf = new Map((activity ?? []).map((a) => [a.user_id as string, a.last_active as string | null]))
@@ -154,6 +154,7 @@ async function listPeople(campaign: string): Promise<Person[]> {
       email_status: track ? {
         sent_at: track.sent_at as string, opened_at: track.opened_at as string | null, open_count: track.open_count as number,
         clicked_at: track.clicked_at as string | null, click_count: track.click_count as number, pct_at_send: track.pct_at_send as number | null,
+        replied_at: track.replied_at as string | null, reply_subject: track.reply_subject as string | null,
       } : null,
       failed: lastOut && lastOut.status !== 'sent' ? ((lastOut.last_error as string) || 'Not sent') : null,
     })
