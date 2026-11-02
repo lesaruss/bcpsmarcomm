@@ -24,6 +24,7 @@ interface App {
   school_board_number: string | null; staff_notes: string | null; needs_info_note: string | null
   accepted_at: string | null; due_date: string | null; letter_sent_at: string | null
   history: { at: string; status: string; by: string }[]
+  is_test?: boolean
 }
 
 type Filter = 'open' | 'new' | 'needs_info' | 'accepted' | 'due_soon' | 'overdue' | 'letter_sent' | 'all'
@@ -122,7 +123,7 @@ export default function SchoolImpactApplicationsPage() {
 
   const exportCsv = () => {
     const head = ['Reference', 'Status', 'Submitted', 'Accepted', 'Due date', 'Letter sent', 'Project', 'Application type', 'Jurisdiction', 'Folio', 'Applicant', 'Email', 'Phone', 'Owner', 'Payment', 'Fee', 'School Board Number', 'Staff notes']
-    const lines = shown.map(a => [a.reference, STATUS_LABEL[a.status], fmt(a.submitted_at), fmt(a.accepted_at), fmt(a.due_date), fmt(a.letter_sent_at), a.project_name,
+    const lines = shown.filter(a => !a.is_test).map(a => [a.reference, STATUS_LABEL[a.status], fmt(a.submitted_at), fmt(a.accepted_at), fmt(a.due_date), fmt(a.letter_sent_at), a.project_name,
       a.application_types.join('; '), a.jurisdiction, a.data?.location?.folio, a.applicant_name, a.applicant_email, a.applicant_phone, a.data?.owner?.name,
       a.payment_order_no, a.data?.payment?.fee_amount, a.school_board_number, a.staff_notes].map(csvCell).join(','))
     const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' })
@@ -143,7 +144,8 @@ export default function SchoolImpactApplicationsPage() {
 
       {open ? (
         <Detail app={open} today={today} busy={busy} setBusy={setBusy} api={api} onBack={() => setOpenId(null)}
-          onSaved={(a, msg) => { replace(a); if (msg) flash(msg) }} onError={setErr} />
+          onSaved={(a, msg) => { replace(a); if (msg) flash(msg) }}
+          onDeleted={(id) => { setApps(prev => prev.filter(x => x.id !== id)); setOpenId(null); flash('Practice application deleted') }} onError={setErr} />
       ) : (
         <>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -185,7 +187,7 @@ export default function SchoolImpactApplicationsPage() {
                     return (
                       <tr key={a.id} onClick={() => setOpenId(a.id)} style={{ cursor: 'pointer' }}>
                         <td style={C.td}><button style={{ border: 0, background: 'none', padding: 0, color: BLUE, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>{a.reference}</button></td>
-                        <td style={C.td}><div style={{ fontWeight: 600 }}>{a.project_name}</div><div style={{ fontSize: 11, color: '#6b7280' }}>{a.application_types.join(', ')}{a.jurisdiction ? ` · ${a.jurisdiction}` : ''}</div></td>
+                        <td style={C.td}><div style={{ fontWeight: 600 }}>{a.project_name}{a.is_test && <span style={{ marginLeft: 8, background: '#fef3c7', color: '#92400e', borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 800, letterSpacing: '0.06em' }}>TEST</span>}</div><div style={{ fontSize: 11, color: '#6b7280' }}>{a.application_types.join(', ')}{a.jurisdiction ? ` · ${a.jurisdiction}` : ''}</div></td>
                         <td style={C.td}>{a.applicant_name}<div style={{ fontSize: 11, color: '#6b7280' }}>{a.applicant_email}</div></td>
                         <td style={C.td}>{fmt(a.submitted_at)}</td>
                         <td style={C.td}><span style={{ background: bg, color: fg, borderRadius: 999, padding: '2px 9px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{STATUS_LABEL[a.status]}</span></td>
@@ -208,10 +210,10 @@ export default function SchoolImpactApplicationsPage() {
   )
 }
 
-function Detail({ app, today, busy, setBusy, api, onBack, onSaved, onError }: {
+function Detail({ app, today, busy, setBusy, api, onBack, onSaved, onDeleted, onError }: {
   app: App; today: string; busy: boolean; setBusy: (b: boolean) => void
   api: (method: string, body?: unknown) => Promise<any>; onBack: () => void
-  onSaved: (a: App, msg?: string) => void; onError: (m: string) => void
+  onSaved: (a: App, msg?: string) => void; onDeleted: (id: string) => void; onError: (m: string) => void
 }) {
   const supabase = createClient()
   const [sbn, setSbn] = useState(app.school_board_number ?? '')
@@ -262,11 +264,23 @@ function Detail({ app, today, busy, setBusy, api, onBack, onSaved, onError }: {
       <button style={{ ...C.btn, marginBottom: 12 }} onClick={onBack}>← All applications</button>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start', marginBottom: 12 }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>{app.reference}: {app.project_name}</div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>{app.reference}: {app.project_name}{app.is_test && <span style={{ marginLeft: 10, background: '#fef3c7', color: '#92400e', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', verticalAlign: 'middle' }}>PRACTICE</span>}</div>
           <div style={{ fontSize: 13, color: '#6b7280' }}>Submitted {fmt(app.submitted_at)} by {app.applicant_name} (<a href={`mailto:${app.applicant_email}`}>{app.applicant_email}</a>)</div>
         </div>
         <span style={{ background: bg, color: fg, borderRadius: 999, padding: '4px 12px', fontSize: 12, fontWeight: 800 }}>{STATUS_LABEL[app.status]}</span>
       </div>
+
+      {app.is_test && (
+        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '12px 16px', marginBottom: 12, fontSize: 13 }}>
+          <strong>This is a practice application</strong> (the project name starts with TEST). Emails for it go only to {app.applicant_email}, not to the shared inbox, and it is left out of reminders and the spreadsheet export. Try every status, then delete it when you are done.
+          <div style={{ marginTop: 8 }}>
+            <button style={{ ...C.btn, borderColor: '#fecaca', color: '#b91c1c' }} disabled={busy}
+              onClick={() => { if (window.confirm(`Delete practice application ${app.reference} and its files? This cannot be undone.`)) run(async () => { await api('DELETE', { id: app.id }); onDeleted(app.id) }) }}>
+              Delete practice application
+            </button>
+          </div>
+        </div>
+      )}
 
       {section('Status', <>
         {app.status === 'new' && <p style={{ fontSize: 13, margin: '0 0 10px' }}>Check the application and files below. Accepting it starts the 30-business-day clock and emails the applicant that their application is complete.</p>}
