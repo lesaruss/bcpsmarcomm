@@ -21,8 +21,9 @@
   bucket through signed upload URLs; the server reads them back from storage
   before it accepts the submission.
   Look and feel: Open Sans, BCPS Blue #167287, Green #16750C, Orange #C55326.
-  Shown inside the Widgets hub (same-origin parent), submitting is disabled so
-  a preview never files a real application; Open full preview submits for real.
+  Framed by a bcpsmarcomm.com page (Widgets hub, the process guide doc),
+  submitting is disabled so a preview never files a real application; opened
+  on its own or framed on Finalsite, it submits for real.
 -->
 <style>
   button, input, select, textarea { font-family: inherit; }
@@ -89,7 +90,7 @@
 </head>
 <body>
 <div id="sia">
-  <div id="sia-preview" class="preview-banner hidden">Preview in the Widgets hub: submitting is turned off here. Use Open full preview to send a test application.</div>
+  <div id="sia-preview" class="preview-banner hidden">Preview: you can click through every step, but submitting is turned off here.</div>
   <h1>Public School Impact Application</h1>
   <p class="sub">Growth Management Section, Facility Planning and Real Estate Department. Submit your application for a School Capacity Availability Determination (SCAD) review in two steps.</p>
 
@@ -253,7 +254,7 @@
     </div>
   </div>
 
-  <p class="contact">Questions? Email <a href="mailto:prm_growthmanagement@browardschools.com">prm_growthmanagement@browardschools.com</a> or call 754-321-2177. Applicants submitting a plat application must include an official letter with the plat name and municipal project number showing the plat has been approved or accepted by the municipality.</p>
+  <p class="contact">Questions? <a href="mailto:prm_growthmanagement@browardschools.com">Email the Growth Management Section</a> or call <a href="tel:+17543212177">754-321-2177</a>. Applicants submitting a plat application must include an official letter with the plat name and municipal project number showing the plat has been approved or accepted by the municipality.</p>
 </div>
 
 <script>
@@ -429,7 +430,7 @@
   var batch = uuid();
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-    if (preview) { showErr("Submitting is turned off in the Widgets hub preview. Use Open full preview to send a test application."); return; }
+    if (preview) { showErr("This is a preview, so nothing was sent. On the live form, this is where your application would be submitted."); return; }
     var missing = clientMissing();
     if (missing.length) { showErr("Please add " + missing.join(", ") + "."); renderSlots(true); $("sia-err").scrollIntoView({ block: "center" }); return; }
     showErr("");
