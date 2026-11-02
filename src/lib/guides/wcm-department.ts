@@ -135,6 +135,21 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
 <p class="guide-note">The <b>Department Page Checklist</b> is exactly what the audit checks, nothing more, with the Finalsite steps for each item. Meet every item and your page scores 100.</p>`,
         },
         {
+          id: 'walkthrough',
+          title: 'Walkthrough: the audit in five steps',
+          html: `
+<p>Use this as a quick map. Each step happens on your dashboard, on the Run Audit tab.</p>
+<div style="display:grid;gap:10px;margin:12px 0">
+  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>1. Open Run Audit.</b> You see your page with a numbered pin on every check. Pins match the numbers in the item list.</div>
+  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>2. Read the colors.</b>
+    <div style="margin-top:6px"><span style="color:#15803d;font-weight:700">&#9679; Green</span> passes. &nbsp; <span style="color:#b91c1c;font-weight:700">&#9679; Red</span> needs a fix. &nbsp; <span style="color:#b45309;font-weight:700">&#9679; Amber</span> asks you to take a look. Amber never changes your score.</div></div>
+  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>3. Pick a red pin and read the item.</b> Keep your live page open in another tab so you can find the spot. <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#1672A7;color:#fff;text-align:center;line-height:22px;font-weight:700;font-size:12px">4</span> is pin 4.</div>
+  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>4. Fix it in Finalsite, then publish.</b> A page marked Draft has changes that are not live yet, and the audit can't see them.</div>
+  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>5. Note it, mark it done, and re-audit.</b> Add a short note on what you changed, then mark the item done. When every item is done, select <b>Request re-audit</b> and watch the checks turn green.</div>
+</div>
+<p class="guide-note">Stuck on a step? Select <b>Still stuck? Ask the District Web Team</b> on the item. The detailed steps are below.</p>`,
+        },
+        {
           id: 'item',
           title: 'Working an audit item, step by step',
           html: `
@@ -415,6 +430,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
     },
   ],
   changes: [
+    { date: '2026-11-02', text: 'New: a walkthrough of the audit in five steps, at the start of Your Audit: open Run Audit, read the colors, fix a red pin, publish, then note it and re-audit. Hot Labs on Tuesday, November 3 and Thursday, November 5 cover the audits.' },
     { date: '2026-10-30', text: 'Start Here: Web Content Manager Onboarding folded in: what to do when you cannot sign in, and how to get the tools that come with hands-on training. The earlier documents are listed under Hot Lab & Help, for reference.' },
     { date: '2026-10-29', text: 'Certification extended to Thursday, November 5. Hot Labs on Tuesday, November 3 and Thursday, November 5 are the place to get help finishing.' },
     { date: '2026-10-29', text: 'The Department WCM Playbook, Registration: Getting Started, and Certification Complete: What\'s Next are now one guide, with an Overview built for you, a tab for each step, and search. From the October 29 Hot Lab: check that your audit lists only your pages, side-by-side sections are allowed, what to do with past dates, how to ask for help, and items only Finalsite can fix. Added Tell your department\'s story. 45 department WCMs certified, the course open through the weekend, and the check at the end of the day Monday, November 2.' },
