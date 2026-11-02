@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Public School Impact Application</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<!--
+  Public School Impact Application (Sean + Glennika D. Gordon, Facility
+  Planning and Real Estate, Growth Management Section, 2026-11-02). The
+  online version of paper Form 4726 (05/24), embedded on the department's
+  Finalsite page. Step 1: pay the review fee on the District e-store. Step 2:
+  fill in the application and upload the payment confirmation, site plan and
+  survey. Submitting saves to bcps_school_impact_applications through
+  /api/bcps/school-impact-application, emails the applicant a confirmation
+  (copy to prm_growthmanagement@browardschools.com) and notifies the shared
+  inbox. Staff track each application in the Widgets hub editor.
+  Files go straight from the browser to the private school-impact-applications
+  bucket through signed upload URLs; the server reads them back from storage
+  before it accepts the submission.
+  Look and feel: Open Sans, BCPS Blue #167287, Green #16750C, Orange #C55326.
+  Shown inside the Widgets hub (same-origin parent), submitting is disabled so
+  a preview never files a real application; Open full preview submits for real.
+-->
+<style>
+  button, input, select, textarea { font-family: inherit; }
+  html, body { margin: 0; background: #fff; }
+  #sia, #sia * { box-sizing: border-box; }
+  #sia {
+    --blue: #167287; --blue-dark: #0F5564; --blue-tint: #E8F2F4;
+    --green: #16750C; --green-tint: #EAF3E8; --orange: #C55326;
+    --text: #1a1a1a; --muted: #555; --border: #d5dbe0; --error: #b91c1c;
+    font-family: "Open Sans", Arial, Helvetica, sans-serif; color: var(--text);
+    max-width: 960px; margin: 0 auto; padding: 28px 24px 32px;
+    border: 1px solid #e2e6ea; border-radius: 10px; font-size: 15px; line-height: 1.5;
+  }
+  #sia h1 { font-size: 26px; margin: 0 0 4px; color: var(--blue-dark); }
+  #sia .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  #sia .step { border: 1px solid var(--border); border-radius: 10px; margin: 0 0 20px; overflow: hidden; }
+  #sia .step-head { display: flex; gap: 12px; align-items: center; background: var(--blue-tint); padding: 14px 18px; }
+  #sia .step-num { width: 32px; height: 32px; border-radius: 50%; background: var(--blue); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none; }
+  #sia .step-head h2 { margin: 0; font-size: 18px; color: var(--blue-dark); }
+  #sia .step-body { padding: 18px; }
+  #sia fieldset { border: 0; padding: 0; margin: 0 0 22px; min-width: 0; }
+  #sia legend { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--blue-dark); padding: 0 0 6px; border-bottom: 2px solid var(--blue-tint); width: 100%; margin-bottom: 12px; }
+  #sia .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; }
+  #sia .grid.wide { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  #sia label.f { display: block; font-size: 13px; font-weight: 600; }
+  #sia label.f > span.req::after { content: " *"; color: var(--orange); }
+  #sia input[type=text], #sia input[type=email], #sia input[type=tel], #sia input[type=number], #sia textarea, #sia select {
+    display: block; width: 100%; margin-top: 4px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 7px; font-size: 15px; background: #fff; color: var(--text);
+  }
+  #sia textarea { min-height: 76px; resize: vertical; }
+  #sia input:focus, #sia textarea:focus, #sia select:focus, #sia button:focus-visible, #sia a:focus-visible { outline: 3px solid rgba(22,114,135,.35); outline-offset: 1px; border-color: var(--blue); }
+  #sia .checks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  #sia .checks.col { flex-direction: column; gap: 8px; }
+  #sia .checks label { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+  #sia .checks input { margin-top: 4px; accent-color: var(--blue); width: 16px; height: 16px; flex: none; }
+  #sia .hint { font-size: 12.5px; color: var(--muted); margin: 4px 0 0; }
+  #sia .q { font-size: 14px; font-weight: 600; margin: 0 0 6px; }
+  #sia .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 8px; border: 2px solid var(--blue); background: var(--blue); color: #fff; font-weight: 700; font-size: 15px; text-decoration: none; cursor: pointer; }
+  #sia .btn:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
+  #sia .btn.ghost { background: #fff; color: var(--blue); }
+  #sia .btn[disabled] { opacity: .55; cursor: not-allowed; }
+  #sia .note { background: #FFF6F1; border-left: 4px solid var(--orange); padding: 10px 14px; border-radius: 6px; font-size: 14px; margin: 0 0 14px; }
+  #sia .ok { background: var(--green-tint); border-left: 4px solid var(--green); padding: 12px 16px; border-radius: 6px; }
+  #sia table.units { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  #sia table.units th, #sia table.units td { border: 1px solid var(--border); padding: 5px 6px; text-align: left; vertical-align: middle; }
+  #sia table.units th { background: var(--blue-tint); font-weight: 700; font-size: 12.5px; }
+  #sia table.units td.type { font-weight: 700; background: #fafbfc; }
+  #sia table.units input { margin: 0; padding: 5px 6px; font-size: 14px; min-width: 64px; }
+  #sia table.units tfoot td { font-weight: 700; background: #fafbfc; }
+  #sia .table-wrap { overflow-x: auto; }
+  #sia .slot { border: 1px dashed var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+  #sia .slot.missing { border-color: var(--error); background: #fef6f6; }
+  #sia .slot-title { font-weight: 700; font-size: 14px; }
+  #sia .slot ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  #sia .slot ul button { border: 0; background: none; color: var(--error); cursor: pointer; font-size: 12.5px; text-decoration: underline; }
+  #sia .err { background: #fef2f2; border: 1px solid #fecaca; color: var(--error); padding: 10px 14px; border-radius: 8px; margin: 12px 0; font-size: 14px; }
+  #sia .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+  #sia .contact { font-size: 13px; color: var(--muted); border-top: 1px solid #e2e6ea; padding-top: 14px; margin-top: 8px; }
+  #sia .contact a { color: var(--blue); }
+  #sia .hidden { display: none !important; }
+  #sia .preview-banner { background: #FFF6F1; border: 1px solid #f3c7b3; color: #7a3315; padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+  @media (max-width: 560px) { #sia { padding: 20px 14px; border: 0; } #sia h1 { font-size: 22px; } }
+</style>
+</head>
+<body>
+<div id="sia">
+  <div id="sia-preview" class="preview-banner hidden">Preview in the Widgets hub: submitting is turned off here. Use Open full preview to send a test application.</div>
+  <h1>Public School Impact Application</h1>
+  <p class="sub">Growth Management Section, Facility Planning and Real Estate Department. Submit your application for a School Capacity Availability Determination (SCAD) review in two steps.</p>
+
+  <form id="sia-form" novalidate>
+    <div class="step">
+      <div class="step-head"><div class="step-num">1</div><h2>Pay the review fee on the District e-store</h2></div>
+      <div class="step-body">
+        <p style="margin-top:0">Pay the application review fee first. The e-store emails you a payment confirmation. Keep it: you will upload it in Step 2.</p>
+        <a class="btn" id="sia-estore" href="https://osp.osmsinc.com/BrowardFL/BVModules/CategoryTemplates/Detailed%20List%20with%20Properties/Category.aspx?categoryid=B0008" target="_blank" rel="noopener noreferrer">Pay on the e-store <span aria-hidden="true">↗</span><span class="hp">(opens in a new tab)</span></a>
+        <p class="hint">Paying by check instead? Make it payable to "School Board of Broward County." No cash is accepted. Upload a copy of the check in Step 2.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><div class="step-num">2</div><h2>Complete the application and upload your documents</h2></div>
+      <div class="step-body">
+        <p class="hint" style="margin:0 0 16px">Fields marked <span style="color:var(--orange)">*</span> are required.</p>
+
+        <fieldset>
+          <legend>General project information</legend>
+          <p class="q">Application type <span style="color:var(--orange)">*</span></p>
+          <div class="checks" id="sia-types"></div>
+          <div class="grid" style="margin-top:14px">
+            <label class="f"><span class="req">Project name</span><input type="text" name="project.project_name" maxlength="300" required></label>
+            <label class="f"><span>County project number</span><input type="text" name="project.county_project_number" maxlength="100"></label>
+            <label class="f"><span>City project number</span><input type="text" name="project.city_project_number" maxlength="100"></label>
+          </div>
+          <p class="q" style="margin-top:14px">Has this project been previously submitted (since February 1, 2008)? <span style="color:var(--orange)">*</span></p>
+          <div class="checks">
+            <label><input type="radio" name="project.previously_submitted" value="no"> No</label>
+            <label><input type="radio" name="project.previously_submitted" value="yes"> Yes</label>
+          </div>
+          <div class="grid hidden" id="sia-sbbc" style="margin-top:10px">
+            <label class="f"><span class="req">SBBC number</span><input type="text" name="project.sbbc_number" maxlength="100"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Application fee</legend>
+          <div class="grid">
+            <label class="f"><span class="req">Fee amount paid</span><input type="text" name="payment.fee_amount" maxlength="40" placeholder="$"></label>
+            <label class="f"><span class="req">Paid by</span>
+              <select name="payment.method"><option value="online">E-store (online)</option><option value="check">Check</option></select></label>
+            <label class="f" id="sia-order"><span class="req">E-store order number</span><input type="text" name="payment.order_no" maxlength="100"></label>
+            <label class="f hidden" id="sia-check"><span class="req">Check number</span><input type="text" name="payment.check_no" maxlength="100"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Project location and size</legend>
+          <div class="grid">
+            <label class="f"><span class="req">Folio number</span><input type="text" name="location.folio" maxlength="200"></label>
+            <label class="f"><span>Section</span><input type="text" name="location.section" maxlength="40"></label>
+            <label class="f"><span>Township</span><input type="text" name="location.township" maxlength="40"></label>
+            <label class="f"><span>Range</span><input type="text" name="location.range" maxlength="40"></label>
+          </div>
+          <div class="grid wide" style="margin-top:12px">
+            <label class="f"><span class="req">General location of the project</span><input type="text" name="location.general_location" maxlength="300"></label>
+            <label class="f"><span>Side of (street)</span><input type="text" name="location.side_of" maxlength="200"></label>
+            <label class="f"><span>At / between</span><input type="text" name="location.at_between" maxlength="200"></label>
+            <label class="f"><span>And</span><input type="text" name="location.and_street" maxlength="200"></label>
+            <label class="f"><span>Area acreage</span><input type="text" name="location.acreage" maxlength="40"></label>
+            <label class="f"><span class="req">Jurisdiction</span><input type="text" name="location.jurisdiction" maxlength="200" placeholder="City or Broward County"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Applicant information</legend>
+          <div class="grid">
+            <label class="f"><span class="req">Owner's name</span><input type="text" name="owner.name" maxlength="200"></label>
+            <label class="f"><span>Owner's phone</span><input type="tel" name="owner.phone" maxlength="40"></label>
+            <label class="f"><span>Owner's address</span><input type="text" name="owner.address" maxlength="300"></label>
+            <label class="f"><span>City</span><input type="text" name="owner.city" maxlength="100"></label>
+            <label class="f"><span>State</span><input type="text" name="owner.state" maxlength="40"></label>
+            <label class="f"><span>Zip</span><input type="text" name="owner.zip" maxlength="20"></label>
+          </div>
+          <div class="grid" style="margin-top:16px">
+            <label class="f"><span class="req">Developer / agent</span><input type="text" name="agent.name" maxlength="200"></label>
+            <label class="f"><span class="req">Agent's email</span><input type="email" name="agent.email" maxlength="200" autocomplete="email"></label>
+            <label class="f"><span class="req">Agent's phone</span><input type="tel" name="agent.phone" maxlength="40"></label>
+            <label class="f"><span>Fax number</span><input type="tel" name="agent.fax" maxlength="40"></label>
+            <label class="f"><span>Agent's address</span><input type="text" name="agent.address" maxlength="300"></label>
+            <label class="f"><span>City</span><input type="text" name="agent.city" maxlength="100"></label>
+            <label class="f"><span>State</span><input type="text" name="agent.state" maxlength="40"></label>
+            <label class="f"><span>Zip</span><input type="text" name="agent.zip" maxlength="20"></label>
+          </div>
+          <p class="hint">Confirmations and updates go to the agent's email.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Development details</legend>
+          <div class="grid">
+            <label class="f"><span>Land use designation, existing</span><input type="text" name="development.land_use_existing" maxlength="200"></label>
+            <label class="f"><span>Land use designation, proposed</span><input type="text" name="development.land_use_proposed" maxlength="200"></label>
+            <label class="f"><span>Zoning designation, existing</span><input type="text" name="development.zoning_existing" maxlength="200"></label>
+            <label class="f"><span>Zoning designation, proposed</span><input type="text" name="development.zoning_proposed" maxlength="200"></label>
+          </div>
+          <p class="q" style="margin-top:16px">Residential units by type and bedroom mix</p>
+          <p class="hint" style="margin:0 0 8px">Enter the number of units. Permitted total is built plus un-built. Leave rows that do not apply blank.</p>
+          <div class="table-wrap"><table class="units" id="sia-units"></table></div>
+          <p class="q" style="margin-top:16px">Does this project include a non-residential development? <span style="color:var(--orange)">*</span></p>
+          <div class="checks">
+            <label><input type="radio" name="development.non_residential" value="no"> No</label>
+            <label><input type="radio" name="development.non_residential" value="yes"> Yes</label>
+          </div>
+          <label class="f hidden" id="sia-nonres" style="margin-top:10px"><span class="req">Describe the other proposed uses</span><textarea name="development.non_residential_desc" maxlength="4000"></textarea></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Vested rights / exemption information</legend>
+          <label class="f"><span>Amount of vested or exempt development (number of units, type and bedroom mix)</span><textarea name="vested.amount" maxlength="4000"></textarea></label>
+          <div class="grid wide" style="margin-top:14px">
+            <div>
+              <p class="q">Exemption criteria (check all that apply)</p>
+              <div class="checks col" id="sia-exempt"></div>
+              <label class="f hidden" id="sia-statute" style="margin-top:8px"><span class="req">Applicable statute</span><input type="text" name="vested.statute" maxlength="300"></label>
+            </div>
+            <div>
+              <p class="q">Vesting criteria (check all that apply)</p>
+              <div class="checks col" id="sia-vest"></div>
+            </div>
+          </div>
+          <div class="grid" style="margin-top:12px">
+            <label class="f"><span>Associated application number</span><input type="text" name="vested.associated_application" maxlength="200"></label>
+            <label class="f"><span>Associated plat number</span><input type="text" name="vested.plat_number" maxlength="200"></label>
+          </div>
+          <p class="hint">Supporting documentation is required for every exemption or vesting criterion you check. Upload it below.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Documents</legend>
+          <div class="note">The 30-business-day review period begins once School District staff determine your application is complete, so please include everything below.</div>
+          <div id="sia-slots"></div>
+          <p class="hint">PDF, images, Word, Excel, DWG or ZIP, up to 50 MB each and 5 files per item.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Signature</legend>
+          <div class="grid">
+            <label class="f"><span class="req">Signature of applicant / agent (type your full name)</span><input type="text" name="certification.name" maxlength="200" autocomplete="name"></label>
+            <label class="f"><span>Date</span><input type="text" id="sia-date" readonly></label>
+          </div>
+          <div class="checks" style="margin-top:10px">
+            <label><input type="checkbox" name="certification.agreed"> I certify that the information in this application is true and complete, and that typing my name above serves as my signature.</label>
+          </div>
+        </fieldset>
+
+        <div class="hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+        <div id="sia-err" class="err hidden" role="alert"></div>
+        <button type="submit" class="btn" id="sia-submit">Submit application</button>
+        <span id="sia-progress" class="hint" style="margin-left:10px" aria-live="polite"></span>
+      </div>
+    </div>
+  </form>
+
+  <div id="sia-done" class="hidden" tabindex="-1">
+    <div class="ok">
+      <h2 style="margin:0 0 6px;color:var(--green);font-size:20px">Application received</h2>
+      <p style="margin:0 0 6px">Thank you. Your reference number is <strong id="sia-ref"></strong>. We emailed a confirmation to <strong id="sia-to"></strong>.</p>
+      <p style="margin:0">School District staff will review your application for completeness. The 30-business-day review period begins once it is determined complete, and we will email you when that happens. If anything is missing, we will contact you.</p>
+    </div>
+  </div>
+
+  <p class="contact">Questions? Email <a href="mailto:prm_growthmanagement@browardschools.com">prm_growthmanagement@browardschools.com</a> or call 754-321-2177. Applicants submitting a plat application must include an official letter with the plat name and municipal project number showing the plat has been approved or accepted by the municipality.</p>
+</div>
+
+<script>
+(function () {
+  var SLUG = "school-impact-application";
+  var API = "/api/bcps/school-impact-application";
+  var SUPABASE_URL = "https://fwbhwfxpncrsfhttimna.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA";
+  var BUCKET = "school-impact-applications";
+  var MAX_BYTES = 50 * 1024 * 1024, MAX_PER_SLOT = 5;
+  var ALLOWED = /\.(pdf|jpe?g|png|gif|webp|heic|tiff?|docx?|xlsx?|dwg|zip)$/i;
+
+  var TYPES = ["Land Use", "DRI", "Rezoning", "Flex/Reserve Allocation", "Plat", "Site Plan"];
+  var UNIT_TYPES = [
+    ["single_family", "Single Family", ["3 BR or less", "4 BR or more"]],
+    ["townhouse", "Townhouse / Duplex / Villa", ["2 BR or less", "3 BR or more"]],
+    ["garden", "Garden Apartment", ["1 BR or less", "2 BR", "3 BR or more"]],
+    ["mid_rise", "Mid Rise", ["1 BR or less", "2 BR or more"]],
+    ["high_rise", "High Rise", ["1 BR or less", "2 BR or more"]],
+    ["mobile_home", "Mobile Home", ["2 BR or less", "3 BR or more"]]
+  ];
+  var EXEMPTIONS = ["Generates less than one student", "Age restricted to persons 18 and over", "Statutory exemption", "Site plan located within a plat with a valid final SCAD letter"];
+  var VESTING = [
+    "Located within previously approved plan amendment or rezoning with a valid mitigation agreement (executed and recorded DRC or Tri-Party)",
+    "Obtained site plan final approval prior to February 1, 2008",
+    "Site plan located within a plat for which school impacts have been satisfied"
+  ];
+  var SLOTS = [
+    ["receipt", "Payment confirmation", "The e-store receipt (PDF or screenshot), or a copy of your check."],
+    ["site_plan", "Site plan", "A copy of the site plan."],
+    ["survey", "Survey of the project site", ""],
+    ["plat_letter", "Plat approval letter", "Required for Plat applications: an official letter with the plat name and municipal project number showing the plat has been approved or accepted by the municipality."],
+    ["supporting", "Supporting documents", "Required for any exemption or vesting criterion you checked. Optional otherwise."]
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var form = $("sia-form");
+  var files = {}; SLOTS.forEach(function (s) { files[s[0]] = []; });
+  var esc = function (t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+
+  var preview = false;
+  try { preview = window.parent !== window && window.parent.location.host === window.location.host; } catch (e) { preview = false; }
+  if (preview) $("sia-preview").classList.remove("hidden");
+
+  $("sia-date").value = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
+
+  $("sia-types").innerHTML = TYPES.map(function (t) { return '<label><input type="checkbox" name="application_types" value="' + esc(t) + '"> ' + esc(t) + "</label>"; }).join("");
+  $("sia-exempt").innerHTML = EXEMPTIONS.map(function (t) { return '<label><input type="checkbox" name="vested.exemptions" value="' + esc(t) + '"> ' + esc(t) + "</label>"; }).join("");
+  $("sia-vest").innerHTML = VESTING.map(function (t) { return '<label><input type="checkbox" name="vested.vesting" value="' + esc(t) + '"> ' + esc(t) + "</label>"; }).join("");
+
+  // Units table
+  var head = '<thead><tr><th scope="col">Residential type</th><th scope="col">Bedroom mix</th><th scope="col">Permitted: built units</th><th scope="col">Permitted: un-built units</th><th scope="col">Permitted total</th><th scope="col">Proposed units</th></tr></thead>';
+  var bodyRows = "";
+  UNIT_TYPES.forEach(function (u) {
+    u[2].forEach(function (cat, i) {
+      var key = u[0] + "|" + cat;
+      var lbl = u[1] + ", " + cat;
+      bodyRows += "<tr>" + (i === 0 ? '<td class="type" rowspan="' + u[2].length + '">' + esc(u[1]) + "</td>" : "") +
+        "<td>" + esc(cat) + "</td>" +
+        ["built", "unbuilt"].map(function (c) { return '<td><input type="number" min="0" step="1" inputmode="numeric" data-unit="' + esc(key) + '" data-col="' + c + '" aria-label="' + esc(lbl + (c === "built" ? ", built units" : ", un-built units")) + '"></td>'; }).join("") +
+        '<td data-total="' + esc(key) + '">0</td>' +
+        '<td><input type="number" min="0" step="1" inputmode="numeric" data-unit="' + esc(key) + '" data-col="proposed" aria-label="' + esc(lbl + ", proposed units") + '"></td></tr>';
+    });
+  });
+  $("sia-units").innerHTML = head + "<tbody>" + bodyRows + '</tbody><tfoot><tr><td colspan="2">Total</td><td id="sia-t-built">0</td><td id="sia-t-unbuilt">0</td><td id="sia-t-perm">0</td><td id="sia-t-prop">0</td></tr></tfoot>';
+  function recalcUnits() {
+    var t = { built: 0, unbuilt: 0, proposed: 0 }, rows = {};
+    form.querySelectorAll("input[data-unit]").forEach(function (inp) {
+      var v = parseInt(inp.value, 10); if (!(v >= 0)) v = 0;
+      t[inp.dataset.col] += v;
+      rows[inp.dataset.unit] = rows[inp.dataset.unit] || 0;
+      if (inp.dataset.col !== "proposed") rows[inp.dataset.unit] += v;
+    });
+    form.querySelectorAll("[data-total]").forEach(function (td) { td.textContent = rows[td.dataset.total] || 0; });
+    $("sia-t-built").textContent = t.built; $("sia-t-unbuilt").textContent = t.unbuilt;
+    $("sia-t-perm").textContent = t.built + t.unbuilt; $("sia-t-prop").textContent = t.proposed;
+  }
+  $("sia-units").addEventListener("input", recalcUnits);
+
+  // Upload slots
+  function required(slot) {
+    if (slot === "receipt" || slot === "site_plan" || slot === "survey") return true;
+    if (slot === "plat_letter") return checked("application_types").indexOf("Plat") >= 0;
+    if (slot === "supporting") return checked("vested.exemptions").length + checked("vested.vesting").length > 0;
+    return false;
+  }
+  function renderSlots(markMissing) {
+    $("sia-slots").innerHTML = SLOTS.map(function (s) {
+      var req = required(s[0]);
+      if (s[0] === "plat_letter" && !req) return "";
+      var miss = markMissing && req && !files[s[0]].length;
+      return '<div class="slot' + (miss ? " missing" : "") + '">' +
+        '<div class="slot-title">' + esc(s[1]) + (req ? ' <span style="color:var(--orange)">*</span>' : ' <span class="hint">(optional)</span>') + "</div>" +
+        (s[2] ? '<p class="hint" style="margin:2px 0 8px">' + esc(s[2]) + "</p>" : "") +
+        '<label class="btn ghost" style="padding:6px 14px;font-size:13px">Choose files<input type="file" multiple data-slot="' + s[0] + '" class="hp" aria-label="Choose files for ' + esc(s[1]) + '"></label>' +
+        (files[s[0]].length ? "<ul>" + files[s[0]].map(function (f, i) { return "<li>" + esc(f.name) + " (" + Math.max(1, Math.round(f.size / 1024)) + ' KB) <button type="button" data-remove="' + s[0] + "|" + i + '">Remove</button></li>'; }).join("") + "</ul>" : "") +
+        "</div>";
+    }).join("");
+  }
+  $("sia-slots").addEventListener("change", function (e) {
+    var inp = e.target; if (!inp.dataset || !inp.dataset.slot) return;
+    var slot = inp.dataset.slot, problems = [];
+    Array.prototype.forEach.call(inp.files, function (f) {
+      if (!ALLOWED.test(f.name)) problems.push(f.name + " is not a supported file type.");
+      else if (f.size > MAX_BYTES) problems.push(f.name + " is larger than 50 MB.");
+      else if (files[slot].length >= MAX_PER_SLOT) problems.push("Up to " + MAX_PER_SLOT + " files per item.");
+      else files[slot].push(f);
+    });
+    showErr(problems.join(" "));
+    renderSlots(false);
+  });
+  $("sia-slots").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-remove]"); if (!b) return;
+    var p = b.dataset.remove.split("|"); files[p[0]].splice(+p[1], 1); renderSlots(false);
+  });
+
+  function checked(name) { return Array.prototype.map.call(form.querySelectorAll('input[name="' + name + '"]:checked'), function (i) { return i.value; }); }
+  function val(name) { var el = form.querySelector('[name="' + name + '"]'); if (!el) return ""; if (el.type === "radio") { var c = form.querySelector('[name="' + name + '"]:checked'); return c ? c.value : ""; } if (el.type === "checkbox") return el.checked; return el.value.trim(); }
+  function group(prefix, keys) { var o = {}; keys.forEach(function (k) { o[k] = val(prefix + "." + k); }); return o; }
+
+  function syncConditional() {
+    $("sia-sbbc").classList.toggle("hidden", val("project.previously_submitted") !== "yes");
+    var check = val("payment.method") === "check";
+    $("sia-order").classList.toggle("hidden", check); $("sia-check").classList.toggle("hidden", !check);
+    $("sia-nonres").classList.toggle("hidden", val("development.non_residential") !== "yes");
+    $("sia-statute").classList.toggle("hidden", checked("vested.exemptions").indexOf("Statutory exemption") < 0);
+    renderSlots(false);
+  }
+  form.addEventListener("change", function (e) { if (!e.target.dataset || !e.target.dataset.slot) syncConditional(); });
+  syncConditional();
+
+  function showErr(msg) { var el = $("sia-err"); el.textContent = msg || ""; el.classList.toggle("hidden", !msg); }
+
+  function clientMissing() {
+    var m = [];
+    if (!checked("application_types").length) m.push("the application type");
+    if (!val("project.project_name")) m.push("the project name");
+    if (!val("project.previously_submitted")) m.push("whether the project was previously submitted");
+    if (val("project.previously_submitted") === "yes" && !val("project.sbbc_number")) m.push("the SBBC number");
+    if (!val("payment.fee_amount")) m.push("the fee amount");
+    if (val("payment.method") === "check" ? !val("payment.check_no") : !val("payment.order_no")) m.push("the e-store order number or check number");
+    if (!val("location.folio")) m.push("the folio number");
+    if (!val("location.general_location")) m.push("the general location");
+    if (!val("location.jurisdiction")) m.push("the jurisdiction");
+    if (!val("owner.name")) m.push("the owner's name");
+    if (!val("agent.name")) m.push("the developer or agent");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(val("agent.email"))) m.push("a valid agent email");
+    if (!val("agent.phone")) m.push("the agent's phone");
+    if (!val("development.non_residential")) m.push("whether there is non-residential development");
+    if (val("development.non_residential") === "yes" && !val("development.non_residential_desc")) m.push("the non-residential uses");
+    if (checked("vested.exemptions").indexOf("Statutory exemption") >= 0 && !val("vested.statute")) m.push("the applicable statute");
+    SLOTS.forEach(function (s) { if (required(s[0]) && !files[s[0]].length) m.push("the " + s[1].toLowerCase()); });
+    if (!val("certification.name") || !val("certification.agreed")) m.push("your typed-name signature and certification");
+    return m;
+  }
+
+  function uuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); });
+  }
+  function post(body) {
+    return fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong. Please try again."); return j; }); });
+  }
+  function uploadOne(u, file) {
+    var fd = new FormData(); fd.append("cacheControl", "3600"); fd.append("", file);
+    var path = u.path.split("/").map(encodeURIComponent).join("/");
+    return fetch(SUPABASE_URL + "/storage/v1/object/upload/sign/" + BUCKET + "/" + path + "?token=" + encodeURIComponent(u.token), {
+      method: "PUT", headers: { apikey: SUPABASE_ANON_KEY, "x-upsert": "true" }, body: fd
+    }).then(function (r) { if (!r.ok) throw new Error(file.name + " did not upload. Please try again."); });
+  }
+
+  var batch = uuid();
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (preview) { showErr("Submitting is turned off in the Widgets hub preview. Use Open full preview to send a test application."); return; }
+    var missing = clientMissing();
+    if (missing.length) { showErr("Please add " + missing.join(", ") + "."); renderSlots(true); $("sia-err").scrollIntoView({ block: "center" }); return; }
+    showErr("");
+    var btn = $("sia-submit"); btn.disabled = true;
+    var prog = $("sia-progress");
+    var all = [];
+    SLOTS.forEach(function (s) { if (s[0] === "plat_letter" && !required("plat_letter")) return; files[s[0]].forEach(function (f) { all.push({ slot: s[0], file: f }); }); });
+    prog.textContent = "Uploading " + all.length + " file" + (all.length === 1 ? "" : "s") + "...";
+    var units = {};
+    form.querySelectorAll("input[data-unit]").forEach(function (inp) {
+      if (inp.value === "") return;
+      var p = inp.dataset.unit.split("|");
+      units[p[0]] = units[p[0]] || {}; units[p[0]][p[1]] = units[p[0]][p[1]] || {};
+      units[p[0]][p[1]][inp.dataset.col] = parseInt(inp.value, 10);
+    });
+    var email = val("agent.email");
+    post({ action: "upload_urls", batch: batch, website: val("website"), files: all.map(function (a) { return { slot: a.slot, name: a.file.name, size: a.file.size }; }) })
+      .then(function (j) {
+        var done = 0;
+        return Promise.all(j.uploads.map(function (u, i) {
+          return uploadOne(u, all[i].file).then(function () { done++; prog.textContent = "Uploaded " + done + " of " + all.length + "..."; });
+        }));
+      })
+      .then(function () {
+        prog.textContent = "Submitting...";
+        return post({
+          website: val("website"),
+          upload_batch: batch,
+          application_types: checked("application_types"),
+          project: group("project", ["project_name", "county_project_number", "city_project_number", "previously_submitted", "sbbc_number"]),
+          payment: group("payment", ["fee_amount", "method", "order_no", "check_no"]),
+          location: group("location", ["folio", "section", "township", "range", "general_location", "side_of", "at_between", "and_street", "acreage", "jurisdiction"]),
+          owner: group("owner", ["name", "phone", "address", "city", "state", "zip"]),
+          agent: group("agent", ["name", "email", "phone", "fax", "address", "city", "state", "zip"]),
+          development: Object.assign(group("development", ["land_use_existing", "land_use_proposed", "zoning_existing", "zoning_proposed", "non_residential", "non_residential_desc"]), { units: units }),
+          vested: { amount: val("vested.amount"), exemptions: checked("vested.exemptions"), statute: val("vested.statute"), vesting: checked("vested.vesting"), plat_number: val("vested.plat_number"), associated_application: val("vested.associated_application") },
+          certification: { name: val("certification.name"), agreed: !!val("certification.agreed") }
+        });
+      })
+      .then(function (j) {
+        $("sia-ref").textContent = j.reference; $("sia-to").textContent = email;
+        form.classList.add("hidden"); $("sia-done").classList.remove("hidden"); $("sia-done").focus();
+        window.scrollTo(0, 0); postHeight();
+      })
+      .catch(function (err) { showErr(err.message); prog.textContent = ""; btn.disabled = false; });
+  });
+
+  // Auto height for iframe embeds, same contract as every BCPS widget.
+  var lastPostedHeight = 0;
+  function postHeight() {
+    var height = Math.ceil(document.body.getBoundingClientRect().height);
+    if (Math.abs(height - lastPostedHeight) < 2) return;
+    lastPostedHeight = height;
+    window.parent.postMessage({ type: "bcps-widget-resize", slug: SLUG, height: height }, "*");
+  }
+  window.addEventListener("load", postHeight);
+  window.addEventListener("resize", postHeight);
+  if (window.ResizeObserver) new ResizeObserver(postHeight).observe(document.body); else setInterval(postHeight, 500);
+})();
+</script>
+</body>
+</html>

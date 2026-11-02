@@ -8,6 +8,7 @@ import IidlServicesPage from './IidlServicesPage'
 import MagnetProgramsPage from './MagnetProgramsPage'
 import DirectoryPage from './DirectoryPage'
 import SchoolSupportLeadPage from './SchoolSupportLeadPage'
+import SchoolImpactApplicationsPage from './SchoolImpactApplicationsPage'
 import { useEffectiveRole } from '@/components/BCPSShell'
 
 interface Widget {
@@ -37,6 +38,7 @@ const EDITORS: Record<string, React.ComponentType> = {
   'magnet-program-explorer': MagnetProgramsPage,
   'department-program-directory': DirectoryPage,
   'school-support-lead': SchoolSupportLeadPage,
+  'school-impact-application': SchoolImpactApplicationsPage,
 }
 
 // Embeds with a microphone (voice search) button.
