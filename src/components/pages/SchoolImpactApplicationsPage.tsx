@@ -2,7 +2,7 @@
 
 // Tracker for the Public School Impact Application widget (public embed at
 // /embeds/school-impact-application.html), opened from its Edit button in the
-// Widgets hub. Growth Management staff (Glennika D. Gordon, 2026-11-02) see
+// Widgets hub. Intergovernmental Coordination staff (Glennika D. Gordon, 2026-11-02) see
 // every application, check it for completeness, and move it through
 // New -> Needs info -> Accepted (30-business-day clock starts, applicant
 // emailed) -> Letter sent (after the SCAD letter goes out from their own
