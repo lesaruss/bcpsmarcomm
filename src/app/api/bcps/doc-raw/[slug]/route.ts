@@ -50,7 +50,13 @@ export async function GET(
   // ?bare=1: framed somewhere else inside the platform (the Documents
   // lightbox): the header comes off, links behave normally.
   const sp = req.nextUrl.searchParams
-  const body = sp.get('embed') === '1' ? withEmbedScript(doc.content) : sp.get('bare') === '1' ? withEmbedStyle(doc.content) : doc.content
+  let parentTitle: string | null = null
+  if (doc.parent_playbook_slug) {
+    const { data: parent } = await db.from('briefings').select('title').eq('brand_slug', 'bcps').eq('slug', doc.parent_playbook_slug).maybeSingle()
+    parentTitle = parent?.title ?? null
+  }
+  const crumbed = withBreadcrumb(doc.content, doc.title, doc.parent_playbook_slug, parentTitle)
+  const body = sp.get('embed') === '1' ? withEmbedScript(crumbed) : sp.get('bare') === '1' ? withEmbedStyle(crumbed) : crumbed
 
   return new NextResponse(body, {
     headers: {
@@ -87,6 +93,27 @@ header.bcps-header, .skip-link { display: none !important; }
 main { padding-top: 28px !important; }
 @media (max-width: 640px) { main { padding-top: 20px !important; } }
 </style>`
+
+// Breadcrumb above the title (Sean, 2026-11-02): Documents, then the
+// Playbook a doc lives under, then the doc, so a reader always has a way
+// back. Added when served, never stored: id lets the in-place editor strip
+// it before saving. Inside the dashboard the embed script opens the Playbook
+// link in the Documents tab; Documents goes to the list.
+const escHtml = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))
+function withBreadcrumb(html: string, title: string | null, parentSlug: string | null, parentTitle: string | null): string {
+  // Versioned docs repeat the title once per version block, so the crumb
+  // goes before the first version switch when there is one.
+  const v = html.search(/<input[^>]*class="ver-radio"/i)
+  const i = v !== -1 ? v : html.search(/<h1[\s>]/i)
+  if (i === -1) return html
+  const link = 'color:#1672A7;text-decoration:none;font-weight:700'
+  const sep = '<span aria-hidden="true" style="margin:0 8px;color:#9ca3af">&rsaquo;</span>'
+  const parts = [`<a href="/?page=dashboard&amp;tab=documents" style="${link}">Documents</a>`]
+  if (parentSlug) parts.push(`<a href="/playbooks/${encodeURIComponent(parentSlug)}" style="${link}">${escHtml(parentTitle || parentSlug)}</a>`)
+  parts.push(`<span aria-current="page" style="color:#4b5563">${escHtml(title || 'This document')}</span>`)
+  const nav = `<nav id="bcps-doc-breadcrumb" aria-label="Breadcrumb" style="font-size:13px;line-height:1.5;margin:0 0 10px;display:flex;flex-wrap:wrap;align-items:center">${parts.join(sep)}</nav>`
+  return html.slice(0, i) + nav + html.slice(i)
+}
 
 function withEmbedStyle(html: string): string {
   const h = html.toLowerCase().indexOf('</head>')
