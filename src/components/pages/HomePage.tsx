@@ -464,6 +464,8 @@ type MyCert = { certified: boolean; done: number; total: number; pct: number }
 function myCertOf(data: HomeData): MyCert {
   return data.my_cert ?? { certified: !!data.my_certified, done: 0, total: 0, pct: data.my_certified ? 100 : 0 }
 }
+// A certified WCM can still open the course (review pages, see progress). A
+// director who is also a WCM sees this tile, so it is their way back in.
 function MyCertTile({ cert, label = 'Certification' }: { cert: MyCert; label?: string }) {
   return (
     <StatTile
@@ -473,19 +475,22 @@ function MyCertTile({ cert, label = 'Certification' }: { cert: MyCert; label?: s
       tone={cert.certified ? undefined : 'warn'}
       icon={cert.certified ? CERT_SHIELD_SRC : undefined}
       link={cert.certified ? { label: 'Certificate and badge', href: '/certification/departments/complete' } : { label: cert.pct > 0 ? 'Continue certification' : 'Start certification', href: '/certification/departments/dashboard' }}
+      secondary={cert.certified ? { label: 'Open the certification course', href: '/certification/departments/dashboard' } : undefined}
     />
   )
 }
 
-function StatTile({ label, value, note, tone, link, icon }: { label: string; value: string | number; note?: string; tone?: 'warn'; link?: StatLink; icon?: string }) {
+function StatTile({ label, value, note, tone, link, secondary, icon }: { label: string; value: string | number; note?: string; tone?: 'warn'; link?: StatLink; secondary?: StatLink; icon?: string }) {
+  const renderLink = (l: StatLink) => (l.href
+    ? <a className="home-stat-link" href={l.href} {...(l.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{l.label} &rarr;</a>
+    : <button type="button" className="home-stat-link" onClick={l.onClick}>{l.label} &rarr;</button>)
   return (
     <div className={`home-stat${tone ? ` ${tone}` : ''}`}>
       <div className="home-stat-label">{label}</div>
       <div className="home-stat-value">{icon && <img className="home-stat-icon" src={icon} alt="" />}{value}</div>
       {note && <div className="home-stat-note">{note}</div>}
-      {link && (link.href
-        ? <a className="home-stat-link" href={link.href} {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{link.label} &rarr;</a>
-        : <button type="button" className="home-stat-link" onClick={link.onClick}>{link.label} &rarr;</button>)}
+      {link && renderLink(link)}
+      {secondary && renderLink(secondary)}
     </div>
   )
 }
