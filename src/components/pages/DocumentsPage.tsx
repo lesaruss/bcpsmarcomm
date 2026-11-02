@@ -76,7 +76,7 @@ export type PinnedDoc = { slug: string; title: string; description: string; doc_
 // Playbooks are served for framing by /api/bcps/doc-raw; their /playbooks/
 // address sends a signed-in reader into the dashboard instead.
 const isPlaybook = (url: string) => url.startsWith('/playbooks/')
-const previewSrc = (d: Doc) => isPlaybook(d.doc_url) ? `/api/bcps/doc-raw/${encodeURIComponent(d.slug)}` : d.doc_url
+const previewSrc = (d: Doc) => isPlaybook(d.doc_url) ? `/api/bcps/doc-raw/${encodeURIComponent(d.slug)}?bare=1` : d.doc_url
 const fullPageHref = (d: Doc) => isPlaybook(d.doc_url) ? `${d.doc_url}?standalone=1` : d.doc_url
 
 const ROLE_OPTS = ['view', 'comment', 'edit', 'manage']

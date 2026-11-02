@@ -1325,7 +1325,16 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
     const d = ref.current?.contentDocument
     if (d?.body && !editing) decorate(d)
     if (!d?.documentElement) return
-    const measure = () => setHeight(Math.max(600, d.documentElement.scrollHeight))
+    // The body's own height, not documentElement.scrollHeight: scrollHeight
+    // never drops below the frame's current height, so once a section was
+    // opened and closed the frame kept the extra height as empty gray space
+    // under the page (Sean, 2026-11-02).
+    const measure = () => {
+      const b = d.body
+      const cs = d.defaultView?.getComputedStyle(b)
+      const margins = cs ? parseFloat(cs.marginTop) + parseFloat(cs.marginBottom) : 0
+      setHeight(Math.max(600, Math.ceil(b.getBoundingClientRect().height + margins)))
+    }
     measure()
     try { new ResizeObserver(measure).observe(d.body) } catch { /* older browsers keep the first height */ }
   }
@@ -1348,7 +1357,7 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
       d.designMode = 'off'
       opened.current.forEach((el) => { el.open = false })
       const root = d.documentElement.cloneNode(true) as HTMLElement
-      root.querySelectorAll('#bcps-embed-script').forEach((el) => el.remove())
+      root.querySelectorAll('#bcps-embed-script, #bcps-embed-style').forEach((el) => el.remove())
       stripCompleteButtons(root)
       const html = '<!DOCTYPE html>\n' + root.outerHTML
       const token = (await createClient().auth.getSession()).data.session?.access_token
