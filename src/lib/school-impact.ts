@@ -10,7 +10,7 @@ export const SIA_TABLE = 'bcps_school_impact_applications'
 // not to her or Raymellow individually.
 export const SIA_INBOX = 'prm_growthmanagement@browardschools.com'
 export const SIA_PHONE = '754-321-2177'
-export const SIA_FROM_NAME = 'Growth Management via BCPS MarComm'
+export const SIA_FROM_NAME = 'Intergovernmental Coordination via BCPS MarComm'
 export const SIA_REVIEW_DAYS = 30
 export const SIA_REMIND_WITHIN = 5
 export const SIA_ESTORE_URL = 'https://osp.osmsinc.com/BrowardFL/BVModules/CategoryTemplates/Detailed%20List%20with%20Properties/Category.aspx?categoryid=B0008'
@@ -83,7 +83,7 @@ export const esc = (t: unknown) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ 
 export const longDate = (iso: string | null | undefined) =>
   iso ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : ''
 
-const SIGN_OFF = `<p style="margin:24px 0 0">Best regards,<br>Growth Management Section<br>Facility Planning and Real Estate Department<br>Broward County Public Schools<br><a href="mailto:${SIA_INBOX}">${SIA_INBOX}</a> | ${SIA_PHONE}</p>`
+const SIGN_OFF = `<p style="margin:24px 0 0">Best regards,<br>Intergovernmental Coordination Section<br>Facility Planning and Real Estate Department<br>Broward County Public Schools<br><a href="mailto:${SIA_INBOX}">${SIA_INBOX}</a> | ${SIA_PHONE}</p>`
 const wrap = (body: string) => `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1a1a1a;max-width:640px">${body}${SIGN_OFF}</div>`
 
 // 1. Sent the moment an application is submitted (copy to the shared inbox).
