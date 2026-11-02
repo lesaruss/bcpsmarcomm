@@ -24,6 +24,13 @@ interface TickerMessage { text: string; linkText: string | null; linkHref: strin
 
 const TICKER_MESSAGES: TickerMessage[] = [
   {
+    // Save the date for the Department Web Content Manager quarterly meeting
+    // (Sean, 2026-11-02). No link yet: there is no page for it.
+    text: 'Save the date: Department Web Content Manager Quarterly Meeting, December 3.',
+    linkText: null,
+    linkHref: null,
+  },
+  {
     text: 'Reminder: the Department WCM certification is due Thursday, November 5.',
     linkText: null,
     linkHref: '?page=bcps-certification',
