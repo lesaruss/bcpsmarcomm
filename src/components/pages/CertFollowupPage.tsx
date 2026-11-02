@@ -24,6 +24,8 @@ interface Person {
   failed: string | null
 }
 interface Preview { to: string; subject: string; html: string }
+interface CampaignSummary { campaign: string; sent: number; people: number; opened: number; clicked: number; first_sent: string; last_sent: string }
+const CAMPAIGN_RE = /^[a-z0-9][a-z0-9-]{2,59}$/
 
 const supabase = createClient()
 async function authHeaders(): Promise<Record<string, string>> {
@@ -57,28 +59,46 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   const [busy, setBusy] = useState(false)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [err, setErr] = useState('')
+  // The campaign this page is showing. Each send belongs to one campaign, so
+  // several sends can be tracked on their own (Sean, 2026-11-02).
+  const [campaign, setCampaign] = useState<string | null>(null)
+  const [campaignText, setCampaignText] = useState('')
+  const [campaigns, setCampaigns] = useState<CampaignSummary[]>([])
 
-  const load = useCallback(async () => {
-    const r = await fetch(ENDPOINT, { headers: await authHeaders(), cache: 'no-store' })
+  const load = useCallback(async (c: string | null) => {
+    const url = c ? `${ENDPOINT}?campaign=${encodeURIComponent(c)}` : ENDPOINT
+    const r = await fetch(url, { headers: await authHeaders(), cache: 'no-store' })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) { setErr(j.error || 'Could not load the list.'); return }
     setErr('')
+    setCampaign(j.campaign)
+    setCampaignText((cur) => cur || j.campaign)
+    setCampaigns(j.campaigns ?? [])
     setPeople(j.people)
     setSender(j.sender)
     setAsOf(j.as_of)
-    // The first load checks everyone who has not been emailed yet.
+    // The first load for a campaign checks everyone not yet emailed in it.
     setPicked((cur) => cur ?? new Set((j.people as Person[]).filter((p) => !p.email_status).map((p) => p.email)))
   }, [])
   useEffect(() => {
-    load()
-    const t = setInterval(load, 30000)
+    load(campaign)
+    const t = setInterval(() => load(campaign), 30000)
     return () => clearInterval(t)
-  }, [load])
+  }, [campaign, load])
+
+  const pickCampaign = (raw: string) => {
+    setCampaignText(raw)
+    const v = raw.trim().toLowerCase()
+    if (!CAMPAIGN_RE.test(v) || v === campaign) return
+    setPicked(null)
+    setPreview(null)
+    setCampaign(v)
+  }
 
   const post = async (payload: object) => {
     setBusy(true)
     try {
-      const r = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify(payload) })
+      const r = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify({ campaign, ...payload }) })
       return { ok: r.ok, j: await r.json().catch(() => ({})) }
     } finally { setBusy(false) }
   }
@@ -92,12 +112,13 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   }
   const sendPicked = async () => {
     if (!picked?.size) return
-    if (!window.confirm(`Send the follow-up to ${picked.size} ${picked.size === 1 ? 'person' : 'people'}? Each gets the version for their group. Replies go to ${sender?.reply_to}.`)) return
+    if (!window.confirm(`Send to ${picked.size} ${picked.size === 1 ? 'person' : 'people'} in campaign "${campaign}"? Each gets the version for their group. Replies go to ${sender?.reply_to}.`)) return
     const { ok, j } = await post({ action: 'send', emails: Array.from(picked) })
     if (!ok) { toast(j.error || 'Could not send.'); return }
-    toast(j.failed?.length ? `Sent ${j.sent}. ${j.failed.length} failed: ${j.failed.map((f: { email: string }) => f.email).join(', ')}` : `Sent ${j.sent} follow-up email${j.sent === 1 ? '' : 's'}.`)
+    const skipped = j.skipped?.length ? ` Skipped ${j.skipped.length} already emailed in this campaign.` : ''
+    toast((j.failed?.length ? `Sent ${j.sent}. ${j.failed.length} failed: ${j.failed.map((f: { email: string }) => f.email).join(', ')}.` : `Sent ${j.sent} follow-up email${j.sent === 1 ? '' : 's'}.`) + skipped)
     setPicked(new Set())
-    load()
+    load(campaign)
   }
   const toggle = (email: string) => setPicked((p) => { const n = new Set(p ?? []); if (n.has(email)) n.delete(email); else n.add(email); return n })
   const toggleGroup = (rows: Person[], on: boolean) => setPicked((p) => { const n = new Set(p ?? []); rows.forEach((r) => (on ? n.add(r.email) : n.delete(r.email))); return n })
@@ -142,6 +163,39 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
       </div>
 
       <div className="invite-form-card">
+        <h4>Campaigns</h4>
+        <p style={{ fontSize: 13, margin: '0 0 8px' }}>Every send is saved under a campaign. Pick one to see its list and results, or type a new campaign name below to start one. Names use lowercase letters, numbers and dashes.</p>
+        <div className="invite-table-wrap">
+          <table className="invite-table">
+            <thead>
+              <tr><th>Campaign</th><th>People</th><th>Sent</th><th>Opened</th><th>Open rate</th><th>Clicked</th><th>Click rate</th><th>Last sent</th></tr>
+            </thead>
+            <tbody>
+              {campaigns.length === 0 && <tr><td colSpan={8} style={{ opacity: 0.7 }}>No campaign has sent yet.</td></tr>}
+              {campaigns.map((c) => (
+                <tr key={c.campaign} onClick={() => pickCampaign(c.campaign)} style={{ cursor: 'pointer', background: c.campaign === campaign ? '#eef6fb' : undefined }}>
+                  <td style={{ fontWeight: 700 }}>{c.campaign}</td>
+                  <td>{c.people}</td>
+                  <td>{c.sent}</td>
+                  <td>{c.opened}</td>
+                  <td>{c.sent ? `${Math.round((c.opened / c.sent) * 100)}%` : '–'}</td>
+                  <td>{c.clicked}</td>
+                  <td>{c.sent ? `${Math.round((c.clicked / c.sent) * 100)}%` : '–'}</td>
+                  <td style={{ fontSize: 12 }}>{stamp(c.last_sent)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: 12 }}>
+          <label style={{ fontSize: 13, fontWeight: 700 }} htmlFor="cf-campaign">Campaign</label>
+          <input id="cf-campaign" className="form-input" style={{ maxWidth: 320 }} list="cf-campaign-list" value={campaignText} onChange={(e) => pickCampaign(e.target.value)} aria-describedby="cf-campaign-help" />
+          <datalist id="cf-campaign-list">{campaigns.map((c) => <option key={c.campaign} value={c.campaign} />)}</datalist>
+          <span id="cf-campaign-help" style={{ fontSize: 12, color: '#6b7280' }}>Sends and results apply to this campaign.</span>
+        </div>
+      </div>
+
+      <div className="invite-form-card" style={{ marginTop: 18 }}>
         <h4>What recipients see</h4>
         {sender && (
           <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '6px 16px', margin: '0 0 12px', fontSize: 13 }}>
