@@ -56,6 +56,18 @@ export const RESTRICTED_GUIDES: Record<string, RestrictedGuideMeta> = {
     cadence: 'updated whenever your tools change',
     replaces: {},
   },
+  // District Web Team Guide (Sean, 2026-11-03): what the team has in
+  // development and coming, for departments and for schools. Readers are the
+  // District Web Team group, plus Charlene A. Collins and Luis A. Morales, who
+  // Sean said get the same view as Farrah Wilson. It replaces nothing: the
+  // older documents stay where they are and are linked under Reference.
+  'district-web-team': {
+    slug: 'district-web-team',
+    title: 'District Web Team Guide',
+    audience: 'the District Web Team and the leaders who follow its work',
+    cadence: 'updated before each Wednesday huddle',
+    replaces: {},
+  },
 }
 
 export function restrictedGuideForDoc(slug: string): { guide: RestrictedGuideMeta; tab: string } | null {

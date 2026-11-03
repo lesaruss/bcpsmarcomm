@@ -19,6 +19,25 @@ export const CERT_CHECK = '2026-11-09'
 
 const ext = (href: string, label: string) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`
 
+// Audit tab building blocks (Sean, 2026-11-03: everything a WCM needs about the
+// audit in one place, visual, no separate playbook). Fix cards and FAQ
+// entries are native <details> so they open in place and the guide search
+// still finds their text.
+const TONE = {
+  red: { bar: '#b91c1c', pillBg: '#fde8e8', pillFg: '#8f1d1d', label: 'Red' },
+  amber: { bar: '#b45309', pillBg: '#fbf0d4', pillFg: '#7a5200', label: 'Amber' },
+}
+const courseLink = (m: string, p: string, label: string) =>
+  `<a href="/certification/departments/course/${m}/${p}">${label}</a>`
+const auditFix = (o: { tone: 'red' | 'amber'; title: string; why: string; steps: string[]; course: [string, string, string] }) => {
+  const t = TONE[o.tone]
+  return `<details style="border:1px solid #d6e4ee;border-left:6px solid ${t.bar};border-radius:8px;margin:0 0 8px;background:#fff"><summary style="cursor:pointer;padding:11px 14px;font-weight:700;color:#1a1a1a"><span style="display:inline-block;background:${t.pillBg};color:${t.pillFg};border-radius:99px;padding:1px 9px;font-size:11px;font-weight:800;margin-right:8px">${t.label}</span>${o.title}</summary><div style="padding:0 14px 12px"><p>${o.why}</p><ol class="guide-steps">${o.steps.map((s) => `<li>${s}</li>`).join('')}</ol><p>Taught in ${courseLink(o.course[0], o.course[1], o.course[2])}.</p></div></details>`
+}
+const auditFaq = (q: string, a: string) =>
+  `<details style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;margin:0 0 8px;background:#fff"><summary style="cursor:pointer;padding:11px 14px;font-weight:700;color:#1a1a1a">${q}</summary><div style="padding:0 14px 12px">${a}</div></details>`
+const auditStat = (color: string, bg: string, title: string, body: string) =>
+  `<div style="border:1px solid ${color};background:${bg};border-radius:10px;padding:12px 14px"><div style="font-weight:800;color:${color};font-size:15px">&#9679; ${title}</div><div style="margin-top:4px">${body}</div></div>`
+
 export const WCM_DEPARTMENT_GUIDE: GuideDef = {
   slug: 'wcm-department',
   eyebrow: 'BCPS MarComm',
@@ -118,15 +137,27 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
       id: 'audit',
       label: 'Your Audit',
       step: 3,
-      intro: 'Once you are certified, your work is the audit: it checks your department page against the standards the course taught, and shows you exactly what to fix.',
+      intro: 'Everything about your audit in one place: what the colors mean, how to fix the items flagged most often, what is not yours to fix, and where to get help.',
       sections: [
         {
           id: 'how',
-          title: 'How the audit works',
+          title: 'Your audit at a glance',
           html: `
 <p>Open <a href="/?page=dashboard&amp;tab=audit">Run Audit</a> on your dashboard. You see a picture of your page, on desktop and phone, with a numbered pin on every check. The ADA scan runs at the same time, so it is one place for both.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:12px 0">
+  ${auditStat('#15803d', '#eaf6ee', 'Green', 'Passes. Nothing to do.')}
+  ${auditStat('#b91c1c', '#fdeeee', 'Red', 'Needs a fix. These are your list.')}
+  ${auditStat('#b45309', '#fdf5e4', 'Amber', 'Take a look. Amber never changes your score.')}
+</div>
+<p><b>What it checks</b>, in five areas:</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px">
+  <span style="border:1px solid #d6e4ee;background:#f3f8fc;border-radius:99px;padding:4px 12px;font-weight:700;color:#0e4e73">Homepage</span>
+  <span style="border:1px solid #d6e4ee;background:#f3f8fc;border-radius:99px;padding:4px 12px;font-weight:700;color:#0e4e73">Layout</span>
+  <span style="border:1px solid #d6e4ee;background:#f3f8fc;border-radius:99px;padding:4px 12px;font-weight:700;color:#0e4e73">Content</span>
+  <span style="border:1px solid #d6e4ee;background:#f3f8fc;border-radius:99px;padding:4px 12px;font-weight:700;color:#0e4e73">Navigation</span>
+  <span style="border:1px solid #d6e4ee;background:#f3f8fc;border-radius:99px;padding:4px 12px;font-weight:700;color:#0e4e73">Accessibility (ADA)</span>
+</div>
 <ul>
-  <li><b>Green</b> passes. <b>Red</b> needs a fix. <b>Amber</b> asks you to take a look (for example, whether an image is a flyer) and never changes your score.</li>
   <li>Every check is a standard from the certification course and links to the course page that teaches it, so the audit and the training never disagree.</li>
   <li>Issues in the site header, menus and footer belong to Finalsite and never count against you.</li>
   <li>The audit includes pages linked from your main page, not only the ones in the menu, and shows when each page was last checked.</li>
@@ -134,6 +165,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
 <p><a class="guide-btn" href="/?page=dashboard&amp;tab=audit">Go to Run Audit</a> <a class="guide-btn guide-btn-outline" href="/playbooks/wcm-department/score-100-checklist">Department Page Checklist</a></p>
 <p class="guide-note">The <b>Department Page Checklist</b> is exactly what the audit checks, nothing more, with the Finalsite steps for each item. Meet every item and your page scores 100.</p>`,
         },
+
         {
           id: 'walkthrough',
           title: 'Walkthrough: the audit in five steps',
@@ -169,19 +201,88 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
           html: `<p>Some departments look like one office from the outside, so we rely on you. If a page in your list belongs to another office, select it for reclassification, or use Still stuck? and tell us who manages it. Missing a page? Add any browardschools.com page by its link.</p>`,
         },
         {
+          id: 'fixes',
+          title: 'How to fix the most common items',
+          html: `
+<p>These come up most often across departments, most common first. Open one to see why it is checked and the steps to fix it. Each step list is the same one you see on the item in Run Audit.</p>
+${auditFix({ tone: 'amber', title: 'No text-heavy images or flyers', why: 'Screen readers cannot read text inside an image. If an image carries important information, that information must also be on the page as text.', steps: ['Look at each image pinned on your page.', 'If it is a flyer or graphic full of text, type that information onto the page, or add it as text right below the image.', 'If the image is fine (a photo, say), add a short note and mark it checked.'], course: ['mod4', 'common-issues', 'Module 4: Common Content Issues'] })}
+${auditFix({ tone: 'amber', title: 'Linked PDFs are tagged for accessibility', why: 'The Finalsite checker does not open PDFs. Every document you link must pass Adobe Acrobat’s own Accessibility Checker.', steps: ['Open each PDF in Adobe Acrobat and run Tools, Accessibility, Full Check.', 'Fix what it reports, or ask the document’s owner for an accessible version.', 'Replace the file in your Finalsite gallery so the link stays the same.'], course: ['mod9', 'checker', 'Module 9: Finalsite Accessibility Checker'] })}
+${auditFix({ tone: 'red', title: 'Headings are in order, with none skipped or empty', why: 'Headings jump levels (H2 straight to H4) or the page has no true H1, so the outline does not make sense to screen reader users.', steps: ['Highlight the heading text inside your content block.', 'Click the Formatting icon (the pilcrow symbol, ¶) in the Composer toolbar.', 'Choose the correct heading level from the dropdown. Work in order down the page: one H1, then H2s under it, then H3s under those. Never skip from H2 straight to H4.', 'Never pick a heading level just to get a certain font size.'], course: ['mod9', 'accessible-page', 'Module 9: What Makes a Page Accessible?'] })}
+${auditFix({ tone: 'red', title: 'The Overview page is labeled with the department name', why: 'In a large district site, a menu item called just “Overview” or “Home” does not tell visitors which department they reached.', steps: ['Open the Overview page settings in Composer.', 'Rename it with your department name or initials before “Overview”, for example “OC Overview”.', 'Publish the page.'], course: ['mod5', 'dropdowns', 'Module 5: Checking and Correcting Navigation'] })}
+${auditFix({ tone: 'amber', title: 'No long unbroken blocks of text', why: 'Very long blocks of content are hard to scan. Content that belongs together but does not all need to be visible should go in lists, accordions or tabs.', steps: ['Turn any paragraph that lists three or more items into a bulleted list.', 'Move detail not every visitor needs into an accordion (Add Element, Layout tab, Accordion).', 'Use tabs when the content splits by audience or program.'], course: ['mod4', 'proofreading', 'Module 4: Condensing and Organizing Content'] })}
+${auditFix({ tone: 'red', title: 'Every link has readable text', why: 'Link text like “click here”, “read more” or a bare web address does not tell a screen reader user where the link goes.', steps: ['Run Composer’s Accessibility Checker to see every non-descriptive link flagged across the page at once.', 'Select the link text and edit it directly. You do not need to touch the address.', 'Rewrite it to describe the destination, for example “View the 2026-27 meal benefits application” instead of “click here”.'], course: ['mod12', 'link-language', 'Module 12: Link Language'] })}
+${auditFix({ tone: 'red', title: 'Three to six Quick Access buttons', why: 'Quick Access buttons take visitors straight to your most visited pages. Limit them to your real top priorities; do not list every page.', steps: ['Pick your three to six most visited pages. Your <a href="/?page=dashboard&amp;tab=analytics">Analytics</a> tab shows them.', 'For each one, add a link in a Content element under your description.', 'Right-click the link, choose Edit Link, and apply a button size class and a color class (for example small button and button blue).'], course: ['mod2', 'homepage', 'Module 2: Required Content: Homepage'] })}
+${auditFix({ tone: 'red', title: 'The description is 250 characters or fewer', why: 'A concise description is the first thing visitors see. Keep it brief and direct; the rest of the page carries the detail.', steps: ['Copy your description into Copilot and ask it to shorten it to 250 characters or fewer.', 'Paste the shorter version back into the first Content element.', 'Move the longer text further down the page, or into an accordion.'], course: ['mod2', 'homepage', 'Module 2: Required Content: Homepage'] })}
+${auditFix({ tone: 'red', title: 'Internal links use site page links, not copied URLs', why: 'Links made with Finalsite’s site page option update themselves when a page moves. Addresses copied from the browser break when pages are renamed.', steps: ['Right-click each pinned link and choose Edit Link.', 'Change the link type to Site Page (or Site File) and pick the page from the list.', 'Save and publish.'], course: ['mod5', 'dropdowns', 'Module 5: Checking and Correcting Navigation'] })}
+${auditFix({ tone: 'red', title: 'All hyperlinks are working', why: 'Every link on your department site must work. Broken links leave visitors at a dead end.', steps: ['Open each link listed on the item.', 'Relink it with the site page or file option, not a pasted address, so it keeps working when pages move.', 'Remove the link if the destination no longer exists.'], course: ['mod5', 'standards', 'Module 5: Navigation Standards'] })}
+${auditFix({ tone: 'red', title: 'All dates and information are current', why: 'Dates from past school years and expired deadlines are among the most common findings, and they undermine trust in everything else on the page.', steps: ['Search the page for past school years (for example 2024-25 or 2024-2025).', 'Update or remove anything out of date.', 'If older material must stay, move it into an Archive section labeled by school year.', 'If the wording should stay as it is, say so in your note and mark the item done.'], course: ['mod4', 'writing', 'Module 4: Writing and Updating Content'] })}
+${auditFix({ tone: 'red', title: 'The left navigation menu is on the page', why: 'District standard requires the left menu on all department pages. It gives visitors access to every sub-page and section.', steps: ['In Compose Mode, click the building block icon, then Page Appearance, then Left Banner.', 'Set the left nav tier: Tier 2 for main department pages, Tier 3 for sub-pages.', 'Publish, then check every sub-page appears in the menu.'], course: ['mod5', 'standards', 'Module 5: Navigation Standards'] })}
+${auditFix({ tone: 'red', title: 'Single-column page layout', why: 'A page laid out in two columns all the way down breaks on phones and is harder to scan. A small section placed side by side, such as Important Links or a logo beside your introduction, is fine.', steps: ['In Compose Mode, click the building block icon, then “Edit page layout, banners and themes”, and confirm the page is single column.', 'For any two- or three-column layout that runs the length of the page, drag its content out into the single column.', 'Use accordion or tab elements (Add Element, Layout tab) to organize what was in the side column.'], course: ['mod3', 'standards', 'Module 3: Layout Standards'] })}
+${auditFix({ tone: 'red', title: 'Contact information at the bottom, in the required format', why: 'Visitors look for contact details at the bottom of the page. The required format works the same way on every department page.', steps: ['At the bottom of the homepage, add or edit a Content element with your department name in bold, your address linked to your Google Maps location, and your phone number.', 'Link the phone number with tel: and no spaces, for example tel:7545551234.', 'Fax is optional: use the “F:” prefix in the same format.'], course: ['mod2', 'homepage', 'Module 2: Required Content: Homepage'] })}
+${auditFix({ tone: 'red', title: 'Photos use the rounded photo element, not a Content element', why: 'Photos use the WCM Enhancements rounded-corner photo element. Images inserted directly into a Content element do not follow the district style and are hard to manage.', steps: ['Delete the image from inside the Content element.', 'Add a Resource (photo) element in its place and choose the image from your gallery.', 'Apply the rounded photo style from WCM Enhancements, and give the photo alt text.'], course: ['mod2', 'homepage', 'Module 2: Required Content: Homepage'] })}
+<p class="guide-note">Not on this list? Open the item in Run Audit. Every item carries its own steps and the course page that teaches it.</p>`,
+        },
+
+        {
+          id: 'finalsite',
+          title: 'What is yours to fix, and what is not',
+          html: `
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:0 0 12px">
+  <div style="border:1px solid #b9dcc0;border-top:6px solid #15803d;border-radius:10px;padding:12px 14px;background:#fff"><b style="color:#15803d">Yours to fix</b>
+    <ul style="margin:8px 0 0">
+      <li>Content on your pages: text, links, dates, images, headings</li>
+      <li>Your page layout and Quick Access buttons</li>
+      <li>PDFs you upload and link</li>
+    </ul></div>
+  <div style="border:1px solid #d6e4ee;border-top:6px solid #1672A7;border-radius:10px;padding:12px 14px;background:#fff"><b style="color:#0e4e73">Not yours: tell us</b>
+    <ul style="margin:8px 0 0">
+      <li>Site header, menus and footer, which belong to Finalsite</li>
+      <li>Template markup and some accessibility rules only Finalsite can change</li>
+      <li>A page in your list that belongs to another office</li>
+    </ul></div>
+</div>
+<p><b>Items only Finalsite can fix</b> should not be on your list, and they never count against you. If one appears, select <b>Still stuck? Ask the District Web Team</b> on the item so we can take it off.</p>
+<p><b>PDFs.</b> Run Adobe Acrobat’s Accessibility Checker before you post. If it reports something with no available fix, even after you have tried, use Still stuck and tell us what the checker says. That is how we decide what to take off your list.</p>`,
+        },
+
+        {
           id: 'tips',
-          title: 'Answers to the most common items',
+          title: 'A few more answers',
           html: `
 <ul>
-  <li><b>Quick Access buttons</b> are the most common red item: three to six buttons under your description that go to your most visited pages. Your <a href="/?page=dashboard&amp;tab=analytics">Analytics</a> tab shows which pages those are.</li>
   <li><b>Review items are not errors.</b> Amber items such as text-heavy images only ask you to look. Check the image, add a note, and mark it checked.</li>
-  <li><b>Heading order.</b> One H1 for the page title, then H2 for sections and H3 inside them. Do not skip a level, and do not use a heading just to make text bigger.</li>
   <li><b>Side-by-side sections are allowed.</b> The single-column standard is about a whole page split into two columns. A small side-by-side section, such as Important Links or a logo beside your intro, is fine. The audit still flags these: skip that item for now, the check is being corrected.</li>
   <li><b>Past dates on a page.</b> Review the page with your team. It is often a chance to post a short update. If the wording stays, say so in the note and mark it done.</li>
-  <li><b>Items only Finalsite can fix</b> (template markup and some PDF rules) should not be on your list. They are being filtered out.</li>
   <li><b>Finding your page in Finalsite.</b> Departments, then Department Branch, then BCPS Departments. Select the page icon, not the title, then Compose. Bookmark it.</li>
 </ul>
 <p class="guide-note">Scores will be reset for everyone once this version of the audit is confirmed, so treat today's number as a guide to what to fix rather than a final grade.</p>`,
+        },
+
+        {
+          id: 'faq',
+          title: 'Frequently asked questions',
+          html: `
+${auditFaq('I fixed it in Finalsite, but it is still red. Why?', '<p>Almost always because the page is still marked <b>Draft</b>. A fix that is not published does not show on the live page, and the audit only sees the live page. Publish it, then run the audit again on that page or select <b>Request re-audit</b>.</p>')}
+${auditFaq('How many times can I run the audit?', '<p>You can run it again on a page up to 15 pages a day. When every item is done, <b>Request re-audit</b> is the quickest way to see everything turn green.</p>')}
+${auditFaq('What is the difference between red and amber?', '<p><b>Red</b> means the page does not meet a standard and needs a fix. <b>Amber</b> asks you to take a look, for example whether an image is a flyer. Amber never changes your score. Check it, add a note, and mark it checked.</p>')}
+${auditFaq('A page in my audit is not mine. What do I do?', '<p>Some departments look like one office from the outside. Select the page for reclassification, or use Still stuck and tell us who manages it. You are not expected to fix another office’s page.</p>')}
+${auditFaq('A page of mine is missing from the audit.', '<p>The audit includes your main page, your left menu, and every quick link on your main page that lands under your address. If one is still missing, add any browardschools.com page by its link and it is audited next.</p>')}
+${auditFaq('Why is my score not 100?', '<p>Only green and red items count. Open Run Audit, work through the red pins, then re-audit. The <a href="/playbooks/wcm-department/score-100-checklist">Department Page Checklist</a> is exactly what is checked.</p>')}
+${auditFaq('The audit flagged something that looks right to me. Is it wrong?', '<p>It can be. The audit is new and the District Web Team is going through its rules, including the ones WCMs ask about. Two examples already corrected or being corrected: side-by-side sections such as Important Links, and items only Finalsite can fix. Use <b>Still stuck?</b> and tell us what you see. When several people raise the same thing, it moves up the list.</p>')}
+${auditFaq('Do I have to do the audit myself?', '<p>Your department page is your responsibility as WCM. The audit tells you exactly what to fix and where, and the District Web Team and Hot Lab are there when you are stuck.</p>')}
+<p><a class="guide-btn guide-btn-outline" href="#feedback" data-msg="My audit question: ">Ask a question that is not here</a></p>`,
+        },
+
+        {
+          id: 'help',
+          title: 'Stuck? Four ways to get unstuck',
+          html: `
+<div style="display:grid;gap:10px;margin:12px 0">
+  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>1. Follow the steps on the item.</b> Every item in Run Audit says what to do, in order.</div>
+  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>2. Open the course page it links to.</b> It shows where the thing is in Finalsite.</div>
+  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>3. Select Still stuck? Ask the District Web Team.</b> Say what does not make sense and give as much detail as you can. Questions are answered in order, and one several people ask moves up the list.</div>
+  <div style="border:1px solid #d6e4ee;border-left:6px solid #C55326;border-radius:8px;padding:12px 14px"><b>4. Come to Hot Lab.</b> Tuesday and Thursday, 11:30 AM to 12:30 PM on Teams. Bring your audit and we work through it together. <a href="${HOT_LAB_JOIN_URL}" target="_blank" rel="noopener noreferrer">Join on Teams</a></div>
+</div>`,
         },
       ],
     },
@@ -465,6 +566,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
     },
   ],
   changes: [
+    { date: '2026-11-03', text: 'Your Audit rebuilt as one place for everything about the audit: the colors and the five areas at a glance, step-by-step fixes for the 15 items flagged most often, what is yours to fix and what is not, frequently asked questions, and four ways to get unstuck.' },
     { date: '2026-11-03', text: 'New Leaderboard tab: the live top 20 for this school year, certification tiles, and the 100-point chart (certification, Hot Labs, the Kickoff, and starting your audit). Your Overview shows your own standing.' },
     { date: '2026-11-02', text: 'New: a walkthrough of the audit in five steps, at the start of Your Audit: open Run Audit, read the colors, fix a red pin, publish, then note it and re-audit. Hot Labs on Tuesday, November 3 and Thursday, November 5 cover the audits.' },
     { date: '2026-10-30', text: 'Start Here: Web Content Manager Onboarding folded in: what to do when you cannot sign in, and how to get the tools that come with hands-on training. The earlier documents are listed under Hot Lab & Help, for reference.' },
