@@ -396,8 +396,8 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
           id: 'how',
           title: 'How the leaderboard works',
           html: `<p>Every Department WCM earns points for the work that keeps department sites in good shape. The leaderboard shows the <b>top 20</b> this school year. It starts over every school year, so everyone begins even.</p>
-<p>Points update after each Hot Lab, once the roster and meeting notes are posted. The board shows your first name, last initial and department.</p>
-<p><i>The live board is being loaded. Until it is, use the point chart below to see where you stand.</i></p>`,
+<p>Points update after each Hot Lab, once the meeting notes are posted. The board shows first name, last initial and department.</p>
+<p>Hot Lab points come from the people named in each posted meeting note, so someone who joins and stays quiet may be missed. If a session is missing for you, <a href="#feedback" data-msg="A Hot Lab is missing from my leaderboard points: ">tell us</a> and we will add it.</p>`,
         },
         {
           id: 'rubric',
@@ -465,7 +465,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
     },
   ],
   changes: [
-    { date: '2026-11-03', text: 'New Leaderboard tab: the 100-point chart for this school year (certification, in-person Hot Labs, the Kickoff, and starting your audit). The live top 20 follows once attendance is loaded.' },
+    { date: '2026-11-03', text: 'New Leaderboard tab: the live top 20 for this school year, certification tiles, and the 100-point chart (certification, Hot Labs, the Kickoff, and starting your audit). Your Overview shows your own standing.' },
     { date: '2026-11-02', text: 'New: a walkthrough of the audit in five steps, at the start of Your Audit: open Run Audit, read the colors, fix a red pin, publish, then note it and re-audit. Hot Labs on Tuesday, November 3 and Thursday, November 5 cover the audits.' },
     { date: '2026-10-30', text: 'Start Here: Web Content Manager Onboarding folded in: what to do when you cannot sign in, and how to get the tools that come with hands-on training. The earlier documents are listed under Hot Lab & Help, for reference.' },
     { date: '2026-10-29', text: 'Certification extended to Thursday, November 5. Hot Labs on Tuesday, November 3 and Thursday, November 5 are the place to get help finishing.' },
