@@ -86,6 +86,20 @@ const nextConfig = {
   // Redirects run ahead of middleware, so this works signed out.
   async redirects() {
     return [
+      // www.bcpsmarcomm.com -> bcpsmarcomm.com (Sean, 2026-11-03). Every
+      // link and the session cookie use the bare domain; a www link looked
+      // signed out, and the Google sign-in return address on www is not on
+      // the shared Supabase auth allow list, so it landed on lesaruss.ai.
+      // Done here because the Vercel tools in the agent sandbox can add a
+      // domain but not edit an existing one. Temporary (307) on purpose so
+      // browsers do not cache it while this is new; make it permanent later.
+      // Path and query carry through, so /campaigns/referendum-2026 works.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.bcpsmarcomm.com" }],
+        destination: "https://bcpsmarcomm.com/:path*",
+        permanent: false,
+      },
       {
         source: "/lab",
         destination: "https://broward.truenorthlogic.com/ia/empari/learning2/registration/presentSectionRegistrationDetails?id=sJqNeMYw%2Fg1mZ4w0fRr0qg%3D%3D",
