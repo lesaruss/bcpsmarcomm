@@ -2742,6 +2742,7 @@ interface InboxMessage {
   id: string
   created_at: string
   email: string | null
+  sender_name: string | null
   page: string | null
   message: string
   read_at: string | null
@@ -2913,7 +2914,7 @@ function InboxSection({ onOpenInbox }: { onOpenInbox: () => void }) {
           <button type="button" className="home-msg-head" aria-expanded={openId === m.id} onClick={() => open(m)}>
             <span className="home-msg-from">
               {!m.read_at && <span className="home-dot" aria-label="Unread" />}
-              {m.email || 'Not identified'}
+              {m.sender_name || m.email || 'Not identified'}
               <small>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{m.page ? ` \u00b7 ${m.page}` : ''}</small>
             </span>
             <span className="home-msg-snip">{m.message.length > 110 && openId !== m.id ? m.message.slice(0, 110) + '\u2026' : (openId === m.id ? '' : m.message)}</span>
