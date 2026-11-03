@@ -12,7 +12,7 @@ const TOP = 20
 const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 
 // Department WCM leaderboard (Sean, 2026-11-03). Points for the current
-// school year (August 1 to July 31); the scoring lives in public.bcps_wcm_leaderboard() and the
+// school year (July 1 to June 30); the scoring lives in public.bcps_wcm_leaderboard() and the
 // point chart is the Leaderboard tab of the Department WCM Guide. Names are
 // shown as first name and last initial, with the department, and only the
 // top 20 are returned: everyone else sees their own rank and how far they
@@ -31,9 +31,10 @@ interface Row {
 }
 
 function schoolYearStart(now = new Date()): string {
-  // The school year starts August 1 (Sean, 2026-11-03).
-  const y = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
-  return `${y}-08-01`
+  // The school year starts July 1, the start of the fiscal quarter (Sean,
+  // 2026-11-03).
+  const y = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1
+  return `${y}-07-01`
 }
 
 function maskName(full: string | null): string {
