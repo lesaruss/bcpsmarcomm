@@ -5,7 +5,7 @@ import { requireBcpsSuperAdmin } from '@/lib/bcps-auth'
 import { sendEmail } from '@/lib/resend'
 import { SITE } from '@/lib/bcps-portal-account'
 import {
-  followupEmail, followupGroup, followupSubject, FOLLOWUP_FROM_NAME, FOLLOWUP_REPLY_TO,
+  followupEmail, followupGroup, followupSubject, FOLLOWUP_FROM_NAME, FOLLOWUP_REPLY_TO, nudgeEmail, NUDGE_SUBJECT,
   type FollowupGroup,
 } from '@/lib/bcps-cert-followup-email'
 
@@ -20,6 +20,8 @@ import {
 // several sends can be tracked separately.
 //   GET  ?campaign=<id>                   the list for that campaign, plus every campaign's totals
 //   POST { action: 'preview', email, campaign }   the exact email that person gets
+//   POST { action: 'nudge-preview', campaign }  who the Tuesday nudge would reach (progress unchanged
+//                                         since that campaign's send), counts and a sample. Never sends.
 //   POST { action: 'test', to, group }    one sample of a version to a District or LESARUSS address
 //   POST { action: 'send', emails, campaign }     sends to the people named (only people on the list,
 //                                         and not anyone already emailed in that campaign)
@@ -198,6 +200,33 @@ export async function POST(req: NextRequest) {
     const p = people.find((x) => x.email === norm(body.email))
     if (!p) return NextResponse.json({ error: 'That person is not on the list.' }, { status: 404 })
     return NextResponse.json({ ok: true, to: p.email, ...render(p, null) })
+  }
+
+  // Tuesday nudge, PREVIEW ONLY (Sean, 2026-11-03). Who: has an account, not
+  // certified, was emailed in `campaign` (the baseline), and their progress is
+  // unchanged since that send. Nothing is sent from here; a send needs a separate,
+  // explicitly approved action that does not exist yet.
+  if (body.action === 'nudge-preview') {
+    const left = people.filter((p) => p.group !== 'completed')
+    const baseline = left.filter((p) => p.email_status && p.email_status.pct_at_send != null)
+    const unchanged = baseline.filter((p) => p.pct === (p.email_status!.pct_at_send as number))
+    const eligible = unchanged.filter((p) => p.has_account)
+    const sample = eligible[0]
+    return NextResponse.json({
+      ok: true, baseline_campaign: campaign,
+      counts: {
+        left_to_certify: left.length,
+        emailed_in_baseline: baseline.length,
+        not_emailed_no_baseline: left.length - baseline.length,
+        progress_moved: baseline.length - unchanged.length,
+        unchanged_no_account: unchanged.length - eligible.length,
+        recipients: eligible.length,
+      },
+      recipients: eligible.map((p) => ({ email: p.email, name: p.name, department: p.department, pct: p.pct, last_active: p.last_active })),
+      subject: NUDGE_SUBJECT,
+      sample: sample ? { to: sample.email, html: nudgeEmail(sample, (u) => u, '') } : null,
+      sender: { from: `${FOLLOWUP_FROM_NAME} <notifications@bcpsmarcomm.com>`, reply_to: FOLLOWUP_REPLY_TO },
+    })
   }
 
   if (body.action === 'test') {
