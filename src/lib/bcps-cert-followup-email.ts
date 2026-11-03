@@ -30,10 +30,11 @@ export function followupSubject(p: FollowupPerson): string {
 }
 
 // Extended from Friday, Oct 30 (Sean, 2026-10-29). Said as more room, with no
-// reason given; the two Hot Labs before it are where to get help.
+// reason given; the Hot Lab before it is where to get help (the Tuesday,
+// Nov 3 one is taken out now that it has happened, V, 2026-11-03).
 const DUE = 'Thursday, November 5'
 const EXTENDED = `We&rsquo;ve extended the deadline to <strong>${DUE}</strong> to give everyone a little more room.`
-const HOT_LABS = '<p>Hot Lab on Tuesday, November 3 and Thursday, November 5, 11:30 AM to 12:30 PM, is also a good place to get help with any module.</p>'
+const HOT_LABS = '<p>Hot Lab on Thursday, November 5, 11:30 AM to 12:30 PM, is also a good place to get help with any module.</p>'
 const SIGN = '<p>Thank you,<br>Sean A. Russell<br>District Webmaster, Office of Communications</p>'
 const help = (verb: 'finishing' | 'starting') => `<p>If anything is keeping you from ${verb}, or you don&rsquo;t think you&rsquo;ll make it by November 5, just reply to this email or message me on Teams and let me know how we can support you. We would much rather help you get there than hold anything up.</p>`
 
