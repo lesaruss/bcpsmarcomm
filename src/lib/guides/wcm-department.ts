@@ -24,7 +24,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
   eyebrow: 'BCPS MarComm',
   title: 'Department WCM Guide',
   audience: 'Department Web Content Managers',
-  updated: '2026-10-30',
+  updated: '2026-11-03',
   cadence: 'refreshed every Thursday',
   replaces: {
     'bcps-wcm-registration-2026-27': 'start',
@@ -388,6 +388,41 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
       ],
     },
     {
+      id: 'leaderboard',
+      label: 'Leaderboard',
+      intro: 'How Department WCMs earn points this school year.',
+      sections: [
+        {
+          id: 'how',
+          title: 'How the leaderboard works',
+          html: `<p>Every Department WCM earns points for the work that keeps department sites in good shape. The leaderboard shows the <b>top 20</b> this school year. It starts over every school year, so everyone begins even.</p>
+<p>Points update after each Hot Lab, once the roster and meeting notes are posted. The board shows your first name, last initial and department.</p>
+<p><i>The live board is being loaded. Until it is, use the point chart below to see where you stand.</i></p>`,
+        },
+        {
+          id: 'rubric',
+          title: 'Point chart (100 points)',
+          html: `<table>
+  <thead><tr><th>Category</th><th>Points</th><th>How you earn them</th></tr></thead>
+  <tbody>
+    <tr><td><b>Certification</b></td><td>Up to 40</td><td>Certified by Oct 30: 40. By Nov 5: 30. By Nov 9: 20. After Nov 9: 10.</td></tr>
+    <tr><td><b>In-person Hot Labs</b></td><td>Up to 30</td><td>3 points for each Hot Lab you attend this school year, up to 30.</td></tr>
+    <tr><td><b>Kickoff</b></td><td>10</td><td>You attended the September 10 Kickoff.</td></tr>
+    <tr><td><b>Audit started</b></td><td>Up to 20</td><td>10 for marking your first audit item, and 10 more once at least half your findings are fixed.</td></tr>
+  </tbody>
+</table>
+<p>Ties go to whoever certified first.</p>
+<p><a class="guide-btn" href="#guide/certify">Finish certification</a></p>`,
+        },
+        {
+          id: 'standing',
+          title: 'Where you stand',
+          html: `<p>If you are not in the top 20, you will not appear on the board. Your own dashboard shows your rank and how many points you need to reach the top 20.</p>
+<p>Not sure which points you are missing? Ask in <a href="#guide/help/hotlab">Hot Lab</a> or <a href="#feedback" data-msg="Question about my leaderboard points: ">send us a message</a>.</p>`,
+        },
+      ],
+    },
+    {
       id: 'help',
       label: 'Hot Lab & Help',
       intro: 'Where to get an answer, fast.',
@@ -430,6 +465,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
     },
   ],
   changes: [
+    { date: '2026-11-03', text: 'New Leaderboard tab: the 100-point chart for this school year (certification, in-person Hot Labs, the Kickoff, and starting your audit). The live top 20 follows once attendance is loaded.' },
     { date: '2026-11-02', text: 'New: a walkthrough of the audit in five steps, at the start of Your Audit: open Run Audit, read the colors, fix a red pin, publish, then note it and re-audit. Hot Labs on Tuesday, November 3 and Thursday, November 5 cover the audits.' },
     { date: '2026-10-30', text: 'Start Here: Web Content Manager Onboarding folded in: what to do when you cannot sign in, and how to get the tools that come with hands-on training. The earlier documents are listed under Hot Lab & Help, for reference.' },
     { date: '2026-10-29', text: 'Certification extended to Thursday, November 5. Hot Labs on Tuesday, November 3 and Thursday, November 5 are the place to get help finishing.' },
