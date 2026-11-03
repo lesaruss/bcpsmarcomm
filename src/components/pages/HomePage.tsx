@@ -1434,7 +1434,10 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
   )
 }
 
-function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm' | 'leadership'; team?: boolean; canMarcomm?: boolean; asEmail?: string | null }) {
+// marcommGuide: whether the MarComm Team Guide is pinned; it follows canMarcomm
+// unless the dashboard says otherwise (Application Services keep the MarComm
+// Assignments tracker but not the Marcomm team's guide, Sean 2026-11-03).
+function DocumentsTab({ kind, team = false, canMarcomm = false, marcommGuide, asEmail }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm' | 'leadership'; team?: boolean; canMarcomm?: boolean; marcommGuide?: boolean; asEmail?: string | null }) {
   const [doc, openDoc] = useDocParam()
   const [refresh, setRefresh] = useState(0)
   const [leadsNote, setLeadsNote] = useState('')
@@ -1495,7 +1498,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
     ...(team ? { 'bcps-web-team-assignments': () => openDoc('web-team-assignments') } : {}),
     ...(canMarcomm ? { 'bcps-marcomm-assignments': () => window.location.assign(MARCOMM_PATH) } : {}),
   }
-  const pinned = [...(kind === 'director' || kind === 'wcm' || kind === 'leadership' ? PINNED_DOCS[kind] : []), ...(canMarcomm ? [MARCOMM_GUIDE_PIN] : [])]
+  const pinned = [...(kind === 'director' || kind === 'wcm' || kind === 'leadership' ? PINNED_DOCS[kind] : []), ...((marcommGuide ?? canMarcomm) ? [MARCOMM_GUIDE_PIN] : [])]
   return <DocumentsPage embedded onOpen={(s) => openDoc(s)} trackers={trackers} pinned={pinned}
     reviewOnly={kind === 'director' || kind === 'leadership'} asEmail={asEmail} />
 }
@@ -2615,16 +2618,34 @@ const prefsKey = (userId: string) => `bcps-tool-prefs:${userId}`
 // SuperAdmins and the District Web Team, who support every audience, get this
 // menu of the guides instead. Each opens in place under Documents. Restricted
 // guides (Website & Platform) are listed for SuperAdmins only.
-function GuidesMenu({ showRestricted }: { showRestricted: boolean }) {
+// District Web Team members who are not SuperAdmins (Sean, 2026-11-03) see only
+// the guides they can open: the ones the Documents catalog lists for them
+// (mineOnly), plus alsoSlugs, for guides that are not in the catalog.
+function GuidesMenu({ showRestricted, mineOnly = false, alsoSlugs = [], asEmail }: { showRestricted: boolean; mineOnly?: boolean; alsoSlugs?: string[]; asEmail?: string | null }) {
   const router = useRouter()
+  const [mine, setMine] = useState<Set<string> | null>(null)
+  useEffect(() => {
+    if (!mineOnly) return
+    let off = false
+    ;(async () => {
+      try {
+        const r = await fetch(`/api/bcps/documents${asEmail ? `?as=${encodeURIComponent(asEmail)}` : ''}`, { headers: await authHeaders(), cache: 'no-store' })
+        const j = await r.json()
+        if (!off) setMine(new Set(r.ok ? (j.documents ?? []).map((d: { slug: string }) => d.slug) : []))
+      } catch { if (!off) setMine(new Set()) }
+    })()
+    return () => { off = true }
+  }, [mineOnly, asEmail])
   const open = (slug: string) => router.push(`/?page=dashboard&tab=documents&doc=${encodeURIComponent(slug)}`, { scroll: false })
-  const list = [
-    ...Object.values(GUIDES).map((g) => ({ slug: g.slug, title: g.title, audience: g.audience, cadence: g.cadence })),
-    ...(showRestricted ? Object.values(RESTRICTED_GUIDES).map((g) => ({ slug: g.slug, title: g.title, audience: g.audience, cadence: g.cadence })) : []),
-  ]
+  const everyGuide = [...Object.values(GUIDES), ...Object.values(RESTRICTED_GUIDES)]
+  const list = (mineOnly
+    ? everyGuide.filter((g) => mine?.has(g.slug) || alsoSlugs.includes(g.slug))
+    : [...Object.values(GUIDES), ...(showRestricted ? Object.values(RESTRICTED_GUIDES) : [])]
+  ).map((g) => ({ slug: g.slug, title: g.title, audience: g.audience, cadence: g.cadence }))
+  if (mineOnly && mine === null) return <p className="wcm-hub2-intro">Loading your guides.</p>
   return (
     <>
-      <p className="wcm-hub2-intro">Every guide, by who it is for. Open one to see it the way its readers do.</p>
+      <p className="wcm-hub2-intro">{mineOnly ? 'Your guides. Open one to read it.' : 'Every guide, by who it is for. Open one to see it the way its readers do.'}</p>
       <div className="home-dept-grid">
         {list.map((g) => (
           <div key={g.slug} className="home-dept">
@@ -3186,7 +3207,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       <ProgramPanel p={p} />
       </>}
       {(tab === 'schools' || tab === 'myschools') && <SchoolsPage />}
-      {tab === 'documents' && <DocumentsTab kind="dwt" team canMarcomm={kind === 'comms' || canMarcomm} />}
+      {tab === 'documents' && <DocumentsTab kind="dwt" team canMarcomm={kind === 'comms' || canMarcomm} marcommGuide={kind === 'comms'} asEmail={data.viewing_as?.email} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'program' && <ProgramPanel p={p} />}
@@ -3198,7 +3219,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
       {tab === 'widgets' && <WidgetsPage embedded />}
       {tab === 'wcm' && <WcmCommunityHub />}
-      {tab === 'guides' && <GuidesMenu showRestricted={!!data.is_superadmin} />}
+      {tab === 'guides' && <GuidesMenu showRestricted={!!data.is_superadmin} mineOnly={!data.is_superadmin} alsoSlugs={kind === 'comms' ? [MARCOMM_TEAM_GUIDE.slug] : []} asEmail={data.viewing_as?.email} />}
       {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
     </div>
   )
