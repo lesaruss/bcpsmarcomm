@@ -12,6 +12,12 @@ export const MARCOMM_MEETING_START = { hour: 13, minute: 0 }
 export const MARCOMM_MEETING_END = { hour: 14, minute: 0 }
 export const MARCOMM_EDITORS = ['Jennifer Hodder', 'Sean Russell', 'Felicia Hicks', 'Farrah Wilson']
 
+// Playbooks shown in the guide's Playbooks card (V, 2026-11-03). Only the
+// playbooks listed here, and only to people the Documents catalog already
+// lets see them (an acl_objects row plus a grant), so adding a slug here
+// never widens who can open one. Add others one at a time, when asked.
+export const MARCOMM_GUIDE_PLAYBOOKS = ['bcps-google-account-security']
+
 const TRACKER = '/marcomm-assignments'
 
 export const MARCOMM_TEAM_GUIDE: GuideDef = {
@@ -199,6 +205,7 @@ export const MARCOMM_TEAM_GUIDE: GuideDef = {
     },
   ],
   changes: [
+    { date: '2026-11-03', text: 'A Playbooks card on the Overview, with the BCPS Google Account Security playbook for the people it is shared with.' },
     { date: '2026-10-29', text: 'The MarComm Team Guide: the weekly meeting, MarComm Assignments and requests in one place, with an Overview showing where the team is this week, your own items, and when the next Marcomm Meeting is.' },
     { date: '2026-10-21', text: 'The tracker’s editors (Jennifer Hodder, Sean Russell, Felicia Hicks and Farrah Wilson) record updates, and recorded meetings update the tracker from their transcript after an editor reviews it.' },
     { date: '2026-10-20', text: 'The MarComm Request Form opened to anyone with the link, and the Calendar Post form moved onto BCPS MarComm.' },

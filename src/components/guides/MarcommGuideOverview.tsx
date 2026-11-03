@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { MARCOMM_TEAM_GUIDE as G, MARCOMM_MEETING_DAY, MARCOMM_MEETING_START, MARCOMM_MEETING_END } from '@/lib/guides/marcomm-team'
+import { MARCOMM_TEAM_GUIDE as G, MARCOMM_GUIDE_PLAYBOOKS, MARCOMM_MEETING_DAY, MARCOMM_MEETING_START, MARCOMM_MEETING_END } from '@/lib/guides/marcomm-team'
 import { MARCOMM_PATH } from '@/lib/types'
 import { fmtGuideDate } from './Guide'
 
@@ -63,6 +63,24 @@ const fmtDay = (d: string) => fmtGuideDate(d.slice(0, 10), { month: 'short', day
 export default function MarcommGuideOverview({ name }: { name?: string }) {
   const [data, setData] = useState<TrackerData | null>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'none'>('loading')
+  // The guide's playbooks this person can see. The catalog decides who that is;
+  // the list here only narrows it to the guide's own.
+  const [playbooks, setPlaybooks] = useState<{ slug: string; title: string; description: string | null }[]>([])
+
+  useEffect(() => {
+    let live = true
+    ;(async () => {
+      try {
+        const token = (await supabase.auth.getSession()).data.session?.access_token
+        const r = await fetch('/api/bcps/documents', { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: 'no-store' })
+        const j = await r.json()
+        if (!live || !r.ok || !j.ok) return
+        const docs = (j.documents ?? []) as { slug: string; title: string; description: string | null }[]
+        setPlaybooks(MARCOMM_GUIDE_PLAYBOOKS.flatMap((s) => docs.filter((d) => d.slug === s)).map((d) => ({ slug: d.slug, title: d.title, description: d.description })))
+      } catch { /* the card simply stays hidden */ }
+    })()
+    return () => { live = false }
+  }, [])
 
   useEffect(() => {
     let live = true
@@ -210,6 +228,21 @@ export default function MarcommGuideOverview({ name }: { name?: string }) {
           <li><a href="/calendar-request" target="_blank" rel="noopener"><b>Calendar Post form</b><span>Events for the District calendar</span></a></li>
         </ul>
       </div>
+
+      {playbooks.length > 0 && (
+        <div className="home-dept guide-sec">
+          <h3 className="home-card-title">Playbooks</h3>
+          <ul className="guide-links guide-quick">
+            {playbooks.map((p) => (
+              <li key={p.slug}>
+                <a href={`/?page=dashboard&tab=documents&doc=${encodeURIComponent(p.slug)}`}>
+                  <b>{p.title}</b>{p.description ? <span>{p.description}</span> : null}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="home-dept guide-sec">
         <div className="home-dept-head"><h3>New in this guide</h3><a className="home-link-btn" href="#guide/changes">Everything that changed</a></div>
