@@ -24,6 +24,14 @@ interface Person {
   failed: string | null
 }
 interface Preview { to: string; subject: string; html: string }
+interface NudgePreview {
+  baseline_campaign: string
+  counts: { left_to_certify: number; emailed_in_baseline: number; not_emailed_no_baseline: number; progress_moved: number; unchanged_no_account: number; recipients: number }
+  recipients: { email: string; name: string; department: string | null; pct: number; last_active: string | null }[]
+  subject: string
+  sample: { to: string; html: string } | null
+  sender: { from: string; reply_to: string }
+}
 interface CampaignSummary { campaign: string; sent: number; people: number; opened: number; clicked: number; first_sent: string; last_sent: string }
 const CAMPAIGN_RE = /^[a-z0-9][a-z0-9-]{2,59}$/
 
@@ -58,6 +66,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   const [testTo, setTestTo] = useState('sean.russell@browardschools.com')
   const [busy, setBusy] = useState(false)
   const [preview, setPreview] = useState<Preview | null>(null)
+  const [nudge, setNudge] = useState<NudgePreview | null>(null)
   const [err, setErr] = useState('')
   // The campaign this page is showing. Each send belongs to one campaign, so
   // several sends can be tracked on their own (Sean, 2026-11-02).
@@ -92,6 +101,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
     if (!CAMPAIGN_RE.test(v) || v === campaign) return
     setPicked(null)
     setPreview(null)
+    setNudge(null)
     setCampaign(v)
   }
 
@@ -105,6 +115,10 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   const openPreview = async (email: string) => {
     const { ok, j } = await post({ action: 'preview', email })
     if (ok) setPreview(j as Preview); else toast(j.error || 'Could not load the preview.')
+  }
+  const previewNudge = async () => {
+    const { ok, j } = await post({ action: 'nudge-preview' })
+    if (ok) setNudge(j as NudgePreview); else toast(j.error || 'Could not build the nudge preview.')
   }
   const sendTest = async (group: FollowupGroup) => {
     const { ok, j } = await post({ action: 'test', to: testTo, group })
@@ -218,6 +232,29 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
         <p style={{ fontSize: 12, color: '#6b7280', margin: '10px 0 0' }}>
           Opened means the email&rsquo;s images loaded, so it undercounts people whose Outlook blocks images. Clicked means they followed the button. Progress since the email is the real measure.
         </p>
+      </div>
+
+      <div className="invite-form-card" style={{ marginTop: 18 }}>
+        <h4>Tuesday nudge (preview only)</h4>
+        <p style={{ fontSize: 13, margin: '0 0 8px' }}>People with an account whose progress has not moved since their email in the campaign shown above. This is a preview: nothing sends from here.</p>
+        <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
+          <button className="btn btn-outline" disabled={busy} onClick={previewNudge}>Preview nudge for campaign {campaign}</button>
+        </div>
+        {nudge && (
+          <div style={{ marginTop: 12, fontSize: 13 }}>
+            <p style={{ margin: '0 0 8px' }}><strong>{nudge.counts.recipients} would receive it.</strong> Of {nudge.counts.left_to_certify} left to certify: {nudge.counts.emailed_in_baseline} were emailed in this campaign, {nudge.counts.not_emailed_no_baseline} were not (no baseline, so left out), {nudge.counts.progress_moved} have moved since, {nudge.counts.unchanged_no_account} unchanged have no account yet (left out).</p>
+            <p style={{ margin: '0 0 8px' }}>Subject: <strong>{nudge.subject}</strong> · Reply to {nudge.sender.reply_to}</p>
+            {nudge.recipients.length > 0 && (
+              <div className="invite-table-wrap">
+                <table className="invite-table">
+                  <thead><tr><th>Name</th><th>Department</th><th>Progress</th><th>Last active</th></tr></thead>
+                  <tbody>{nudge.recipients.map((r) => <tr key={r.email}><td>{r.name}</td><td>{r.department ?? ''}</td><td>{r.pct}%</td><td>{when(r.last_active)}</td></tr>)}</tbody>
+                </table>
+              </div>
+            )}
+            {nudge.sample && <iframe title="Nudge sample" sandbox="" srcDoc={nudge.sample.html} style={{ width: '100%', height: 420, border: '1px solid #e5e7eb', borderRadius: 8, marginTop: 12 }} />}
+          </div>
+        )}
       </div>
 
       {FOLLOWUP_GROUPS.map((g) => {

@@ -42,6 +42,28 @@ const help = (verb: 'finishing' | 'starting') => `<p>If anything is keeping you 
 const button = (label: string, href: string) => `
   <div style="margin:22px 0 20px"><a href="${esc(href)}" style="display:inline-block;padding:12px 26px;background:#1672A7;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">${label}</a></div>`
 
+// Tuesday nudge (Sean, 2026-11-03): people with an account whose progress has not
+// moved since the follow-up went out. One version, short, same "how can we help"
+// tone. PREVIEW ONLY until Sean approves a send; the route has no send path for it.
+export const NUDGE_SUBJECT = 'A quick check-in on your WCM certification'
+
+export function nudgeEmail(p: FollowupPerson, trackedUrl: (url: string) => string, pixel: string): string {
+  const where = p.pct > 0
+    ? `You&rsquo;re <strong>${p.pct}%</strong> of the way through the Department WCM Certification.`
+    : 'You haven&rsquo;t had a chance to start the Department WCM Certification yet.'
+  const body = `<p>Hi ${esc(firstName(p.name))},</p>
+    <p>${where} The deadline is <strong>${DUE}</strong>, and I wanted to check in.</p>
+    <p>The course saves your progress, so even a short sitting helps.</p>
+    ${button('Continue the certification', trackedUrl(CERT_URL))}
+    <p>If something is in the way, just reply or message me on Teams and tell me what would help. We would much rather help you get there than hold anything up.</p>
+    ${HOT_LABS}${SIGN}`
+  return brandedEmail({
+    heading: 'A quick check-in',
+    body: body + pixel,
+    footer: 'Sent from BCPS MarComm on behalf of Sean A. Russell. Replies go to Sean&rsquo;s District email.',
+  })
+}
+
 // trackedUrl wraps a link so a click is counted; pixel is the open-tracking image tag.
 export function followupEmail(p: FollowupPerson, trackedUrl: (url: string) => string, pixel: string): string {
   const hi = `<p>Hi ${esc(firstName(p.name))},</p>`
