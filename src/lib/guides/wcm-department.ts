@@ -38,6 +38,56 @@ const auditFaq = (q: string, a: string) =>
 const auditStat = (color: string, bg: string, title: string, body: string) =>
   `<div style="border:1px solid ${color};background:${bg};border-radius:10px;padding:12px 14px"><div style="font-weight:800;color:${color};font-size:15px">&#9679; ${title}</div><div style="margin-top:4px">${body}</div></div>`
 
+// Example pictures for the audit walkthrough (drawn here, not screenshots of
+// anyone's page): a stand-in page with numbered pins and the item list beside
+// it, the way Run Audit shows them.
+const exPin = (n: number | string, c: string, ring = false) =>
+  `<span style="display:inline-flex;width:22px;height:22px;border-radius:50%;background:${c};color:#fff;font-weight:800;font-size:12px;align-items:center;justify-content:center;flex:none;${ring ? `box-shadow:0 0 0 3px #fff,0 0 0 5px ${c}` : ''}">${n}</span>`
+const exRow = (n: number, c: string, text: string, extra = '') =>
+  `<div style="display:flex;gap:8px;align-items:center;padding:7px 9px;border:1px solid #e3ebf2;border-left:5px solid ${c};border-radius:6px;background:#fff;margin-bottom:6px;font-size:12.5px;color:#1a1a1a">${exPin(n, c)}<span style="flex:1">${text}</span>${extra}</div>`
+const exPage = (pins: { n: number; c: string; x: number; y: number; ring?: boolean }[]) =>
+  `<div style="position:relative;border:1px solid #cdd9e3;border-radius:6px;background:#fff;padding:10px;height:130px;margin-bottom:8px;overflow:hidden">
+<div style="height:9px;width:50%;background:#cfdbe6;border-radius:3px;margin-bottom:8px"></div>
+<div style="height:6px;width:88%;background:#e4ecf3;border-radius:3px;margin-bottom:5px"></div>
+<div style="height:6px;width:80%;background:#e4ecf3;border-radius:3px;margin-bottom:12px"></div>
+<div style="display:flex;gap:6px;margin-bottom:12px"><div style="height:14px;width:60px;background:#cfdbe6;border-radius:3px"></div><div style="height:14px;width:60px;background:#cfdbe6;border-radius:3px"></div><div style="height:14px;width:60px;background:#cfdbe6;border-radius:3px"></div></div>
+<div style="height:6px;width:70%;background:#e4ecf3;border-radius:3px;margin-bottom:5px"></div>
+<div style="height:6px;width:60%;background:#e4ecf3;border-radius:3px"></div>
+${pins.map((p) => `<span style="position:absolute;left:${p.x}%;top:${p.y}%">${exPin(p.n, p.c, p.ring)}</span>`).join('')}
+</div>`
+const exChip = (label: string, bg: string, fg: string) =>
+  `<span style="display:inline-block;background:${bg};color:${fg};border-radius:99px;padding:2px 10px;font-size:11.5px;font-weight:800">${label}</span>`
+const exBtn = (label: string, primary = true) =>
+  `<span style="display:inline-block;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:800;${primary ? 'background:#1672A7;color:#fff' : 'background:#fff;color:#0e4e73;border:1px solid #1672A7'}">${label}</span>`
+const G = '#15803d', R = '#b91c1c', A = '#b45309'
+const AUDIT_STEPS = [
+  {
+    title: 'Open Run Audit',
+    html: `<p>On your dashboard, open the <b>Run Audit</b> tab. You see a picture of your page with a numbered pin on every check.</p><p>The pins match the numbers in the item list beside it.</p><p><a class="guide-btn" href="/?page=dashboard&amp;tab=audit">Go to Run Audit</a></p>`,
+    example: `<div style="display:flex;gap:6px;margin-bottom:8px;font-size:12.5px;font-weight:700"><span style="padding:5px 10px;color:#555">Dashboard</span><span style="padding:5px 10px;background:#1672A7;color:#fff;border-radius:6px;box-shadow:0 0 0 3px #fff,0 0 0 5px #1672A7">Run Audit</span><span style="padding:5px 10px;color:#555">Analytics</span></div>${exPage([{ n: 1, c: G, x: 8, y: 6 }, { n: 2, c: R, x: 70, y: 38 }, { n: 3, c: A, x: 22, y: 52 }, { n: 4, c: R, x: 80, y: 70 }])}<div style="font-size:12px;color:#444">Pins on the picture match the numbers in the list.</div>`,
+  },
+  {
+    title: 'Read the colors',
+    html: `<p><b style="color:${G}">Green</b> passes. Nothing to do.</p><p><b style="color:${R}">Red</b> needs a fix. These are your list.</p><p><b style="color:${A}">Amber</b> asks you to take a look, for example whether an image is a flyer. Amber never changes your score.</p>`,
+    example: `${exRow(1, G, 'The left menu is on the page', exChip('Green', '#eaf6ee', G))}${exRow(2, R, 'Headings are in order', exChip('Red', '#fde8e8', '#8f1d1d'))}${exRow(3, A, 'No text-heavy images', exChip('Amber', '#fbf0d4', '#7a5200'))}`,
+  },
+  {
+    title: 'Pick a red pin and read the item',
+    html: `<p>Choose a red pin. Read what the item says and why it matters.</p><p>Keep your live page open in another tab so you can find the spot. The numbered pin shows you where to look.</p>`,
+    example: `${exPage([{ n: 2, c: R, x: 70, y: 38, ring: true }])}<div style="border:1px solid #e3ebf2;border-left:5px solid ${R};border-radius:6px;background:#fff;padding:8px 10px;font-size:12.5px;color:#1a1a1a"><div style="display:flex;gap:8px;align-items:center;font-weight:800">${exPin(2, R)} Headings are in order</div><div style="margin:6px 0 4px;color:#444">Why: headings skip a level, so the outline does not make sense to a screen reader.</div><div style="color:#444">1. Highlight the heading text.<br>2. Choose the right level, in order.</div><div style="margin-top:6px;color:#0e4e73;text-decoration:underline;font-weight:700">Still stuck? Ask the District Web Team</div></div>`,
+  },
+  {
+    title: 'Fix it in Finalsite, then publish',
+    html: `<p>Make the fix in Finalsite. Then <b>publish</b>.</p><p>A page marked <b>Draft</b> has changes that are not live yet. The audit only sees the live page, so an unpublished fix still shows red.</p>`,
+    example: `<div style="border:1px solid #cdd9e3;border-radius:6px;background:#fff;padding:10px;font-size:12.5px;color:#1a1a1a"><div style="font-weight:800;margin-bottom:8px">Your page in Finalsite</div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${exChip('Draft', '#fbf0d4', '#7a5200')}<span aria-hidden="true">&rarr;</span>${exBtn('Publish')}<span aria-hidden="true">&rarr;</span>${exChip('Published', '#eaf6ee', G)}</div><div style="margin-top:10px;color:#444">The audit only sees the published page.</div></div>`,
+  },
+  {
+    title: 'Note it, mark it done, and re-audit',
+    html: `<p>Add a short note on what you changed, then mark the item done.</p><p>When every item is done, select <b>Request re-audit</b> and watch the checks turn green.</p><p>Stuck on a step? Use <b>Still stuck? Ask the District Web Team</b> on the item.</p>`,
+    example: `<div style="border:1px solid #e3ebf2;border-left:5px solid ${R};border-radius:6px;background:#fff;padding:8px 10px;font-size:12.5px;color:#1a1a1a;margin-bottom:8px"><div style="display:flex;gap:8px;align-items:center;font-weight:800">${exPin(2, R)} Headings are in order</div><div style="margin:8px 0;border:1px solid #cdd9e3;border-radius:6px;padding:6px 8px;color:#444">Changed the H4 to an H2.</div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="font-weight:700">&#9745; Mark done</span>${exBtn('Request re-audit')}</div></div>${exRow(2, G, 'Headings are in order', exChip('Green', '#eaf6ee', G))}`,
+  },
+]
+
 export const WCM_DEPARTMENT_GUIDE: GuideDef = {
   slug: 'wcm-department',
   eyebrow: 'BCPS MarComm',
@@ -168,18 +218,9 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
 
         {
           id: 'walkthrough',
-          title: 'Walkthrough: the audit in five steps',
-          html: `
-<p>Use this as a quick map. Each step happens on your dashboard, on the Run Audit tab.</p>
-<div style="display:grid;gap:10px;margin:12px 0">
-  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>1. Open Run Audit.</b> You see your page with a numbered pin on every check. Pins match the numbers in the item list.</div>
-  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>2. Read the colors.</b>
-    <div style="margin-top:6px"><span style="color:#15803d;font-weight:700">&#9679; Green</span> passes. &nbsp; <span style="color:#b91c1c;font-weight:700">&#9679; Red</span> needs a fix. &nbsp; <span style="color:#b45309;font-weight:700">&#9679; Amber</span> asks you to take a look. Amber never changes your score.</div></div>
-  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>3. Pick a red pin and read the item.</b> Keep your live page open in another tab so you can find the spot. <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#1672A7;color:#fff;text-align:center;line-height:22px;font-weight:700;font-size:12px">4</span> is pin 4.</div>
-  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>4. Fix it in Finalsite, then publish.</b> A page marked Draft has changes that are not live yet, and the audit can't see them.</div>
-  <div style="border:1px solid #d6e4ee;border-left:6px solid #1672A7;border-radius:8px;padding:12px 14px"><b>5. Note it, mark it done, and re-audit.</b> Add a short note on what you changed, then mark the item done. When every item is done, select <b>Request re-audit</b> and watch the checks turn green.</div>
-</div>
-<p class="guide-note">Stuck on a step? Select <b>Still stuck? Ask the District Web Team</b> on the item. The detailed steps are below.</p>`,
+          title: 'Your audit in five steps',
+          html: `<p>Go one step at a time. Your place is saved on this device. Prefer to read everything at once? The detailed steps are in the next section.</p>`,
+          stepper: { steps: AUDIT_STEPS },
         },
         {
           id: 'item',
@@ -566,6 +607,7 @@ ${auditFaq('Do I have to do the audit myself?', '<p>Your department page is your
     },
   ],
   changes: [
+    { date: '2026-11-03', text: 'The audit walkthrough is now guided: one step at a time with Back and Next, the instructions beside an example, and your progress shown. From Patricia Sapp\'s feedback at the November 3 Hot Lab.' },
     { date: '2026-11-03', text: 'Your Audit rebuilt as one place for everything about the audit: the colors and the five areas at a glance, step-by-step fixes for the 15 items flagged most often, what is yours to fix and what is not, frequently asked questions, and four ways to get unstuck.' },
     { date: '2026-11-03', text: 'New Leaderboard tab: the live top 20 for this school year, certification tiles, and the 100-point chart (certification, Hot Labs, the Kickoff, and starting your audit). Your Overview shows your own standing.' },
     { date: '2026-11-02', text: 'New: a walkthrough of the audit in five steps, at the start of Your Audit: open Run Audit, read the colors, fix a red pin, publish, then note it and re-audit. Hot Labs on Tuesday, November 3 and Thursday, November 5 cover the audits.' },

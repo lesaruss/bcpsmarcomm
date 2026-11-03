@@ -2743,6 +2743,31 @@ ul.guide-links.guide-quick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .guide-item-meta { font-size: 12.5px; color: var(--text-secondary); }
 .guide-item-late { color: #b91c1c; }
 .guide-pager { display: flex; justify-content: space-between; gap: 10px; margin-top: 4px; }
+/* Guided walkthrough: one step at a time, instructions left, example right. */
+.gst { margin-top: 12px; }
+.gst-choice { display: inline-flex; border: 1px solid var(--blue); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.gst-choice button { font: inherit; font-size: 13px; font-weight: 700; border: 0; background: #fff; color: #0e4e73; padding: 8px 14px; cursor: pointer; }
+.gst-choice button.on { background: var(--blue); color: #fff; }
+.gst-video { position: relative; width: 100%; padding-top: 56.25%; background: #000; border-radius: 8px; overflow: hidden; }
+.gst-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.gst-progress { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.gst-bar { flex: 1; height: 8px; border-radius: 99px; background: var(--blue-xlight); overflow: hidden; }
+.gst-bar span { display: block; height: 100%; background: #15803d; transition: width .3s; }
+.gst-count { font-size: 12.5px; font-weight: 800; color: #0e4e73; white-space: nowrap; }
+.gst-dots { list-style: none; display: flex; gap: 8px; padding: 0; margin: 0 0 12px; flex-wrap: wrap; }
+.gst-dots button { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border); background: #fff; color: var(--text-secondary); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.gst-dots button.on { border-color: var(--blue); background: var(--blue); color: #fff; }
+.gst-dots button.done:not(.on) { border-color: #15803d; background: #eaf6ee; color: #15803d; }
+.gst-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 16px; border: 1px solid #d6e4ee; border-left: 6px solid var(--blue); border-radius: 10px; padding: 16px; background: #fff; }
+.gst-text h4 { font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0 0 8px; }
+.gst-example { position: relative; border: 1px dashed #b9cfe0; border-radius: 8px; background: #f7fafc; padding: 26px 12px 12px; min-width: 0; }
+.gst-tag { position: absolute; top: 6px; left: 10px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #0e4e73; }
+.gst-nav { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.gst-nav button:disabled { opacity: .45; cursor: default; }
+.gst-restart { margin-left: auto; font: inherit; font-size: 12.5px; font-weight: 700; color: #0e4e73; background: none; border: 0; text-decoration: underline; cursor: pointer; }
+.gst-finish { margin: 10px 0 0; font-weight: 700; color: #15803d; }
+.gst :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+@media (max-width: 760px) { .gst-card { grid-template-columns: 1fr; } }
 @media (max-width: 900px) {
   .guide-cols { grid-template-columns: minmax(0, 1fr); }
   .guide-rail { position: static; padding: 12px; }
