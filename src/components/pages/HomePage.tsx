@@ -1436,7 +1436,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
   if (restricted) {
     return (
       <div className="home-section">
-        <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab}
+        <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab} asEmail={asEmail}
           actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>} />
       </div>
     )
@@ -1497,14 +1497,14 @@ function MarcommInDocuments() {
 
 // Experiences without a Documents tab (Marcomm Meeting, School WCM, Member)
 // still open a Playbook link inside the dashboard, with a way back.
-function StandaloneDoc({ slug }: { slug: string }) {
+function StandaloneDoc({ slug, asEmail }: { slug: string; asEmail?: string | null }) {
   const router = useRouter()
   // A restricted guide opens as the guide, for the people it is shared with.
   const restricted = restrictedGuideForDoc(slug)
   if (restricted) {
     return (
       <div className="home">
-        <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab}
+        <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab} asEmail={asEmail}
           actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => router.push('/?page=dashboard', { scroll: false })}>Back to the dashboard</button>} />
       </div>
     )
@@ -1734,7 +1734,7 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
       )}
       {tab === 'guide' && <Guide def={WCM_DEPARTMENT_GUIDE} overview={<WcmGuideOverview viewer={viewer} />} tabExtras={{ leaderboard: <WcmLeaderboard /> }} />}
       {tab === 'widgets' && <WidgetsPage embedded />}
-      {tab === 'documents' && !docGuide && <DocumentsTab kind="wcm" canMarcomm={canMarcomm} />}
+      {tab === 'documents' && !docGuide && <DocumentsTab kind="wcm" canMarcomm={canMarcomm} asEmail={data.viewing_as?.email} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audit' && <RunAuditTab depts={mine} canRecheck guide={guide} onGuide={setGuide} wcm />}
       {tab === 'analytics' && <AnalyticsTab led={mine} />}
@@ -1898,11 +1898,21 @@ function DepartmentHome({ data }: { data: HomeData }) {
   const [tab, setTab] = useHomeTab()
   const guides = (data.department_guides ?? []).filter((g) => RESTRICTED_GUIDES[g.slug])
   if (!guides.length) return <MemberHome data={data} onNavigate={() => {}} />
+  // A Widgets tab beside the guide when they can edit a widget, so the guide's
+  // steps ("open the Widgets tab") are true for them too.
+  const hasWidgets = (data.widgets?.length ?? 0) > 0
+  const tabs = [
+    ...guides.map((g) => ({ id: g.slug, label: guides.length > 1 ? (g.department || g.title) : 'Guide' })),
+    ...(hasWidgets ? [{ id: 'widgets', label: 'Widgets' }] : []),
+  ]
+  const showWidgets = hasWidgets && tab === 'widgets'
   const active = guides.find((g) => g.slug === tab) ?? guides[0]
   return (
     <div className="home">
-      {guides.length > 1 && <HomeTabs tabs={guides.map((g) => ({ id: g.slug, label: g.department || g.title }))} active={active.slug} onChange={setTab} />}
-      <RestrictedGuide key={active.slug} meta={RESTRICTED_GUIDES[active.slug]} />
+      {tabs.length > 1 && <HomeTabs tabs={tabs} active={showWidgets ? 'widgets' : active.slug} onChange={setTab} />}
+      {showWidgets
+        ? <WidgetsPage embedded />
+        : <RestrictedGuide key={active.slug} meta={RESTRICTED_GUIDES[active.slug]} asEmail={data.viewing_as?.email} />}
     </div>
   )
 }
@@ -3371,7 +3381,7 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast, page }
   }
   if (data.experience === 'director') return <DirectorHome data={data} onNavigate={onNavigate} />
   // No Documents tab on these dashboards; a Playbook link still opens here.
-  if (docParam && (data.experience === 'school_wcm' || data.experience === 'marcomm' || data.experience === 'department' || data.experience === 'member')) return <StandaloneDoc slug={docParam} />
+  if (docParam && (data.experience === 'school_wcm' || data.experience === 'marcomm' || data.experience === 'department' || data.experience === 'member')) return <StandaloneDoc slug={docParam} asEmail={data.viewing_as?.email} />
   if (data.experience === 'school_wcm') return <SchoolWcmHome data={data} onNavigate={onNavigate} />
   if (data.experience === 'wcm') return <WcmHome data={data} onNavigate={onNavigate} />
   if (data.experience === 'marcomm') return <MarcommHome data={data} />

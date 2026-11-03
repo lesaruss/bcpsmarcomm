@@ -354,6 +354,10 @@ export async function GET(req: NextRequest) {
     // embed or edit (Sean, Oct 6 Hot Lab).
     const { data: wRows } = await svc.from('bcps_widgets').select('slug, title, description, preview_path').order('sort_order')
     widgets = (wRows ?? []).filter((w) => w.preview_path)
+  } else if (departmentGuides.length) {
+    // Someone whose dashboard is their department's guide gets a Widgets tab
+    // for the widgets they can edit, which is what the guide walks them through.
+    widgets = (await loadWidgets(svc, BRAND, subjectId, gids, false)).filter((w) => w.can_edit)
   }
 
   // The latest Hot Lab notes this person can open, for the WCM dashboard's
