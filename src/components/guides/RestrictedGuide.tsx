@@ -6,6 +6,7 @@ import type { GuideDef, GuideSection } from '@/lib/guides/types'
 import type { RestrictedGuideMeta } from '@/lib/guides/restricted'
 import type { GuideDepartment } from '@/lib/guides/department'
 import Guide, { openFeedback, fmtGuideDate } from './Guide'
+import AssignmentsPage from '@/components/pages/AssignmentsPage'
 
 // A restricted guide (Sean, 2026-10-30): its content comes from
 // /api/bcps/guides/[slug], which sends it only to the guide's readers, so it
@@ -36,6 +37,20 @@ function AuditSnapshot({ a }: { a: NonNullable<GuideDepartment['audit']> }) {
       <p className="guide-audit-note">The latest audit of each page, {fmtGuideDate(a.audited_at.slice(0, 10), { month: 'short', day: 'numeric' })}.</p>
     </div>
   )
+}
+
+// Live tabs (Sean, 2026-11-03): a tab that is a working page, not written
+// content, so it never goes stale and keeps the structure it has. They are
+// added here, in code, because the page carries its own access; the guide's
+// stored content stays text only. `after` is the tab it follows.
+const LIVE_TABS: Record<string, { id: string; label: string; intro: string; after: string; render: () => React.ReactNode }[]> = {
+  'district-web-team': [{
+    id: 'assignments',
+    label: 'Web Team Assignments',
+    intro: 'The team’s tracker, live. Open an item for its notes, add your input, or upload a meeting transcript. It is the same page as before, now inside the guide.',
+    after: 'week',
+    render: () => <AssignmentsPage embedded />,
+  }],
 }
 
 const body = (s: GuideSection) => <div className="guide-body" dangerouslySetInnerHTML={{ __html: s.html }} />
@@ -119,8 +134,17 @@ export default function RestrictedGuide({ meta, initialTab, actions, asEmail, re
         ))}
       </>
     )
-    const tabExtras = department && renderAnalytics ? { analytics: renderAnalytics(department) } : undefined
-    return <Guide def={guide} overview={overview} initialTab={initialTab} actions={actions} tabExtras={tabExtras} />
+    const live = (LIVE_TABS[meta.slug] ?? []).filter((t) => !guide.tabs.some((x) => x.id === t.id))
+    const def = live.length
+      ? { ...guide, tabs: live.reduce((tabs, t) => {
+          const at = tabs.findIndex((x) => x.id === t.after)
+          const tab = { id: t.id, label: t.label, intro: t.intro, sections: [] }
+          return at < 0 ? [...tabs, tab] : [...tabs.slice(0, at + 1), tab, ...tabs.slice(at + 1)]
+        }, guide.tabs) }
+      : guide
+    const tabExtras: Record<string, React.ReactNode> = { ...(department && renderAnalytics ? { analytics: renderAnalytics(department) } : {}) }
+    for (const t of live) tabExtras[t.id] = t.render()
+    return <Guide def={def} overview={overview} initialTab={initialTab} actions={actions} tabExtras={tabExtras} />
   }
 
   return (

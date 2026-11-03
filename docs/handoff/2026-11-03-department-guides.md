@@ -15,18 +15,19 @@ Brand bcps, repo lesaruss/bcpsmarcomm, Supabase project fwbhwfxpncrsfhttimna. Lo
 - Dashboard: a person with only a department guide gets the `department` experience (`HomePage.tsx`, `/api/bcps/home`). `tab=widgets` and `tab=audit` work on every role's dashboard (aliases on the SuperAdmin and Web Team homes).
 - Delivery: HTML in SQL stalls the connector, so write the definition through a one-time edge function (canon `ops-supabase-write-once-function`). Scripts in `docs/handoff/department-guide-scripts/` generate that function (`make_fn.py` writes a whole definition, `make_patch_fn.py` patches one in place), render a mock of the Overview with the real stylesheet (`render_mock.py`, `shoot_mock.js`), test the audience filter (`filter-test2.ts.txt`, kept as .txt because the repo's tsconfig compiles every .ts file and this one imports absolute paths; rename it to .ts in a scratch folder to run it with `npx tsx`) and compute the digests to compare against the database (`digest3.py`). They hold absolute scratchpad paths and need editing. Compare md5 digests of the stored sections to the local source, then redeploy the function as the 410 stub with verify_jwt true.
 
-## Next: Instructional Innovation and Digital Learning
-Research done, nothing written.
-- Department slug `instructional-innovation-digital-learning`, division Academics, ADA score 88, audit status wcm_notified.
-- Director Thomas Correll (thomas.correll@browardschools.com).
-- Five approved roster WCMs: Rebecca Malones, Jorge Padron, Angelique Lynch, Karen Kaya, Janice Brim.
-- Widget `iidl-services-directory`: editor IidlServicesPage (units and services, booking links, internal review notes, audience), one grant: Alex Macri, manage.
-- 47 audit rows over 40 pages, all with desktop screenshots; analytics synced (Oct 4547, Sep 4693, Aug 3682 visitors). No acl_objects row for the guide yet.
-- Recommendation (Sean has not confirmed): group members are the roster WCMs, the director, and the existing widget editor.
-Then Charter Schools, then the other departments with widgets.
+## Built: Instructional Innovation and Digital Learning (PR 234, merged de52e9c)
+- Slug `instructional-innovation-digital-learning`. Guide stored in `bcps_guides` (database only), written through the one-time function `ve-once-iidl-guide`, verified by section md5 digest, then re-stubbed to 410 with verify_jwt true.
+- Access: group of the same slug with the five approved roster WCMs (Rebecca Malones, Jorge Padron, Angelique Lynch, Karen Kaya, Janice Brim) and Alex Macri (widget editor); Thomas Correll (director) queued in `bcps_pending_group_members` until first sign-in. Migration `20261103_bcps_iidl_guide_access.sql`; slug added to `RESTRICTED_GUIDES`.
+- Widget how-to (Your Widgets tab) comes from `IidlServicesPage.tsx`: units and `?unit=` pre-filter links, services, booking links, audience, internal review notes.
+- Not yet checked signed in: Sean checks with View as person (WCM Angelique Lynch or Rebecca Malones, staff Alex Macri). Production deploy of de52e9c was still building at wrap-up.
+- Tracked on the Web Team Assignments page as `department-guides`, with notes on `widget-ece-school-search` and `widget-iidl-services`.
+- The scripts in `department-guide-scripts/` worked as is once the paths and the slug were swapped; the definition was built with a small Python script that wrote `def.json`, then `make_fn.py`'s template was filled from it. Titles and tab intros are rendered as text (write `&`), section `html` is HTML (write `&amp;`).
+
+## Next: Charter Schools
+Then the other departments that have widgets. Same steps: research (director, approved roster WCMs, widget grants, audit rows, analytics), group and `acl_objects` row, `RESTRICTED_GUIDES`, definition through a one-time function, digest check, re-stub.
 
 ## Open
-- Sean to check the guide with View as person: lindsey.way (WCM), sharonda.bailey (director), himself (all). Nothing has rendered for a signed-in person under test.
+- Sean to check both guides with View as person: ECE (lindsey.way WCM, sharonda.bailey director) and IIDL (a roster WCM, alex.macri staff), and himself (all). Nothing has rendered for a signed-in person under test.
 - Early Childhood Education: department contact email (Lindsey), sign-off on the apply note and explainers, Sharonda's first sign-in, the editor welcome message to Lindsey and Jennifer (re-save edit access in Widgets), someone to try an edit signed in.
 - Sean to decide: whether staff see Analytics (default WCMs, directors, admins), what else from a department's page belongs on the home, final tile wording.
 - Lindsey and Jennifer are approved roster WCMs in our data. Sean assumed Lindsey was not. Left as is.
