@@ -12,7 +12,9 @@ import Guide, { openFeedback } from './Guide'
 
 const supabase = createClient()
 
-export default function RestrictedGuide({ meta, initialTab, actions }: { meta: RestrictedGuideMeta; initialTab?: string; actions?: React.ReactNode }) {
+// asEmail: a SuperAdmin viewing as a person sees the guide as that person
+// would (the server ignores it for anyone else).
+export default function RestrictedGuide({ meta, initialTab, actions, asEmail }: { meta: RestrictedGuideMeta; initialTab?: string; actions?: React.ReactNode; asEmail?: string | null }) {
   const [guide, setGuide] = useState<GuideDef | null>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'denied' | 'error'>('loading')
 
@@ -21,7 +23,7 @@ export default function RestrictedGuide({ meta, initialTab, actions }: { meta: R
     ;(async () => {
       try {
         const token = (await supabase.auth.getSession()).data.session?.access_token
-        const r = await fetch(`/api/bcps/guides/${encodeURIComponent(meta.slug)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: 'no-store' })
+        const r = await fetch(`/api/bcps/guides/${encodeURIComponent(meta.slug)}${asEmail ? `?as=${encodeURIComponent(asEmail)}` : ''}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: 'no-store' })
         if (!live) return
         if (r.status === 401 || r.status === 403) { setState('denied'); return }
         const j = await r.json()
@@ -33,7 +35,7 @@ export default function RestrictedGuide({ meta, initialTab, actions }: { meta: R
       }
     })()
     return () => { live = false }
-  }, [meta.slug])
+  }, [meta.slug, asEmail])
 
   if (state === 'ok' && guide) {
     const overview = (

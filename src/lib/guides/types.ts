@@ -9,10 +9,18 @@
 //   href="#feedback"            opens the message panel (data-msg prefills it)
 //   href="#guide/<tab>[/<id>]"  opens another tab, scrolled to a section
 
+// Who a tab or section is for (a department guide, Sean 2026-11-03): one guide
+// per department that everyone on its team opens, each seeing what applies to
+// their role. Left out, it is for everyone who can read the guide. Applied on
+// the server (src/lib/guides/audience.ts), so someone outside the audience
+// never receives that content, it is not just hidden on the page.
+export type GuideAudience = 'wcm' | 'director'
+
 export interface GuideSection {
   id: string
   title: string
   html: string
+  for?: GuideAudience[]
 }
 
 export interface GuideTab {
@@ -23,6 +31,7 @@ export interface GuideTab {
   step?: number
   intro?: string
   sections: GuideSection[]
+  for?: GuideAudience[]
 }
 
 export interface GuideChange {
