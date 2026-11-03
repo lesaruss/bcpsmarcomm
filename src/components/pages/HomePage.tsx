@@ -32,6 +32,7 @@ import WcmLeaderboard from '@/components/guides/WcmLeaderboard'
 import { guideForDoc, GUIDES } from '@/lib/guides'
 import { restrictedGuideForDoc, RESTRICTED_GUIDES } from '@/lib/guides/restricted'
 import RestrictedGuide from '@/components/guides/RestrictedGuide'
+import type { GuideDepartment } from '@/lib/guides/department'
 import { WCM_DEPARTMENT_GUIDE } from '@/lib/guides/wcm-department'
 import { MARCOMM_TEAM_GUIDE } from '@/lib/guides/marcomm-team'
 import MarcommGuideOverview from '@/components/guides/MarcommGuideOverview'
@@ -831,7 +832,7 @@ function DirectorHome({ data, preview, onNavigate, page }: { data: HomeData; pre
       {tab === 'wcm' && <WcmCommunityHub />}
       {tab === 'tools' && !leadership && <>
         {/* Ask & Guide folded in here (Sean, Oct 5 OOC Web Huddle). */}
-        <DirectorHelp myWindow={myWindow} led={led} />
+        <DirectorHelp myWindow={myWindow} led={led} guides={data.department_guides} />
         <DirectorFaq />
         <ToolsPanel kind="director" onNavigate={onNavigate} kb={data.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />
       </>}
@@ -941,6 +942,17 @@ function ReviewTab({ led, myWindow, oversight = false }: { led: DepartmentSummar
         })}
       </div>
     </>
+  )
+}
+
+// A department guide's Analytics tab (Sean, 2026-11-03): the same view the
+// Director and WCM dashboards show, for the guide's own department.
+function renderDeptAnalytics(d: GuideDepartment) {
+  return (
+    <AnalyticsTab led={[{
+      id: d.id, slug: d.slug, name: d.name, division: null, website_url: d.website_url,
+      audit_status: null, findings_open: 0, findings_fixed: 0, wcms: [], analytics: d.analytics,
+    }]} />
   )
 }
 
@@ -1436,7 +1448,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
   if (restricted) {
     return (
       <div className="home-section">
-        <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab} asEmail={asEmail}
+        <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab} asEmail={asEmail} renderAnalytics={renderDeptAnalytics}
           actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>} />
       </div>
     )
@@ -1504,7 +1516,7 @@ function StandaloneDoc({ slug, asEmail }: { slug: string; asEmail?: string | nul
   if (restricted) {
     return (
       <div className="home">
-        <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab} asEmail={asEmail}
+        <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab} asEmail={asEmail} renderAnalytics={renderDeptAnalytics}
           actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => router.push('/?page=dashboard', { scroll: false })}>Back to the dashboard</button>} />
       </div>
     )
@@ -1519,9 +1531,18 @@ function StandaloneDoc({ slug, asEmail }: { slug: string; asEmail?: string | nul
   )
 }
 
-function DirectorHelp({ myWindow, led }: { myWindow: ReviewWindow | null; led: DepartmentSummary[] }) {
+function DirectorHelp({ myWindow, led, guides = [] }: { myWindow: ReviewWindow | null; led: DepartmentSummary[]; guides?: { slug: string; title: string; department: string }[] }) {
   return (
     <div className="wcm-hub2-grid">
+      {/* A department's own guide (Sean, 2026-11-03): its home, with its page,
+          widgets and analytics, for a director who has been given it. */}
+      {guides.filter((g) => RESTRICTED_GUIDES[g.slug]).map((g) => (
+        <div key={g.slug} className="wcm-hub2-card">
+          <h3>{g.title}</h3>
+          <p>{g.department ? `${g.department}'s home on BCPS MarComm` : 'Your department\u2019s home on BCPS MarComm'}: your page, your widgets and your analytics in one place.</p>
+          <a className="wcm-hub2-card-btn" href={`/?page=dashboard&tab=documents&doc=${encodeURIComponent(g.slug)}`}>Open the guide</a>
+        </div>
+      ))}
       <div className="wcm-hub2-card">
         <h3>Director Guide</h3>
         <p>Everything for directors in one place: deadlines, the review schedule, and what is expected of your department.</p>
@@ -1912,7 +1933,7 @@ function DepartmentHome({ data }: { data: HomeData }) {
       {tabs.length > 1 && <HomeTabs tabs={tabs} active={showWidgets ? 'widgets' : active.slug} onChange={setTab} />}
       {showWidgets
         ? <WidgetsPage embedded />
-        : <RestrictedGuide key={active.slug} meta={RESTRICTED_GUIDES[active.slug]} asEmail={data.viewing_as?.email} />}
+        : <RestrictedGuide key={active.slug} meta={RESTRICTED_GUIDES[active.slug]} asEmail={data.viewing_as?.email} renderAnalytics={renderDeptAnalytics} />}
     </div>
   )
 }
@@ -3000,7 +3021,7 @@ function DepartmentsPanel({ onNavigate, depts }: { onNavigate: Navigate; depts?:
 
 function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, page }: { data: HomeData; onNavigate: Navigate; viewAsUserId?: string; preview?: boolean; onShowToast?: (msg: string) => void; page?: React.ReactNode }) {
   const router = useRouter()
-  const [tab, setTab] = useHomeTab()
+  const [tab, setTab] = useHomeTab('overview', { audit: 'audits' })
   // The full inbox is the Messages page (V, 2026-10-26).
   const openInbox = () => router.push('/?page=messages')
   const th = data.team_home!
@@ -3052,6 +3073,7 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, 
       <ProgramPanel p={p} />
       </>}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
+      {tab === 'widgets' && <WidgetsPage embedded />}
       {tab === 'documents' && <DocumentsTab kind="superadmin" team canMarcomm />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'program' && <ProgramPanel p={p} />}
@@ -3081,7 +3103,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   onShowToast?: (msg: string) => void
 }) {
   const router = useRouter()
-  const [tab, setTab] = useHomeTab()
+  const [tab, setTab] = useHomeTab('overview', { audit: 'audits' })
   const { pages } = useBCPSShell()
   const canAnalytics = !pages || pages.includes('analytics')
   const canMarcomm = !!pages?.includes('marcomm-assignments')
@@ -3174,6 +3196,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         ? <AdaPanel ada={th.school_ada} onNavigate={onNavigate} schools onOpenSchools={() => setTab('schools')} />
         : <AdaPanel ada={th.ada} onNavigate={onNavigate} />)}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
+      {tab === 'widgets' && <WidgetsPage embedded />}
       {tab === 'wcm' && <WcmCommunityHub />}
       {tab === 'guides' && <GuidesMenu showRestricted={!!data.is_superadmin} />}
       {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
@@ -3184,11 +3207,16 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
 // Dashboard tabs live in the address (Sean, 2026-10-20): ?tab=<id>, and
 // MarComm Assignments at /marcomm-assignments, so every section keeps the tab
 // bar and the Dashboard button, and back and shared links work.
-function useHomeTab(initial = 'overview'): [string, (id: string) => void] {
+// aliases: a tab another dashboard calls something else. The department guides
+// link to ?tab=audit and ?tab=widgets, which are WCM tab names, so the admin and
+// Web Team dashboards (where Run Audit is "audits" and Widgets lives under the
+// sidebar) answer to them too (Sean, 2026-11-03: Edit your widget showed nothing).
+function useHomeTab(initial = 'overview', aliases: Record<string, string> = {}): [string, (id: string) => void] {
   const router = useRouter()
   const pathname = usePathname()
   const search = useSearchParams()
-  const tab = pathname === MARCOMM_PATH ? 'marcomm' : search.get('tab') || initial
+  const raw = search.get('tab') || initial
+  const tab = pathname === MARCOMM_PATH ? 'marcomm' : aliases[raw] ?? raw
   const setTab = (id: string) => {
     if (id === 'marcomm') router.push(MARCOMM_PATH, { scroll: false })
     else router.push(id === initial ? '/?page=dashboard' : `/?page=dashboard&tab=${id}`, { scroll: false })

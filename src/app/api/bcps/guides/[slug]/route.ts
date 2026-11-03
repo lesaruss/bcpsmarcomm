@@ -3,6 +3,7 @@ import { requireDocumentAccess } from '@/lib/bcps-auth'
 import { serviceClient } from '@/lib/bcps-doc-access'
 import { isSuperadmin, resolvePerson } from '@/lib/bcps-view-as-person'
 import { filterGuide, viewerAudiences } from '@/lib/guides/audience'
+import { loadGuideDepartment } from '@/lib/guides/department'
 import type { GuideDef } from '@/lib/guides/types'
 
 // A restricted guide's content (Sean, 2026-10-30), for its readers only:
@@ -34,6 +35,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     if (person) who = { userId: person.userId, email: person.email }
   }
 
-  const guide = filterGuide(data.def as GuideDef, await viewerAudiences(db, slug, who))
-  return NextResponse.json({ ok: true, guide }, { headers: { 'Cache-Control': 'no-store' } })
+  const viewer = await viewerAudiences(db, slug, who)
+  const guide = filterGuide(data.def as GuideDef, viewer)
+  // A department guide also carries the department's live side: its page, its
+  // audit snapshot and its analytics, each only for the roles that see them.
+  const department = await loadGuideDepartment(db, slug, viewer).catch((e) => { console.error('guide department failed', slug, e); return null })
+  return NextResponse.json({ ok: true, guide, department }, { headers: { 'Cache-Control': 'no-store' } })
 }
