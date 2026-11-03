@@ -16,10 +16,28 @@
 // never receives that content, it is not just hidden on the page.
 export type GuideAudience = 'wcm' | 'director'
 
+// A guided walkthrough (Sean, 2026-11-03, from Patricia Sapp's Hot Lab
+// feedback): one step at a time with Back and Next, the instructions on the
+// left and an example on the right, and progress shown. `videoUrl` adds a
+// "watch the short video" choice beside the written steps; leave it out
+// until the video exists.
+export interface GuideStep {
+  title: string
+  html: string
+  // Trusted HTML drawn on the right of the step.
+  example: string
+}
+
+export interface GuideStepper {
+  steps: GuideStep[]
+  videoUrl?: string
+}
+
 export interface GuideSection {
   id: string
   title: string
   html: string
+  stepper?: GuideStepper
   for?: GuideAudience[]
   // How an Overview section sits on a department guide's home (Sean,
   // 2026-11-03, a mini home page): "hero" is the two-column top with the

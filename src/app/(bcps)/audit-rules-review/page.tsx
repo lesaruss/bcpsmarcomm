@@ -16,6 +16,7 @@ type Rule = {
   id: string; area: string; title: string; why: string | null; steps: string[] | null
   course: { moduleId: string; pageId: string; label: string } | null
   fail: number; review: number; pass: number; departments: number; pages: number; examples: Example[]
+  help_url?: string | null
 }
 type Review = { check_id: string; reviewer_email: string; reviewer_name: string | null; decision: Decision; comment: string | null; updated_at: string }
 
@@ -30,12 +31,13 @@ const LABEL: Record<Decision, string> = { approve: 'Keep as is', change: 'Change
 // What was said about a rule in the Oct 29 Hot Lab, so the reviewer sees the
 // real case next to the rule. Attributed to the session, not to a person.
 const HOT_LAB: Record<string, string> = {
-  'single-column': 'Oct 29 Hot Lab: a WCM was flagged for a two-column "Important links" block. Sean said that setup is fine. The rule is about whole pages built in two columns from top to bottom (the old school-site layout), not a two-column element. Asked for the rule to be updated so it is not flagged.',
+  'single-column': 'Oct 29 Hot Lab: a WCM was flagged for a two-column "Important links" block. Sean said that setup is fine. The rule is about whole pages built in two columns from top to bottom (the old school-site layout), not a two-column element. Asked for the rule to be updated so it is not flagged. Nov 3 Hot Lab: a logo beside the description was flagged too. Sean confirmed it is allowed.',
+  'photo-element': 'Nov 3 Hot Lab: a WCM was flagged for a small logo at the top left, which has a transparent background and cannot have rounded corners. Sean said that is the one case where the rounded photo element is not needed, and the rule should not flag it.',
   'current-content': 'Oct 29 Hot Lab: a page about the metal detector program was flagged for 2024 and 2025 dates. Sean said he would flag it too, but that the answer can be an editorial once-over with the director, and a note that the language stays as is.',
   'pdfs-accessible': 'Oct 29 Hot Lab: a WCM said linked documents are all highlighted and some cannot be fixed by the WCM. Sean said items only Finalsite can fix should be filtered out of the WCM view.',
 }
-const FINALSITE_NOTE = 'Oct 29 Hot Lab: Sean said items only Finalsite can fix should be filtered out of what a WCM sees, so they do not get stuck. Review whether this one belongs with the District Web Team instead.'
-const hotLabNote = (id: string) => HOT_LAB[id] ?? (/^a11y-aria-/.test(id) || id === 'a11y-frame-title' || id.startsWith('a11y-landmark') ? FINALSITE_NOTE : null)
+const FINALSITE_NOTE = 'Oct 29 and Nov 3 Hot Labs: Sean said items only Finalsite can fix should be filtered out of what a WCM sees, so they do not get stuck. Review whether this one belongs with the District Web Team instead.'
+const hotLabNote = (id: string) => HOT_LAB[id] ?? (id.startsWith('finalsite:') || /^a11y-aria-/.test(id) || id === 'a11y-frame-title' || id.startsWith('a11y-landmark') ? FINALSITE_NOTE : null)
 
 const supabase = createClient()
 async function authHeaders(): Promise<Record<string, string>> {
@@ -48,6 +50,8 @@ const short = (u: string) => u.replace(/^https?:\/\/(www\.)?browardschools\.com/
 
 export default function AuditRulesReviewPage() {
   const [rules, setRules] = useState<Rule[] | null>(null)
+  const [finalsite, setFinalsite] = useState<Rule[]>([])
+  const [view, setView] = useState<'wcm' | 'finalsite'>('wcm')
   const [reviews, setReviews] = useState<Review[]>([])
   const [me, setMe] = useState('')
   const [err, setErr] = useState('')
@@ -58,16 +62,17 @@ export default function AuditRulesReviewPage() {
     const res = await fetch('/api/bcps/audit-rule-review', { headers: await authHeaders() })
     const json = await res.json().catch(() => ({}))
     if (!res.ok) { setErr(res.status === 403 ? 'This page is for the District Web Team.' : json.error || 'Could not load the rules.'); return }
-    setRules(json.rules); setReviews(json.reviews); setMe(json.me)
+    setRules(json.rules); setFinalsite(json.finalsite ?? []); setReviews(json.reviews); setMe(json.me)
   }, [])
   useEffect(() => { load() }, [load])
 
   const mine = useMemo(() => new Map(reviews.filter((r) => r.reviewer_email === me).map((r) => [r.check_id, r])), [reviews, me])
   const areas = useMemo(() => Array.from(new Set((rules ?? []).map((r) => r.area))).sort(), [rules])
-  const shown = useMemo(() => (rules ?? []).filter((r) =>
-    (area === 'all' || r.area === area) && (filter === 'all' || (filter === 'done') === mine.has(r.id))), [rules, area, filter, mine])
-  const done = (rules ?? []).filter((r) => mine.has(r.id)).length
-  const total = rules?.length ?? 0
+  const inView = view === 'wcm' ? (rules ?? []) : finalsite
+  const shown = useMemo(() => inView.filter((r) =>
+    (view === 'finalsite' || area === 'all' || r.area === area) && (filter === 'all' || (filter === 'done') === mine.has(r.id))), [inView, view, area, filter, mine])
+  const done = inView.filter((r) => mine.has(r.id)).length
+  const total = inView.length
 
   return (
     <div className="ar">
@@ -81,17 +86,22 @@ export default function AuditRulesReviewPage() {
         <>
           <div className="ar-progress" role="status">
             <div className="ar-bar" aria-hidden="true"><span style={{ width: `${total ? (done / total) * 100 : 0}%` }} /></div>
-            <b>{done} of {total}</b> rules reviewed by you
+            <b>{done} of {total}</b> {view === 'wcm' ? 'rules' : 'Finalsite rules'} reviewed by you
           </div>
+          <div className="ar-views" role="group" aria-label="Which rules">
+            <button type="button" className={view === 'wcm' ? 'on' : ''} aria-pressed={view === 'wcm'} onClick={() => setView('wcm')}>On WCM lists ({rules.length})</button>
+            <button type="button" className={view === 'finalsite' ? 'on' : ''} aria-pressed={view === 'finalsite'} onClick={() => setView('finalsite')}>Hidden from WCMs: only Finalsite can fix ({finalsite.length})</button>
+          </div>
+          {view === 'finalsite' && <p className="ar-lede">The audit already keeps these off WCM lists, because only Finalsite can fix them. They are listed here so the District Web Team can see the size of it and pass it on. Decide whether each stays hidden, and add a note for Finalsite if it should.</p>}
           <div className="ar-tools">
             <div className="ar-filters" role="group" aria-label="Show">
               {([['todo', `Waiting for me (${total - done})`], ['done', `Reviewed (${done})`], ['all', 'All']] as const).map(([f, l]) => (
                 <button key={f} type="button" className={filter === f ? 'on' : ''} aria-pressed={filter === f} onClick={() => setFilter(f)}>{l}</button>
               ))}
             </div>
-            <label className="ar-area">Area <select value={area} onChange={(e) => setArea(e.target.value)}>
+            {view === 'wcm' && <label className="ar-area">Area <select value={area} onChange={(e) => setArea(e.target.value)}>
               <option value="all">All areas</option>{areas.map((a) => <option key={a}>{a}</option>)}
-            </select></label>
+            </select></label>}
           </div>
           {shown.length === 0 && <p className="ar-muted">{filter === 'todo' ? 'You have reviewed every rule here.' : 'Nothing here.'}</p>}
           {shown.map((r) => (
@@ -109,6 +119,7 @@ function RuleCard({ rule, mine, others, onSaved }: { rule: Rule; mine?: Review; 
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const note = hotLabNote(rule.id)
+  const isFs = rule.id.startsWith('finalsite:')
   const dirty = decision !== (mine?.decision ?? null) || comment.trim() !== (mine?.comment ?? '')
   const flagged = rule.fail + rule.review
 
@@ -129,19 +140,22 @@ function RuleCard({ rule, mine, others, onSaved }: { rule: Rule; mine?: Review; 
         {mine && <span className={`ar-chip ${mine.decision}`}>You: {LABEL[mine.decision]}</span>}
       </div>
       <p className="ar-stats">
-        Flags <b>{flagged.toLocaleString()}</b> {flagged === 1 ? 'page' : 'pages'} across <b>{rule.departments}</b> {rule.departments === 1 ? 'department' : 'departments'}
-        {rule.fail > 0 && <> · <span className="ar-fail">{rule.fail} fail</span></>}
+        Flags <b>{(isFs ? rule.pages : flagged).toLocaleString()}</b> {(isFs ? rule.pages : flagged) === 1 ? 'page' : 'pages'} across <b>{rule.departments}</b> {rule.departments === 1 ? 'department' : 'departments'}
+        {rule.fail > 0 && <> · <span className="ar-fail">{rule.fail} {isFs ? 'findings' : 'fail'}</span></>}
         {rule.review > 0 && <> · <span className="ar-rev">{rule.review} needs a person to look</span></>}
         {rule.pass > 0 && <> · {rule.pass} pass</>}
+        {rule.help_url && <> · <a href={rule.help_url} target="_blank" rel="noopener">About this rule</a></>}
       </p>
       {rule.why && <p className="ar-why">{rule.why}</p>}
       {note && <p className="ar-note"><b>Raised in Hot Lab.</b> {note}</p>}
 
-      <details className="ar-more">
-        <summary>How a WCM fixes it{rule.course ? ' and where the course teaches it' : ''}</summary>
-        {rule.steps && rule.steps.length > 0 && <ol>{rule.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>}
-        {rule.course && <p><a href={`/certification/departments/course/${rule.course.moduleId}/${rule.course.pageId}`} target="_blank" rel="noopener">{rule.course.label}</a></p>}
-      </details>
+      {((rule.steps && rule.steps.length > 0) || rule.course) && (
+        <details className="ar-more">
+          <summary>How a WCM fixes it{rule.course ? ' and where the course teaches it' : ''}</summary>
+          {rule.steps && rule.steps.length > 0 && <ol>{rule.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>}
+          {rule.course && <p><a href={`/certification/departments/course/${rule.course.moduleId}/${rule.course.pageId}`} target="_blank" rel="noopener">{rule.course.label}</a></p>}
+        </details>
+      )}
       <details className="ar-more">
         <summary>See the pages it flagged ({Math.min(rule.examples.length, flagged)} examples)</summary>
         <ul className="ar-ex">
@@ -192,6 +206,8 @@ const CSS = `
 .ar-muted{font-size:13px;color:rgba(26,26,26,.7)}
 .ar-progress{display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:12px;flex-wrap:wrap}
 .ar-bar{flex:0 0 220px;height:8px;border-radius:99px;background:#e3eef6;overflow:hidden}.ar-bar span{display:block;height:100%;background:#16750C}
+.ar-views{display:inline-flex;flex-wrap:wrap;border:1px solid rgba(0,0,0,.18);border-radius:8px;overflow:hidden;margin-bottom:12px}
+.ar-views button{font:inherit;font-size:12.5px;font-weight:700;border:0;background:#fff;padding:8px 14px;cursor:pointer;color:#444}.ar-views button.on{background:#5b2d82;color:#fff}.ar-views button:first-child.on{background:#1672A7}
 .ar-tools{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
 .ar-filters{display:inline-flex;border:1px solid rgba(0,0,0,.18);border-radius:8px;overflow:hidden}
 .ar-filters button{font:inherit;font-size:12.5px;font-weight:700;border:0;background:#fff;padding:7px 12px;cursor:pointer;color:#444}

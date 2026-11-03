@@ -6,7 +6,8 @@ import { requireBcpsPageAccess } from '@/lib/bcps-auth'
 // pages for, with the counts and example pages from the latest audit of every
 // page, so Sean and the District Web Team can go through them one by one and
 // approve, change, or drop each rule before the audit settings are updated.
-//   GET                          rules + every reviewer's decision + who is asking
+//   GET                          rules + the Finalsite-owned findings kept off WCM lists + every
+//                                reviewer's decision + who is asking
 //   POST { check_id, decision, comment? }   save the caller's decision on a rule
 //   POST { check_id, clear: true }          take the caller's decision back
 // Gated on the 'audit-rules-review' page, the same acl rows that decide the
@@ -27,13 +28,32 @@ async function displayName(userId: string, email: string): Promise<string> {
 export async function GET(req: NextRequest) {
   const auth = await requireBcpsPageAccess(req, PAGE)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
-  const [rules, reviews] = await Promise.all([
+  const [rules, finalsite, reviews] = await Promise.all([
     svc.rpc('bcps_audit_rule_summary'),
+    svc.rpc('bcps_audit_finalsite_summary'),
     svc.from('bcps_audit_rule_reviews').select('check_id, reviewer_email, reviewer_name, decision, comment, updated_at').order('updated_at', { ascending: false }),
   ])
   if (rules.error) return NextResponse.json({ error: rules.error.message }, { status: 500 })
+  if (finalsite.error) return NextResponse.json({ error: finalsite.error.message }, { status: 500 })
   if (reviews.error) return NextResponse.json({ error: reviews.error.message }, { status: 500 })
-  return NextResponse.json({ me: auth.user.email.toLowerCase(), rules: rules.data ?? [], reviews: reviews.data ?? [] })
+  // Findings only Finalsite can fix (Sean, Hot Lab 2026-11-03). The scan tags
+  // each finding with who owns the fix and the WCM's audit already leaves the
+  // Finalsite-owned ones off its red list. They come back in the same card
+  // shape under a 'finalsite:' id, so the team can see and decide on them too.
+  type FS = { id: string; description: string | null; impact: string | null; help_url: string | null; items: number; pages: number; departments: number; examples: { page_url: string; owner: string | null }[] }
+  const finalsiteRules = ((finalsite.data ?? []) as FS[]).map((f) => ({
+    id: `finalsite:${f.id}`,
+    area: 'Accessibility',
+    title: f.description || f.id,
+    why: `Only Finalsite can fix this. It comes from the site template, not from a WCM's content, so it is kept off WCM lists.${f.impact ? ` Impact: ${f.impact}.` : ''}`,
+    steps: null,
+    course: null,
+    fail: f.items, review: 0, pass: 0,
+    departments: f.departments, pages: f.pages,
+    help_url: f.help_url,
+    examples: f.examples.map((e) => ({ page_url: e.page_url, status: 'fail', detail: null, items: null, owner: e.owner })),
+  }))
+  return NextResponse.json({ me: auth.user.email.toLowerCase(), rules: rules.data ?? [], finalsite: finalsiteRules, reviews: reviews.data ?? [] })
 }
 
 export async function POST(req: NextRequest) {
