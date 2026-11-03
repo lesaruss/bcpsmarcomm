@@ -56,10 +56,12 @@ async function namesFor(userIds: string[]) {
   const { data } = await svc.from('wcm_cert_users').select('user_id, full_name').in('user_id', ids)
   const names = new Map((data ?? []).filter(r => r.full_name).map(r => [r.user_id as string, r.full_name as string]))
   // wcm_cert_users is the WCM list, not the roster: members who are not WCMs
-  // (OOC staff, for one) fall back to their auth profile name.
+  // (OOC staff, for one) fall back to their auth profile name. Older accounts
+  // keep it in `name`, newer sign-ups in `full_name` (same order as members).
   await Promise.all(ids.filter(id => !names.has(id)).map(async id => {
     const { data } = await svc.auth.admin.getUserById(id)
-    const name = data?.user?.user_metadata?.full_name
+    const meta = data?.user?.user_metadata
+    const name = meta?.name || meta?.full_name
     if (typeof name === 'string' && name.trim()) names.set(id, name.trim())
   }))
   return names
