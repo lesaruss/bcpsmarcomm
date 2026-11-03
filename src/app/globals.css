@@ -2722,3 +2722,16 @@ ul.guide-links.guide-quick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .guide-head-tools { width: 100%; }
   ul.guide-links.guide-quick { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Department WCM leaderboard (2026-11-03) */
+.lb-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+.lb-scroll { max-height: 420px; overflow-y: auto; }
+.lb-row { display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid #f3f4f6; }
+.lb-row:last-child { border-bottom: none; }
+.lb-row.lb-self { background: var(--blue-xlight); }
+.lb-rank { font-size: 13px; font-weight: 800; color: var(--text-muted); text-align: right; }
+.lb-who { display: flex; flex-direction: column; min-width: 0; font-size: 13px; }
+.lb-who b { color: var(--text-primary); }
+.lb-who span { font-size: 11.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-pts { font-size: 15px; font-weight: 900; color: #0e4e73; }
+.lb-break, .lb-note { font-size: 12.5px; color: var(--text-muted); }

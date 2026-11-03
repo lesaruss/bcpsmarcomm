@@ -3,6 +3,7 @@
 import { windowForDivision, formatWindowRange, windowState, type ReviewWindow } from '@/lib/review-windows'
 import { WCM_DEPARTMENT_GUIDE as G, CERT_DUE, CERT_CHECK, HOT_LAB_JOIN_URL, FINALSITE_URL } from '@/lib/guides/wcm-department'
 import { fmtGuideDate } from './Guide'
+import WcmLeaderboard from './WcmLeaderboard'
 
 // The Department WCM Guide's Overview, drawn for the person reading it
 // (Sean, 2026-10-29): where they are in the four steps, what to do right
@@ -173,6 +174,8 @@ export default function WcmGuideOverview({ viewer }: { viewer?: GuideViewer | nu
           <span>{w ? `${w.label}, ${primary?.division}. Bring your director.` : <a href="#guide/review/windows">See the windows</a>}</span>
         </div>
       </div>
+
+      <WcmLeaderboard compact />
 
       <div className="home-dept guide-sec">
         <h3 className="home-card-title">Quick access</h3>

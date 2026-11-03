@@ -44,9 +44,11 @@ function Highlight({ text, terms }: { text: string; terms: string[] }) {
   return <>{text.split(re).map((p, i) => (i % 2 ? <mark key={i}>{p}</mark> : p))}</>
 }
 
-export default function Guide({ def, overview, initialTab, actions }: {
+export default function Guide({ def, overview, initialTab, actions, tabExtras }: {
   def: GuideDef
   overview: React.ReactNode
+  // Live content for a tab, by tab id, shown above that tab's sections.
+  tabExtras?: Record<string, React.ReactNode>
   initialTab?: string
   // Buttons for the header, such as a way back to a list.
   actions?: React.ReactNode
@@ -210,6 +212,7 @@ export default function Guide({ def, overview, initialTab, actions }: {
                 <h2 className="guide-h2">{tab.label}</h2>
                 {tab.intro && <p className="guide-intro">{tab.intro}</p>}
               </div>
+              {tabExtras?.[tab.id]}
               {tab.sections.map((s) => (
                 <section key={s.id} id={`guide-${tab.id}-${s.id}`} className="home-dept guide-sec">
                   <h3 className="home-card-title">{s.title}</h3>

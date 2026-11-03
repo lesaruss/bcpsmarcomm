@@ -28,6 +28,7 @@ import type { AuditV3 } from '@/components/bcps/AuditViewer'
 import SiteAudit from '@/components/bcps/SiteAudit'
 import Guide from '@/components/guides/Guide'
 import WcmGuideOverview, { type GuideViewer } from '@/components/guides/WcmGuideOverview'
+import WcmLeaderboard from '@/components/guides/WcmLeaderboard'
 import { guideForDoc, GUIDES } from '@/lib/guides'
 import { restrictedGuideForDoc, RESTRICTED_GUIDES } from '@/lib/guides/restricted'
 import RestrictedGuide from '@/components/guides/RestrictedGuide'
@@ -1711,7 +1712,7 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
           {mine.map((d) => <WcmDepartmentCards key={d.id} dept={d} showName={mine.length > 1} onAudit={() => setTab('audit')} />)}
         </>
       )}
-      {tab === 'guide' && <Guide def={WCM_DEPARTMENT_GUIDE} overview={<WcmGuideOverview viewer={viewer} />} />}
+      {tab === 'guide' && <Guide def={WCM_DEPARTMENT_GUIDE} overview={<WcmGuideOverview viewer={viewer} />} tabExtras={{ leaderboard: <WcmLeaderboard /> }} />}
       {tab === 'widgets' && <WidgetsPage embedded />}
       {tab === 'documents' && !docGuide && <DocumentsTab kind="wcm" canMarcomm={canMarcomm} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
