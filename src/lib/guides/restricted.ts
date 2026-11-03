@@ -41,6 +41,21 @@ export const RESTRICTED_GUIDES: Record<string, RestrictedGuideMeta> = {
       'bcps-ai-progress-tracker': 'happened',
     },
   },
+  // Department guides (Sean, 2026-11-03): one guide per department that is the
+  // department's home on bcpsmarcomm.com, with its widgets, its website page and
+  // its audit, for whoever on the team has been given the guide (not only a
+  // Web Content Manager or director). Early Childhood Education is the first;
+  // the format is locked after Sean reviews it, then repeated for other
+  // departments, starting with the ones that have widgets. Readers are named by
+  // grants on the guide's acl_objects row, so a department adds a person without
+  // a deploy.
+  'early-childhood-education': {
+    slug: 'early-childhood-education',
+    title: 'Early Childhood Education Guide',
+    audience: 'the Early Childhood Education team',
+    cadence: 'updated whenever your tools change',
+    replaces: {},
+  },
 }
 
 export function restrictedGuideForDoc(slug: string): { guide: RestrictedGuideMeta; tab: string } | null {

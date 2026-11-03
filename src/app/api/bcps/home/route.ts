@@ -231,7 +231,36 @@ export async function GET(req: NextRequest) {
   // instead of the generic member page, which talks about departments and WCMs.
   const isMarcomm = groups.includes('MarComm Meeting')
 
-  const experience = isSuperadmin ? 'superadmin' : isDwt ? 'dwt' : isDirector ? 'director' : isSchoolWcm ? 'school_wcm' : isWcm ? 'wcm' : isMarcomm ? 'marcomm' : 'member'
+  // Department guides (Sean, 2026-11-03): a department's home on bcpsmarcomm.com is
+  // a restricted guide whose slug is the department's slug, and its readers are
+  // whoever holds a grant on it, directly or through a group. A WCM or director
+  // reads it from their own dashboard; someone with no other role lands on it.
+  // Optional and best effort: a failure here leaves everything else as it was.
+  let departmentGuides: { slug: string; title: string; department: string }[] = []
+  if (!isSuperadmin && !isDwt) {
+    try {
+      const { data: deptRows } = await svc.from('bcps_departments').select('slug, name').not('slug', 'is', null)
+      const nameBySlug = new Map((deptRows ?? []).map((d) => [d.slug as string, d.name as string]))
+      if (nameBySlug.size) {
+        const { data: docs } = await svc.from('acl_objects').select('id, slug, title')
+          .eq('brand', BRAND).eq('kind', 'document').eq('doc_type', 'Guide').in('slug', Array.from(nameBySlug.keys()))
+        const ids = (docs ?? []).map((d) => d.id as string)
+        if (ids.length) {
+          const { data: grants } = await svc.from('acl_grants').select('object_id, subject_type, subject_id').in('object_id', ids)
+          const mine = new Set((grants ?? [])
+            .filter((g) => (g.subject_type === 'user' && g.subject_id === subjectId) || (g.subject_type === 'group' && gids.includes(g.subject_id as string)))
+            .map((g) => g.object_id as string))
+          departmentGuides = (docs ?? []).filter((d) => mine.has(d.id as string))
+            .map((d) => ({ slug: d.slug as string, title: d.title as string, department: nameBySlug.get(d.slug as string) ?? '' }))
+            .sort((a, b) => a.title.localeCompare(b.title))
+        }
+      }
+    } catch (e) {
+      console.error('department guides lookup failed', e)
+    }
+  }
+
+  const experience = isSuperadmin ? 'superadmin' : isDwt ? 'dwt' : isDirector ? 'director' : isSchoolWcm ? 'school_wcm' : isWcm ? 'wcm' : isMarcomm ? 'marcomm' : departmentGuides.length ? 'department' : 'member'
 
   // A school WCM's own banner requests, for their status strip.
   let myBanners: { pending: number; ready: number; posted: number; rejected: number } | null = null
@@ -414,6 +443,7 @@ export async function GET(req: NextRequest) {
     departments,
     team,
     widgets,
+    department_guides: departmentGuides,
     hot_labs: hotLabs,
     kb_articles: kbArticles,
     director_notes: directorNotes,

@@ -264,7 +264,10 @@ interface DirectorNote {
 }
 
 interface HomeData {
-  experience: 'superadmin' | 'dwt' | 'director' | 'school_wcm' | 'wcm' | 'marcomm' | 'member'
+  experience: 'superadmin' | 'dwt' | 'director' | 'school_wcm' | 'wcm' | 'marcomm' | 'department' | 'member'
+  // Department guides (Sean, 2026-11-03) this person has been given: a
+  // department's home. With no other role, one of these is their dashboard.
+  department_guides?: { slug: string; title: string; department: string }[]
   is_dwt: boolean
   is_director: boolean
   // Department Oversight: the Director dashboard across every department.
@@ -1496,6 +1499,16 @@ function MarcommInDocuments() {
 // still open a Playbook link inside the dashboard, with a way back.
 function StandaloneDoc({ slug }: { slug: string }) {
   const router = useRouter()
+  // A restricted guide opens as the guide, for the people it is shared with.
+  const restricted = restrictedGuideForDoc(slug)
+  if (restricted) {
+    return (
+      <div className="home">
+        <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab}
+          actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => router.push('/?page=dashboard', { scroll: false })}>Back to the dashboard</button>} />
+      </div>
+    )
+  }
   return (
     <div className="home">
       <div className="home-actions">
@@ -1694,6 +1707,13 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
                 <span>Every step from getting started to your website review, in one place with search. Refreshed every Thursday from that week's Hot Labs.</span>
                 <button type="button" className="home-link-btn" onClick={() => openWcmGuide()}>Open the guide</button>
               </li>
+              {(data.department_guides ?? []).filter((g) => RESTRICTED_GUIDES[g.slug]).map((g) => (
+                <li key={g.slug}>
+                  <b>Open your department guide</b>
+                  <span>{g.title}: your department&apos;s widgets, website page and audit in one place.</span>
+                  <a className="home-link-btn" href={`/?page=dashboard&tab=documents&doc=${encodeURIComponent(g.slug)}`}>Open the guide</a>
+                </li>
+              ))}
               <li>
                 <b>Check your roster status</b>
                 <span>See whether your director has confirmed you as your department&apos;s WCM. If not, send them the confirmation link.</span>
@@ -1864,6 +1884,25 @@ function MemberHome({ data, onNavigate }: { data: HomeData; onNavigate: Navigate
       </div>
       <h2 className="home-grp">My Resources</h2>
       <ToolsPanel kind="member" onNavigate={onNavigate} hotLabs={data.hot_labs ?? []} />
+    </div>
+  )
+}
+
+/* ─── DEPARTMENT GUIDE ───────────────────────────────── */
+// Someone given a department's guide who has no other role here (Sean,
+// 2026-11-03): the guide is their dashboard, as the MarComm Team Guide is for
+// the MarComm Meeting. It is that department's home, with its widgets, its
+// website page and its audit, whether or not the person is a Web Content
+// Manager or a director. With more than one, a tab for each.
+function DepartmentHome({ data }: { data: HomeData }) {
+  const [tab, setTab] = useHomeTab()
+  const guides = (data.department_guides ?? []).filter((g) => RESTRICTED_GUIDES[g.slug])
+  if (!guides.length) return <MemberHome data={data} onNavigate={() => {}} />
+  const active = guides.find((g) => g.slug === tab) ?? guides[0]
+  return (
+    <div className="home">
+      {guides.length > 1 && <HomeTabs tabs={guides.map((g) => ({ id: g.slug, label: g.department || g.title }))} active={active.slug} onChange={setTab} />}
+      <RestrictedGuide key={active.slug} meta={RESTRICTED_GUIDES[active.slug]} />
     </div>
   )
 }
@@ -3213,7 +3252,7 @@ function PersonPreview({ email, onNavigate, onShowToast, page }: { email: string
     return () => { cancelled = true }
   }, [email])
 
-  const label = { superadmin: 'SuperAdmin', dwt: 'District Web Team', director: data?.oversight ? 'Director (Department Oversight)' : 'Director', school_wcm: 'School WCM', wcm: 'Web Content Manager', marcomm: 'MarComm Meeting', member: 'Member' }
+  const label = { superadmin: 'SuperAdmin', dwt: 'District Web Team', director: data?.oversight ? 'Director (Department Oversight)' : 'Director', school_wcm: 'School WCM', wcm: 'Web Content Manager', marcomm: 'MarComm Meeting', department: 'Department guide', member: 'Member' }
   const banner = (
     <div className="home-person-banner" role="status">
       <div>
@@ -3233,6 +3272,7 @@ function PersonPreview({ email, onNavigate, onShowToast, page }: { email: string
   else if (data.experience === 'school_wcm') body = <SchoolWcmHome data={data} onNavigate={onNavigate} />
   else if (data.experience === 'wcm') body = <WcmHome data={data} onNavigate={onNavigate} page={page} />
   else if (data.experience === 'marcomm') body = <MarcommHome data={data} />
+  else if (data.experience === 'department') body = <DepartmentHome data={data} />
   else body = <MemberHome data={data} onNavigate={onNavigate} />
   // A page opened while viewing as someone shows under their tab bar, as it
   // does for them (Sean, 2026-10-22: Open ADA Manager lost the tabs).
@@ -3331,9 +3371,10 @@ export default function HomePage({ onNavigate, viewAsUserId, onShowToast, page }
   }
   if (data.experience === 'director') return <DirectorHome data={data} onNavigate={onNavigate} />
   // No Documents tab on these dashboards; a Playbook link still opens here.
-  if (docParam && (data.experience === 'school_wcm' || data.experience === 'marcomm' || data.experience === 'member')) return <StandaloneDoc slug={docParam} />
+  if (docParam && (data.experience === 'school_wcm' || data.experience === 'marcomm' || data.experience === 'department' || data.experience === 'member')) return <StandaloneDoc slug={docParam} />
   if (data.experience === 'school_wcm') return <SchoolWcmHome data={data} onNavigate={onNavigate} />
   if (data.experience === 'wcm') return <WcmHome data={data} onNavigate={onNavigate} />
   if (data.experience === 'marcomm') return <MarcommHome data={data} />
+  if (data.experience === 'department') return <DepartmentHome data={data} />
   return <MemberHome data={data} onNavigate={onNavigate} />
 }
