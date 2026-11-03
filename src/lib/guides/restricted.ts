@@ -26,6 +26,21 @@ export const RESTRICTED_GUIDES: Record<string, RestrictedGuideMeta> = {
       'google-governance-plan': 'analytics',
     },
   },
+  // Broward Powered by AI (Sean, 2026-11-03): the site entry and the Progress
+  // Tracker in one guide. Readers are the four groups that held those two
+  // entries (District Web Team, Leadership View, Office of Communications,
+  // Web Content Management). The two meeting briefs keep their own reader
+  // lists and stay Reference links.
+  'broward-powered-by-ai': {
+    slug: 'broward-powered-by-ai',
+    title: 'Broward Powered by AI',
+    audience: 'the District web, communications and leadership teams working on browardschools.ai',
+    cadence: 'refreshed as the tracker changes',
+    replaces: {
+      'bcps-powered-by-ai-site': 'site',
+      'bcps-ai-progress-tracker': 'happened',
+    },
+  },
 }
 
 export function restrictedGuideForDoc(slug: string): { guide: RestrictedGuideMeta; tab: string } | null {
