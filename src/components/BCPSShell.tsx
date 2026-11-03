@@ -275,6 +275,8 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   const activePage = useMemo<PageId>(() => {
     if (pathname.startsWith('/certification')) return 'bcps-certification'
     if (pathname.startsWith('/department')) return 'department'
+    // Campaign reports (/campaigns/<slug>) are part of Analytics (Sean, 2026-11-03).
+    if (pathname.startsWith('/campaigns/')) return 'analytics'
     if (pathname === '/school') return 'school'
     if (pathname === MARCOMM_PATH) return 'marcomm-assignments'
     return (searchParams.get('page') as PageId) || 'dashboard'
@@ -329,7 +331,7 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
   // Engine-driven page enforcement: if the user lands on a page they may not reach, send to dashboard.
   useEffect(() => {
     if (!allowedPages || viewAs) return
-    const pathRouted = pathname.startsWith('/certification') || pathname.startsWith('/department') || pathname === '/school'
+    const pathRouted = pathname.startsWith('/certification') || pathname.startsWith('/department') || pathname.startsWith('/campaigns/') || pathname === '/school'
     // Hardcoded admin-tier pages (SUPERADMIN_PAGES) are gated by role alone and
     // don't depend on the acl_objects registry, since that registry has shown
     // eventual-consistency lag right after a new page is registered (also true
