@@ -221,6 +221,7 @@ export default function SiteAudit({ owner, adaOnly = false, isAdmin = false, sta
       )}
       <div className="sa-actions">
         {isAdmin && <a className="sa-link" href="/audit-questions">Question bank</a>}
+        {isAdmin && <a className="sa-link" href="/audit-rules-review">Rule review</a>}
         {sum.can_run && page && owner.department_id && <button type="button" className="sa-btn" disabled={busy} onClick={recheck}>{busy ? 'Working…' : 'Run audit on this page'}</button>}
         {isAdmin && <button type="button" className="sa-btn sa-btn-alt" disabled={busy || sum.in_progress > 0} onClick={queueSite}>Audit full site</button>}
       </div>
