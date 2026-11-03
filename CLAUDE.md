@@ -12,6 +12,11 @@
 - If `execute_sql` or `apply_migration` times out because "the server asked the user a question", route the write through a one-time edge function in the same turn. That is canon `ops-supabase-write-once-function` and registry `SUPABASE-MCP-APPROVAL-HOLD-USE-ONCE-FUNCTION`. Do not retry the held call, ask Sean to approve a prompt, or offer the dashboard or a hub editor instead.
 - The template is public: `GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --filter=blob:none --sparse https://github.com/lesaruss/vegansexplore-com`, then `git sparse-checkout set scripts/supabase-once`. Follow its README, and commit the same SQL as a migration in `supabase/migrations/`.
 
+## Department guides
+
+- Each department gets one restricted guide (a mini home page: hero with its page, three tiles, role-aware sections), slug = `bcps_departments.slug`. Content lives in `bcps_guides.def`, never in this public repo; readers are a department group granted on its `acl_objects` row. Canon `canon-bcps-department-guide-standard` has the format, the role rules and the delivery steps; `docs/handoff/2026-11-03-department-guides.md` has the how-to and the next department (Instructional Innovation and Digital Learning).
+- Write the definition through a one-time edge function (HTML in SQL stalls the connector). Never use `--force-with-lease`; merge `-s ours` and push as a fast forward.
+
 ## Widgets
 
 - A new widget ships complete, like every widget already in the Widgets hub: the public embed in `public/embeds/`, an ACL-gated API route in `src/app/api/bcps/<name>/`, an in-app editor in `src/components/pages/` registered in `EDITORS` in `WidgetsPage.tsx`, and the `bcps_widgets` + `acl_objects` rows (applied once the embed is live on production). The editor is part of the widget, not a follow-up to offer (Sean, 2026-10-27).
