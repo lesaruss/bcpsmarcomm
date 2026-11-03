@@ -21,6 +21,11 @@ export interface GuideSection {
   title: string
   html: string
   for?: GuideAudience[]
+  // How an Overview section sits on a department guide's home (Sean,
+  // 2026-11-03, a mini home page): "hero" is the two-column top with the
+  // department's page beside it, "tile" is a card in the row of three beneath
+  // it, anything else (or nothing) is a full-width section under them.
+  layout?: 'hero' | 'tile' | 'wide'
 }
 
 export interface GuideTab {
