@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Open Sans: the browardschools.com theme font, so the embed reads as part of the Finalsite page it sits in. -->
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<title>Early Childhood Programs Directory - Broward County Public Schools</title>
+<style>
+  /* Form controls do not inherit the page font by default. */
+  button, input, select, textarea { font-family: inherit; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Same BCPS tokens as the Charter School and II&DL Services embeds: BCPS Blue as
+       the primary interactive color, Open Sans, no internal title or header, since the
+       destination page supplies its own heading. Buttons, chips and inputs use a 6px
+       corner radius (canon-sean-interface-defaults); cost labels stay pill shaped
+       because they are labels, not controls. */
+    --blue: #1672A7;
+    --blue-dark: #0E4E73;
+    --blue-faint: #EBF1F8;
+    --teal: #00838F;
+    --teal-dark: #006A74;
+    --teal-light: #E0F4F5;
+    --amber-dark: #7A3E00;
+    --amber-light: #FFF1DC;
+    --border: #D0D7E2;
+    --text: #1A1A2E;
+    --text-mid: #444;
+    --text-muted: #5F6672;
+    --white: #FFFFFF;
+    --bg: #F5F7FA;
+    --radius: 6px;
+    --font-head: "Open Sans", Arial, Helvetica, sans-serif;
+    --font-body: "Open Sans", Arial, Helvetica, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--white);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* CONTROLS */
+  .controls {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .search-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .search-wrap { position: relative; flex: 1 1 260px; min-width: 0; }
+  .search-wrap svg {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); pointer-events: none;
+  }
+  input[type="search"], input[type="text"], select {
+    width: 100%;
+    min-height: 36px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: var(--text);
+    background-color: var(--white);
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+  input[type="search"] { padding-left: 34px; }
+  input[type="search"]:focus, input[type="text"]:focus, select:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(22,114,167,0.15);
+  }
+  select { cursor: pointer; flex: 0 1 220px; min-width: min(180px, 100%); width: auto; }
+  /* Dropdown arrow: chevron 14px in from the right edge with 40px of right padding
+     (canon-dropdown-arrow-inset), so the native arrow never ships. */
+  select:not([multiple]):not([size]) {
+    -webkit-appearance: none !important; -moz-appearance: none !important; appearance: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23525252' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 14px center !important;
+    background-size: 10px 6px !important;
+    padding-right: 40px !important;
+  }
+
+  /* PROGRAM FILTER (chips) */
+  .chip-filters { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+  .chip-label {
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-right: 2px;
+  }
+  .chip-group { display: inline-flex; align-items: stretch; }
+  .chip-btn {
+    padding: 4px 11px;
+    min-height: 28px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--white);
+    font-size: 12px; font-weight: 500;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .chip-group .chip-btn { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .chip-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .chip-btn[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+  /* The (i) button: opens a short plain-language explainer in the frame. */
+  .info-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 28px; min-height: 28px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--white);
+    color: var(--blue);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .chip-group .info-btn { border-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .info-btn .i {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 1.5px solid currentColor;
+    font-size: 11px; font-weight: 700; line-height: 13px; text-align: center;
+    font-family: Georgia, "Times New Roman", serif; font-style: italic;
+  }
+  .info-btn:hover { border-color: var(--blue); background: var(--blue-faint); }
+  .info-btn[aria-expanded="true"] { background: var(--blue-faint); border-color: var(--blue); }
+
+  .chip-btn:focus-visible, .info-btn:focus-visible, .pg-btn:focus-visible, .clear-btn:focus-visible,
+  .near-btn:focus-visible, .panel-close:focus-visible {
+    outline: 2px solid var(--blue); outline-offset: 2px;
+  }
+
+  /* EXPLAINER (program panel above the cards, and the same block inside a card) */
+  .explainer {
+    background: var(--blue-faint);
+    border: 1px solid rgba(22,114,167,0.2);
+    border-left: 3px solid var(--blue);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text-mid);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .explainer[hidden] { display: none; }
+  .explainer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .explainer-title { font-family: var(--font-head); font-weight: 700; color: var(--blue-dark); font-size: 13px; }
+  .explainer-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; color: var(--text-muted); }
+  .panel-close {
+    border: 0; background: none; color: var(--blue); font-size: 12px; font-weight: 600;
+    cursor: pointer; padding: 2px 4px; min-height: 24px; border-radius: 4px;
+  }
+  .panel-close:hover { text-decoration: underline; }
+
+  /* NEAR ME */
+  .near-box { display: flex; flex-direction: column; gap: 6px; }
+  .near-label { font-size: 12px; font-weight: 700; color: var(--text); }
+  .near-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .near-row .near-input { flex: 1 1 240px; min-width: 0; }
+  .near-btn {
+    min-height: 36px; padding: 6px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--blue); background: var(--blue); color: #fff;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .near-btn:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
+  .near-btn.secondary { background: var(--white); color: var(--blue); }
+  .near-btn.secondary:hover { background: var(--blue-faint); }
+  .near-btn:disabled { opacity: 0.6; cursor: wait; }
+  .near-help { font-size: 12px; color: var(--text-muted); }
+  .near-msg { font-size: 12px; color: #9B1C1C; font-weight: 600; }
+  .near-msg[hidden] { display: none; }
+
+  /* HOW TO APPLY NOTE */
+  .apply-note {
+    padding: 12px 20px;
+    background: var(--teal-light);
+    border-bottom: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    font-size: 13px; color: var(--text);
+  }
+  .apply-note[hidden] { display: none; }
+  .apply-note p { flex: 1 1 260px; min-width: 0; }
+  .apply-btn {
+    display: inline-flex; align-items: center; min-height: 32px; padding: 5px 14px;
+    border-radius: var(--radius); background: var(--teal-dark); border: 1px solid var(--teal-dark);
+    color: #fff; font-size: 12px; font-weight: 700; text-decoration: none;
+  }
+  .apply-btn:hover { background: #005159; border-color: #005159; }
+  .apply-btn:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
+
+  /* RESULTS BAR */
+  .results-bar {
+    padding: 8px 20px; font-size: 12px; color: var(--text-muted);
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  }
+  .results-bar strong { color: var(--text); }
+  .clear-btn {
+    border: none; background: none; font-size: 12px; font-weight: 600;
+    color: var(--blue); cursor: pointer; padding: 2px 0;
+  }
+  .clear-btn:hover { color: var(--blue-dark); text-decoration: underline; }
+  .clear-btn[hidden] { display: none; }
+
+  /* GRID */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+    gap: 1px;
+    background: var(--border);
+  }
+
+  /* CARD */
+  .card {
+    background: var(--white); padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 8px; min-width: 0;
+    transition: background 0.1s;
+  }
+  .card:hover { background: var(--blue-faint); }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .card-name {
+    font-family: var(--font-head); font-size: 14px; font-weight: 700;
+    color: var(--text); line-height: 1.35; overflow-wrap: anywhere; min-width: 0;
+  }
+  .dist {
+    flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--blue-dark);
+    background: var(--white); border: 1px solid rgba(22,114,167,0.3);
+    border-radius: 999px; padding: 1px 8px; white-space: nowrap;
+  }
+
+  .programs { display: flex; flex-direction: column; gap: 4px; }
+  /* Text on the left (wraps on its own), (i) button pinned to the right so it never
+     drops onto a line by itself. Negative margin keeps the text aligned with the school
+     name while the highlighted row still gets its padding. */
+  .prog {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 2px 8px;
+    margin: 0 -7px; padding: 3px 6px; border-radius: var(--radius); border: 1px solid transparent;
+  }
+  .prog-main { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-width: 0; padding-top: 1px; }
+  .prog.is-match { background: var(--blue-faint); border-color: rgba(22,114,167,0.25); }
+  .card:hover .prog.is-match { background: var(--white); }
+  .prog-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .prog-ages { font-size: 12px; color: var(--text-muted); }
+  .prog .info-btn { min-width: 24px; min-height: 24px; border-color: transparent; background: transparent; }
+  .prog .info-btn:hover, .prog .info-btn[aria-expanded="true"] { background: var(--white); border-color: var(--blue); }
+
+  .cost {
+    font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px;
+    line-height: 1.5; white-space: nowrap;
+  }
+  .cost-free { background: var(--teal-light); color: var(--teal-dark); border: 1px solid rgba(0,131,143,0.25); }
+  .cost-tuition { background: var(--amber-light); color: var(--amber-dark); border: 1px solid rgba(122,62,0,0.25); }
+
+  .card-meta { display: flex; flex-direction: column; gap: 3px; }
+  .meta-row { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; color: var(--text-muted); min-width: 0; }
+  .meta-row svg { flex-shrink: 0; margin-top: 3px; }
+  .meta-row span, .meta-row a { line-height: 1.4; min-width: 0; overflow-wrap: anywhere; }
+  .meta-row a { color: var(--blue); text-decoration: none; }
+  .meta-row a:hover { color: var(--blue-dark); text-decoration: underline; }
+  .meta-row.meta-link { align-items: center; }
+  .meta-row.meta-link svg { margin-top: 0; }
+  .meta-row.meta-link a { display: inline-flex; align-items: center; min-height: 24px; }
+
+  .card-footer {
+    margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  }
+  .card-link {
+    display: inline-flex; align-items: center; gap: 5px; min-height: 24px;
+    font-size: 12px; font-weight: 600; color: var(--blue); text-decoration: none;
+  }
+  .card-link:hover { color: var(--blue-dark); text-decoration: underline; }
+  .card-link:focus-visible, .meta-row a:focus-visible, .explainer a:focus-visible {
+    outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 2px;
+  }
+  .explainer a {
+    color: var(--blue); font-weight: 600; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 5px; min-height: 24px; align-self: flex-start;
+  }
+  .explainer a:hover { text-decoration: underline; }
+
+  /* EMPTY / ERROR */
+  .empty {
+    grid-column: 1 / -1; padding: 40px 20px; text-align: center;
+    color: var(--text-muted); font-size: 13px; background: var(--white);
+  }
+  .empty svg { display: block; margin: 0 auto 10px; opacity: 0.35; }
+
+  /* PAGINATION */
+  .pagination {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: 4px; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--white);
+  }
+  .pagination:empty { display: none; }
+  .pg-btn {
+    min-width: 32px; height: 32px; padding: 0 8px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--white); color: var(--text-mid);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s; line-height: 1;
+  }
+  .pg-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+  .pg-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .pg-ellipsis { color: var(--text-muted); font-size: 13px; padding: 0 4px; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  @media (max-width: 480px) {
+    .controls, .results-bar, .apply-note { padding-left: 16px; padding-right: 16px; }
+    select { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- No internal title or header, same as the charter and II&DL embeds: this module sits
+     inside a page section that already has its own heading. -->
+<div class="controls">
+  <div class="search-row">
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input type="search" id="searchInput" placeholder="Search by school name, street, or ZIP code" aria-label="Search early childhood schools">
+    </div>
+    <select id="citySelect" aria-label="Filter by city"><option value="">All cities</option></select>
+  </div>
+
+  <div class="chip-filters" id="programChips" role="group" aria-label="Filter by program"></div>
+  <div class="explainer" id="programPanel" role="region" aria-live="polite" aria-label="About this program" hidden></div>
+
+  <div class="near-box">
+    <label class="near-label" for="nearInput">Find schools near you</label>
+    <form class="near-row" id="nearForm" novalidate>
+      <input type="text" class="near-input" id="nearInput" placeholder="Street address or ZIP code" autocomplete="street-address" aria-describedby="nearHelp">
+      <button type="submit" class="near-btn" id="nearGo">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        Find nearest
+      </button>
+      <button type="button" class="near-btn secondary" id="nearGeo">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+        Use my location
+      </button>
+    </form>
+    <p class="near-help" id="nearHelp">Schools are sorted by distance. Address lookup uses OpenStreetMap, and we do not save what you type.</p>
+    <p class="near-msg" id="nearMsg" role="alert" hidden></p>
+  </div>
+</div>
+
+<div class="apply-note" id="applyNote" hidden></div>
+
+<div class="results-bar">
+  <span role="status">Showing <strong id="resultCount">&hellip;</strong> of <span id="totalCount">&hellip;</span> schools<span id="sortNote"></span></span>
+  <button type="button" class="clear-btn" id="clearFilters" hidden>Clear filters</button>
+</div>
+
+<div class="grid" id="schoolGrid" aria-label="School results" aria-busy="true">
+  <div class="empty">Loading schools&hellip;</div>
+</div>
+<nav class="pagination" id="pagination" aria-label="Results pages"></nav>
+
+<script>
+let SCHOOLS = [];
+let PROGRAMS = [];
+let SETTINGS = null;
+let LOAD_FAILED = false;
+
+// State
+let activeProgram = '';
+let activeCity = '';
+let activeSearch = '';
+let origin = null;           // { lat, lng, label } once the family has searched near them
+let openPanel = '';          // program slug open in the filter-row explainer
+const openDetails = new Set(); // 'schoolId|programSlug' explainers open inside cards
+let currentPage = 1;
+const PAGE_SIZE = 12; // fills 1-, 2- and 3-column grids evenly
+
+// Each program is a yes/no column on a school row.
+const PROGRAM_FLAG = {
+  'early-head-start': 'early_head_start',
+  'head-start': 'head_start',
+  'vpk-free-full-day': 'vpk_free_full_day',
+  'vpk-tuition-supported': 'vpk_tuition_supported',
+};
+
+const ICON_PIN = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+const ICON_PHONE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.64 19.79 19.79 0 01.22 1.05 2 2 0 012.22 3h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 10.91a16 16 0 006.18 6.18l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>';
+const ICON_DIR = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>';
+const ICON_EXT = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+const NEW_TAB = '<span class="sr-only">(opens in a new tab)</span>';
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function highlight(text, query) {
+  if (!query) return escapeHtml(text);
+  const re = new RegExp('(' + escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  return escapeHtml(text).replace(re, '<mark style="background:#FFF3CD;color:inherit;border-radius:2px;padding:0 1px">$1</mark>');
+}
+
+// Only http(s) and mailto links ever reach an href.
+function safeUrl(u) {
+  return /^(https?:|mailto:)/i.test(u || '') ? u : '';
+}
+
+function programBySlug(slug) { return PROGRAMS.find(p => p.slug === slug); }
+function schoolPrograms(s) { return PROGRAMS.filter(p => s[PROGRAM_FLAG[p.slug]]); }
+function costClass(p) { return p.slug === 'vpk-tuition-supported' ? 'cost-tuition' : 'cost-free'; }
+
+function mapsSearchUrl(s) {
+  return 'https://www.google.com/maps/search/?api=1&query=' +
+    encodeURIComponent([s.name, s.address, s.city, 'FL', s.zip].filter(Boolean).join(', '));
+}
+function mapsDirectionsUrl(s) {
+  return 'https://www.google.com/maps/dir/?api=1&destination=' +
+    encodeURIComponent([s.name, s.address, s.city, 'FL', s.zip].filter(Boolean).join(', '));
+}
+
+function miles(a, b) {
+  const R = 3958.8, rad = x => x * Math.PI / 180;
+  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// EXPLAINER (shared by the filter row and the cards)
+function explainerHtml(p, withClose) {
+  const url = safeUrl(p.learn_more_url);
+  return `
+    <div class="explainer-head">
+      <span class="explainer-title">${escapeHtml(p.name)}</span>
+      ${withClose ? '<button type="button" class="panel-close" data-close-panel>Close</button>' : ''}
+    </div>
+    <div class="explainer-facts">
+      <span class="cost ${costClass(p)}">${escapeHtml(p.cost_label)}</span>
+      <span>${escapeHtml(p.ages_label)}</span>
+    </div>
+    ${p.explainer ? `<p>${escapeHtml(p.explainer)}</p>` : ''}
+    ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Learn more about ${escapeHtml(p.name)} ${ICON_EXT}${NEW_TAB}</a>` : ''}
+  `;
+}
+
+function renderProgramChips() {
+  const wrap = document.getElementById('programChips');
+  wrap.innerHTML = '<span class="chip-label" aria-hidden="true">Program:</span>' +
+    `<button type="button" class="chip-btn" data-program="" aria-pressed="${activeProgram === ''}">All programs</button>` +
+    PROGRAMS.map(p => `<span class="chip-group">
+      <button type="button" class="chip-btn" data-program="${escapeHtml(p.slug)}" aria-pressed="${p.slug === activeProgram}">${escapeHtml(p.name)}</button>
+      <button type="button" class="info-btn" data-info="${escapeHtml(p.slug)}" aria-expanded="${p.slug === openPanel}" aria-controls="programPanel" aria-label="What is ${escapeHtml(p.name)}?" title="What is ${escapeHtml(p.name)}?"><span class="i" aria-hidden="true">i</span></button>
+    </span>`).join('');
+}
+
+function renderProgramPanel() {
+  const panel = document.getElementById('programPanel');
+  const p = openPanel && programBySlug(openPanel);
+  if (!p) { panel.hidden = true; panel.innerHTML = ''; return; }
+  panel.hidden = false;
+  panel.innerHTML = explainerHtml(p, true);
+}
+
+function renderCityOptions() {
+  const sel = document.getElementById('citySelect');
+  const cities = [...new Set(SCHOOLS.map(s => s.city).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  if (activeCity && !cities.includes(activeCity)) activeCity = '';
+  sel.innerHTML = '<option value="">All cities</option>' +
+    cities.map(c => `<option value="${escapeHtml(c)}"${c === activeCity ? ' selected' : ''}>${escapeHtml(c)}</option>`).join('');
+}
+
+function renderApplyNote() {
+  const box = document.getElementById('applyNote');
+  const note = SETTINGS?.apply_note;
+  const mail = SETTINGS?.contact_email ? safeUrl('mailto:' + SETTINGS.contact_email.trim()) : '';
+  const link = safeUrl(SETTINGS?.contact_url);
+  const href = mail || (link && !/^mailto:/i.test(link) ? link : '');
+  if (!note && !href) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = `${note ? `<p>${escapeHtml(note)}</p>` : ''}${href
+    ? `<a class="apply-btn" href="${escapeHtml(href)}"${mail ? '' : ' target="_blank" rel="noopener noreferrer"'}>${escapeHtml(SETTINGS.contact_label || 'Contact Early Childhood Education')}${mail ? '' : NEW_TAB}</a>`
+    : ''}`;
+}
+
+function getFiltered() {
+  const q = activeSearch.toLowerCase().trim();
+  const list = SCHOOLS.filter(s => {
+    if (activeProgram && !s[PROGRAM_FLAG[activeProgram]]) return false;
+    if (activeCity && s.city !== activeCity) return false;
+    if (!q) return true;
+    return [s.name, s.address, s.city, s.zip].some(v => (v || '').toLowerCase().includes(q));
+  });
+  if (origin) {
+    list.forEach(s => { s._dist = (s.lat != null && s.lng != null) ? miles(origin, { lat: +s.lat, lng: +s.lng }) : null; });
+    list.sort((a, b) => (a._dist ?? 1e9) - (b._dist ?? 1e9));
+  }
+  return list;
+}
+
+function renderPagination(total) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pg = document.getElementById('pagination');
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (currentPage > 3) pages.push('...');
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+    if (currentPage < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  pg.innerHTML = `
+    <button type="button" class="pg-btn" id="pg-prev" aria-label="Previous page" ${currentPage === 1 ? 'disabled' : ''}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    ${pages.map(p => p === '...'
+      ? `<span class="pg-ellipsis" aria-hidden="true">...</span>`
+      : `<button type="button" class="pg-btn${p === currentPage ? ' active' : ''}" data-page="${p}" aria-label="Page ${p}"${p === currentPage ? ' aria-current="page"' : ''}>${p}</button>`
+    ).join('')}
+    <button type="button" class="pg-btn" id="pg-next" aria-label="Next page" ${currentPage === totalPages ? 'disabled' : ''}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  `;
+
+  pg.querySelector('#pg-prev')?.addEventListener('click', () => goToPage(currentPage - 1));
+  pg.querySelector('#pg-next')?.addEventListener('click', () => goToPage(currentPage + 1));
+  pg.querySelectorAll('[data-page]').forEach(btn => btn.addEventListener('click', () => goToPage(Number(btn.dataset.page))));
+}
+
+// Auto height for iframe embeds, same contract as the other embeds: posts
+// { type: 'bcps-widget-resize', slug, height } to the parent so the embed code
+// copied from the Widgets hub can size the iframe.
+let lastPostedHeight = 0;
+function postHeight() {
+  const height = Math.ceil(document.body.getBoundingClientRect().height);
+  if (Math.abs(height - lastPostedHeight) < 2) return;
+  lastPostedHeight = height;
+  window.parent.postMessage({ type: 'bcps-widget-resize', slug: 'early-childhood-programs', height }, '*');
+}
+
+function goToPage(page) {
+  currentPage = page;
+  render();
+  document.getElementById('schoolGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cardHtml(s, q) {
+  const progs = schoolPrograms(s);
+  const rows = progs.map(p => {
+    const key = s.id + '|' + p.slug;
+    const open = openDetails.has(key);
+    const id = 'd-' + String(s.id).replace(/[^a-z0-9]/gi, '') + '-' + p.slug;
+    return `<div class="prog${p.slug === activeProgram ? ' is-match' : ''}">
+        <div class="prog-main">
+          <span class="prog-name">${escapeHtml(p.card_label)}</span>
+          <span class="cost ${costClass(p)}">${escapeHtml(p.cost_label)}</span>
+          <span class="prog-ages">${escapeHtml(p.ages_label)}</span>
+        </div>
+        <button type="button" class="info-btn" data-detail="${escapeHtml(key)}" aria-expanded="${open}" aria-controls="${id}" aria-label="About ${escapeHtml(p.name)}" title="About ${escapeHtml(p.name)}"><span class="i" aria-hidden="true">i</span></button>
+      </div>
+      <div class="explainer" id="${id}"${open ? '' : ' hidden'}>${explainerHtml(p, false)}</div>`;
+  }).join('');
+
+  const meta = [];
+  const place = [s.address, [s.city, 'FL'].filter(Boolean).join(', ') + (s.zip ? ' ' + s.zip : '')].filter(Boolean);
+  if (s.address) {
+    meta.push(`<div class="meta-row meta-link">${ICON_PIN}
+      <a href="${escapeHtml(mapsSearchUrl(s))}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(s.name)} on Google Maps, ${escapeHtml(place.join(', '))} (opens in a new tab)">${highlight(s.address, q)}, ${highlight(s.city || '', q)}, FL ${highlight(s.zip || '', q)}</a></div>`);
+  }
+  if (s.phone) {
+    const tel = String(s.phone).replace(/[^0-9+]/g, '');
+    if (tel) meta.push(`<div class="meta-row meta-link">${ICON_PHONE}<a href="tel:${escapeHtml(tel)}" aria-label="Call ${escapeHtml(s.name)} at ${escapeHtml(s.phone)}">${escapeHtml(s.phone)}</a></div>`);
+  }
+
+  return `<article class="card">
+    <div class="card-top">
+      <div class="card-name">${highlight(s.name, q)}</div>
+      ${origin && s._dist != null ? `<span class="dist" title="Straight-line distance from ${escapeHtml(origin.label)}">${s._dist < 10 ? s._dist.toFixed(1) : Math.round(s._dist)} mi</span>` : ''}
+    </div>
+    <div class="programs">${rows}</div>
+    ${meta.length ? `<div class="card-meta">${meta.join('')}</div>` : ''}
+    <div class="card-footer">
+      <a class="card-link" href="${escapeHtml(mapsDirectionsUrl(s))}" target="_blank" rel="noopener noreferrer" aria-label="Get directions to ${escapeHtml(s.name)} (opens in a new tab)">${ICON_DIR} Get directions ${NEW_TAB}</a>
+    </div>
+  </article>`;
+}
+
+function render() {
+  const q = activeSearch.toLowerCase().trim();
+  const filtered = getFiltered();
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = 1;
+
+  document.getElementById('resultCount').textContent = filtered.length;
+  document.getElementById('sortNote').textContent = origin ? ', nearest first' : '';
+  document.getElementById('clearFilters').hidden = !(activeProgram || activeCity || activeSearch.trim() || origin);
+  renderProgramChips();
+  renderProgramPanel();
+
+  const grid = document.getElementById('schoolGrid');
+  grid.setAttribute('aria-busy', 'false');
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      ${LOAD_FAILED
+        ? 'The school list could not be loaded right now. Please refresh the page to try again.'
+        : 'No schools match your filters. Try adjusting your search.'}
+    </div>`;
+    renderPagination(0);
+    postHeight();
+    return;
+  }
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+  grid.innerHTML = filtered.slice(start, start + PAGE_SIZE).map(s => cardHtml(s, q)).join('');
+  renderPagination(filtered.length);
+  postHeight();
+}
+
+// NEAR ME. Typed addresses go to OpenStreetMap (CORS-enabled, bounded to Broward
+// County). "Use my location" stays in the browser and calls nobody.
+const BROWARD_VIEWBOX = '-80.50,26.40,-80.03,25.90'; // left,top,right,bottom
+function nearMessage(text) {
+  const el = document.getElementById('nearMsg');
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+function setNearBusy(busy) {
+  document.getElementById('nearGo').disabled = busy;
+  document.getElementById('nearGeo').disabled = busy;
+}
+function setOrigin(o) {
+  origin = o;
+  currentPage = 1;
+  render();
+}
+
+async function findNearest(text) {
+  const value = text.trim();
+  if (!value) { nearMessage('Enter a street address or ZIP code first.'); return; }
+  nearMessage(''); setNearBusy(true);
+  try {
+    const params = new URLSearchParams({ format: 'json', limit: '1', countrycodes: 'us', viewbox: BROWARD_VIEWBOX, bounded: '1' });
+    if (/^\d{5}$/.test(value)) { params.set('postalcode', value); params.set('state', 'Florida'); }
+    else params.set('q', /\b(fl|florida)\b/i.test(value) ? value : value + ', Florida');
+    const res = await fetch('https://nominatim.openstreetmap.org/search?' + params.toString(), { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const hit = (await res.json())[0];
+    if (!hit) { nearMessage('We could not find that address in Broward County. Check the spelling or try a ZIP code.'); return; }
+    setOrigin({ lat: +hit.lat, lng: +hit.lon, label: value });
+  } catch (e) {
+    nearMessage('Address search is not available right now. You can still pick a city above.');
+  } finally {
+    setNearBusy(false);
+  }
+}
+
+function useMyLocation() {
+  if (!navigator.geolocation) { nearMessage('Your browser cannot share its location. Type an address or ZIP code instead.'); return; }
+  nearMessage(''); setNearBusy(true);
+  navigator.geolocation.getCurrentPosition(
+    pos => { setNearBusy(false); setOrigin({ lat: pos.coords.latitude, lng: pos.coords.longitude, label: 'your location' }); },
+    () => { setNearBusy(false); nearMessage('We could not get your location. Type an address or ZIP code instead.'); },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+  );
+}
+
+// EVENTS
+document.getElementById('searchInput').addEventListener('input', e => {
+  activeSearch = e.target.value; currentPage = 1; render();
+});
+document.getElementById('citySelect').addEventListener('change', e => {
+  activeCity = e.target.value; currentPage = 1; render();
+});
+document.getElementById('nearForm').addEventListener('submit', e => { e.preventDefault(); findNearest(document.getElementById('nearInput').value); });
+document.getElementById('nearGeo').addEventListener('click', useMyLocation);
+
+document.getElementById('programChips').addEventListener('click', e => {
+  const chip = e.target.closest('[data-program]');
+  if (chip) { activeProgram = chip.dataset.program; currentPage = 1; render(); return; }
+  const info = e.target.closest('[data-info]');
+  if (info) { openPanel = openPanel === info.dataset.info ? '' : info.dataset.info; render(); }
+});
+document.getElementById('programPanel').addEventListener('click', e => {
+  if (e.target.closest('[data-close-panel]')) {
+    const was = openPanel; openPanel = ''; render();
+    document.querySelector(`[data-info="${was}"]`)?.focus();
+  }
+});
+document.getElementById('schoolGrid').addEventListener('click', e => {
+  const btn = e.target.closest('[data-detail]');
+  if (!btn) return;
+  const key = btn.dataset.detail;
+  const panel = document.getElementById(btn.getAttribute('aria-controls'));
+  const open = btn.getAttribute('aria-expanded') !== 'true';
+  btn.setAttribute('aria-expanded', String(open));
+  if (panel) panel.hidden = !open;
+  if (open) openDetails.add(key); else openDetails.delete(key);
+  postHeight();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && openPanel) {
+    const was = openPanel; openPanel = ''; render();
+    document.querySelector(`[data-info="${was}"]`)?.focus();
+  }
+});
+
+document.getElementById('clearFilters').addEventListener('click', () => {
+  activeSearch = ''; activeProgram = ''; activeCity = ''; origin = null; openPanel = ''; currentPage = 1;
+  document.getElementById('searchInput').value = '';
+  document.getElementById('nearInput').value = '';
+  document.getElementById('citySelect').value = '';
+  nearMessage('');
+  render();
+});
+
+// Live data, same model as the other embeds: public anon read (RLS select policies plus
+// column-level grants that leave out the internal review_note), so edits made in the
+// Widgets hub editor show up here with no deploy.
+const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+const SCHOOL_COLS = 'id,name,address,city,zip,phone,early_head_start,head_start,vpk_free_full_day,vpk_tuition_supported,lat,lng,sort_order';
+const PROGRAM_COLS = 'slug,name,card_label,cost_label,ages_label,explainer,learn_more_url,sort_order';
+
+async function fetchRows(path) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const rows = await res.json();
+  if (!Array.isArray(rows)) throw new Error('Unexpected response');
+  return rows;
+}
+
+async function init() {
+  // Pre-filter from the URL (?program=head-start&city=Miramar) so the same embed can sit
+  // on a program's own page.
+  const params = new URLSearchParams(location.search);
+  activeProgram = params.get('program') || '';
+  activeCity = params.get('city') || '';
+
+  try {
+    const [programs, schools, settings] = await Promise.all([
+      fetchRows('bcps_early_childhood_programs?select=' + PROGRAM_COLS + '&order=sort_order.asc'),
+      fetchRows('bcps_early_childhood_schools?select=' + SCHOOL_COLS + '&order=sort_order.asc'),
+      fetchRows('bcps_early_childhood_settings?select=apply_note,contact_label,contact_email,contact_url&id=eq.1').catch(() => []),
+    ]);
+    PROGRAMS = programs; SCHOOLS = schools; SETTINGS = settings[0] || null;
+  } catch (e) {
+    PROGRAMS = []; SCHOOLS = []; LOAD_FAILED = true;
+  }
+  if (activeProgram && !programBySlug(activeProgram)) activeProgram = '';
+  document.getElementById('totalCount').textContent = SCHOOLS.length;
+  renderCityOptions();
+  renderApplyNote();
+  render();
+}
+
+window.addEventListener('load', postHeight);
+window.addEventListener('resize', postHeight);
+if (window.ResizeObserver) {
+  new ResizeObserver(postHeight).observe(document.body);
+} else {
+  setInterval(postHeight, 500);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -22,6 +22,10 @@ const WIDGET_TIPS: Record<string, string[]> = {
     "Each unit's page link and one-line summary are edited at the top of the same screen.",
     'Anything marked "Needs II&DL review" is an internal note for your team. It never appears on the public page.',
   ],
+  'early-childhood-programs': [
+    'Program explainers (the text behind the (i) buttons) and the how-to-apply banner are edited from the buttons at the top of the same screen.',
+    'Anything marked "Needs review" is an internal note for your team. It never appears on the public page.',
+  ],
 }
 
 export async function welcomeWidgetEditors(svc: SupabaseClient, opts: {

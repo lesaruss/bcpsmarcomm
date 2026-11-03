@@ -6,6 +6,7 @@ import FindItFastPage from './FindItFastPage'
 import CharterSchoolsPage from './CharterSchoolsPage'
 import IidlServicesPage from './IidlServicesPage'
 import MagnetProgramsPage from './MagnetProgramsPage'
+import EarlyChildhoodProgramsPage from './EarlyChildhoodProgramsPage'
 import DirectoryPage from './DirectoryPage'
 import SchoolSupportLeadPage from './SchoolSupportLeadPage'
 import SchoolImpactApplicationsPage from './SchoolImpactApplicationsPage'
@@ -36,6 +37,7 @@ const EDITORS: Record<string, React.ComponentType> = {
   'charter-school-directory': CharterSchoolsPage,
   'iidl-services-directory': IidlServicesPage,
   'magnet-program-explorer': MagnetProgramsPage,
+  'early-childhood-programs': EarlyChildhoodProgramsPage,
   'department-program-directory': DirectoryPage,
   'school-support-lead': SchoolSupportLeadPage,
   'school-impact-application': SchoolImpactApplicationsPage,
