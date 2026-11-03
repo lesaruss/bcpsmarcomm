@@ -56,6 +56,16 @@ export const RESTRICTED_GUIDES: Record<string, RestrictedGuideMeta> = {
     cadence: 'updated whenever your tools change',
     replaces: {},
   },
+  // Instructional Innovation and Digital Learning (Sean, 2026-11-03): the second
+  // department guide, same format as early-childhood-education. Readers are the
+  // department group; content is in bcps_guides, never here.
+  'instructional-innovation-digital-learning': {
+    slug: 'instructional-innovation-digital-learning',
+    title: 'Instructional Innovation and Digital Learning Guide',
+    audience: 'the Instructional Innovation and Digital Learning team',
+    cadence: 'updated whenever your tools change',
+    replaces: {},
+  },
   // District Web Team Guide (Sean, 2026-11-03): what the team has in
   // development and coming, for departments and for schools. Readers are the
   // District Web Team group, plus Charlene A. Collins and Luis A. Morales, who
