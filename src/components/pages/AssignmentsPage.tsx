@@ -20,7 +20,10 @@ const supabaseClient = createClient()
 //
 // ?row=<slug> (from the dashboard's task links, 2026-10-01) opens that
 // assignment's notes inside the page.
-export default function AssignmentsPage({ onBack }: { onBack?: () => void }) {
+// embedded: shown inside a guide's Web Team Assignments tab (Sean, 2026-11-03:
+// everything in the District Web Team Guide, no loose links). The same page and
+// toolbar, without the way back to Documents, sized to sit in the guide.
+export default function AssignmentsPage({ onBack, embedded = false }: { onBack?: () => void; embedded?: boolean }) {
   const router = useRouter()
   const [src, setSrc] = useState(PAGE_SRC)
   const [reloads, setReloads] = useState(0)
@@ -48,9 +51,11 @@ export default function AssignmentsPage({ onBack }: { onBack?: () => void }) {
   const done = (message: string) => { setDialog(null); setNote(message); setReloads((n) => n + 1) }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', marginTop: '0' }}>
+    <div style={embedded
+      ? { display: 'flex', flexDirection: 'column', height: 'calc(100vh - 220px)', minHeight: 560, marginTop: '0' }
+      : { display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', marginTop: '0' }}>
       <div className="doc-toolbar">
-        <button type="button" className="wcm-hub2-card-btn" onClick={back}>All documents</button>
+        {!embedded && <button type="button" className="wcm-hub2-card-btn" onClick={back}>All documents</button>}
         <a className="wcm-hub2-card-btn" href={PAGE_SRC} target="_blank" rel="noopener noreferrer">Open full page</a>
         {access.can_edit && <button type="button" className="wcm-hub2-card-btn" onClick={() => { setNote(''); setDialog('edit') }}>Edit this page</button>}
         <MeetingTranscriptUpload variant="button" onApplied={() => setReloads((n) => n + 1)} />
