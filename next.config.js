@@ -91,14 +91,14 @@ const nextConfig = {
       // signed out, and the Google sign-in return address on www is not on
       // the shared Supabase auth allow list, so it landed on lesaruss.ai.
       // Done here because the Vercel tools in the agent sandbox can add a
-      // domain but not edit an existing one. Temporary (307) on purpose so
-      // browsers do not cache it while this is new; make it permanent later.
+      // domain but not edit an existing one. Permanent (308) since 2026-11-03
+      // after Sean confirmed the 307 behaved live.
       // Path and query carry through, so /campaigns/referendum-2026 works.
       {
         source: "/:path*",
         has: [{ type: "host", value: "www.bcpsmarcomm.com" }],
         destination: "https://bcpsmarcomm.com/:path*",
-        permanent: false,
+        permanent: true,
       },
       {
         source: "/lab",
