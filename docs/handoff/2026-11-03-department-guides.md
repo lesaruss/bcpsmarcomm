@@ -13,7 +13,7 @@ Brand bcps, repo lesaruss/bcpsmarcomm, Supabase project fwbhwfxpncrsfhttimna. Lo
 - Layout: Overview sections carry `layout` hero, tile or wide. Tabs and sections carry `for: ['wcm']` or `['director']`. Filtering is server side: `src/lib/guides/audience.ts`.
 - Live side: `src/lib/guides/department.ts` (page image, audit snapshot, analytics) and `src/lib/bcps-department-analytics.ts`. Rendering: `src/components/guides/RestrictedGuide.tsx`, CSS in `globals.css` (`guide-hero`, `guide-tiles`, `guide-audit`).
 - Dashboard: a person with only a department guide gets the `department` experience (`HomePage.tsx`, `/api/bcps/home`). `tab=widgets` and `tab=audit` work on every role's dashboard (aliases on the SuperAdmin and Web Team homes).
-- Delivery: HTML in SQL stalls the connector, so write the definition through a one-time edge function (canon `ops-supabase-write-once-function`). Scripts in `docs/handoff/department-guide-scripts/` generate that function (`make_fn.py` writes a whole definition, `make_patch_fn.py` patches one in place), render a mock of the Overview with the real stylesheet (`render_mock.py`, `shoot_mock.js`), test the audience filter (`filter-test2.ts`) and compute the digests to compare against the database (`digest3.py`). They hold absolute scratchpad paths and need editing. Compare md5 digests of the stored sections to the local source, then redeploy the function as the 410 stub with verify_jwt true.
+- Delivery: HTML in SQL stalls the connector, so write the definition through a one-time edge function (canon `ops-supabase-write-once-function`). Scripts in `docs/handoff/department-guide-scripts/` generate that function (`make_fn.py` writes a whole definition, `make_patch_fn.py` patches one in place), render a mock of the Overview with the real stylesheet (`render_mock.py`, `shoot_mock.js`), test the audience filter (`filter-test2.ts.txt`, kept as .txt because the repo's tsconfig compiles every .ts file and this one imports absolute paths; rename it to .ts in a scratch folder to run it with `npx tsx`) and compute the digests to compare against the database (`digest3.py`). They hold absolute scratchpad paths and need editing. Compare md5 digests of the stored sections to the local source, then redeploy the function as the 410 stub with verify_jwt true.
 
 ## Next: Instructional Innovation and Digital Learning
 Research done, nothing written.
@@ -33,6 +33,7 @@ Then Charter Schools, then the other departments with widgets.
 - The wrap-up standard says push to main; this session pushed to its branch and merged through PRs, so this doc rides the branch until Sean says merge.
 
 ## Gotchas
+- Never commit a `.ts` or `.tsx` file under `docs/`: `tsconfig` includes `**/*.ts`, so one with a bad import fails the Vercel build for the whole repo (it did, on the first handoff PR). Run `npx tsc --noEmit` after adding any file, and check the Vercel build before merging, even for a docs-only change.
 - `git push --force-with-lease` is denied by the auto-mode check. Start from `origin/main`, commit, then `git merge -s ours origin/<branch>` and push as a fast forward.
 - `playbook_records.source` only accepts `text` or `voice`.
 - Hub registration rows go in only once the embed is live on production.
