@@ -24,6 +24,10 @@ export default function CoursePlayerPage({ params }: Props) {
   const [submissionFiles, setSubmissionFiles] = useState<Record<string, { path: string; name: string }>>({})
   const [fileUploading, setFileUploading] = useState(false)
   const [fileError, setFileError] = useState<string | null>(null)
+  // Submit Badge Evidence (Sean, 2026-11-04): the WCM's standing on the WCM
+  // Roster, from /api/cert/roster-status. null until loaded. On the roster
+  // (confirmed or on_roster) counts as the evidence, so no upload is needed.
+  const [rosterStatus, setRosterStatus] = useState<'confirmed' | 'on_roster' | 'unassigned' | null>(null)
   // "Request Composer Access" (Sean, 2026-09-02): shown on pages flagged
   // composerAccessGate in cert-data.ts. idle -> checking (GET on load) ->
   // either 'available' (no request on file, show the button) or 'requested'
@@ -92,6 +96,12 @@ export default function CoursePlayerPage({ params }: Props) {
   // 20-character text minimum with "Doc attached." in the box. The minimum
   // only applies when nothing is attached.
   const assignmentNeedsMore = page?.type === 'assignment' && submissionDraft.trim().length < 20 && !submissionFiles[pageKey]
+  // A WCM on the roster does not need a Composer screenshot (new WCMs get
+  // Composer only after certifying), so the badge page needs a file only for
+  // someone who is not on the roster.
+  const rosterEvidenceOk = isBadgeEvidencePage && (rosterStatus === 'confirmed' || rosterStatus === 'on_roster')
+  const badgeNeedsFile = isBadgeEvidencePage && !submissionFiles[pageKey] && !rosterEvidenceOk
+  const useRosterEvidence = rosterEvidenceOk && !submissionFiles[pageKey]
   const pageIndex = mod ? mod.pages.findIndex((p: CoursePage) => p.id === pageId) : 0
   const totalPages = mod ? mod.pages.length : 0
   // Where-am-I overall progress (per Sean, Hot Lab 2026-07-28: WCMs need to
@@ -259,6 +269,22 @@ export default function CoursePlayerPage({ params }: Props) {
     return () => { cancelled = true }
   }, [userId, page?.composerAccessGate, getAuthHeaders])
 
+  useEffect(() => {
+    if (!userId || !isBadgeEvidencePage) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/cert/roster-status', { headers: await getAuthHeaders() })
+        const json = await res.json().catch(() => ({}))
+        if (!cancelled && res.ok && json?.status) setRosterStatus(json.status)
+      } catch (err) {
+        // Falls back to the upload requirement, which still works.
+        console.error('Roster-status check failed:', err)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [userId, isBadgeEvidencePage, getAuthHeaders])
+
   const requestComposerAccess = useCallback(async () => {
     if (!userId) return
     setAccessRequestState('requesting')
@@ -328,6 +354,7 @@ export default function CoursePlayerPage({ params }: Props) {
           body: JSON.stringify({
             user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true,
             ...(page?.type === 'assignment' ? { submission_text: submissionDraft } : {}),
+            ...(useRosterEvidence ? { roster_evidence: true } : {}),
           }),
         })
       } catch (err) {
@@ -359,7 +386,7 @@ export default function CoursePlayerPage({ params }: Props) {
     } else {
       router.push('/certification/departments/complete')
     }
-  }, [userId, completedPages, pageKey, moduleId, pageId, next, page, submissionDraft, getAuthHeaders])
+  }, [userId, completedPages, pageKey, moduleId, pageId, next, page, submissionDraft, useRosterEvidence, getAuthHeaders])
 
   // Marks page complete without navigating - activates the footer Continue button
   const markCompleteOnly = useCallback(async () => {
@@ -372,6 +399,7 @@ export default function CoursePlayerPage({ params }: Props) {
         body: JSON.stringify({
           user_id: userId, course_id: COURSE_ID, module_id: moduleId, page_id: pageId, completed: true,
           ...(page?.type === 'assignment' ? { submission_text: submissionDraft } : {}),
+          ...(useRosterEvidence ? { roster_evidence: true } : {}),
         }),
       })
     } catch (err) {
@@ -396,7 +424,7 @@ export default function CoursePlayerPage({ params }: Props) {
       }).catch(console.error)
       router.push('/certification/departments/complete')
     }
-  }, [userId, completedPages, pageKey, moduleId, pageId, page, submissionDraft, getAuthHeaders])
+  }, [userId, completedPages, pageKey, moduleId, pageId, page, submissionDraft, useRosterEvidence, getAuthHeaders])
 
   async function handleQuizSubmit() {
     if (!page?.questions || !userId || !mod) return
@@ -794,8 +822,13 @@ export default function CoursePlayerPage({ params }: Props) {
               {isBadgeEvidencePage && (
                 <div style={S.assignmentBox}>
                   <label htmlFor="assignment-file" style={{ display: 'block', margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#0e4e73' }}>
-                    Attach your evidence (required)
+                    {rosterEvidenceOk ? 'Attach your evidence (optional)' : 'Attach your evidence (required)'}
                   </label>
+                  {rosterEvidenceOk && (
+                    <p role="status" style={{ margin: '0 0 12px', padding: '10px 12px', background: '#e7f6ec', border: '1px solid #b7e0c3', borderRadius: 6, fontSize: 13.5, color: '#14532d', lineHeight: 1.5 }}>
+                      <strong>You are on the WCM Roster, so you do not need to upload anything.</strong> Your place on the roster is your evidence. You do not need Finalsite Composer access to finish; the District Web Team arranges your login after you certify. Select Mark Complete to finish.
+                    </p>
+                  )}
                   {submissionFiles[pageKey] ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
                       <span style={{ fontSize: 13, color: '#333', background: '#fff', border: '1px solid #d0d9e3', borderRadius: 6, padding: '6px 10px' }}>
@@ -826,7 +859,7 @@ export default function CoursePlayerPage({ params }: Props) {
                   {fileError && (
                     <p role="alert" style={{ margin: '8px 0 0', fontSize: 12.5, color: '#b3261e', fontWeight: 600 }}>{fileError}</p>
                   )}
-                  <p style={{ margin: '8px 0 0', fontSize: 11.5, color: '#888' }}>Screenshot (PNG/JPG) or email confirmation (PDF), up to 15MB. Required before this page can be marked complete.</p>
+                  <p style={{ margin: '8px 0 0', fontSize: 11.5, color: '#888' }}>Screenshot (PNG/JPG) or email confirmation (PDF), up to 15MB. {rosterEvidenceOk ? 'Not needed for WCMs on the roster.' : 'Required before this page can be marked complete unless you are on the WCM Roster.'}</p>
                 </div>
               )}
               {!isCurrentComplete && (
@@ -836,8 +869,8 @@ export default function CoursePlayerPage({ params }: Props) {
                   )}
                   <div className="course-actions-row" style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 28 }}>
                     <button
-                      style={{ ...S.completeBtn, opacity: assignmentNeedsMore || (isBadgeEvidencePage && !submissionFiles[pageKey]) ? 0.5 : 1 }}
-                      disabled={assignmentNeedsMore || (isBadgeEvidencePage && !submissionFiles[pageKey])}
+                      style={{ ...S.completeBtn, opacity: assignmentNeedsMore || badgeNeedsFile ? 0.5 : 1 }}
+                      disabled={assignmentNeedsMore || badgeNeedsFile}
                       onClick={markCompleteOnly}
                     >
                       Mark Complete
@@ -846,7 +879,7 @@ export default function CoursePlayerPage({ params }: Props) {
                     {assignmentNeedsMore && (
                       <span style={{ fontSize: 12, color: '#888' }}>Write a few sentences or attach your file before marking this complete.</span>
                     )}
-                    {isBadgeEvidencePage && !submissionFiles[pageKey] && (
+                    {badgeNeedsFile && (
                       <span style={{ fontSize: 12, color: '#888' }}>Attach your evidence above before marking this complete.</span>
                     )}
                   </div>
