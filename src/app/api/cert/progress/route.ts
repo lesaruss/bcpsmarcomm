@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { rosterStatusForEmail } from '@/lib/cert-roster'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,15 +43,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'forbidden' }, { status: 403 })
     }
 
+    // Submit Badge Evidence without an upload (Sean, 2026-11-04): a WCM on the
+    // WCM Roster has no Composer login to screenshot until after they certify,
+    // so the roster is accepted as the evidence. Checked here, not trusted from
+    // the client, and only for that one page.
+    let rosterEvidenceNote: string | null = null
+    if (body.roster_evidence === true) {
+      if (module_id !== 'final' || page_id !== 'badge') {
+        return NextResponse.json({ error: 'roster evidence applies to the badge page only' }, { status: 400 })
+      }
+      const status = await rosterStatusForEmail(supabase, user.email)
+      if (status === 'unassigned') {
+        return NextResponse.json({ error: 'not_on_roster' }, { status: 403 })
+      }
+      rosterEvidenceNote = `Evidence: WCM Roster (${status === 'confirmed' ? 'confirmed' : 'on roster'}), accepted in place of a Composer screenshot.`
+    }
+
     const record: Record<string, unknown> = {
       user_id: user.id, course_id, module_id, page_id,
       last_visited_at: new Date().toISOString(),
     }
+    if (rosterEvidenceNote) record.submission_text = rosterEvidenceNote
     if (completed) {
       record.completed = true
       record.completed_at = completed_at || new Date().toISOString()
     }
-    if (typeof submission_text === 'string') {
+    if (typeof submission_text === 'string' && !rosterEvidenceNote) {
       record.submission_text = submission_text
     }
 

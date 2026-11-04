@@ -93,7 +93,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
   eyebrow: 'BCPS MarComm',
   title: 'Department WCM Guide',
   audience: 'Department Web Content Managers',
-  updated: '2026-11-03',
+  updated: '2026-11-04',
   cadence: 'refreshed every Thursday',
   replaces: {
     'bcps-wcm-registration-2026-27': 'start',
@@ -172,6 +172,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
           title: 'After you finish: getting into Finalsite',
           html: `
 <p>Finalsite is where your department page actually lives and where you make live updates. It is a separate system with its own sign-in.</p>
+<p><b>You do not need Finalsite access to finish certification.</b> Nothing in the course requires it, including the last page, Submit Badge Evidence: if you are on the WCM Roster, your place on the roster is your evidence and there is nothing to upload. Access follows certification, not the other way around.</p>
 <p><b>Had Finalsite access last year?</b> Nothing changes. Sign in to the ${ext(FINALSITE_URL, 'Finalsite dashboard')} as usual.</p>
 <p><b>First time?</b></p>
 <ol class="guide-steps">
@@ -608,6 +609,7 @@ ${auditFaq('Do I have to do the audit myself?', '<p>Your department page is your
   ],
   changes: [
     { date: '2026-11-03', text: 'The audit walkthrough is now guided: one step at a time with Back and Next, the instructions beside an example, and your progress shown. From Patricia Sapp\'s feedback at the November 3 Hot Lab.' },
+    { date: '2026-11-04', text: 'Certification no longer needs Finalsite access to finish. The last page, Submit Badge Evidence, accepts your place on the WCM Roster instead of a Composer screenshot, so new WCMs are not stuck waiting for a login that comes after certifying.' },
     { date: '2026-11-03', text: 'Your Audit rebuilt as one place for everything about the audit: the colors and the five areas at a glance, step-by-step fixes for the 15 items flagged most often, what is yours to fix and what is not, frequently asked questions, and four ways to get unstuck.' },
     { date: '2026-11-03', text: 'New Leaderboard tab: the live top 20 for this school year, certification tiles, and the 100-point chart (certification, Hot Labs, the Kickoff, and starting your audit). Your Overview shows your own standing.' },
     { date: '2026-11-02', text: 'New: a walkthrough of the audit in five steps, at the start of Your Audit: open Run Audit, read the colors, fix a red pin, publish, then note it and re-audit. Hot Labs on Tuesday, November 3 and Thursday, November 5 cover the audits.' },
