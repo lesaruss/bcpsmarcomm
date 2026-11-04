@@ -9,6 +9,11 @@ const SENSITIVE_DOC_ALLOWED = new Set([
   'farrah.wilson@browardschools.com',
 ])
 
+// Accounts that can look at everything their role allows but never change
+// anything (enforced in middleware below).
+const VIEW_ONLY_ACCOUNTS = new Set(['vegan@lesaruss.com'])
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+
 function readOnlyClient(request: NextRequest) {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -80,6 +85,24 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   supabaseResponse.headers.set('x-pathname', pathname)
+
+  // ── View-only QA session (Sean, 2026-11-04). vegan@lesaruss.com is the QA
+  // account the stations sign in as (canon agent-headless-page-verification)
+  // and holds bcps:admin so it sees what an admin sees. A role cannot make an
+  // admin read-only, so this does: any request that is not a safe read is
+  // refused here, before the /api/ public pass-through below, so no page,
+  // route handler or server action can write as this account. Scope: HTTP
+  // writes through this site. It does not restrict a direct Supabase call
+  // made with the session token. ─────────────────────────────────────────────
+  if (
+    VIEW_ONLY_ACCOUNTS.has((user?.email || '').toLowerCase()) &&
+    !SAFE_METHODS.has(request.method.toUpperCase())
+  ) {
+    return NextResponse.json(
+      { error: 'view_only', message: 'This account is view-only. Writes are refused.' },
+      { status: 403 }
+    )
+  }
 
   const isPublic =
     pathname.startsWith('/api/') ||
