@@ -65,6 +65,29 @@ export function nudgeEmail(p: FollowupPerson, trackedUrl: (url: string) => strin
   })
 }
 
+// Certification wrap-up to every Department WCM, certified or not (Sean,
+// approved 2026-11-05, sent Friday, Nov 6 at 9 AM as campaign
+// cert-update-2026-11-06). Adds the LAB note: LAB sent notifications when the
+// review dates changed, and WCMs were writing to the person who set LAB up, so
+// certified WCMs disregard them and questions come back to Sean.
+export const UPDATE_SUBJECT = 'Department WCM Certification: thank you, and what’s next'
+
+export function updateEmail(p: FollowupPerson, trackedUrl: (url: string) => string, pixel: string): string {
+  const body = `<p>Hi ${esc(firstName(p.name))},</p>
+    <p>The Department WCM Certification closed yesterday, Thursday, November 5, and most of you have completed it. If you finished, congratulations, and thank you for the time and care you put into it. Your certificate and badge are on the course page.</p>
+    <p><strong>About LAB.</strong> You may have received notifications from LAB recently because the certification dates changed. If you&rsquo;ve completed the certification, you can disregard them. We&rsquo;ll close out your completion in LAB for you, so there&rsquo;s nothing you need to do there. If there&rsquo;s anything you need to know about LAB, we&rsquo;ll tell you in a future message. If you have a question in the meantime, just reply to this email.</p>
+    <p>A few WCMs haven&rsquo;t finished yet. I&rsquo;ll reach out to each of you individually to see what would help. Starting Monday, November 9, access to BCPS MarComm is paused for anyone who hasn&rsquo;t completed the certification, until it&rsquo;s done.</p>
+    <p>Our focus now is your department&rsquo;s website audit. The Department WCM Guide walks you through it one step at a time, and Still stuck? on any audit item sends your question straight to the District Web Team.</p>
+    ${button('Open the Department WCM Guide', trackedUrl(GUIDE_URL))}
+    <p>Hot Lab is Tuesday, November 10, 11:30 AM to 12:30 PM. We&rsquo;ll keep going through the audit rules together, and your feedback shapes how they read.</p>
+    ${SIGN}`
+  return brandedEmail({
+    heading: 'Thank you, and what&rsquo;s next',
+    body: body + pixel,
+    footer: 'Sent from BCPS MarComm on behalf of Sean A. Russell. Replies go to Sean&rsquo;s District email.',
+  })
+}
+
 // trackedUrl wraps a link so a click is counted; pixel is the open-tracking image tag.
 export function followupEmail(p: FollowupPerson, trackedUrl: (url: string) => string, pixel: string): string {
   const hi = `<p>Hi ${esc(firstName(p.name))},</p>`

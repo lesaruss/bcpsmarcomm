@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { FOLLOWUP_GROUPS, type FollowupGroup } from '@/lib/bcps-cert-followup-groups'
+import { FOLLOWUP_GROUPS, isAllWcmCampaign, type FollowupGroup } from '@/lib/bcps-cert-followup-groups'
 import WcmLeaderboard from '@/components/guides/WcmLeaderboard'
 
 interface Person {
@@ -112,8 +112,10 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
     setPeople(j.people)
     setSender(j.sender)
     setAsOf(j.as_of)
-    // The first load for a campaign checks everyone not yet emailed in it.
-    setPicked((cur) => cur ?? new Set((j.people as Person[]).filter((p) => !p.email_status && p.group !== 'completed').map((p) => p.email)))
+    // The first load for a campaign checks everyone not yet emailed in it
+    // (certified WCMs too, when the campaign is one message to every WCM).
+    const everyone = isAllWcmCampaign(j.campaign)
+    setPicked((cur) => cur ?? new Set((j.people as Person[]).filter((p) => !p.email_status && (everyone || p.group !== 'completed')).map((p) => p.email)))
   }, [])
   useEffect(() => {
     load(campaign)
@@ -152,7 +154,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   }
   const sendPicked = async () => {
     if (!picked?.size) return
-    if (!window.confirm(`Send to ${picked.size} ${picked.size === 1 ? 'person' : 'people'} in campaign "${campaign}"? Each gets the version for their group. Replies go to ${sender?.reply_to}.`)) return
+    if (!window.confirm(`Send to ${picked.size} ${picked.size === 1 ? 'person' : 'people'} in campaign "${campaign}"? ${isAllWcmCampaign(campaign) ? 'Everyone gets the same message.' : 'Each gets the version for their group.'} Replies go to ${sender?.reply_to}.`)) return
     const { ok, j } = await post({ action: 'send', emails: Array.from(picked) })
     if (!ok) { toast(j.error || 'Could not send.'); return }
     const skipped = j.skipped?.length ? ` Skipped ${j.skipped.length} already emailed in this campaign.` : ''

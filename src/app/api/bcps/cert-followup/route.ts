@@ -6,8 +6,9 @@ import { sendEmail } from '@/lib/resend'
 import { SITE } from '@/lib/bcps-portal-account'
 import {
   followupEmail, followupGroup, followupSubject, FOLLOWUP_FROM_NAME, FOLLOWUP_REPLY_TO, nudgeEmail, NUDGE_SUBJECT,
-  type FollowupGroup,
+  updateEmail, UPDATE_SUBJECT, type FollowupGroup,
 } from '@/lib/bcps-cert-followup-email'
+import { isAllWcmCampaign } from '@/lib/bcps-cert-followup-groups'
 
 // Certification follow-up (Sean, 2026-10-29): every Department WCM on the
 // roster who has not finished the certification, live, with their progress,
@@ -169,9 +170,12 @@ function titleCase(s: string | null): string | null {
   return s.toLowerCase().replace(/\b([a-z])/g, (c) => c.toUpperCase()).replace(/\b(And|Of|The|For|&)\b/g, (w) => w.toLowerCase()).replace(/^./, (c) => c.toUpperCase())
 }
 
-function render(p: Person, token: string | null) {
+// An all-WCM campaign (cert-update-2026-11-06) sends one message to everyone;
+// every other campaign sends the version for each person's group.
+function render(p: Person, token: string | null, campaign: string) {
   const tracked = (url: string) => token ? `${SITE}/api/t/c/${token}?to=${encodeURIComponent(url.replace(SITE, '') || '/')}` : url
   const pixel = token ? `<img src="${SITE}/api/t/o/${token}" width="1" height="1" alt="" style="border:0;width:1px;height:1px">` : ''
+  if (isAllWcmCampaign(campaign)) return { subject: UPDATE_SUBJECT, html: updateEmail(p, tracked, pixel) }
   return { subject: followupSubject(p), html: followupEmail(p, tracked, pixel) }
 }
 
@@ -199,7 +203,7 @@ export async function POST(req: NextRequest) {
   if (body.action === 'preview') {
     const p = people.find((x) => x.email === norm(body.email))
     if (!p) return NextResponse.json({ error: 'That person is not on the list.' }, { status: 404 })
-    return NextResponse.json({ ok: true, to: p.email, ...render(p, null) })
+    return NextResponse.json({ ok: true, to: p.email, ...render(p, null, campaign) })
   }
 
   // Tuesday nudge, PREVIEW ONLY (Sean, 2026-11-03). Who: has an account, not
@@ -234,7 +238,7 @@ export async function POST(req: NextRequest) {
     if (!to.endsWith('@browardschools.com') && !to.endsWith('@lesaruss.com')) return NextResponse.json({ error: 'Send the test to a District or LESARUSS address.' }, { status: 422 })
     const sample = people.find((p) => p.group === body.group) ?? people[0]
     if (!sample) return NextResponse.json({ error: 'Nobody is left to certify.' }, { status: 404 })
-    const { subject, html } = render(sample, null)
+    const { subject, html } = render(sample, null, campaign)
     const r = await sendEmail({ to, subject: `[Test] ${subject}`, html, replyTo: FOLLOWUP_REPLY_TO, fromName: FOLLOWUP_FROM_NAME, kind: `${KIND}-test`, context: { as: sample.email, group: sample.group } })
     return r.ok ? NextResponse.json({ ok: true, as: sample.name }) : NextResponse.json({ error: r.error || 'Could not send.' }, { status: 502 })
   }
@@ -251,7 +255,7 @@ export async function POST(req: NextRequest) {
     const results: { email: string; ok: boolean; error?: string }[] = []
     for (const p of targets) {
       const token = randomBytes(18).toString('hex')
-      const { subject, html } = render(p, token)
+      const { subject, html } = render(p, token, campaign)
       const sent = await sendEmail({ to: p.email, subject, html, replyTo: FOLLOWUP_REPLY_TO, fromName: FOLLOWUP_FROM_NAME, kind: KIND, context: { campaign, group: p.group, pct: p.pct } })
       if (sent.ok) {
         await svc.from('bcps_email_tracking').insert({ token, outbound_id: sent.logged_id ?? null, campaign, email: p.email, group_key: p.group, pct_at_send: p.pct })

@@ -18,3 +18,9 @@ export function followupGroup(pct: number, hasAccount: boolean, certified = fals
   if (pct >= 1) return 'progress'
   return 'not-started'
 }
+
+// Campaigns that send one message to every Department WCM on the roster,
+// certified or not, instead of a version per group (Sean, 2026-11-05: the
+// certification wrap-up and LAB note, sent Friday, Nov 6 at 9 AM).
+export const ALL_WCM_CAMPAIGNS = ['cert-update-2026-11-06']
+export const isAllWcmCampaign = (c: string | null | undefined) => !!c && ALL_WCM_CAMPAIGNS.includes(c)
