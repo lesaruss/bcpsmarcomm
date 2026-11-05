@@ -11,6 +11,7 @@ export type PageId =
   | 'wcm'
   | 'queue'
   | 'bcps-google-governance'
+  | 'tag-register'
   | 'bcps-assignments'
   | 'bcps-certification'
   | 'department-audit'
