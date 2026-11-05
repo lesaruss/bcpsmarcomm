@@ -31,6 +31,10 @@ export interface GuideStep {
 export interface GuideStepper {
   steps: GuideStep[]
   videoUrl?: string
+  // Shown under the last step once every step is done. Plain text.
+  finish?: string
+  // What the video shows, read out to screen readers ("How to add a user").
+  videoTitle?: string
 }
 
 export interface GuideSection {
