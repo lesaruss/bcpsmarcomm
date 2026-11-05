@@ -1,5 +1,10 @@
 'use client'
 
+// Certification (Sean, 2026-11-05): one page in three tabs. Overview is two
+// tiles, a sortable list by status and the leaderboard. Outreach holds the
+// campaigns, test sends and the nudge. Roster is everyone, one tab per group.
+// The course itself stays at /certification/departments.
+//
 // Certification follow-up (Sean, 2026-10-29): every Department WCM who has not
 // finished the certification, live, grouped the way the follow-up email is
 // written (90% or more, 1% to 89%, not started, no account). Each row shows
@@ -11,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { FOLLOWUP_GROUPS, type FollowupGroup } from '@/lib/bcps-cert-followup-groups'
+import WcmLeaderboard from '@/components/guides/WcmLeaderboard'
 
 interface Person {
   email: string
@@ -33,6 +39,19 @@ interface NudgePreview {
   sender: { from: string; reply_to: string }
 }
 interface CampaignSummary { campaign: string; sent: number; people: number; opened: number; clicked: number; first_sent: string; last_sent: string }
+type View = 'overview' | 'outreach' | 'roster'
+type GlanceSort = 'high' | 'low' | 'name' | 'active'
+const byKey = (k: FollowupGroup) => FOLLOWUP_GROUPS.find((g) => g.key === k)!
+// Overview chips, in Sean's order: completed, 90 to 99, below that, not started.
+const GLANCE: { key: FollowupGroup; label: string }[] = [
+  { key: 'completed', label: 'Completed' },
+  { key: 'near', label: '90 to 99%' },
+  { key: 'progress', label: '1 to 89%' },
+  { key: 'not-started', label: 'Not started' },
+  { key: 'no-account', label: 'No account' },
+]
+// Roster tabs, in the order the follow-up works through them.
+const ROSTER = (['near', 'progress', 'not-started', 'no-account', 'completed'] as FollowupGroup[]).map(byKey)
 const CAMPAIGN_RE = /^[a-z0-9][a-z0-9-]{2,59}$/
 
 const supabase = createClient()
@@ -73,6 +92,12 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   const [campaign, setCampaign] = useState<string | null>(null)
   const [campaignText, setCampaignText] = useState('')
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([])
+  // Certification page layout (Sean, 2026-11-05): Overview, Outreach, Roster.
+  const [view, setView] = useState<View>('overview')
+  const [glance, setGlance] = useState<FollowupGroup>('completed')
+  const [glanceSort, setGlanceSort] = useState<GlanceSort>('high')
+  const [rosterTab, setRosterTab] = useState<FollowupGroup>('near')
+  const [search, setSearch] = useState('')
 
   const load = useCallback(async (c: string | null) => {
     const url = c ? `${ENDPOINT}?campaign=${encodeURIComponent(c)}` : ENDPOINT
@@ -150,165 +175,269 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   }, [people])
 
   if (err && !people) return <div style={{ padding: 32 }}>{err}</div>
-  if (!people) return <div style={{ padding: 32 }}>Loading the certification follow-up...</div>
+  if (!people) return <div style={{ padding: 32 }}>Loading certification...</div>
 
+  const count = (g: FollowupGroup) => people.filter((p) => p.group === g).length
+  const certifiedCount = count('completed')
   const tile = (n: number | string, label: string) => (
     <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '12px 16px', minWidth: 120, flex: '1 1 120px' }}>
       <div style={{ fontSize: 24, fontWeight: 900, color: '#0e4e73' }}>{n}</div>
       <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>{label}</div>
     </div>
   )
+  const bar = (pct: number) => (
+    <div className="cert-bar" role="img" aria-label={`${pct}% complete`}>
+      <div style={{ width: `${pct}%`, background: pct >= 100 ? '#16750C' : pct >= 90 ? '#16750C' : BLUE }} />
+    </div>
+  )
+
+  // Overview tile: one status at a time, sorted the way Sean picks.
+  const glanceRows = people
+    .filter((p) => p.group === glance)
+    .sort((a, b) => {
+      if (glanceSort === 'name') return a.name.localeCompare(b.name)
+      if (glanceSort === 'active') return (b.last_active ?? '').localeCompare(a.last_active ?? '')
+      if (glanceSort === 'low') return a.pct - b.pct || a.name.localeCompare(b.name)
+      return b.pct - a.pct || a.name.localeCompare(b.name)
+    })
+
+  // Roster tab: one group per tab, with a name search.
+  const q = search.trim().toLowerCase()
+  const rosterRows = people
+    .filter((p) => p.group === rosterTab)
+    .filter((p) => !q || `${p.name} ${p.email} ${p.department ?? ''}`.toLowerCase().includes(q))
+    .sort((a, b) => b.pct - a.pct || a.name.localeCompare(b.name))
+  const allOn = rosterRows.length > 0 && rosterRows.every((r) => picked?.has(r.email))
+
+  const VIEWS: { key: View; label: string }[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'outreach', label: 'Outreach' },
+    { key: 'roster', label: 'Roster' },
+  ]
 
   return (
     <div style={{ padding: 32, maxWidth: 1200 }}>
-      <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Certification Follow-up</h1>
-      <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 16px' }}>
-        Every Department WCM who has not finished the certification, live. The District Web Team is left out.
-        Updated {asOf ? when(asOf).toLowerCase() : ''}; refreshes every 30 seconds.
-      </p>
-
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
-        {tile(stats.total, 'Left to certify')}
-        {FOLLOWUP_GROUPS.map((g) => tile(people.filter((p) => p.group === g.key).length, `${g.label} (${g.who})`))}
-        {tile(stats.sent, 'Emailed')}
-        {tile(stats.opened, 'Opened')}
-        {tile(stats.clicked, 'Clicked the link')}
-        {tile(stats.moved, 'Progressed since email')}
-      </div>
-
-      <div className="invite-form-card">
-        <h4>Campaigns</h4>
-        <p style={{ fontSize: 13, margin: '0 0 8px' }}>Every send is saved under a campaign. Pick one to see its list and results, or type a new campaign name below to start one. Names use lowercase letters, numbers and dashes.</p>
-        <div className="invite-table-wrap">
-          <table className="invite-table">
-            <thead>
-              <tr><th>Campaign</th><th>People</th><th>Sent</th><th>Opened</th><th>Open rate</th><th>Clicked</th><th>Click rate</th><th>Last sent</th></tr>
-            </thead>
-            <tbody>
-              {campaigns.length === 0 && <tr><td colSpan={8} style={{ opacity: 0.7 }}>No campaign has sent yet.</td></tr>}
-              {campaigns.map((c) => (
-                <tr key={c.campaign} onClick={() => pickCampaign(c.campaign)} style={{ cursor: 'pointer', background: c.campaign === campaign ? '#eef6fb' : undefined }}>
-                  <td style={{ fontWeight: 700 }}>{c.campaign}</td>
-                  <td>{c.people}</td>
-                  <td>{c.sent}</td>
-                  <td>{c.opened}</td>
-                  <td>{c.sent ? `${Math.round((c.opened / c.sent) * 100)}%` : '–'}</td>
-                  <td>{c.clicked}</td>
-                  <td>{c.sent ? `${Math.round((c.clicked / c.sent) * 100)}%` : '–'}</td>
-                  <td style={{ fontSize: 12 }}>{stamp(c.last_sent)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Certification</h1>
+          <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 16px' }}>
+            Department WCM certification, live. {certifiedCount} of {people.length} certified. The District Web Team is left out.
+            Updated {asOf ? when(asOf).toLowerCase() : ''}; refreshes every 30 seconds.
+          </p>
         </div>
-        <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: 12 }}>
-          <label style={{ fontSize: 13, fontWeight: 700 }} htmlFor="cf-campaign">Campaign</label>
-          <input id="cf-campaign" className="form-input" style={{ maxWidth: 320 }} list="cf-campaign-list" value={campaignText} onChange={(e) => pickCampaign(e.target.value)} aria-describedby="cf-campaign-help" />
-          <datalist id="cf-campaign-list">{campaigns.map((c) => <option key={c.campaign} value={c.campaign} />)}</datalist>
-          <span id="cf-campaign-help" style={{ fontSize: 12, color: '#6b7280' }}>Sends and results apply to this campaign.</span>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <a className="btn btn-outline" href="/certification/departments" target="_blank" rel="noopener">Open the course</a>
+          <a className="btn btn-outline" href="/certification/departments/admin" target="_blank" rel="noopener">Submissions</a>
         </div>
       </div>
 
-      <div className="invite-form-card" style={{ marginTop: 18 }}>
-        <h4>What recipients see</h4>
-        {sender && (
-          <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '6px 16px', margin: '0 0 12px', fontSize: 13 }}>
-            <dt style={{ fontWeight: 700 }}>From</dt><dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{sender.from}</dd>
-            <dt style={{ fontWeight: 700 }}>Reply to</dt><dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{sender.reply_to} (replies go only here)</dd>
-          </dl>
-        )}
-        <p style={{ fontSize: 13, margin: '0 0 8px' }}>Each person gets the version for their group. Use <strong>Preview</strong> on anyone to read their exact email, or send yourself a test of one version.</p>
-        <div className="form-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-          <input type="email" className="form-input" style={{ maxWidth: 320 }} value={testTo} onChange={(e) => setTestTo(e.target.value)} aria-label="Send the test to" />
-          {FOLLOWUP_GROUPS.filter((g) => people.some((p) => p.group === g.key)).map((g) => (
-            <button key={g.key} className="btn btn-outline" disabled={busy || !testTo.trim()} onClick={() => sendTest(g.key)}>Test: {g.label}</button>
-          ))}
-        </div>
-        <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: 12 }}>
-          <button className="btn btn-primary" disabled={busy || !picked?.size} onClick={sendPicked}>
-            Send to {picked?.size ?? 0} {picked?.size === 1 ? 'person' : 'people'} checked below
+      <div className="cert-tabs" role="tablist" aria-label="Certification sections">
+        {VIEWS.map((v) => (
+          <button key={v.key} id={`cert-tab-${v.key}`} role="tab" type="button" className="cert-tab" aria-selected={view === v.key} aria-controls={`cert-panel-${v.key}`} onClick={() => setView(v.key)}>
+            {v.label}
           </button>
-        </div>
-        <p style={{ fontSize: 12, color: '#6b7280', margin: '10px 0 0' }}>
-          Opened means the email&rsquo;s images loaded, so it undercounts people whose Outlook blocks images. Clicked means they followed the button. Progress since the email is the real measure.
-        </p>
+        ))}
       </div>
 
-      <div className="invite-form-card" style={{ marginTop: 18 }}>
-        <h4>Tuesday nudge (preview only)</h4>
-        <p style={{ fontSize: 13, margin: '0 0 8px' }}>People with an account whose progress has not moved since their email in the campaign shown above. This is a preview: nothing sends from here.</p>
-        <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
-          <button className="btn btn-outline" disabled={busy} onClick={previewNudge}>Preview nudge for campaign {campaign}</button>
+      {view === 'overview' && (
+        <div id="cert-panel-overview" role="tabpanel" aria-labelledby="cert-tab-overview" className="cert-ov">
+          <section className="home-dept" aria-labelledby="cert-glance-title">
+            <div className="cert-ov-head">
+              <h3 id="cert-glance-title" className="home-card-title" style={{ margin: 0 }}>Where everyone is</h3>
+              <span className="cert-ov-big"><b>{glanceRows.length}</b>{GLANCE.find((g) => g.key === glance)?.label.toLowerCase()}</span>
+            </div>
+            <div className="cert-subtabs" role="group" aria-label="Show">
+              {GLANCE.map((g) => (
+                <button key={g.key} type="button" className="cert-chip" aria-pressed={glance === g.key} onClick={() => setGlance(g.key)}>
+                  {g.label} · {count(g.key)}
+                </button>
+              ))}
+            </div>
+            <label style={{ fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+              Sort
+              <select className="form-input" style={{ maxWidth: 220, padding: '4px 8px', fontSize: 13 }} value={glanceSort} onChange={(e) => setGlanceSort(e.target.value as GlanceSort)}>
+                <option value="high">Progress, highest first</option>
+                <option value="low">Progress, lowest first</option>
+                <option value="name">Name, A to Z</option>
+                <option value="active">Last worked on it</option>
+              </select>
+            </label>
+            <div className="lb-list lb-scroll cert-scroll" role="list" aria-label={GLANCE.find((g) => g.key === glance)?.label}>
+              {glanceRows.length === 0 && <div className="lb-row" role="listitem"><span /><span className="lb-who"><span>Nobody here right now.</span></span><span /></div>}
+              {glanceRows.map((p) => (
+                <div className="lb-row" role="listitem" key={p.email} style={{ gridTemplateColumns: '1fr auto' }}>
+                  <span className="lb-who"><b>{p.name}</b><span>{p.department ?? p.email}{p.has_account ? ` · ${when(p.last_active)}` : ' · No account'}</span></span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {bar(p.pct)}
+                    <strong style={{ fontSize: 13, minWidth: 38, textAlign: 'right' }}>{p.pct}%</strong>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="home-dept" aria-labelledby="cert-lb-title">
+            <div className="cert-ov-head">
+              <h3 id="cert-lb-title" className="home-card-title" style={{ margin: 0 }}>Leaderboard</h3>
+              <span className="cert-ov-big">Top 20 · points</span>
+            </div>
+            <p style={{ fontSize: 12.5, color: '#6b7280', margin: 0 }}>Certification, Hot Labs, Kickoff and audit points.</p>
+            <WcmLeaderboard boardOnly />
+          </section>
         </div>
-        {nudge && (
-          <div style={{ marginTop: 12, fontSize: 13 }}>
-            <p style={{ margin: '0 0 8px' }}><strong>{nudge.counts.recipients} would receive it.</strong> Of {nudge.counts.left_to_certify} left to certify: {nudge.counts.emailed_in_baseline} were emailed in this campaign, {nudge.counts.not_emailed_no_baseline} were not (no baseline, so left out), {nudge.counts.progress_moved} have moved since, {nudge.counts.unchanged_no_account} unchanged have no account yet (left out).</p>
-            <p style={{ margin: '0 0 8px' }}>Subject: <strong>{nudge.subject}</strong> · Reply to {nudge.sender.reply_to}</p>
-            {nudge.recipients.length > 0 && (
-              <div className="invite-table-wrap">
-                <table className="invite-table">
-                  <thead><tr><th>Name</th><th>Department</th><th>Progress</th><th>Last active</th></tr></thead>
-                  <tbody>{nudge.recipients.map((r) => <tr key={r.email}><td>{r.name}</td><td>{r.department ?? ''}</td><td>{r.pct}%</td><td>{when(r.last_active)}</td></tr>)}</tbody>
-                </table>
-              </div>
-            )}
-            {nudge.sample && <iframe title="Nudge sample" sandbox="" srcDoc={nudge.sample.html} style={{ width: '100%', height: 420, border: '1px solid #e5e7eb', borderRadius: 8, marginTop: 12 }} />}
+      )}
+
+      {view === 'outreach' && (
+        <div id="cert-panel-outreach" role="tabpanel" aria-labelledby="cert-tab-outreach">
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
+            {tile(stats.total, 'Left to certify')}
+            {tile(stats.sent, `Emailed in ${campaign}`)}
+            {tile(stats.opened, 'Opened')}
+            {tile(stats.clicked, 'Clicked the link')}
+            {tile(stats.moved, 'Progressed since email')}
           </div>
-        )}
-      </div>
-
-      {FOLLOWUP_GROUPS.map((g) => {
-        const rows = people.filter((p) => p.group === g.key)
-        if (!rows.length) return null
-        const allOn = rows.every((r) => picked?.has(r.email))
-        return (
-          <section key={g.key} style={{ marginTop: 22 }} aria-labelledby={`grp-${g.key}`}>
-            <h2 id={`grp-${g.key}`} style={{ fontSize: 15, fontWeight: 800, color: '#0e4e73', margin: '0 0 8px' }}>{g.label} <span style={{ color: '#6b7280', fontWeight: 600 }}>· {g.who} · {rows.length}</span></h2>
+          <div className="invite-form-card">
+            <h4>Campaigns</h4>
+            <p style={{ fontSize: 13, margin: '0 0 8px' }}>Every send is saved under a campaign. Pick one to see its list and results, or type a new campaign name below to start one. Names use lowercase letters, numbers and dashes.</p>
             <div className="invite-table-wrap">
               <table className="invite-table">
                 <thead>
-                  <tr>
-                    <th><input type="checkbox" checked={allOn} onChange={(e) => toggleGroup(rows, e.target.checked)} aria-label={`Select everyone in ${g.label}`} /></th>
-                    <th>Name</th><th>Progress</th><th>Last worked on it</th><th>Follow-up email</th><th aria-label="Preview"></th>
-                  </tr>
+                  <tr><th>Campaign</th><th>People</th><th>Sent</th><th>Opened</th><th>Open rate</th><th>Clicked</th><th>Click rate</th><th>Last sent</th></tr>
                 </thead>
                 <tbody>
-                  {rows.map((p) => {
-                    const s = p.email_status
-                    const moved = s && s.pct_at_send != null ? p.pct - s.pct_at_send : 0
-                    return (
-                      <tr key={p.email}>
-                        <td><input type="checkbox" checked={!!picked?.has(p.email)} onChange={() => toggle(p.email)} aria-label={`Send to ${p.name}`} /></td>
-                        <td><div style={{ fontWeight: 700 }}>{p.name}</div><div style={{ fontSize: 11, opacity: 0.7, overflowWrap: 'anywhere' }}>{p.department ?? ''}{p.department ? ' · ' : ''}{p.email}</div></td>
-                        <td style={{ minWidth: 140 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ flex: 1, height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }} role="img" aria-label={`${p.pct}% complete`}>
-                              <div style={{ width: `${p.pct}%`, height: '100%', background: p.pct >= 90 ? '#16750C' : BLUE }} />
-                            </div>
-                            <strong style={{ fontSize: 13, minWidth: 36 }}>{p.pct}%</strong>
-                          </div>
-                          {moved > 0 && <div style={{ fontSize: 11, color: '#16750C', fontWeight: 700, marginTop: 3 }}>+{moved}% since the email</div>}
-                        </td>
-                        <td style={{ fontSize: 12 }}>{p.has_account ? when(p.last_active) : 'No account'}</td>
-                        <td style={{ fontSize: 12 }}>
-                          {p.failed ? <span className="badge badge-red" title={p.failed}>Failed</span>
-                            : !s ? <span style={{ opacity: 0.7 }}>Not sent</span>
-                            : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                                <span className="badge badge-gray">Sent {stamp(s.sent_at)}</span>
-                                {s.opened_at && <span className="badge badge-yellow">Opened {stamp(s.opened_at)}{s.open_count > 1 ? ` · ${s.open_count}x` : ''}</span>}
-                                {s.clicked_at && <span className="badge badge-green">Clicked {stamp(s.clicked_at)}</span>}
-                              </div>}
-                        </td>
-                        <td><button className="btn btn-outline" style={{ padding: '4px 10px', fontSize: 12 }} disabled={busy} onClick={() => openPreview(p.email)}>Preview</button></td>
-                      </tr>
-                    )
-                  })}
+                  {campaigns.length === 0 && <tr><td colSpan={8} style={{ opacity: 0.7 }}>No campaign has sent yet.</td></tr>}
+                  {campaigns.map((c) => (
+                    <tr key={c.campaign} onClick={() => pickCampaign(c.campaign)} style={{ cursor: 'pointer', background: c.campaign === campaign ? '#eef6fb' : undefined }}>
+                      <td style={{ fontWeight: 700 }}>{c.campaign}</td>
+                      <td>{c.people}</td>
+                      <td>{c.sent}</td>
+                      <td>{c.opened}</td>
+                      <td>{c.sent ? `${Math.round((c.opened / c.sent) * 100)}%` : '–'}</td>
+                      <td>{c.clicked}</td>
+                      <td>{c.sent ? `${Math.round((c.clicked / c.sent) * 100)}%` : '–'}</td>
+                      <td style={{ fontSize: 12 }}>{stamp(c.last_sent)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-          </section>
-        )
-      })}
+            <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: 12 }}>
+              <label style={{ fontSize: 13, fontWeight: 700 }} htmlFor="cf-campaign">Campaign</label>
+              <input id="cf-campaign" className="form-input" style={{ maxWidth: 320 }} list="cf-campaign-list" value={campaignText} onChange={(e) => pickCampaign(e.target.value)} aria-describedby="cf-campaign-help" />
+              <datalist id="cf-campaign-list">{campaigns.map((c) => <option key={c.campaign} value={c.campaign} />)}</datalist>
+              <span id="cf-campaign-help" style={{ fontSize: 12, color: '#6b7280' }}>Sends and results apply to this campaign.</span>
+            </div>
+          </div>
+
+          <div className="invite-form-card" style={{ marginTop: 18 }}>
+            <h4>What recipients see</h4>
+            {sender && (
+              <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '6px 16px', margin: '0 0 12px', fontSize: 13 }}>
+                <dt style={{ fontWeight: 700 }}>From</dt><dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{sender.from}</dd>
+                <dt style={{ fontWeight: 700 }}>Reply to</dt><dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{sender.reply_to} (replies go only here)</dd>
+              </dl>
+            )}
+            <p style={{ fontSize: 13, margin: '0 0 8px' }}>Pick who gets it with the checkboxes on the <button type="button" className="btn-link" style={{ background: 'none', border: 'none', padding: 0, color: BLUE, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setView('roster')}>Roster</button> tab. Each person gets the version for their group. Use <strong>Preview</strong> on anyone to read their exact email, or send yourself a test of one version.</p>
+            <div className="form-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+              <input type="email" className="form-input" style={{ maxWidth: 320 }} value={testTo} onChange={(e) => setTestTo(e.target.value)} aria-label="Send the test to" />
+              {FOLLOWUP_GROUPS.filter((g) => people.some((p) => p.group === g.key)).map((g) => (
+                <button key={g.key} className="btn btn-outline" disabled={busy || !testTo.trim()} onClick={() => sendTest(g.key)}>Test: {g.label}</button>
+              ))}
+            </div>
+            <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: 12 }}>
+              <button className="btn btn-primary" disabled={busy || !picked?.size} onClick={sendPicked}>
+                Send to {picked?.size ?? 0} {picked?.size === 1 ? 'person' : 'people'} checked in Roster
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: '#6b7280', margin: '10px 0 0' }}>
+              Opened means the email&rsquo;s images loaded, so it undercounts people whose Outlook blocks images. Clicked means they followed the button. Progress since the email is the real measure.
+            </p>
+          </div>
+
+          <div className="invite-form-card" style={{ marginTop: 18 }}>
+            <h4>Tuesday nudge (preview only)</h4>
+            <p style={{ fontSize: 13, margin: '0 0 8px' }}>People with an account whose progress has not moved since their email in the campaign shown above. This is a preview: nothing sends from here.</p>
+            <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
+              <button className="btn btn-outline" disabled={busy} onClick={previewNudge}>Preview nudge for campaign {campaign}</button>
+            </div>
+            {nudge && (
+              <div style={{ marginTop: 12, fontSize: 13 }}>
+                <p style={{ margin: '0 0 8px' }}><strong>{nudge.counts.recipients} would receive it.</strong> Of {nudge.counts.left_to_certify} left to certify: {nudge.counts.emailed_in_baseline} were emailed in this campaign, {nudge.counts.not_emailed_no_baseline} were not (no baseline, so left out), {nudge.counts.progress_moved} have moved since, {nudge.counts.unchanged_no_account} unchanged have no account yet (left out).</p>
+                <p style={{ margin: '0 0 8px' }}>Subject: <strong>{nudge.subject}</strong> · Reply to {nudge.sender.reply_to}</p>
+                {nudge.recipients.length > 0 && (
+                  <div className="invite-table-wrap">
+                    <table className="invite-table">
+                      <thead><tr><th>Name</th><th>Department</th><th>Progress</th><th>Last active</th></tr></thead>
+                      <tbody>{nudge.recipients.map((r) => <tr key={r.email}><td>{r.name}</td><td>{r.department ?? ''}</td><td>{r.pct}%</td><td>{when(r.last_active)}</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                )}
+                {nudge.sample && <iframe title="Nudge sample" sandbox="" srcDoc={nudge.sample.html} style={{ width: '100%', height: 420, border: '1px solid #e5e7eb', borderRadius: 8, marginTop: 12 }} />}
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
+      {view === 'roster' && (
+        <div id="cert-panel-roster" role="tabpanel" aria-labelledby="cert-tab-roster">
+          <div className="cert-subtabs" role="tablist" aria-label="Roster groups">
+            {ROSTER.map((g) => (
+              <button key={g.key} type="button" role="tab" className="cert-chip" aria-selected={rosterTab === g.key} onClick={() => setRosterTab(g.key)} title={g.who}>
+                {g.label} · {count(g.key)}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', margin: '0 0 10px' }}>
+            <input type="search" className="form-input" style={{ width: '100%', maxWidth: 320 }} placeholder="Search name, email or department" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search the roster" />
+            <span style={{ fontSize: 12.5, color: '#6b7280' }}>{ROSTER.find((g) => g.key === rosterTab)?.who} · {rosterRows.length} shown · {picked?.size ?? 0} checked for the next send</span>
+          </div>
+          <div className="invite-table-wrap">
+            <table className="invite-table">
+              <thead>
+                <tr>
+                  <th><input type="checkbox" checked={allOn} disabled={!rosterRows.length} onChange={(e) => toggleGroup(rosterRows, e.target.checked)} aria-label="Select everyone shown" /></th>
+                  <th>Name</th><th>Progress</th><th>Last worked on it</th><th>Follow-up email</th><th aria-label="Preview"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rosterRows.length === 0 && <tr><td colSpan={6} style={{ opacity: 0.7 }}>Nobody in this group{q ? ' matches that search' : ''}.</td></tr>}
+                {rosterRows.map((p) => {
+                  const s = p.email_status
+                  const moved = s && s.pct_at_send != null ? p.pct - s.pct_at_send : 0
+                  return (
+                    <tr key={p.email}>
+                      <td><input type="checkbox" checked={!!picked?.has(p.email)} onChange={() => toggle(p.email)} aria-label={`Send to ${p.name}`} /></td>
+                      <td><div style={{ fontWeight: 700 }}>{p.name}</div><div style={{ fontSize: 11, opacity: 0.7, overflowWrap: 'anywhere' }}>{p.department ?? ''}{p.department ? ' · ' : ''}{p.email}</div></td>
+                      <td style={{ minWidth: 140 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ flex: 1, height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }} role="img" aria-label={`${p.pct}% complete`}>
+                            <div style={{ width: `${p.pct}%`, height: '100%', background: p.pct >= 90 ? '#16750C' : BLUE }} />
+                          </div>
+                          <strong style={{ fontSize: 13, minWidth: 36 }}>{p.pct}%</strong>
+                        </div>
+                        {moved > 0 && <div style={{ fontSize: 11, color: '#16750C', fontWeight: 700, marginTop: 3 }}>+{moved}% since the email</div>}
+                      </td>
+                      <td style={{ fontSize: 12 }}>{p.has_account ? when(p.last_active) : 'No account'}</td>
+                      <td style={{ fontSize: 12 }}>
+                        {p.failed ? <span className="badge badge-red" title={p.failed}>Failed</span>
+                          : !s ? <span style={{ opacity: 0.7 }}>Not sent</span>
+                          : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              <span className="badge badge-gray">Sent {stamp(s.sent_at)}</span>
+                              {s.opened_at && <span className="badge badge-yellow">Opened {stamp(s.opened_at)}{s.open_count > 1 ? ` · ${s.open_count}x` : ''}</span>}
+                              {s.clicked_at && <span className="badge badge-green">Clicked {stamp(s.clicked_at)}</span>}
+                            </div>}
+                      </td>
+                      <td><button className="btn btn-outline" style={{ padding: '4px 10px', fontSize: 12 }} disabled={busy} onClick={() => openPreview(p.email)}>Preview</button></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {preview && (
         <div role="dialog" aria-modal="true" aria-labelledby="cf-preview-title" onClick={(e) => { if (e.target === e.currentTarget) setPreview(null) }}
