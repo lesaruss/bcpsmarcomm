@@ -1,8 +1,9 @@
 'use client'
 
-// Certification (Sean, 2026-11-05): one page in three tabs. Overview is two
+// Certification (Sean, 2026-11-05): one page in two tabs. Overview is two
 // tiles, a sortable list by status and the leaderboard. Outreach holds the
-// campaigns, test sends and the nudge. Roster is everyone, one tab per group.
+// campaigns (with the reminder preview), test sends, then the roster at the
+// bottom with one tab per group (Sean, 2026-11-05, second pass).
 // The course itself stays at /certification/departments.
 //
 // Certification follow-up (Sean, 2026-10-29): every Department WCM who has not
@@ -13,7 +14,7 @@
 // seconds. Read the drafts with Preview, send yourself a test, then send to the
 // people checked. /api/bcps/cert-followup does the work; SuperAdmin only.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { FOLLOWUP_GROUPS, type FollowupGroup } from '@/lib/bcps-cert-followup-groups'
 import WcmLeaderboard from '@/components/guides/WcmLeaderboard'
@@ -39,7 +40,7 @@ interface NudgePreview {
   sender: { from: string; reply_to: string }
 }
 interface CampaignSummary { campaign: string; sent: number; people: number; opened: number; clicked: number; first_sent: string; last_sent: string }
-type View = 'overview' | 'outreach' | 'roster'
+type View = 'overview' | 'outreach'
 type GlanceSort = 'high' | 'low' | 'name' | 'active'
 const byKey = (k: FollowupGroup) => FOLLOWUP_GROUPS.find((g) => g.key === k)!
 // Overview chips, in Sean's order: completed, 90 to 99, below that, not started.
@@ -162,29 +163,11 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   const toggle = (email: string) => setPicked((p) => { const n = new Set(p ?? []); if (n.has(email)) n.delete(email); else n.add(email); return n })
   const toggleGroup = (rows: Person[], on: boolean) => setPicked((p) => { const n = new Set(p ?? []); rows.forEach((r) => (on ? n.add(r.email) : n.delete(r.email))); return n })
 
-  const stats = useMemo(() => {
-    const list = people ?? []
-    const sent = list.filter((p) => p.email_status)
-    return {
-      total: list.filter((p) => p.group !== 'completed').length,
-      sent: sent.length,
-      opened: sent.filter((p) => p.email_status!.opened_at).length,
-      clicked: sent.filter((p) => p.email_status!.clicked_at).length,
-      moved: sent.filter((p) => p.email_status!.pct_at_send != null && p.pct > (p.email_status!.pct_at_send as number)).length,
-    }
-  }, [people])
-
   if (err && !people) return <div style={{ padding: 32 }}>{err}</div>
   if (!people) return <div style={{ padding: 32 }}>Loading certification...</div>
 
   const count = (g: FollowupGroup) => people.filter((p) => p.group === g).length
   const certifiedCount = count('completed')
-  const tile = (n: number | string, label: string) => (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '12px 16px', minWidth: 120, flex: '1 1 120px' }}>
-      <div style={{ fontSize: 24, fontWeight: 900, color: '#0e4e73' }}>{n}</div>
-      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>{label}</div>
-    </div>
-  )
   const bar = (pct: number) => (
     <div className="cert-bar" role="img" aria-label={`${pct}% complete`}>
       <div style={{ width: `${pct}%`, background: pct >= 100 ? '#16750C' : pct >= 90 ? '#16750C' : BLUE }} />
@@ -212,7 +195,6 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   const VIEWS: { key: View; label: string }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'outreach', label: 'Outreach' },
-    { key: 'roster', label: 'Roster' },
   ]
 
   return (
@@ -289,13 +271,6 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
 
       {view === 'outreach' && (
         <div id="cert-panel-outreach" role="tabpanel" aria-labelledby="cert-tab-outreach">
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
-            {tile(stats.total, 'Left to certify')}
-            {tile(stats.sent, `Emailed in ${campaign}`)}
-            {tile(stats.opened, 'Opened')}
-            {tile(stats.clicked, 'Clicked the link')}
-            {tile(stats.moved, 'Progressed since email')}
-          </div>
           <div className="invite-form-card">
             <h4>Campaigns</h4>
             <p style={{ fontSize: 13, margin: '0 0 8px' }}>Every send is saved under a campaign. Pick one to see its list and results, or type a new campaign name below to start one. Names use lowercase letters, numbers and dashes.</p>
@@ -327,6 +302,26 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
               <datalist id="cf-campaign-list">{campaigns.map((c) => <option key={c.campaign} value={c.campaign} />)}</datalist>
               <span id="cf-campaign-help" style={{ fontSize: 12, color: '#6b7280' }}>Sends and results apply to this campaign.</span>
             </div>
+              <div style={{ borderTop: '1px solid #d6e6f0', marginTop: 16, paddingTop: 14 }}>
+                <h5 style={{ fontSize: 13.5, fontWeight: 800, margin: '0 0 4px' }}>Reminder for people who haven&rsquo;t moved</h5>
+                <p style={{ fontSize: 13, margin: '0 0 8px' }}>See who got the <strong>{campaign}</strong> email and still hasn&rsquo;t made progress, and read the reminder they would get. Looking does not send anything.</p>
+                <button className="btn btn-outline" disabled={busy} onClick={previewNudge}>See who needs a reminder</button>
+              {nudge && (
+                <div style={{ marginTop: 12, fontSize: 13 }}>
+                  <p style={{ margin: '0 0 8px' }}><strong>{nudge.counts.recipients} {nudge.counts.recipients === 1 ? 'person' : 'people'} would get a reminder.</strong> {nudge.counts.progress_moved} {nudge.counts.progress_moved === 1 ? 'has' : 'have'} moved since the email, so they are left out.</p>
+                  <p style={{ margin: '0 0 8px' }}>Subject: <strong>{nudge.subject}</strong> · Reply to {nudge.sender.reply_to}</p>
+                  {nudge.recipients.length > 0 && (
+                    <div className="invite-table-wrap">
+                      <table className="invite-table">
+                        <thead><tr><th>Name</th><th>Department</th><th>Progress</th><th>Last active</th></tr></thead>
+                        <tbody>{nudge.recipients.map((r) => <tr key={r.email}><td>{r.name}</td><td>{r.department ?? ''}</td><td>{r.pct}%</td><td>{when(r.last_active)}</td></tr>)}</tbody>
+                      </table>
+                    </div>
+                  )}
+                  {nudge.sample && <iframe title="Nudge sample" sandbox="" srcDoc={nudge.sample.html} style={{ width: '100%', height: 420, border: '1px solid #e5e7eb', borderRadius: 8, marginTop: 12 }} />}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="invite-form-card" style={{ marginTop: 18 }}>
@@ -337,7 +332,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
                 <dt style={{ fontWeight: 700 }}>Reply to</dt><dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{sender.reply_to} (replies go only here)</dd>
               </dl>
             )}
-            <p style={{ fontSize: 13, margin: '0 0 8px' }}>Pick who gets it with the checkboxes on the <button type="button" className="btn-link" style={{ background: 'none', border: 'none', padding: 0, color: BLUE, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setView('roster')}>Roster</button> tab. Each person gets the version for their group. Use <strong>Preview</strong> on anyone to read their exact email, or send yourself a test of one version.</p>
+            <p style={{ fontSize: 13, margin: '0 0 8px' }}>Check who gets it in the Roster below. Each person gets the version for their group. Use <strong>Preview</strong> on anyone to read their exact email, or send yourself a test of one version.</p>
             <div className="form-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
               <input type="email" className="form-input" style={{ maxWidth: 320 }} value={testTo} onChange={(e) => setTestTo(e.target.value)} aria-label="Send the test to" />
               {FOLLOWUP_GROUPS.filter((g) => people.some((p) => p.group === g.key)).map((g) => (
@@ -346,7 +341,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
             </div>
             <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: 12 }}>
               <button className="btn btn-primary" disabled={busy || !picked?.size} onClick={sendPicked}>
-                Send to {picked?.size ?? 0} {picked?.size === 1 ? 'person' : 'people'} checked in Roster
+                Send to {picked?.size ?? 0} {picked?.size === 1 ? 'person' : 'people'} checked in the Roster below
               </button>
             </div>
             <p style={{ fontSize: 12, color: '#6b7280', margin: '10px 0 0' }}>
@@ -354,35 +349,10 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
             </p>
           </div>
 
-          <div className="invite-form-card" style={{ marginTop: 18 }}>
-            <h4>Tuesday nudge (preview only)</h4>
-            <p style={{ fontSize: 13, margin: '0 0 8px' }}>People with an account whose progress has not moved since their email in the campaign shown above. This is a preview: nothing sends from here.</p>
-            <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
-              <button className="btn btn-outline" disabled={busy} onClick={previewNudge}>Preview nudge for campaign {campaign}</button>
-            </div>
-            {nudge && (
-              <div style={{ marginTop: 12, fontSize: 13 }}>
-                <p style={{ margin: '0 0 8px' }}><strong>{nudge.counts.recipients} would receive it.</strong> Of {nudge.counts.left_to_certify} left to certify: {nudge.counts.emailed_in_baseline} were emailed in this campaign, {nudge.counts.not_emailed_no_baseline} were not (no baseline, so left out), {nudge.counts.progress_moved} have moved since, {nudge.counts.unchanged_no_account} unchanged have no account yet (left out).</p>
-                <p style={{ margin: '0 0 8px' }}>Subject: <strong>{nudge.subject}</strong> · Reply to {nudge.sender.reply_to}</p>
-                {nudge.recipients.length > 0 && (
-                  <div className="invite-table-wrap">
-                    <table className="invite-table">
-                      <thead><tr><th>Name</th><th>Department</th><th>Progress</th><th>Last active</th></tr></thead>
-                      <tbody>{nudge.recipients.map((r) => <tr key={r.email}><td>{r.name}</td><td>{r.department ?? ''}</td><td>{r.pct}%</td><td>{when(r.last_active)}</td></tr>)}</tbody>
-                    </table>
-                  </div>
-                )}
-                {nudge.sample && <iframe title="Nudge sample" sandbox="" srcDoc={nudge.sample.html} style={{ width: '100%', height: 420, border: '1px solid #e5e7eb', borderRadius: 8, marginTop: 12 }} />}
-              </div>
-            )}
-          </div>
 
-        </div>
-      )}
 
-      {view === 'roster' && (
-        <div id="cert-panel-roster" role="tabpanel" aria-labelledby="cert-tab-roster">
-          <div className="cert-subtabs" role="tablist" aria-label="Roster groups">
+          <h2 id="cert-roster-title" style={{ fontSize: 18, fontWeight: 900, color: '#0e4e73', margin: '28px 0 10px' }}>Roster</h2>
+          <div className="cert-subtabs" role="tablist" aria-labelledby="cert-roster-title">
             {ROSTER.map((g) => (
               <button key={g.key} type="button" role="tab" className="cert-chip" aria-selected={rosterTab === g.key} onClick={() => setRosterTab(g.key)} title={g.who}>
                 {g.label} · {count(g.key)}
