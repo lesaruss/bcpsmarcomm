@@ -220,7 +220,10 @@ export default function TagRegisterPage() {
 
       {!item && (
         <>
-          <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Tag Register</h1>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+            <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: 0 }}>Tag Register</h1>
+            <a href="/tag-manager-guide?s=choose" style={{ ...S.btn, textDecoration: 'none', color: BLUE, borderColor: BLUE }}>&#9654; How this works</a>
+          </div>
           <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 18px', maxWidth: 820 }}>
             Who has access to the District&apos;s Tag Manager container (GTM-NTGC6X38) and every tag on browardschools.com.
             Agencies get Edit access in their own workspace, open and closed on set dates. The District publishes after the review step passes.

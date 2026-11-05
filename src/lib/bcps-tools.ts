@@ -45,6 +45,7 @@ export const TOOLS: Tool[] = [
   { label: 'Department Name Audit', desc: 'Department names checked against the website.', group: 'Websites', page: 'department-audit', gate: 'department-audit' },
   { label: 'Google Governance', desc: 'Google account and site governance.', group: 'Websites', page: 'bcps-google-governance', gate: 'bcps-google-governance' },
   { label: 'Website Governance Plan', desc: 'The district website governance plan.', group: 'Websites', href: '/briefs/bcps-website-governance-plan-2026-06-10', gate: 'bcps-google-governance' },
+  { label: 'Tag Manager Guide', desc: 'A guided, narrated walkthrough of how Google Tag Manager access works.', group: 'Learn', href: '/tag-manager-guide', gate: 'bcps-google-governance' },
   { label: 'Tag Register', desc: 'Agency access to the District Tag Manager and every site tag.', group: 'Websites', page: 'tag-register', gate: 'tag-register', superadmin: true },
 
   { label: 'ADA Scanner', desc: 'Scan a page for accessibility issues.', group: 'Websites', page: 'ada-scanner', gate: 'ada-scanner' },
