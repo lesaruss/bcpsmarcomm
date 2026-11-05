@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { GuideDef } from '@/lib/guides/types'
 import GuideStepper from './GuideStepper'
+import GuideAudio from './GuideAudio'
 
 // A guide (Sean, 2026-10-29): one place per audience instead of several
 // documents that overlap. Tabs down the left (the steps first, then
@@ -93,7 +94,7 @@ export default function Guide({ def, overview, initialTab, actions, tabExtras }:
   }, [target, active])
 
   const index = useMemo(() => [
-    ...def.tabs.flatMap((t) => t.sections.map((s) => ({ tab: t.id, tabLabel: t.label, id: s.id, title: s.title, text: textOf(s.html + (s.stepper ? ' ' + s.stepper.steps.map((st) => `${st.title} ${st.html}`).join(' ') : '')) }))),
+    ...def.tabs.flatMap((t) => t.sections.map((s) => ({ tab: t.id, tabLabel: t.label, id: s.id, title: s.title, text: textOf(s.html + (s.stepper ? ' ' + (s.stepper.brief ?? '') + ' ' + s.stepper.steps.map((st) => `${st.title} ${st.brief ?? ''} ${st.html}`).join(' ') : '')) }))),
     ...def.changes.map((c) => ({ tab: CHANGES, tabLabel: 'What’s New', id: null, title: fmtGuideDate(c.date), text: c.text })),
   ], [def])
 
@@ -217,6 +218,7 @@ export default function Guide({ def, overview, initialTab, actions, tabExtras }:
               {tab.sections.map((s) => (
                 <section key={s.id} id={`guide-${tab.id}-${s.id}`} className="home-dept guide-sec">
                   <h3 className="home-card-title">{s.title}</h3>
+                  <GuideAudio audio={s.audio} />
                   <div className="guide-body" dangerouslySetInnerHTML={{ __html: s.html }} />
                   {s.stepper && <GuideStepper storageKey={`${def.slug}:${s.id}`} stepper={s.stepper} />}
                 </section>

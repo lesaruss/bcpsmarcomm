@@ -7,6 +7,7 @@ import type { RestrictedGuideMeta } from '@/lib/guides/restricted'
 import type { GuideDepartment } from '@/lib/guides/department'
 import Guide, { openFeedback, fmtGuideDate } from './Guide'
 import AssignmentsPage from '@/components/pages/AssignmentsPage'
+import GuideAudio from './GuideAudio'
 
 // A restricted guide (Sean, 2026-10-30): its content comes from
 // /api/bcps/guides/[slug], which sends it only to the guide's readers, so it
@@ -53,7 +54,7 @@ const LIVE_TABS: Record<string, { id: string; label: string; intro: string; afte
   }],
 }
 
-const body = (s: GuideSection) => <div className="guide-body" dangerouslySetInnerHTML={{ __html: s.html }} />
+const body = (s: GuideSection) => <><GuideAudio audio={s.audio} /><div className="guide-body" dangerouslySetInnerHTML={{ __html: s.html }} /></>
 
 // asEmail: a SuperAdmin viewing as a person sees the guide as that person
 // would (the server ignores it for anyone else). renderAnalytics draws the
