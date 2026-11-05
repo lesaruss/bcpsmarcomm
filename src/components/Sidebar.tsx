@@ -378,6 +378,9 @@ const SECTIONS: NavSection[] = [
     // Tag Register (Sean, 2026-11-05): who has access to the District's Tag
     // Manager container, with open and close dates, and every site tag.
     { id: 'tag-register', label: 'Tag Register' },
+    // The guided walkthrough (Sean, 2026-11-05): every District Web Team
+    // member, not only superadmins, so it rides on Google Governance access.
+    { id: 'gtm-guide', label: 'Tag Manager Guide', href: '/tag-manager-guide', requires: 'bcps-google-governance' },
     // Pulled out of the Department Portal's tab list (Sean, 2026-09-18): the
     // roster isn't one of the department's resources, so it gets its own
     // page, listed here instead. Open to every district user (2026-09-18) -
