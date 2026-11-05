@@ -2818,3 +2818,8 @@ ul.guide-links.guide-quick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cert-bar { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; width: 80px; }
 .cert-bar > div { height: 100%; }
 @media (max-width: 860px) { .cert-ov { grid-template-columns: minmax(0, 1fr); } }
+/* The leaderboard's window ends level with the bottom of the
+   "Where everyone is" window (Sean, 2026-11-05): the left tile sets the
+   row height and the board fills whatever is left of the right tile. */
+.cert-fill { flex: 1; position: relative; min-height: 290px; }
+.cert-fill > .lb-list { position: absolute; inset: 0; max-height: none; overflow-y: auto; }
