@@ -51,7 +51,9 @@ const short = (u: string) => u.replace(/^https?:\/\/(www\.)?browardschools\.com/
 export default function AuditRulesReviewPage() {
   const [rules, setRules] = useState<Rule[] | null>(null)
   const [finalsite, setFinalsite] = useState<Rule[]>([])
+  // ?view=finalsite opens on the Finalsite items (linked from the Run Audit tab).
   const [view, setView] = useState<'wcm' | 'finalsite'>('wcm')
+  useEffect(() => { if (new URLSearchParams(window.location.search).get('view') === 'finalsite') setView('finalsite') }, [])
   const [reviews, setReviews] = useState<Review[]>([])
   const [me, setMe] = useState('')
   const [err, setErr] = useState('')
