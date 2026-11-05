@@ -31,6 +31,10 @@
 //                               preview parameters, for testing first.
 // POST {"action": "publish"}  - versions the workspace and publishes it.
 // POST {"action": "ga4"}      - read-only GA4 checks of property 527326342.
+// POST {"action": "review", "workspace": "<name>"}
+//                             - read-only pass/fail on an agency workspace
+//                               before the District publishes it (naming,
+//                               page scope, existing tags untouched).
 //
 // Published 2026-10-29 as container version 5, after a browser test on the
 // live Referendum 2026 page with every Google Analytics hit captured and
@@ -279,6 +283,121 @@ Deno.serve(async (req: Request) => {
         variables: cur.variables.map((v: any) => v.name),
         builtins: cur.builtins.map((b: any) => b.type),
       });
+    }
+
+    // Read-only review of an outside agency's workspace before the District
+    // publishes it (added 2026-11-05 for the Magnet School Choice campaign;
+    // Sean: vendors get Edit, the District publishes). Agencies build in
+    // their own workspace and email "ready to publish"; this answers the
+    // three District rules for that workspace:
+    //   naming    - every tag the workspace adds or changes is named with the
+    //               department prefix (payload.prefix, default "MAGNET |").
+    //   scope     - every such tag fires only on triggers limited to the
+    //               department's pages by a Page Path or Page URL condition
+    //               (payload.path, default /magnet-programs/). Built-in
+    //               triggers such as All Pages fail.
+    //   untouched - nothing already live in the container that is not the
+    //               department's own is changed or deleted.
+    // It also reports whether the workspace is out of date with the live
+    // version (merge conflicts block a publish), and lists the code of every
+    // custom HTML tag and the type of every custom template tag, since what
+    // custom code does has to be read by a person.
+    // POST {"action": "review", "workspace": "<name>"}; with no name, every
+    // workspace except the Default Workspace is reviewed. Makes no changes.
+    if (action === 'review') {
+      const prefix: string = payload.prefix || 'MAGNET |';
+      const pathNeedle: string = String(payload.path || '/magnet-programs/').toLowerCase();
+      const needleCore = pathNeedle.replace(/^\/+|\/+$/g, '');
+      const live: any = await gtm('GET', `${container.path}/versions:live`);
+      const entityId = (kind: string, e: any) => e?.[`${kind}Id`] ?? e?.type;
+      const isLive = (kind: string, e: any) =>
+        (live?.[kind] || []).some((x: any) => entityId(kind, x) === entityId(kind, e));
+
+      const wanted = String(payload.workspace || '').trim().toLowerCase();
+      const targets = workspaces.filter((w: any) =>
+        wanted ? w.name.toLowerCase() === wanted : w.name !== 'Default Workspace');
+      if (!targets.length) {
+        return json({
+          success: true, live_version: live?.containerVersionId,
+          workspaces: workspaces.map((w: any) => w.name), reviews: [],
+          note: wanted ? `No workspace named "${payload.workspace}"` : 'No agency workspaces yet: only the Default Workspace exists.',
+        });
+      }
+
+      const condText = (c: any) => {
+        const p = Object.fromEntries((c.parameter || []).map((x: any) => [x.key, x.value]));
+        return { arg0: String(p.arg0 || ''), arg1: String(p.arg1 || ''), negate: p.negate === 'true', type: c.type,
+          text: `${p.arg0 || ''} ${p.negate === 'true' ? 'NOT ' : ''}${c.type} ${p.arg1 || ''}` };
+      };
+      const limitsToPages = (c: any) => {
+        const k = condText(c);
+        return !k.negate && /\{\{\s*Page (Path|URL)\s*\}\}/i.test(k.arg0)
+          && ['contains', 'startsWith', 'matchRegex', 'equals'].includes(k.type)
+          && k.arg1.toLowerCase().includes(needleCore);
+      };
+
+      const reviews = [];
+      for (const w of targets) {
+        const status = await gtm('GET', `${w.path}/status`);
+        const { trigger: wsTriggers = [] } = await gtm('GET', `${w.path}/triggers`);
+        const triggerById = new Map(wsTriggers.map((t: any) => [t.triggerId, t]));
+        const changes = (status.workspaceChange || []).map((c: any) => {
+          const kind = Object.keys(c).find(k => k !== 'changeStatus') || 'unknown';
+          return { status: c.changeStatus, kind, entity: c[kind] || {} };
+        });
+
+        const naming: string[] = [];
+        const scope: string[] = [];
+        const untouched: string[] = [];
+        const tagDetails = [];
+        const customCode = [];
+
+        for (const ch of changes) {
+          const name = ch.entity.name || ch.entity.type || '(unnamed)';
+          if ((ch.status === 'updated' || ch.status === 'deleted') && isLive(ch.kind, ch.entity) && !String(ch.entity.name || '').startsWith(prefix)) {
+            untouched.push(`${ch.status} existing ${ch.kind} "${name}"`);
+          }
+          if (ch.kind !== 'tag' || ch.status === 'deleted') continue;
+          const t = ch.entity;
+          if (!String(t.name || '').startsWith(prefix)) naming.push(`tag "${name}" is not named "${prefix} ..."`);
+          const fired = (t.firingTriggerId || []).map((id: string) => {
+            const trig: any = triggerById.get(id);
+            if (!trig) {
+              scope.push(`tag "${name}" fires on built-in trigger ${id} (All Pages or similar), which runs on every page`);
+              return { id, name: 'built-in trigger', conditions: [] };
+            }
+            const conds = [...(trig.filter || []), ...(trig.autoEventFilter || [])];
+            if (trig.type === 'triggerGroup') scope.push(`tag "${name}" uses trigger group "${trig.name}": check its triggers by hand`);
+            else if (!conds.some(limitsToPages)) scope.push(`tag "${name}" fires on trigger "${trig.name}", which is not limited to ${pathNeedle} pages`);
+            return { id, name: trig.name, type: trig.type, conditions: [...conds, ...(trig.customEventFilter || [])].map((c: any) => condText(c).text) };
+          });
+          if (!fired.length) scope.push(`tag "${name}" has no firing trigger, so it will never fire`);
+          tagDetails.push({ name, type: t.type, status: ch.status, paused: !!t.paused, triggers: fired });
+          if (t.type === 'html') {
+            const html = (t.parameter || []).find((p: any) => p.key === 'html')?.value || '';
+            customCode.push({ tag: name, code: String(html).slice(0, 4000) });
+          } else if (String(t.type || '').startsWith('cvt_')) {
+            customCode.push({ tag: name, code: `custom template ${t.type}: read the template in GTM before publishing` });
+          }
+        }
+
+        const conflicts = (status.mergeConflict || []).length;
+        const pass = !naming.length && !scope.length && !untouched.length && !conflicts;
+        reviews.push({
+          workspace: w.name,
+          verdict: !changes.length ? 'NOTHING TO PUBLISH' : pass ? 'PASS' : 'FAIL',
+          checks: {
+            naming: { pass: !naming.length, problems: naming },
+            scope: { pass: !scope.length, problems: scope },
+            untouched: { pass: !untouched.length, problems: untouched },
+            up_to_date: { pass: !conflicts, problems: conflicts ? [`${conflicts} merge conflict(s): the agency must update the workspace before it can be published`] : [] },
+          },
+          read_by_hand: customCode,
+          tags: tagDetails,
+          changes: changes.map((c: any) => `${c.status} ${c.kind} "${c.entity.name || c.entity.type || ''}"`),
+        });
+      }
+      return json({ success: true, container: container.publicId, live_version: live?.containerVersionId, prefix, path: pathNeedle, reviews });
     }
 
     if (action === 'build') {
