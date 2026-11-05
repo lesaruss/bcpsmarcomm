@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { GuideStepper as Stepper } from '@/lib/guides/types'
+import GuideAudio from './GuideAudio'
 
 // One step at a time (Sean, 2026-11-03, Patricia Sapp's Hot Lab feedback):
 // the instructions on the left, an example on the right, Back and Next, and
@@ -12,7 +13,7 @@ import type { GuideStepper as Stepper } from '@/lib/guides/types'
 type Saved = { step: number; done: number[] }
 
 export default function GuideStepper({ storageKey, stepper }: { storageKey: string; stepper: Stepper }) {
-  const { steps, videoUrl, finish, videoTitle } = stepper
+  const { steps, videoUrl, finish, videoTitle, brief, audio } = stepper
   const key = `bcps-guide-steps:${storageKey}`
   const [step, setStep] = useState(0)
   const [done, setDone] = useState<number[]>([])
@@ -45,6 +46,13 @@ export default function GuideStepper({ storageKey, stepper }: { storageKey: stri
 
   return (
     <div className="gst">
+      {(brief || audio?.url) && (
+        <div className="gst-brief">
+          <span className="gst-brief-tag">What you&apos;re doing here</span>
+          {brief && <div className="guide-body" dangerouslySetInnerHTML={{ __html: brief }} />}
+          <GuideAudio audio={audio} label="Listen to the overview" />
+        </div>
+      )}
       {videoUrl && (
         <div className="gst-choice" role="group" aria-label="How to follow this walkthrough">
           <button type="button" className={mode === 'video' ? 'on' : ''} aria-pressed={mode === 'video'} onClick={() => setMode('video')}>Watch the short video</button>
@@ -73,6 +81,8 @@ export default function GuideStepper({ storageKey, stepper }: { storageKey: stri
           <div className="gst-card" aria-live="polite">
             <div className="gst-text">
               <h4>Step {step + 1}. {cur.title}</h4>
+              {cur.brief && <p className="gst-why"><b>In this step:</b> {cur.brief}</p>}
+              <GuideAudio audio={cur.audio} label="Listen to this step" />
               <div className="guide-body" dangerouslySetInnerHTML={{ __html: cur.html }} />
             </div>
             <div className="gst-example" role="group" aria-label={`Example for step ${step + 1}`}>

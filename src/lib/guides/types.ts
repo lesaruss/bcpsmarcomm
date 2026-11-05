@@ -21,14 +21,31 @@ export type GuideAudience = 'wcm' | 'director'
 // left and an example on the right, and progress shown. `videoUrl` adds a
 // "watch the short video" choice beside the written steps; leave it out
 // until the video exists.
+// An audio overview (Sean, 2026-11-05): a short narration someone can play
+// instead of reading. It can sit on a section, a whole walkthrough or a single
+// step. Leave it out until the recording exists; nothing shows without a url.
+export interface GuideAudio {
+  url: string
+  // What it covers, shown beside the player ("Why we lock the account").
+  title?: string
+}
+
 export interface GuideStep {
   title: string
+  // One line at the top of the step: what it does and why (plain text).
+  brief?: string
+  audio?: GuideAudio
   html: string
   // Trusted HTML drawn on the right of the step.
   example: string
 }
 
 export interface GuideStepper {
+  // "What you're doing here", above the steps (Sean, 2026-11-05): who it is
+  // for, what they end up with and why, so nobody starts a walkthrough cold.
+  // Trusted HTML.
+  brief?: string
+  audio?: GuideAudio
   steps: GuideStep[]
   videoUrl?: string
   // Shown under the last step once every step is done. Plain text.
@@ -41,6 +58,7 @@ export interface GuideSection {
   id: string
   title: string
   html: string
+  audio?: GuideAudio
   stepper?: GuideStepper
   for?: GuideAudience[]
   // How an Overview section sits on a department guide's home (Sean,
