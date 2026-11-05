@@ -41,6 +41,9 @@ export const SUPERADMIN_PAGES: readonly PageId[] = [
   'cert-followup',
   'pulse-approvals',
   'registrations',
+  // Tag Register (2026-11-05): agency access to the District GTM container
+  // and every tag on browardschools.com. Superadmin only, like its API.
+  'tag-register',
 ]
 
 export const SUPERADMIN_PAGES_SET: ReadonlySet<PageId> = new Set(SUPERADMIN_PAGES)
