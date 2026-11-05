@@ -367,6 +367,10 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', margin: '0 0 10px' }}>
             <input type="search" className="form-input" style={{ width: '100%', maxWidth: 320 }} placeholder="Search name, email or department" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search the roster" />
             <span style={{ fontSize: 12.5, color: '#6b7280' }}>{ROSTER.find((g) => g.key === rosterTab)?.who} · {rosterRows.length} shown · {picked?.size ?? 0} checked for the next send</span>
+            {/* Clears every check in every group at once (Sean, 2026-11-05). */}
+            <button type="button" className="btn btn-outline" style={{ padding: '4px 12px', fontSize: 12.5 }} disabled={!picked?.size} onClick={() => setPicked(new Set())}>
+              Clear all
+            </button>
           </div>
           <div className="invite-table-wrap">
             <table className="invite-table">
