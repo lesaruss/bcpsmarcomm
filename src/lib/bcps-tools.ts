@@ -45,6 +45,8 @@ export const TOOLS: Tool[] = [
   { label: 'Department Name Audit', desc: 'Department names checked against the website.', group: 'Websites', page: 'department-audit', gate: 'department-audit' },
   { label: 'Google Governance', desc: 'Google account and site governance.', group: 'Websites', page: 'bcps-google-governance', gate: 'bcps-google-governance' },
   { label: 'Website Governance Plan', desc: 'The district website governance plan.', group: 'Websites', href: '/briefs/bcps-website-governance-plan-2026-06-10', gate: 'bcps-google-governance' },
+  { label: 'Tag Manager Guide', desc: 'A guided, narrated walkthrough of how Google Tag Manager access works.', group: 'Learn', href: '/tag-manager-guide', gate: 'bcps-google-governance' },
+  { label: 'Tag Register', desc: 'Agency access to the District Tag Manager and every site tag.', group: 'Websites', page: 'tag-register', gate: 'tag-register', superadmin: true },
 
   { label: 'ADA Scanner', desc: 'Scan a page for accessibility issues.', group: 'Websites', page: 'ada-scanner', gate: 'ada-scanner' },
   { label: 'ADA Manager', desc: 'Full-site school scans and issue detail.', group: 'Websites', page: 'ada-manager', gate: 'ada-manager' },
@@ -61,7 +63,7 @@ export const TOOLS: Tool[] = [
   { label: 'Note Approvals', desc: 'Notes waiting to publish.', group: 'SuperAdmin', page: 'pulse-approvals', gate: 'pulse-approvals', superadmin: true },
   { label: 'Registrations', desc: 'New sign-ups waiting on approval.', group: 'SuperAdmin', page: 'registrations', gate: 'registrations', superadmin: true },
   { label: 'Reports', desc: 'Program reports and exports.', group: 'SuperAdmin', page: 'reports', gate: 'reports', superadmin: true },
-  { label: 'Certification Follow-up', desc: 'WCMs still finishing the certification: progress, follow-up emails, opens and clicks.', group: 'SuperAdmin', page: 'cert-followup', gate: 'cert-followup', superadmin: true, icon: 'reports' },
+  { label: 'Certification', desc: 'Every Department WCM at a glance with the leaderboard, follow-up outreach, and the roster by status.', group: 'SuperAdmin', page: 'cert-followup', gate: 'cert-followup', superadmin: true, icon: 'reports' },
 ]
 
 // My Resources groups (Sean, 2026-10-23: fewer categories that make sense

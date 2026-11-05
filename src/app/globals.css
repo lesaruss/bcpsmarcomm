@@ -2800,3 +2800,21 @@ ul.guide-links.guide-quick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .lb-who span { font-size: 11.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-pts { font-size: 15px; font-weight: 900; color: #0e4e73; }
 .lb-break, .lb-note { font-size: 12.5px; color: var(--text-muted); }
+
+/* Certification page (2026-11-05): Overview / Outreach / Roster tabs */
+.cert-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin: 0 0 18px; }
+.cert-tab { background: none; border: none; border-bottom: 3px solid transparent; padding: 10px 14px; font-size: 14px; font-weight: 700; color: var(--text-muted); cursor: pointer; margin-bottom: -1px; }
+.cert-tab[aria-selected="true"] { color: #0e4e73; border-bottom-color: #1672A7; }
+.cert-tab .cert-count { font-weight: 600; color: var(--text-muted); margin-left: 4px; }
+.cert-subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
+.cert-chip { border: 1px solid var(--border); background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; color: var(--text-primary); cursor: pointer; }
+.cert-chip[aria-pressed="true"], .cert-chip[aria-selected="true"] { background: #0e4e73; border-color: #0e4e73; color: #fff; }
+.cert-ov { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.cert-ov > .home-dept { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.cert-ov-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.cert-ov-big { font-size: 13px; color: var(--text-muted); }
+.cert-ov-big b { font-size: 22px; font-weight: 900; color: #0e4e73; margin-right: 4px; }
+.cert-scroll.lb-scroll { max-height: 290px; }
+.cert-bar { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; width: 80px; }
+.cert-bar > div { height: 100%; }
+@media (max-width: 860px) { .cert-ov { grid-template-columns: minmax(0, 1fr); } }

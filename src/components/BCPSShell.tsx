@@ -78,6 +78,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   wcm:                      { title: 'WCM Community Hub',       sub: 'Web Content Management' },
   queue:                    { title: 'Queue',                   sub: 'Marketing & Communications' },
   'bcps-google-governance': { title: 'Google Governance Plan',  sub: 'BCPS' },
+  'tag-register':           { title: 'Tag Register',            sub: 'Tag Manager Access & Site Tags' },
   'bcps-assignments':       { title: 'Web Team Assignments',    sub: 'BCPS' },
   'community-relations':    { title: 'Community Relations Tracker', sub: 'District Community Relations' },
   'marcomm-assignments':    { title: 'MarComm Assignments',     sub: 'Office of Communications' },
@@ -96,7 +97,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   'wcm-roster':             { title: 'WCM Roster',            sub: 'District Web Team' },
   'banner-submissions':     { title: 'Banner Submissions',    sub: 'School Homepage Banners' },
   'proud-points':           { title: 'Proud Points',          sub: 'School Homepage Highlights' },
-  'cert-followup':          { title: 'Certification Follow-up', sub: 'WCMs Still Finishing the Certification' },
+  'cert-followup':          { title: 'Certification', sub: 'Overview, Outreach and Roster' },
   'my-submissions':         { title: 'Your Submissions',      sub: 'Banners & Proud Points' },
   messages:                 { title: 'Messages',              sub: 'Inbox & Conversations' },
 }

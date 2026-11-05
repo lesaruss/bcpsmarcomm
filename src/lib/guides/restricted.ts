@@ -71,6 +71,19 @@ export const RESTRICTED_GUIDES: Record<string, RestrictedGuideMeta> = {
   // District Web Team group, plus Charlene A. Collins and Luis A. Morales, who
   // Sean said get the same view as Farrah Wilson. It replaces nothing: the
   // older documents stay where they are and are linked under Reference.
+  // Google Account Access (Sean, 2026-11-05): how people get into the shared
+  // BCPS Google account's tools (Analytics, Tag Manager, YouTube, Drive, the
+  // inbox) with their own Broward sign-in, so two-step verification stays on
+  // and nobody has to call for a code. Click-through steps in place of the
+  // bcps-google-account-security playbook. Sean runs it himself first; readers
+  // are added by grants on its acl_objects row. Content is in bcps_guides.
+  'google-account-access': {
+    slug: 'google-account-access',
+    title: 'Google Account Access',
+    audience: 'everyone who works in the shared BCPS Google account',
+    cadence: 'updated whenever the steps change',
+    replaces: {},
+  },
   'district-web-team': {
     slug: 'district-web-team',
     title: 'District Web Team Guide',

@@ -44,7 +44,9 @@ interface Payload {
   me: Me | null
 }
 
-export default function WcmLeaderboard({ compact = false }: { compact?: boolean }) {
+// boardOnly (2026-11-05): just the top 20 in a short scroll, for the
+// Certification page's Overview tile. No stat strip, no "your standing".
+export default function WcmLeaderboard({ compact = false, boardOnly = false }: { compact?: boolean; boardOnly?: boolean }) {
   const [data, setData] = useState<Payload | null>(null)
   const [error, setError] = useState('')
 
@@ -71,6 +73,20 @@ export default function WcmLeaderboard({ compact = false }: { compact?: boolean 
   const s = data.summary
   const pct = s.wcms_total ? Math.round((s.certified / s.wcms_total) * 100) : 0
   const rows = compact ? data.board.slice(0, 3) : data.board
+
+  if (boardOnly) {
+    return (
+      <div className="lb-list lb-scroll cert-scroll" role="list" aria-label={`Leaderboard, top 20 for ${data.school_year}`}>
+        {data.board.map((e) => (
+          <div className="lb-row" role="listitem" key={e.rank}>
+            <span className="lb-rank">{e.rank}</span>
+            <span className="lb-who"><b>{e.name}</b><span>{e.department}</span></span>
+            <span className="lb-pts">{e.total}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <>

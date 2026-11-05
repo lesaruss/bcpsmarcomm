@@ -178,6 +178,12 @@ export const Icons: Record<string, React.ReactNode> = {
       <polyline points="9 12 11 14 15 10"/>
     </svg>
   ),
+  'tag-register': (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/>
+      <circle cx="7.5" cy="7.5" r="1.5"/>
+    </svg>
+  ),
   'bcps-assignments': (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="9" y="2" width="6" height="4" rx="1"/>
@@ -369,6 +375,12 @@ const SECTIONS: NavSection[] = [
     // simply never listed here, so the page was unreachable from the nav.
     { id: 'bcps-assignments', label: 'Web Team Assignments' },
     { id: 'bcps-google-governance', label: 'Google Governance' },
+    // Tag Register (Sean, 2026-11-05): who has access to the District's Tag
+    // Manager container, with open and close dates, and every site tag.
+    { id: 'tag-register', label: 'Tag Register' },
+    // The guided walkthrough (Sean, 2026-11-05): every District Web Team
+    // member, not only superadmins, so it rides on Google Governance access.
+    { id: 'gtm-guide', label: 'Tag Manager Guide', href: '/tag-manager-guide', requires: 'bcps-google-governance' },
     // Pulled out of the Department Portal's tab list (Sean, 2026-09-18): the
     // roster isn't one of the department's resources, so it gets its own
     // page, listed here instead. Open to every district user (2026-09-18) -
