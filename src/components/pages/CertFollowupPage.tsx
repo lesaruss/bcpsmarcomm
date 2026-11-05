@@ -43,14 +43,14 @@ interface CampaignSummary { campaign: string; sent: number; people: number; open
 type View = 'overview' | 'outreach'
 type GlanceSort = 'high' | 'low' | 'name' | 'active'
 const byKey = (k: FollowupGroup) => FOLLOWUP_GROUPS.find((g) => g.key === k)!
-// Overview chips, in Sean's order: completed, 90 to 99, below that, not started.
-const GLANCE: { key: FollowupGroup; label: string }[] = [
+// Overview has two buttons (Sean, 2026-11-05, third pass): Completed, and
+// Pending, which is everyone else, highest percentage first.
+type Glance = 'completed' | 'pending'
+const GLANCE: { key: Glance; label: string }[] = [
   { key: 'completed', label: 'Completed' },
-  { key: 'near', label: '90 to 99%' },
-  { key: 'progress', label: '1 to 89%' },
-  { key: 'not-started', label: 'Not started' },
-  { key: 'no-account', label: 'No account' },
+  { key: 'pending', label: 'Pending' },
 ]
+const inGlance = (g: Glance, p: { group: FollowupGroup }) => (g === 'completed') === (p.group === 'completed')
 // Roster tabs, in the order the follow-up works through them.
 const ROSTER = (['near', 'progress', 'not-started', 'no-account', 'completed'] as FollowupGroup[]).map(byKey)
 const CAMPAIGN_RE = /^[a-z0-9][a-z0-9-]{2,59}$/
@@ -95,7 +95,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([])
   // Certification page layout (Sean, 2026-11-05): Overview, Outreach, Roster.
   const [view, setView] = useState<View>('overview')
-  const [glance, setGlance] = useState<FollowupGroup>('completed')
+  const [glance, setGlance] = useState<Glance>('pending')
   const [glanceSort, setGlanceSort] = useState<GlanceSort>('high')
   const [rosterTab, setRosterTab] = useState<FollowupGroup>('near')
   const [search, setSearch] = useState('')
@@ -174,9 +174,10 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
     </div>
   )
 
-  // Overview tile: one status at a time, sorted the way Sean picks.
+  // Overview tile: Completed or Pending, sorted the way Sean picks.
+  const glanceCount = (g: Glance) => people.filter((p) => inGlance(g, p)).length
   const glanceRows = people
-    .filter((p) => p.group === glance)
+    .filter((p) => inGlance(glance, p))
     .sort((a, b) => {
       if (glanceSort === 'name') return a.name.localeCompare(b.name)
       if (glanceSort === 'active') return (b.last_active ?? '').localeCompare(a.last_active ?? '')
@@ -231,7 +232,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
             <div className="cert-subtabs" role="group" aria-label="Show">
               {GLANCE.map((g) => (
                 <button key={g.key} type="button" className="cert-chip" aria-pressed={glance === g.key} onClick={() => setGlance(g.key)}>
-                  {g.label} · {count(g.key)}
+                  {g.label} · {glanceCount(g.key)}
                 </button>
               ))}
             </div>
@@ -264,7 +265,9 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
               <span className="cert-ov-big">Top 20 · points</span>
             </div>
             <p style={{ fontSize: 12.5, color: '#6b7280', margin: 0 }}>Certification, Hot Labs, Kickoff and audit points.</p>
-            <WcmLeaderboard boardOnly />
+            <div className="cert-fill">
+              <WcmLeaderboard boardOnly />
+            </div>
           </section>
         </div>
       )}
