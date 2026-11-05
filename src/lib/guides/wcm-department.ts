@@ -221,7 +221,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
           id: 'walkthrough',
           title: 'Your audit in five steps',
           html: `<p>Go one step at a time. Your place is saved on this device. Prefer to read everything at once? The detailed steps are in the next section.</p>`,
-          stepper: { steps: AUDIT_STEPS },
+          stepper: { steps: AUDIT_STEPS, finish: 'That is the whole walkthrough. Open Run Audit and start with your first red pin.', videoTitle: 'Audit walkthrough video' },
         },
         {
           id: 'item',

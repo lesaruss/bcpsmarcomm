@@ -12,7 +12,7 @@ import type { GuideStepper as Stepper } from '@/lib/guides/types'
 type Saved = { step: number; done: number[] }
 
 export default function GuideStepper({ storageKey, stepper }: { storageKey: string; stepper: Stepper }) {
-  const { steps, videoUrl } = stepper
+  const { steps, videoUrl, finish, videoTitle } = stepper
   const key = `bcps-guide-steps:${storageKey}`
   const [step, setStep] = useState(0)
   const [done, setDone] = useState<number[]>([])
@@ -53,7 +53,7 @@ export default function GuideStepper({ storageKey, stepper }: { storageKey: stri
       )}
       {videoUrl && mode === 'video' ? (
         <div className="gst-video">
-          <iframe src={videoUrl} title="Audit walkthrough video" allowFullScreen loading="lazy" />
+          <iframe src={videoUrl} title={videoTitle || 'Walkthrough video'} allowFullScreen loading="lazy" />
         </div>
       ) : (
         <>
@@ -87,7 +87,7 @@ export default function GuideStepper({ storageKey, stepper }: { storageKey: stri
               : <button type="button" className="home-btn" onClick={() => markDone(step)}>{done.includes(step) ? 'Done' : 'I finished the last step'}</button>}
             {done.length > 0 && <button type="button" className="gst-restart" onClick={restart}>Start over</button>}
           </div>
-          {finished && <p className="gst-finish">That is the whole walkthrough. Open Run Audit and start with your first red pin.</p>}
+          {finished && <p className="gst-finish">{finish || 'That is the whole walkthrough.'}</p>}
         </>
       )}
     </div>
