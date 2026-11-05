@@ -14,7 +14,7 @@ export const DIRECTOR_DEPARTMENT_GUIDE: GuideDef = {
   eyebrow: 'BCPS MarComm',
   title: 'Director Guide',
   audience: 'department directors',
-  updated: '2026-10-29',
+  updated: '2026-11-05',
   cadence: 'refreshed every Thursday',
   replaces: {},
   tabs: [
@@ -55,7 +55,7 @@ export const DIRECTOR_DEPARTMENT_GUIDE: GuideDef = {
         {
           id: 'deadline',
           title: 'What is due, and when',
-          html: `<p>Certification is due <b>Thursday, November 5, 2026</b>, extended from October 30 to give WCMs a little more room. A quick check-in with your WCM this week helps. After the deadline, the District Web Team follows up with each WCM who has not finished. Anyone new to the role finishes before update access is granted; if someone new has taken over your pages, tell us and we will fast-track them.</p>
+          html: `<p>Certification was due <b>Thursday, November 5, 2026</b>, extended from October 30. Starting Monday, November 9, the District Web Team follows up with each WCM who has not finished, one at a time and together with you, so a quick check-in with your WCM now helps. Anyone new to the role finishes before update access is granted; if someone new has taken over your pages, tell us and we will fast-track them.</p>
 <p>WCMs register through LAB (Learning Across Broward), so their hours count toward PD credit. Once certified, they can download a certification badge from their certificate page.</p>`,
         },
         {
@@ -197,6 +197,7 @@ export const DIRECTOR_DEPARTMENT_GUIDE: GuideDef = {
     },
   ],
   changes: [
+    { date: '2026-11-05', text: 'The certification deadline, Thursday, November 5, has passed, with 62 department WCMs certified. Starting Monday, November 9, the District Web Team follows up with each WCM who has not finished, together with their director.' },
     { date: '2026-10-29', text: 'Certification extended to Thursday, November 5. After the deadline, the District Web Team follows up with each WCM who has not finished.' },
     { date: '2026-10-29', text: 'The Director Playbook is now the Director Guide: an Overview built for your departments, a tab for each part of the program, the common questions, and search. 45 department WCMs certified, the course open through the weekend, and the check at the end of the day Monday, November 2. Each audit lists only your department\'s pages, and departments with functions managed by different people should tell us who manages which pages. Added telling your department\'s story.' },
     { date: '2026-10-28', text: 'Added how to get schools to update their websites (an Incident IQ ticket to Application Services first). WCMs who have not finished certification lose editing access starting Monday, November 2.' },
