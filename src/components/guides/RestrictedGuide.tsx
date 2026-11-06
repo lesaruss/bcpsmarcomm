@@ -8,6 +8,7 @@ import type { GuideDepartment } from '@/lib/guides/department'
 import Guide, { openFeedback, fmtGuideDate } from './Guide'
 import AssignmentsPage from '@/components/pages/AssignmentsPage'
 import GuideAudio from './GuideAudio'
+import TeamMeetings from './TeamMeetings'
 
 // A restricted guide (Sean, 2026-10-30): its content comes from
 // /api/bcps/guides/[slug], which sends it only to the guide's readers, so it
@@ -44,8 +45,19 @@ function AuditSnapshot({ a }: { a: NonNullable<GuideDepartment['audit']> }) {
 // content, so it never goes stale and keeps the structure it has. They are
 // added here, in code, because the page carries its own access; the guide's
 // stored content stays text only. `after` is the tab it follows.
-const LIVE_TABS: Record<string, { id: string; label: string; intro: string; after: string; render: () => React.ReactNode }[]> = {
+// `check` is an endpoint the reader must pass (any 2xx) for the tab to show,
+// for a tab narrower than the guide's own readers.
+const LIVE_TABS: Record<string, { id: string; label: string; intro: string; after: string; check?: string; render: () => React.ReactNode }[]> = {
   'district-web-team': [{
+    // Web Team Meetings (Sean, 2026-11-06): agendas that become notes, for
+    // Sean, Farrah and Felicia only (named grants on 'web-team-meetings').
+    id: 'meetings',
+    label: 'Web Team Meetings',
+    intro: 'Each Web Team Meeting in one place: the agenda before, and after it the recap, what happened to each item, action items and the recording.',
+    after: 'week',
+    check: '/api/bcps/team-meetings',
+    render: () => <TeamMeetings />,
+  }, {
     id: 'assignments',
     label: 'Web Team Assignments',
     intro: 'The team’s tracker, live. Open an item for its notes, add your input, or upload a meeting transcript. It is the same page as before, now inside the guide.',
@@ -70,6 +82,23 @@ export default function RestrictedGuide({ meta, initialTab, actions, asEmail, re
   const [guide, setGuide] = useState<GuideDef | null>(null)
   const [department, setDepartment] = useState<GuideDepartment | null>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'denied' | 'error'>('loading')
+  const [passed, setPassed] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    let live = true
+    const gated = (LIVE_TABS[meta.slug] ?? []).filter((t) => t.check)
+    if (!gated.length) return
+    ;(async () => {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      for (const t of gated) {
+        try {
+          const r = await fetch(t.check!, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: 'no-store' })
+          if (live && r.ok) setPassed((p) => ({ ...p, [t.id]: true }))
+        } catch { /* the tab stays hidden */ }
+      }
+    })()
+    return () => { live = false }
+  }, [meta.slug])
 
   useEffect(() => {
     let live = true
@@ -135,7 +164,7 @@ export default function RestrictedGuide({ meta, initialTab, actions, asEmail, re
         ))}
       </>
     )
-    const live = (LIVE_TABS[meta.slug] ?? []).filter((t) => !guide.tabs.some((x) => x.id === t.id))
+    const live = (LIVE_TABS[meta.slug] ?? []).filter((t) => !guide.tabs.some((x) => x.id === t.id) && (!t.check || passed[t.id]))
     const def = live.length
       ? { ...guide, tabs: live.reduce((tabs, t) => {
           const at = tabs.findIndex((x) => x.id === t.after)
