@@ -14,9 +14,9 @@
 // seconds. Read the drafts with Preview, send yourself a test, then send to the
 // people checked. /api/bcps/cert-followup does the work; SuperAdmin only.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { FOLLOWUP_GROUPS, isAllWcmCampaign, type FollowupGroup } from '@/lib/bcps-cert-followup-groups'
+import { FOLLOWUP_GROUPS, campaignLabel, isAllWcmCampaign, type FollowupGroup } from '@/lib/bcps-cert-followup-groups'
 import WcmLeaderboard from '@/components/guides/WcmLeaderboard'
 
 interface Person {
@@ -39,7 +39,7 @@ interface NudgePreview {
   sample: { to: string; html: string } | null
   sender: { from: string; reply_to: string }
 }
-interface CampaignSummary { campaign: string; sent: number; people: number; opened: number; clicked: number; first_sent: string; last_sent: string }
+interface CampaignSummary { campaign: string; pending?: boolean; sent: number; people: number; opened: number; clicked: number; first_sent: string; last_sent: string }
 type View = 'overview' | 'outreach'
 type GlanceSort = 'high' | 'low' | 'name' | 'active'
 const byKey = (k: FollowupGroup) => FOLLOWUP_GROUPS.find((g) => g.key === k)!
@@ -93,6 +93,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   const [campaign, setCampaign] = useState<string | null>(null)
   const [campaignText, setCampaignText] = useState('')
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([])
+  const [newCampaign, setNewCampaign] = useState(false)
   // Certification page layout (Sean, 2026-11-05): Overview, Outreach, Roster.
   const [view, setView] = useState<View>('overview')
   const [glance, setGlance] = useState<Glance>('pending')
@@ -100,10 +101,15 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
   const [rosterTab, setRosterTab] = useState<FollowupGroup>('near')
   const [search, setSearch] = useState('')
 
+  // The campaign the page wants right now. A slower response for a campaign
+  // the person has already switched away from is dropped, so it cannot leave
+  // the wrong people checked.
+  const wanted = useRef<string | null>(null)
   const load = useCallback(async (c: string | null) => {
     const url = c ? `${ENDPOINT}?campaign=${encodeURIComponent(c)}` : ENDPOINT
     const r = await fetch(url, { headers: await authHeaders(), cache: 'no-store' })
     const j = await r.json().catch(() => ({}))
+    if (c !== wanted.current) return
     if (!r.ok) { setErr(j.error || 'Could not load the list.'); return }
     setErr('')
     setCampaign(j.campaign)
@@ -118,6 +124,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
     setPicked((cur) => cur ?? new Set((j.people as Person[]).filter((p) => !p.email_status && (everyone || p.group !== 'completed')).map((p) => p.email)))
   }, [])
   useEffect(() => {
+    wanted.current = campaign
     load(campaign)
     const t = setInterval(() => load(campaign), 30000)
     return () => clearInterval(t)
@@ -278,7 +285,7 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
         <div id="cert-panel-outreach" role="tabpanel" aria-labelledby="cert-tab-outreach">
           <div className="invite-form-card">
             <h4>Campaigns</h4>
-            <p style={{ fontSize: 13, margin: '0 0 8px' }}>Every send is saved under a campaign. Pick one to see its list and results, or type a new campaign name below to start one. Names use lowercase letters, numbers and dashes.</p>
+            <p style={{ fontSize: 13, margin: '0 0 8px' }}>Every send is saved under a campaign. Pick one to see its list and results, or choose New campaign in the menu below to start one. Names use lowercase letters, numbers and dashes.</p>
             <div className="invite-table-wrap">
               <table className="invite-table">
                 <thead>
@@ -288,14 +295,14 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
                   {campaigns.length === 0 && <tr><td colSpan={8} style={{ opacity: 0.7 }}>No campaign has sent yet.</td></tr>}
                   {campaigns.map((c) => (
                     <tr key={c.campaign} onClick={() => pickCampaign(c.campaign)} style={{ cursor: 'pointer', background: c.campaign === campaign ? '#eef6fb' : undefined }}>
-                      <td style={{ fontWeight: 700 }}>{c.campaign}</td>
+                      <td style={{ fontWeight: 700 }}>{c.campaign}{c.pending && <span style={{ display: 'block', fontWeight: 600, fontSize: 12, color: '#7d4a00' }}>Ready to send, not sent yet</span>}</td>
                       <td>{c.people}</td>
                       <td>{c.sent}</td>
                       <td>{c.opened}</td>
                       <td>{c.sent ? `${Math.round((c.opened / c.sent) * 100)}%` : '–'}</td>
                       <td>{c.clicked}</td>
                       <td>{c.sent ? `${Math.round((c.clicked / c.sent) * 100)}%` : '–'}</td>
-                      <td style={{ fontSize: 12 }}>{stamp(c.last_sent)}</td>
+                      <td style={{ fontSize: 12 }}>{c.pending ? 'Not sent yet' : stamp(c.last_sent)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -303,8 +310,27 @@ export default function CertFollowupPage({ onShowToast }: { onShowToast?: (msg: 
             </div>
             <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: 12 }}>
               <label style={{ fontSize: 13, fontWeight: 700 }} htmlFor="cf-campaign">Campaign</label>
-              <input id="cf-campaign" className="form-input" style={{ maxWidth: 320 }} list="cf-campaign-list" value={campaignText} onChange={(e) => pickCampaign(e.target.value)} aria-describedby="cf-campaign-help" />
-              <datalist id="cf-campaign-list">{campaigns.map((c) => <option key={c.campaign} value={c.campaign} />)}</datalist>
+              {/* A menu, not a typed box (Sean, 2026-11-06): campaigns that are set
+                  up and waiting show first as Ready to send; picking one loads its
+                  list so the Send button below is ready. New campaign opens a box
+                  for a new name. */}
+              <select id="cf-campaign" className="form-input" style={{ maxWidth: 420 }} aria-describedby="cf-campaign-help"
+                value={newCampaign ? '__new' : (campaign ?? '')}
+                onChange={(e) => { if (e.target.value === '__new') { setNewCampaign(true); return } setNewCampaign(false); pickCampaign(e.target.value) }}>
+                {campaigns.some((c) => c.pending) && (
+                  <optgroup label="Ready to send">
+                    {campaigns.filter((c) => c.pending).map((c) => <option key={c.campaign} value={c.campaign}>{campaignLabel(c.campaign) ?? c.campaign} (not sent yet)</option>)}
+                  </optgroup>
+                )}
+                <optgroup label="Already sent">
+                  {campaigns.filter((c) => !c.pending).map((c) => <option key={c.campaign} value={c.campaign}>{campaignLabel(c.campaign) ?? c.campaign}</option>)}
+                  {campaign && !campaigns.some((c) => c.campaign === campaign) && <option value={campaign}>{campaign} (new, nothing sent)</option>}
+                </optgroup>
+                <option value="__new">New campaign…</option>
+              </select>
+              {newCampaign && (
+                <input className="form-input" style={{ maxWidth: 320 }} autoFocus placeholder="new-campaign-name" aria-label="New campaign name" value={campaignText} onChange={(e) => pickCampaign(e.target.value)} />
+              )}
               <span id="cf-campaign-help" style={{ fontSize: 12, color: '#6b7280' }}>Sends and results apply to this campaign.</span>
             </div>
               <div style={{ borderTop: '1px solid #d6e6f0', marginTop: 16, paddingTop: 14 }}>

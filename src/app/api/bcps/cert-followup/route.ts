@@ -8,7 +8,7 @@ import {
   followupEmail, followupGroup, followupSubject, FOLLOWUP_FROM_NAME, FOLLOWUP_REPLY_TO, nudgeEmail, NUDGE_SUBJECT,
   updateEmail, UPDATE_SUBJECT, type FollowupGroup,
 } from '@/lib/bcps-cert-followup-email'
-import { isAllWcmCampaign } from '@/lib/bcps-cert-followup-groups'
+import { isAllWcmCampaign, READY_CAMPAIGNS } from '@/lib/bcps-cert-followup-groups'
 
 // Certification follow-up (Sean, 2026-10-29): every Department WCM on the
 // roster who has not finished the certification, live, with their progress,
@@ -59,6 +59,7 @@ interface Person {
 
 interface CampaignSummary {
   campaign: string
+  pending?: boolean
   sent: number
   people: number
   opened: number
@@ -67,7 +68,8 @@ interface CampaignSummary {
   last_sent: string
 }
 
-// Totals for every campaign that has sent anything, newest first.
+// Totals for every campaign that has sent anything, newest first, after the
+// campaigns that are set up and waiting for their first send.
 async function campaignSummaries(): Promise<CampaignSummary[]> {
   const { data } = await svc.from('bcps_email_tracking').select('campaign, email, sent_at, opened_at, clicked_at').limit(50000)
   const by = new Map<string, CampaignSummary & { emails: Set<string> }>()
@@ -82,9 +84,13 @@ async function campaignSummaries(): Promise<CampaignSummary[]> {
     if ((t.sent_at as string) > cur.last_sent) cur.last_sent = t.sent_at as string
     by.set(c, cur)
   }
-  return Array.from(by.values())
+  const sent = Array.from(by.values())
     .map(({ emails, ...rest }) => ({ ...rest, people: emails.size }))
     .sort((a, b) => b.last_sent.localeCompare(a.last_sent))
+  // Campaigns set up but not sent yet come first, marked pending (Sean, 2026-11-06).
+  const pending = READY_CAMPAIGNS.filter((r) => !by.has(r.id))
+    .map((r) => ({ campaign: r.id, pending: true, sent: 0, people: 0, opened: 0, clicked: 0, first_sent: '', last_sent: '' }))
+  return [...pending, ...sent]
 }
 
 async function listPeople(campaign: string): Promise<Person[]> {

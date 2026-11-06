@@ -19,8 +19,15 @@ export function followupGroup(pct: number, hasAccount: boolean, certified = fals
   return 'not-started'
 }
 
-// Campaigns that send one message to every Department WCM on the roster,
-// certified or not, instead of a version per group (Sean, 2026-11-05: the
-// certification wrap-up and LAB note, sent Friday, Nov 6 at 9 AM).
-export const ALL_WCM_CAMPAIGNS = ['cert-update-2026-11-06']
+// Campaigns set up ahead of a send (Sean, 2026-11-06): each shows in the
+// Campaign menu as Ready to send before anything has gone out, with a plain
+// label, so picking it loads the list and the Send button is ready.
+// allWcm: one message to every Department WCM on the roster, certified or
+// not, instead of a version per group (the certification wrap-up and LAB
+// note, Friday, Nov 6).
+export const READY_CAMPAIGNS: { id: string; label: string; allWcm: boolean }[] = [
+  { id: 'cert-update-2026-11-06', label: 'Certification wrap-up and LAB note (Nov 6, every WCM)', allWcm: true },
+]
+export const ALL_WCM_CAMPAIGNS = READY_CAMPAIGNS.filter((c) => c.allWcm).map((c) => c.id)
 export const isAllWcmCampaign = (c: string | null | undefined) => !!c && ALL_WCM_CAMPAIGNS.includes(c)
+export const campaignLabel = (c: string) => READY_CAMPAIGNS.find((x) => x.id === c)?.label ?? null
