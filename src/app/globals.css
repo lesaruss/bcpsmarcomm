@@ -2846,3 +2846,40 @@ ul.guide-links.guide-quick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
    row height and the board fills whatever is left of the right tile. */
 .cert-fill { flex: 1; position: relative; min-height: 290px; }
 .cert-fill > .lb-list { position: absolute; inset: 0; max-height: none; overflow-y: auto; }
+
+/* Web Team Meetings (Sean, 2026-11-06): agendas that become notes, in the District Web Team Guide. */
+.tm-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 14px; }
+.tm-pick { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: #3f4b56; }
+.tm-pick select { font: inherit; font-size: 14px; font-weight: 400; padding: 7px 10px; border: 1px solid #c9d3dd; border-radius: 8px; background: #fff; max-width: 100%; }
+.tm-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+.tm-head .guide-h2 { margin: 2px 0 4px; }
+.tm-h4 { font-size: 14px; margin: 16px 0 6px; color: #1d2a35; }
+.tm-agenda { margin: 0; padding-left: 22px; display: grid; gap: 14px; }
+.tm-agenda > li { padding-left: 4px; }
+.tm-agenda p { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: #2f3b45; }
+.tm-item-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.tm-item-head b { font-size: 15px; color: #1d2a35; }
+.tm-item-head span { font-size: 12px; color: #5b6772; }
+.tm-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tm-links a { font-size: 13px; font-weight: 700; color: #0e4e73; background: #eaf3f9; border: 1px solid #cfe2ef; border-radius: 999px; padding: 4px 10px; text-decoration: none; }
+.tm-links a:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+.tm-outcome { background: #f3f8f4; border-left: 3px solid #2e7d4f; padding: 6px 10px; border-radius: 4px; }
+.tm-skipped .tm-outcome { background: #f6f6f6; border-left-color: #9aa5ae; color: #5b6772; }
+.tm-actions-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.tm-actions-list li { display: grid; grid-template-columns: minmax(80px, 140px) 1fr; gap: 10px; font-size: 14px; padding: 6px 0; border-bottom: 1px solid #e6ebef; }
+.tm-video, .tm-video-wrap { width: 100%; max-width: 860px; border-radius: 8px; background: #000; }
+.tm-video-wrap { position: relative; aspect-ratio: 16 / 9; overflow: hidden; }
+.tm-video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.tm-file { display: inline-block; font-size: 13px; font-weight: 700; color: #0e4e73; border: 1px dashed #9cbfd6; border-radius: 8px; padding: 8px 12px; cursor: pointer; margin: 4px 0 10px; }
+.tm-file input { display: block; margin-top: 6px; font-weight: 400; }
+.tm-transcript, .tm-edit textarea, .tm-edit input { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid #c9d3dd; border-radius: 8px; background: #fff; }
+.tm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 12px; }
+.tm-error { color: #a4262c; font-size: 14px; font-weight: 600; }
+.tm-pre { white-space: pre-wrap; font-size: 13px; line-height: 1.5; max-height: 420px; overflow: auto; background: #f7f9fa; border: 1px solid #e6ebef; border-radius: 8px; padding: 12px; }
+.tm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 14px; }
+.tm-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: #3f4b56; }
+.tm-grid .tm-wide { grid-column: 1 / -1; }
+.tm-edit-items { padding-left: 20px; display: grid; gap: 16px; margin: 0 0 14px; }
+.tm-edit-items > li { border: 1px solid #e6ebef; border-radius: 10px; padding: 12px; }
+.tm-row-tools { display: flex; gap: 14px; margin-top: 8px; }
+@media (max-width: 600px) { .tm-actions-list li { grid-template-columns: 1fr; gap: 2px; } }
