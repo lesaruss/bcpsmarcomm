@@ -22,7 +22,7 @@ const MAX_TRANSCRIPT = 600_000
 const svc = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
 interface Link { label: string; url: string }
-interface AgendaItem { title: string; owner: string; minutes: number | null; detail: string; links: Link[] }
+interface AgendaItem { title: string; owner: string; minutes: number | null; summary: string; detail: string; goal: string; done: string[]; left: string[]; points: string[]; links: Link[] }
 
 const str = (v: unknown, max = 2000) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 const safeUrl = (v: unknown) => {
@@ -41,7 +41,12 @@ function cleanAgenda(v: unknown): AgendaItem[] {
       return { label: str(L.label, 120), url: safeUrl(L.url) }
     }).filter((l) => l.url) : []
     const m = Number(o.minutes)
-    return { title: str(o.title, 300), owner: str(o.owner, 200), minutes: Number.isFinite(m) && m > 0 ? Math.round(m) : null, detail: str(o.detail, 2000), links }
+    const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => str(x, 600)).filter(Boolean).slice(0, 20) : [])
+    return {
+      title: str(o.title, 300), owner: str(o.owner, 200), minutes: Number.isFinite(m) && m > 0 ? Math.round(m) : null,
+      summary: str(o.summary, 600), detail: str(o.detail, 4000), goal: str(o.goal, 600),
+      done: list(o.done), left: list(o.left), points: list(o.points), links,
+    }
   }).filter((i) => i.title)
 }
 
@@ -137,7 +142,7 @@ export async function POST(req: NextRequest) {
     const prompt = `Meeting: ${mt.title}, ${mt.meeting_date}. Attendees: ${(mt.attendees ?? []).join(', ') || 'Sean A. Russell, Farrah Wilson, Felicia Hicks'}.
 
 Agenda:
-${agenda.map((a, i) => `${i}. ${a.title}${a.owner ? ` (${a.owner})` : ''}${a.detail ? `: ${a.detail}` : ''}`).join('\n') || '(no agenda)'}
+${agenda.map((a, i) => `${i}. ${a.title}${a.owner ? ` (${a.owner})` : ''}${a.summary || a.detail ? `: ${a.summary || a.detail}` : ''}`).join('\n') || '(no agenda)'}
 
 Transcript:
 ${transcript}`

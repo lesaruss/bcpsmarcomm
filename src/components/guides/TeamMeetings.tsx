@@ -19,7 +19,12 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 interface Link { label: string; url: string }
-interface AgendaItem { title: string; owner: string; minutes: number | null; detail: string; links: Link[] }
+// An item is a short summary on the agenda, with a Details page behind it
+// (Sean, 2026-11-06): the goal, what has been done, what is left and the
+// points to raise, laid out like an article, with a way back to the agenda.
+interface AgendaItem { title: string; owner: string; minutes: number | null; summary?: string; detail: string; goal?: string; done?: string[]; left?: string[]; points?: string[]; links: Link[] }
+const hasDetails = (a: AgendaItem) => !!(a.goal || a.done?.length || a.left?.length || a.points?.length || (a.summary && a.detail))
+const lines = (t: string) => t.split('\n').map((x) => x.trim()).filter(Boolean)
 interface Notes {
   summary: string
   items: { agenda_index: number; outcome: string; discussed: boolean }[]
@@ -127,7 +132,12 @@ function Editor({ start, onSaved, onCancel }: { start: Meeting; onSaved: (m: Mee
               <label className="tm-wide">Item<input value={a.title} onChange={(e) => setItem(i, { title: e.target.value })} /></label>
               <label>Who<input value={a.owner} onChange={(e) => setItem(i, { owner: e.target.value })} /></label>
               <label>Minutes<input type="number" min={0} value={a.minutes ?? ''} onChange={(e) => setItem(i, { minutes: e.target.value ? Number(e.target.value) : null })} /></label>
-              <label className="tm-wide">What to cover<textarea rows={2} value={a.detail} onChange={(e) => setItem(i, { detail: e.target.value })} /></label>
+              <label className="tm-wide">Summary (shown on the agenda)<textarea rows={2} value={a.summary ?? ''} onChange={(e) => setItem(i, { summary: e.target.value })} /></label>
+              <label className="tm-wide">Goal<textarea rows={2} value={a.goal ?? ''} onChange={(e) => setItem(i, { goal: e.target.value })} /></label>
+              <label className="tm-wide">Done so far, one per line<textarea rows={3} value={(a.done ?? []).join('\n')} onChange={(e) => setItem(i, { done: lines(e.target.value) })} /></label>
+              <label className="tm-wide">Still to do, one per line<textarea rows={3} value={(a.left ?? []).join('\n')} onChange={(e) => setItem(i, { left: lines(e.target.value) })} /></label>
+              <label className="tm-wide">To raise in the meeting, one per line<textarea rows={2} value={(a.points ?? []).join('\n')} onChange={(e) => setItem(i, { points: lines(e.target.value) })} /></label>
+              <label className="tm-wide">Background<textarea rows={2} value={a.detail} onChange={(e) => setItem(i, { detail: e.target.value })} /></label>
               <label className="tm-wide">Links, one per line (Label | https://...)<textarea rows={2} value={links[i] ?? ''} onChange={(e) => setLinks((l) => l.map((x, j) => (j === i ? e.target.value : x)))} /></label>
             </div>
             <div className="tm-row-tools">
@@ -138,7 +148,7 @@ function Editor({ start, onSaved, onCancel }: { start: Meeting; onSaved: (m: Mee
           </li>
         ))}
       </ol>
-      <button type="button" className="wcm-hub2-card-btn" onClick={() => { set({ agenda: [...m.agenda, { title: '', owner: '', minutes: 5, detail: '', links: [] }] }); setLinks((l) => [...l, '']) }}>Add an item</button>
+      <button type="button" className="wcm-hub2-card-btn" onClick={() => { set({ agenda: [...m.agenda, { title: '', owner: '', minutes: 5, summary: '', detail: '', goal: '', done: [], left: [], points: [], links: [] }] }); setLinks((l) => [...l, '']) }}>Add an item</button>
       {error && <p className="tm-error" role="alert">{error}</p>}
       <div className="tm-actions">
         <button type="button" className="home-btn" onClick={save} disabled={busy}>{busy ? 'Saving...' : 'Save'}</button>
@@ -202,6 +212,8 @@ export default function TeamMeetings() {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [sel, setSel] = useState<string>('')
   const [editing, setEditing] = useState<Meeting | null>(null)
+  const [open, setOpen] = useState<number | null>(null)
+  const openItem = (i: number | null) => { setOpen(i); window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
   useEffect(() => {
     let live = true
@@ -242,12 +254,44 @@ export default function TeamMeetings() {
   const minutes = meeting ? meeting.agenda.reduce((s, a) => s + (a.minutes ?? 0), 0) : 0
   const video = meeting?.video_url ? playable(meeting.video_url) : null
 
+  const item = meeting && open !== null ? meeting.agenda[open] : null
+  if (meeting && item && open !== null) {
+    const out = notes?.items.find((x) => x.agenda_index === open)
+    const prev = open > 0 ? open - 1 : null
+    const next = open < meeting.agenda.length - 1 ? open + 1 : null
+    return (
+      <article className="home-dept guide-sec tm-article">
+        <nav className="tm-crumbs" aria-label="Breadcrumb">
+          <button type="button" className="home-link-btn" onClick={() => openItem(null)}>{notes ? 'Meeting notes' : 'Agenda'}</button>
+          <span aria-hidden="true">›</span>
+          <span>Item {open + 1}</span>
+        </nav>
+        <div className="guide-date-label">{fmtGuideDate(meeting.meeting_date, { weekday: 'long', month: 'short', day: 'numeric' })} · {meeting.title}</div>
+        <h2 className="guide-h2 tm-article-title">{item.title}</h2>
+        <p className="tm-article-meta">{[item.owner, item.minutes ? `${item.minutes} minutes` : ''].filter(Boolean).join(' · ')}</p>
+        {(item.summary || item.detail) && <p className="tm-lede">{item.summary || item.detail}</p>}
+        {out && <div className="tm-outcome"><b>{out.discussed ? 'What happened in the meeting: ' : ''}</b>{out.outcome}</div>}
+        {item.goal && <section className="tm-block"><h3>Goal</h3><p>{item.goal}</p></section>}
+        {!!item.done?.length && <section className="tm-block tm-done"><h3>Done so far</h3><ul>{item.done.map((d, j) => <li key={j}>{d}</li>)}</ul></section>}
+        {!!item.left?.length && <section className="tm-block tm-left"><h3>Still to do</h3><ul>{item.left.map((d, j) => <li key={j}>{d}</li>)}</ul></section>}
+        {!!item.points?.length && <section className="tm-block tm-points"><h3>To raise in the meeting</h3><ul>{item.points.map((d, j) => <li key={j}>{d}</li>)}</ul></section>}
+        {item.summary && item.detail && <section className="tm-block"><h3>Background</h3><p>{item.detail}</p></section>}
+        {item.links.length > 0 && <section className="tm-block"><h3>Links</h3><div className="tm-links">{item.links.map((l, j) => <a key={j} href={l.url} target="_blank" rel="noopener noreferrer">{l.label}</a>)}</div></section>}
+        <div className="tm-article-nav">
+          <button type="button" className="wcm-hub2-card-btn" onClick={() => openItem(null)}>&larr; Back to the agenda</button>
+          {next !== null && <button type="button" className="home-btn" onClick={() => openItem(next)}>Next: {meeting.agenda[next].title} &rarr;</button>}
+          {next === null && prev !== null && <span />}
+        </div>
+      </article>
+    )
+  }
+
   return (
     <>
       <div className="tm-bar">
         {meetings.length > 0 && (
           <label className="tm-pick">Meeting
-            <select value={sel} onChange={(e) => setSel(e.target.value)}>
+            <select value={sel} onChange={(e) => { setSel(e.target.value); setOpen(null) }}>
               {meetings.map((m) => <option key={m.id} value={m.id}>{fmtGuideDate(m.meeting_date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}{m.notes ? ' · notes' : ' · agenda'}</option>)}
             </select>
           </label>
@@ -313,12 +357,14 @@ export default function TeamMeetings() {
                   return (
                     <li key={i} className={out && !out.discussed ? 'tm-skipped' : ''}>
                       <div className="tm-item-head"><b>{a.title}</b><span>{[a.owner, a.minutes ? `${a.minutes} min` : ''].filter(Boolean).join(' · ')}</span></div>
-                      {a.detail && <p>{a.detail}</p>}
-                      {a.links.length > 0 && (
-                        <div className="tm-links">
-                          {a.links.map((l, j) => <a key={j} href={l.url} target="_blank" rel="noopener noreferrer">{l.label}</a>)}
-                        </div>
-                      )}
+                      {(a.summary || a.detail) && <p>{a.summary || a.detail}</p>}
+                      {hasDetails(a)
+                        ? <button type="button" className="tm-details-btn" onClick={() => openItem(i)}>Details &rarr;</button>
+                        : a.links.length > 0 && (
+                          <div className="tm-links">
+                            {a.links.map((l, j) => <a key={j} href={l.url} target="_blank" rel="noopener noreferrer">{l.label}</a>)}
+                          </div>
+                        )}
                       {out && <p className="tm-outcome"><b>{out.discussed ? 'What happened: ' : ''}</b>{out.outcome}</p>}
                     </li>
                   )
