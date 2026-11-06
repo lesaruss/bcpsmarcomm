@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { deptAccessFor, identifyCaller } from '@/lib/bcps-audit-auth'
+import { requireBcpsPageAccess } from '@/lib/bcps-auth'
 
 // Audit question bank (Sean, 2026-10-08). A WCM stuck on an audit or ADA item
 // asks from the item itself; the District Web Team answers; the answer then
 // shows under that item for every WCM.
 //   GET  ?check_id=        answered questions on that item, plus the
 //                          caller's own open ones
-//   GET  ?all=1            every question, for the team (admins)
+//   GET  ?all=1            every question, for the team (admins and the rule-review grant)
 //   POST { department_id | school_id, result_id, page_url, check_id,
 //          check_title, question }            ask
-//   PATCH { id, answer?, status?, shared? }   answer or close (admins)
+//   PATCH { id, answer?, status?, shared? }   answer or close (same people)
 export const dynamic = 'force-dynamic'
 
 const supabase = createClient(process.env.LESARUSS_SUPABASE_URL!, process.env.LESARUSS_SUPABASE_SERVICE_KEY!)
+// Who answers questions (Sean, 2026-11-05): admins by role, and the District
+// Web Team through the same 'audit-rules-review' page grant that opens the
+// rule review, so the queue lives in the Run Audit tab of their hub.
+async function canAnswer(req: NextRequest, admin: boolean) {
+  if (admin) return true
+  return (await requireBcpsPageAccess(req, 'audit-rules-review')).ok
+}
+
 const COLS = 'id, created_at, asked_by, department_id, school_id, result_id, page_url, check_id, check_title, question, status, answer, answered_by, answered_at, shared'
 
 export async function GET(req: NextRequest) {
@@ -21,7 +30,7 @@ export async function GET(req: NextRequest) {
   if (!caller.ok) return NextResponse.json({ error: 'Not signed in' }, { status: caller.status })
   const q = req.nextUrl.searchParams
   if (q.get('all')) {
-    if (!caller.admin) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+    if (!(await canAnswer(req, caller.admin))) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
     const { data, error } = await supabase.from('bcps_audit_questions').select(`${COLS}, bcps_departments(name), bcps_schools(name)`).order('created_at', { ascending: false }).limit(500)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ questions: data ?? [] })
@@ -60,7 +69,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const caller = await identifyCaller(req, supabase)
   if (!caller.ok) return NextResponse.json({ error: 'Not signed in' }, { status: caller.status })
-  if (!caller.admin) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+  if (!(await canAnswer(req, caller.admin))) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
   const b = await req.json().catch(() => ({})) as { id?: string; answer?: string; status?: string; shared?: boolean }
   if (!b.id) return NextResponse.json({ error: 'id required' }, { status: 400 })
   const patch: Record<string, unknown> = {}

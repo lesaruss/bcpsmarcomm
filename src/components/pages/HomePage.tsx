@@ -1,5 +1,6 @@
 'use client'
 
+import AuditTeamTools from '@/components/bcps/AuditTeamTools'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
@@ -2545,6 +2546,9 @@ function AuditsPanel({ depts, onNavigate, ada }: { depts: DepartmentSummary[]; o
   return (
     <>
       <ScanShowcase />
+      {/* The team's audit tools (Sean, 2026-11-05): still-stuck questions,
+          rule review and Finalsite items, for admins and the District Web Team. */}
+      <AuditTeamTools />
       <p className="wcm-hub2-intro">Every department site&apos;s audit, from first scan to sign-off. Pick a group to see who is up next.</p>
       <div className="home-kpis">
         {counts.map((c) => (
