@@ -1,9 +1,18 @@
 // Google Tag Manager guide (Sean, 2026-11-05): one guided page that replaces
 // a written playbook. Each slide is a headline, one line on why, a picture of
 // the screen with the spot to click, and narration (public/audio/gtm-guide/
-// <id>.mp3, generated from `say` below; regenerate the file when `say`
-// changes). Slides split after "Which one are you?" into the department path
+// <id>.mp3). Slides split after "Which one are you?" into the department path
 // and the District Web Team path.
+//
+// Narration is Sean's voice (Sean, 2026-11-06: "use my voice"), the same
+// recipe as the Google Account Access guide: Higgsfield seed_audio, voice
+// element 7985695a-f508-49d6-b6e6-508d425b609b (Sean A. Russell), speech_rate
+// -5, prompt = `say` word for word; WAV converted to mono 44.1 kHz 128k mp3.
+// Every take is checked against `say` with a speech-to-text transcript before
+// it ships (seed_audio can add or drop words: the first `end` take added
+// "Today", trimmed off). When `say` changes, re-voice only that slide. Each
+// clip is a recording_queue row (batch gtm-guide) so a real recording can
+// replace it at the same path.
 
 export type Path = 'dept' | 'web'
 
