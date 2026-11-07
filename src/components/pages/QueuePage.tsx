@@ -79,6 +79,16 @@ interface Task {
 }
 
 /* ─── Add Task Form ───────────────────────────────────────────────────────── */
+// Render http(s) URLs in task details as clickable links (opens in a new tab).
+const URL_RE = /(https?:\/\/[^\s<>"')\]]+)/g
+function linkify(text: string): React.ReactNode[] {
+  return text.split(URL_RE).map((part, i) =>
+    i % 2 === 1
+      ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>{part}</a>
+      : part
+  )
+}
+
 function AddTaskCard({ onCreate }: {
   onCreate: (p: Partial<Task>) => Promise<void>
 }) {
@@ -353,8 +363,8 @@ function TaskCard({ task, onStatusChange, onEdit, onDelete }: {
       {expanded && (
         <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10 }} onClick={e => e.stopPropagation()}>
           {task.detail && (
-            <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-              {task.detail}
+            <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+              {linkify(task.detail)}
             </p>
           )}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
