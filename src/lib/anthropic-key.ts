@@ -12,13 +12,17 @@ export async function anthropicKey(): Promise<string | null> {
 }
 
 // One structured answer from Claude: the reply is JSON matching the schema.
-export async function askClaudeJson(model: string, schema: Record<string, unknown>, system: string, content: string): Promise<Record<string, unknown>> {
+// The cap was 4000 tokens, which cut the notes for an hour-long meeting off
+// mid-string ("Unterminated string in JSON", Huddle 16, 2026-11-06). The
+// reply is streamed, so a high cap costs nothing on short answers, and a
+// reply that still hits it now says so instead of failing to parse.
+export async function askClaudeJson(model: string, schema: Record<string, unknown>, system: string, content: string, maxTokens = 32000): Promise<Record<string, unknown>> {
   const key = await anthropicKey()
   if (!key) throw new Error('The Claude key is not set up for this site.')
   const client = new Anthropic({ apiKey: key })
   const msg = await client.beta.messages.stream({
     model,
-    max_tokens: 4000,
+    max_tokens: maxTokens,
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
     output_config: { format: { type: 'json_schema', schema } },
@@ -26,5 +30,6 @@ export async function askClaudeJson(model: string, schema: Record<string, unknow
     messages: [{ role: 'user', content }],
   }).finalMessage()
   if (msg.stop_reason === 'refusal') throw new Error('Claude declined this request.')
+  if (msg.stop_reason === 'max_tokens') throw new Error('The answer ran longer than the limit and was cut off. Try a shorter transcript, or split the meeting in two.')
   return JSON.parse(msg.content.map((b) => (b.type === 'text' ? b.text : '')).join(''))
 }
