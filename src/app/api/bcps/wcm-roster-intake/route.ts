@@ -282,7 +282,7 @@ export async function POST(req: NextRequest) {
       summary: isFlagged
         ? `[BCPS WCM Roster] FLAGGED - "${(department_name as string).trim()}": submitted by ${sessionEmail}, not verified as the director on file (${onFileDirectorName || 'none on file'}). Wants to ${actionLabel}.`
         : `[BCPS WCM Roster] "${(department_name as string).trim()}" wants to ${actionLabel} - awaiting review.`,
-      status: 'pending',
+      status: 'in_progress',
       context_link: 'https://bcpsmarcomm.com/bcps?page=wcm',
     })
 
