@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Open Sans: the browardschools.com theme font, so the embed reads as part of the Finalsite page it sits in (Sean, 2026-10-29). -->
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<title>District Software Inventory - Broward County Public Schools</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Same BCPS tokens as the Charter School Directory embed
+       (public/embeds/charter-school-directory.html): BCPS Blue as the primary
+       interactive color, Open Sans (the browardschools.com font), no internal
+       title/header, since the destination page supplies its own heading. */
+    --blue: #1672A7;
+    --blue-dark: #0E4E73;
+    --blue-faint: #EBF1F8;
+    --teal: #00838F;
+    --teal-dark: #006A74;
+    --teal-light: #E0F4F5;
+    --border: #D0D7E2;
+    --text: #1A1A2E;
+    --text-mid: #444;
+    --text-muted: #5F6672;
+    --white: #FFFFFF;
+    --bg: #F5F7FA;
+    --radius: 8px;
+    --font-head: "Open Sans", Arial, Helvetica, sans-serif;
+    --font-body: "Open Sans", Arial, Helvetica, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--white);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* CONTROLS */
+  .controls {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .search-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+  }
+  .search-wrap svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  input[type="search"] {
+    width: 100%;
+    padding: 8px 10px 8px 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--white);
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+  input[type="search"]:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(22,114,167,0.15);
+  }
+
+  /* SHOW FILTER (same chip treatment as the charter grade filters) */
+  .chip-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .chip-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 2px;
+  }
+  .chip-btn {
+    padding: 4px 10px;
+    min-height: 26px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--white);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .chip-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .chip-btn:focus-visible, .pg-btn:focus-visible, .clear-btn:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+  .chip-btn[aria-pressed="true"] {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: #fff;
+  }
+
+  /* UNIT INTRO STRIP (shown only while one unit is selected) */
+  .unit-intro {
+    padding: 12px 20px;
+    background: var(--blue-faint);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+  }
+  .unit-intro[hidden] { display: none; }
+  .unit-intro-name {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--blue-dark);
+  }
+  .unit-intro-summary {
+    flex: 1 1 280px;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--text-mid);
+  }
+
+  /* RESULTS BAR */
+  .results-bar {
+    padding: 8px 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .results-bar strong { color: var(--text); }
+  .clear-btn {
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--blue);
+    cursor: pointer;
+    padding: 2px 0;
+  }
+  .clear-btn:hover { color: var(--blue-dark); text-decoration: underline; }
+  .clear-btn[hidden] { display: none; }
+
+  /* GRID */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+    gap: 1px;
+    background: var(--border);
+  }
+
+  /* CARD */
+  .card {
+    background: var(--white);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    transition: background 0.1s;
+  }
+  .card:hover { background: var(--blue-faint); }
+
+  .card-name {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    line-height: 1.4;
+  }
+  .badge-unit {
+    background: var(--blue-faint);
+    color: var(--blue-dark);
+    border: 1px solid rgba(22,114,167,0.2);
+  }
+  .badge-aud {
+    background: var(--bg);
+    color: var(--text-mid);
+    border: 1px solid var(--border);
+  }
+  .chip-filters[hidden] { display: none; }
+  .badge-book {
+    background: var(--teal-light);
+    color: var(--teal-dark);
+    border: 1px solid rgba(0,131,143,0.2);
+  }
+
+  .card-desc {
+    font-size: 12.5px;
+    color: var(--text-mid);
+    line-height: 1.45;
+  }
+
+  .card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 2px;
+  }
+  .meta-row {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 0;
+  }
+  .meta-row svg { flex-shrink: 0; margin-top: 2px; }
+  .meta-row span, .meta-row a { line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
+  .meta-row a { color: var(--blue); text-decoration: none; }
+  /* Email and phone rows are tap targets: 24px tall so they meet WCAG 2.2
+     target size (2.5.8) even when stacked. */
+  .meta-row.meta-link { align-items: center; }
+  .meta-row.meta-link svg { margin-top: 0; }
+  .meta-row.meta-link a { display: inline-flex; align-items: center; min-height: 24px; }
+  .meta-row a:hover { color: var(--blue-dark); text-decoration: underline; }
+  .mail-link { gap: 6px; font-weight: 600; }
+  .mail-link svg { flex-shrink: 0; }
+  .contact-title { display: block; color: var(--text-muted); font-weight: 400; }
+
+  .book-note {
+    font-size: 12px;
+    color: var(--text-mid);
+    background: var(--bg);
+    border-left: 3px solid var(--teal);
+    padding: 6px 9px;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .card-footer {
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+  }
+  .card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--blue);
+    text-decoration: none;
+    transition: color 0.1s;
+  }
+  .card-link:hover { color: var(--blue-dark); text-decoration: underline; }
+  .book-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    background: var(--blue);
+    border: 1px solid var(--blue);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.12s;
+  }
+  .book-btn:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
+  .card-link:focus-visible, .book-btn:focus-visible, .meta-row a:focus-visible, .unit-intro a:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* EMPTY / ERROR */
+  .empty {
+    grid-column: 1 / -1;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    background: var(--white);
+  }
+  .empty svg { display: block; margin: 0 auto 10px; opacity: 0.35; }
+
+  /* PAGINATION */
+  .pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--white);
+  }
+  .pagination:empty { display: none; }
+  .pg-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--white);
+    color: var(--text-mid);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s;
+    line-height: 1;
+  }
+  .pg-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+  .pg-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .pg-ellipsis { color: var(--text-muted); font-size: 13px; padding: 0 4px; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  @media (max-width: 480px) {
+    .search-row { flex-direction: column; align-items: stretch; }
+    .controls, .results-bar, .unit-intro { padding-left: 16px; padding-right: 16px; }
+  }
+
+  /* SELECT FILTERS (Subject, Department) */
+  .select-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .select-wrap { display: flex; flex-direction: column; gap: 3px; flex: 1 1 200px; min-width: 0; }
+  .select-wrap label {
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .select-wrap select {
+    width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+    font-family: inherit; font-size: 13px; color: var(--text); background: var(--white);
+  }
+  .select-wrap select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(22,114,167,0.15); }
+  .card-vendor { font-size: 12px; color: var(--text-muted); margin-top: -3px; }
+  .badge-grade { background: var(--teal-light); color: var(--teal-dark); border: 1px solid rgba(0,131,143,0.2); }
+</style>
+</head>
+<body>
+
+<!-- No internal title/header: this module sits inside a page section that
+     already has its own heading, same as the other BCPS embeds. -->
+<div class="controls">
+  <div class="search-row">
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input type="search" id="searchInput" placeholder="Search by program, vendor, subject, or description..." aria-label="Search district software">
+    </div>
+  </div>
+  <div class="select-row">
+    <div class="select-wrap">
+      <label for="subjectSelect">Subject</label>
+      <select id="subjectSelect"><option value="">All subjects</option></select>
+    </div>
+    <div class="select-wrap">
+      <label for="deptSelect">Department</label>
+      <select id="deptSelect"><option value="">All departments</option></select>
+    </div>
+  </div>
+  <div class="chip-filters" id="levelChips" role="group" aria-label="Filter by grade level"></div>
+</div>
+
+<div class="results-bar">
+  <span role="status">Showing <strong id="resultCount">&hellip;</strong> of <span id="totalCount">&hellip;</span> programs</span>
+  <button type="button" class="clear-btn" id="clearFilters" hidden>Clear filters</button>
+</div>
+
+<div class="grid" id="itemGrid" aria-label="Software results"></div>
+<nav class="pagination" id="pagination" aria-label="Results pages"></nav>
+
+<script>
+let ITEMS = [];
+let LOAD_FAILED = false;
+
+let activeSubject = '';
+let activeDept = '';
+let activeLevel = '';
+let activeSearch = '';
+let currentPage = 1;
+const PAGE_SIZE = 12;
+
+const ICON_EXT = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function highlight(text, query) {
+  if (!query) return escapeHtml(text);
+  const re = new RegExp('(' + escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  return escapeHtml(text).replace(re, '<mark style="background:#FFF3CD;color:inherit;border-radius:2px;padding:0 1px">$1</mark>');
+}
+function safeUrl(u) { return /^https?:/i.test(u || '') ? u : ''; }
+
+// Grade levels a program covers, read from its grade band text ("K-5",
+// "6-12", "PreK-Age 22", "VPK", "Districtwide", "11", ...). A program shows
+// under every level its band touches.
+const LEVELS = [['prek', 'Pre-K'], ['elem', 'Elementary'], ['middle', 'Middle'], ['high', 'High'], ['adult', 'Adult & Post-Secondary']];
+const LEVEL_RANGES = { prek: [-1, -1], elem: [0, 5], middle: [6, 8], high: [9, 12] };
+function gradeNum(tok) {
+  tok = tok.trim().toLowerCase();
+  if (/^(pre-?k|pk|vpk|early head start|head start)/.test(tok)) return -1;
+  if (tok === 'k') return 0;
+  if (/^age\s*22/.test(tok)) return 13;
+  const n = parseInt(tok, 10);
+  return isNaN(n) ? null : n;
+}
+function levelsFor(band) {
+  const b = String(band || '').trim().toLowerCase();
+  if (!b) return [];
+  if (b === 'districtwide') return ['prek', 'elem', 'middle', 'high', 'adult'];
+  if (b.includes('post-secondary')) return ['adult'];
+  const m = b.match(/^(.+?)-(.+)$/);
+  const lo = gradeNum(m ? m[1] : b), hi = m ? gradeNum(m[2]) : lo;
+  if (lo === null || hi === null) return [];
+  const out = Object.entries(LEVEL_RANGES).filter(([, [a, z]]) => lo <= z && hi >= a).map(([k]) => k);
+  if (hi >= 13) out.push('adult');
+  return out;
+}
+
+function getFiltered() {
+  const q = activeSearch.toLowerCase().trim();
+  return ITEMS.filter(s => {
+    if (activeSubject && s.subject !== activeSubject) return false;
+    if (activeDept && s.department !== activeDept) return false;
+    if (activeLevel && !s._levels.includes(activeLevel)) return false;
+    return !q || [s.program_name, s.vendor, s.subject, s.department, s.description, s.intended_use, s.bid_id]
+      .some(v => (v || '').toLowerCase().includes(q));
+  });
+}
+
+function fillSelect(id, field, allLabel) {
+  const sel = document.getElementById(id);
+  const vals = [...new Set(ITEMS.map(s => s[field]).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  sel.innerHTML = `<option value="">${allLabel}</option>` + vals.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+}
+
+function renderLevelChips() {
+  const wrap = document.getElementById('levelChips');
+  const present = LEVELS.filter(([k]) => ITEMS.some(s => s._levels.includes(k)));
+  wrap.innerHTML = '<span class="chip-label" aria-hidden="true">Grade level:</span>' +
+    [['', 'All grades'], ...present].map(([k, label]) =>
+      `<button type="button" class="chip-btn" data-level="${k}" aria-pressed="${k === activeLevel}">${label}</button>`).join('');
+  wrap.querySelectorAll('[data-level]').forEach(btn => btn.addEventListener('click', () => {
+    setLevel(btn.dataset.level); currentPage = 1; render();
+  }));
+}
+function setLevel(v) {
+  activeLevel = v;
+  document.querySelectorAll('[data-level]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.level === v)));
+}
+
+function renderPagination(total) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pg = document.getElementById('pagination');
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+  const pages = [];
+  if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
+  else {
+    pages.push(1);
+    if (currentPage > 3) pages.push('...');
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+    if (currentPage < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+  pg.innerHTML = `
+    <button type="button" class="pg-btn" id="pg-prev" aria-label="Previous page" ${currentPage === 1 ? 'disabled' : ''}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    ${pages.map(p => p === '...'
+      ? `<span class="pg-ellipsis" aria-hidden="true">...</span>`
+      : `<button type="button" class="pg-btn${p === currentPage ? ' active' : ''}" data-page="${p}" aria-label="Page ${p}"${p === currentPage ? ' aria-current="page"' : ''}>${p}</button>`
+    ).join('')}
+    <button type="button" class="pg-btn" id="pg-next" aria-label="Next page" ${currentPage === totalPages ? 'disabled' : ''}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>`;
+  pg.querySelector('#pg-prev')?.addEventListener('click', () => goToPage(currentPage - 1));
+  pg.querySelector('#pg-next')?.addEventListener('click', () => goToPage(currentPage + 1));
+  pg.querySelectorAll('[data-page]').forEach(btn => btn.addEventListener('click', () => goToPage(Number(btn.dataset.page))));
+}
+
+// Auto height for iframe embeds: same bcps-widget-resize contract as the
+// other embeds, so the Widgets hub embed code sizes the iframe.
+let lastPostedHeight = 0;
+function postHeight() {
+  const height = Math.ceil(document.body.getBoundingClientRect().height);
+  if (Math.abs(height - lastPostedHeight) < 2) return;
+  lastPostedHeight = height;
+  window.parent.postMessage({ type: 'bcps-widget-resize', slug: 'software-inventory', height }, '*');
+}
+function goToPage(page) {
+  currentPage = page;
+  render();
+  document.getElementById('itemGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cardHtml(s, q) {
+  const terms = safeUrl(s.vendor_terms_url);
+  const agree = safeUrl(s.board_agreement_url);
+  const meta = [];
+  if (s.department) meta.push(`<div class="meta-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg><span>${highlight(s.department, q)}</span></div>`);
+  if (s.intended_use) meta.push(`<div class="meta-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><span>Intended use: ${highlight(s.intended_use, q)}</span></div>`);
+  if (s.bid_id) meta.push(`<div class="meta-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Bid/Agreement: ${highlight(s.bid_id, q)}</span></div>`);
+  const footer = [];
+  if (agree) footer.push(`<a href="${escapeHtml(agree)}" class="card-link" target="_blank" rel="noopener noreferrer" aria-label="School Board agreement for ${escapeHtml(s.program_name)} (opens in a new tab)">School Board agreement ${ICON_EXT}</a>`);
+  if (terms) footer.push(`<a href="${escapeHtml(terms)}" class="card-link" target="_blank" rel="noopener noreferrer" aria-label="Vendor terms and conditions for ${escapeHtml(s.program_name)} (opens in a new tab)">Vendor terms ${ICON_EXT}</a>`);
+  const showVendor = s.vendor && s.vendor !== s.program_name;
+  return `<article class="card">
+    <div class="card-name">${highlight(s.program_name, q)}</div>
+    ${showVendor ? `<div class="card-vendor">${highlight(s.vendor, q)}</div>` : ''}
+    <div class="card-badges">
+      ${s.subject ? `<span class="badge badge-unit">${highlight(s.subject, q)}</span>` : ''}
+      ${s.grade_band ? `<span class="badge badge-grade">${/^(k|pk|pre|[0-9])/i.test(s.grade_band) ? "Grades " : ""}${escapeHtml(s.grade_band)}</span>` : ''}
+    </div>
+    ${s.description ? `<p class="card-desc">${highlight(s.description, q)}</p>` : ''}
+    ${meta.length ? `<div class="card-meta">${meta.join('')}</div>` : ''}
+    ${footer.length ? `<div class="card-footer">${footer.join('')}</div>` : ''}
+  </article>`;
+}
+
+function render() {
+  const q = activeSearch.toLowerCase().trim();
+  const filtered = getFiltered();
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = 1;
+  document.getElementById('resultCount').textContent = filtered.length;
+  document.getElementById('clearFilters').hidden = !(activeSubject || activeDept || activeLevel || activeSearch.trim());
+  const grid = document.getElementById('itemGrid');
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      ${LOAD_FAILED ? 'The software list could not be loaded right now. Please refresh the page to try again.' : 'No programs match your filters. Try adjusting your search.'}
+    </div>`;
+    renderPagination(0); postHeight(); return;
+  }
+  const start = (currentPage - 1) * PAGE_SIZE;
+  grid.innerHTML = filtered.slice(start, start + PAGE_SIZE).map(s => cardHtml(s, q)).join('');
+  renderPagination(filtered.length);
+  postHeight();
+}
+
+document.getElementById('searchInput').addEventListener('input', e => { activeSearch = e.target.value; currentPage = 1; render(); });
+document.getElementById('subjectSelect').addEventListener('change', e => { activeSubject = e.target.value; currentPage = 1; render(); });
+document.getElementById('deptSelect').addEventListener('change', e => { activeDept = e.target.value; currentPage = 1; render(); });
+document.getElementById('clearFilters').addEventListener('click', () => {
+  activeSearch = ''; activeSubject = ''; activeDept = ''; currentPage = 1;
+  document.getElementById('searchInput').value = '';
+  document.getElementById('subjectSelect').value = '';
+  document.getElementById('deptSelect').value = '';
+  setLevel('');
+  render();
+});
+
+// Live data: public anon read of bcps_software_inventory (RLS select policy
+// plus column-level grants that leave out the internal CTC tracking fields),
+// so edits made in the Widgets hub editor show up here with no deploy.
+const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
+const COLS = 'id,program_name,vendor,subject,department,grade_band,intended_use,description,bid_id,vendor_terms_label,vendor_terms_url,board_agreement_url,sort_order';
+
+async function init() {
+  // Pre-filter from the URL (?subject=STEM, ?department=CTACE, ?level=high)
+  // so the same embed can sit on a department's own page.
+  const params = new URLSearchParams(location.search);
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/bcps_software_inventory?select=' + COLS + '&order=program_name.asc', {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+    if (!Array.isArray(rows)) throw new Error('Unexpected response');
+    ITEMS = rows.map(r => ({ ...r, _levels: levelsFor(r.grade_band) }));
+  } catch (e) { ITEMS = []; LOAD_FAILED = true; }
+  document.getElementById('totalCount').textContent = ITEMS.length;
+  fillSelect('subjectSelect', 'subject', 'All subjects');
+  fillSelect('deptSelect', 'department', 'All departments');
+  const sub = params.get('subject'), dep = params.get('department'), lvl = params.get('level');
+  if (sub && ITEMS.some(s => s.subject === sub)) { activeSubject = sub; document.getElementById('subjectSelect').value = sub; }
+  if (dep && ITEMS.some(s => s.department === dep)) { activeDept = dep; document.getElementById('deptSelect').value = dep; }
+  if (lvl && LEVELS.some(([k]) => k === lvl)) activeLevel = lvl;
+  renderLevelChips();
+  render();
+}
+
+window.addEventListener('load', postHeight);
+window.addEventListener('resize', postHeight);
+if (window.ResizeObserver) new ResizeObserver(postHeight).observe(document.body);
+else setInterval(postHeight, 500);
+
+init();
+</script>
+</body>
+</html>
