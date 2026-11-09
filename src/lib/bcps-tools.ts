@@ -37,6 +37,7 @@ export const TOOLS: Tool[] = [
   { label: 'Minibase', desc: 'Turn a spreadsheet into a searchable directory.', group: 'Notes & files', page: 'minibase', gate: 'minibase' },
   { label: 'Widgets', desc: 'Directories and tools built for departments.', group: 'Notes & files', page: 'widgets', gate: 'widgets' },
   { label: 'Newsroom', desc: 'The MarComm console.', group: 'Work', page: 'marcomm', gate: 'marcomm', superadmin: true },
+  { label: 'The Depot', desc: 'Videos and media built tile by tile, in Sean\'s voice.', group: 'Work', page: 'depot', gate: 'depot', superadmin: true },
   { label: 'Graphics & Printing', desc: 'Graphics and print requests.', group: 'Work', page: 'graphics', gate: 'graphics', superadmin: true },
 
   { label: 'Departments', desc: 'Every department site and its status.', group: 'Websites', page: 'departments', gate: 'departments' },

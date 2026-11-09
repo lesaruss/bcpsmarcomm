@@ -18,6 +18,7 @@ import MinutesPage from '@/components/pages/MinutesPage'
 import QueuePage from '@/components/pages/QueuePage'
 import BCPSGovernancePage from '@/components/pages/BCPSGovernancePage'
 import TagRegisterPage from '@/components/pages/TagRegisterPage'
+import DepotPage from '@/components/pages/DepotPage'
 import AssignmentsPage from '@/components/pages/AssignmentsPage'
 import CertificationPage from '@/components/pages/CertificationPage'
 import EmployeeRecordsPage from '@/components/pages/EmployeeRecordsPage'
@@ -131,6 +132,7 @@ function HomeInner() {
       {nav.page === 'queue'                  && <QueuePage onNavigate={navigate} onShowToast={showToast} viewAsUserId={viewAs?.id} />}
       {nav.page === 'bcps-google-governance' && <BCPSGovernancePage />}
       {nav.page === 'tag-register'           && effectiveRole === 'superadmin' && <TagRegisterPage />}
+      {nav.page === 'depot'                  && effectiveRole === 'superadmin' && <DepotPage />}
       {nav.page === 'bcps-assignments'       && <AssignmentsPage />}
       {nav.page === 'employee-records'         && <EmployeeRecordsPage />}
       {nav.page === 'reports'                  && effectiveRole === 'superadmin' && <ReportsPage />}

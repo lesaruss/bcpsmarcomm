@@ -278,6 +278,12 @@ export const Icons: Record<string, React.ReactNode> = {
       <line x1="12" y1="13" x2="17" y2="13"/><line x1="12" y1="17" x2="17" y2="17"/>
     </svg>
   ),
+  'depot': (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="15" height="14" rx="2"/>
+      <polygon points="22 8 17 12 22 16 22 8"/>
+    </svg>
+  ),
   'pulse-approvals': (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
@@ -398,6 +404,8 @@ const SECTIONS: NavSection[] = [
     { id: 'superadmin', label: 'Platform Management' },
     { id: 'permissions', label: 'Permissions' },
     { id: 'pulse-approvals', label: 'Note Approvals' },
+    // The Depot (Sean, 2026-11-09): videos and media built tile by tile.
+    { id: 'depot', label: 'The Depot' },
     { id: 'registrations', label: 'Registrations' },
   ] },
   { label: 'Other', items: [
