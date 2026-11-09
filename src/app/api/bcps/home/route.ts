@@ -15,6 +15,9 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const BRAND = 'bcps'
+// Departments that are part of the District Web Team; their director gets the
+// team's dashboard (see leadsTeamDepartment below).
+const TEAM_DEPARTMENT_SLUGS = ['application-services']
 
 const noStoreFetch: typeof fetch = (input, init) => fetch(input, { ...(init ?? {}), cache: 'no-store' })
 const svc = createClient(URL, SERVICE, { auth: { persistSession: false }, global: { fetch: noStoreFetch } })
@@ -146,7 +149,7 @@ export async function GET(req: NextRequest) {
   // Exact, case-insensitive email matches done here rather than with ilike,
   // where '_' in an address is a wildcard and could match another person.
   const [allDepts, allMembers] = await Promise.all([
-    fetchAll<{ id: string; director_email: string | null; executive_emails: string[] | null }>((a, b) => svc.from('bcps_departments').select('id, director_email, executive_emails').order('id').range(a, b)),
+    fetchAll<{ id: string; slug: string | null; director_email: string | null; executive_emails: string[] | null }>((a, b) => svc.from('bcps_departments').select('id, slug, director_email, executive_emails').order('id').range(a, b)),
     fetchAll<{ roster_id: string; wcm_email: string | null }>((a, b) => svc.from('bcps_wcm_roster_members').select('roster_id, wcm_email').order('id').range(a, b)),
   ])
   // A department's director, or an executive the department reports to
@@ -174,7 +177,14 @@ export async function GET(req: NextRequest) {
   // Department leaders get the Director experience even when they are also
   // in the District Web Team group (Sean, 2026-10-09: Farrah A. Wilson). Only
   // an admin or SuperAdmin role keeps the team view over it.
-  const isDwt = role === 'admin' || isSuperadmin || (groups.includes('District Web Team') && !isDirector)
+  // The exception is the director of a department that is itself part of the
+  // District Web Team (Sean, 2026-11-09: Charlene Collins, Director,
+  // Application Services). She follows her own team's work, so she gets the
+  // same Web Team dashboard as Application Services, with a director's
+  // checklist on Overview (team_director), instead of the Director dashboard.
+  const leadsTeamDepartment = allDepts.some((d) => TEAM_DEPARTMENT_SLUGS.includes(d.slug || '')
+    && (d.director_email || '').trim().toLowerCase() === email)
+  const isDwt = role === 'admin' || isSuperadmin || (groups.includes('District Web Team') && (!isDirector || leadsTeamDepartment))
   const teamKind: 'comms' | 'appsvc' | null = !isDwt ? null
     : (role === 'admin' || isSuperadmin || groups.includes('Office of Communications')) ? 'comms' : 'appsvc'
 
@@ -408,6 +418,7 @@ export async function GET(req: NextRequest) {
     experience,
     is_dwt: isDwt,
     is_director: isDirector,
+    team_director: isDwt && leadsTeamDepartment && !isSuperadmin && role !== 'admin',
     viewing_as: viewingAs,
     oversight: isDirector && oversight,
     leadership_view: isDirector && leadershipView,
