@@ -2925,3 +2925,6 @@ ul.guide-links.guide-quick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .home-start-text h3 { margin: 0; font-size: 18px; color: #0e4e73; }
 .home-start-text p { margin: 0; color: var(--text-secondary, #56656f); line-height: 1.55; }
 @media (max-width: 760px) { .home-start { grid-template-columns: 1fr; } }
+.home-start.home-start-novideo { grid-template-columns: 1fr; }
+.home-bullets { margin: 8px 0; padding-left: 20px; display: grid; gap: 6px; line-height: 1.55; }
+.home-muted { color: var(--text-muted, #56656f); font-size: 13.5px; }
