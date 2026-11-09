@@ -532,10 +532,13 @@ function BannerSiteFrame({ url, kind, alt, title, caption, frameRef, resizable =
   )
 }
 
-export default function BannerWidget() {
+// startTab (2026-11-09): a reviewer's view opens on the Review Queue (Charlene
+// Collins's Banners tab); the tab only shows once the API confirms the role.
+export default function BannerWidget({ startTab }: { startTab?: 'review' } = {}) {
   // ?tab=mine or ?tab=removal opens that tab directly (the school home's
   // "Your Submissions" tile, 2026-10-05). Internal tabs are not linkable.
   const [tab, setTab] = useState<Tab>(() => {
+    if (startTab) return startTab
     if (typeof window === 'undefined') return 'upload'
     const t = new URLSearchParams(window.location.search).get('tab')
     return t === 'mine' || t === 'removal' ? t : 'upload'

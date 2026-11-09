@@ -3234,8 +3234,8 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} depts={data.departments} />}
-      {tab === 'banners' && (director ? <BannerSubmissionsPage /> : <BannersPanel b={th.banners} pp={th.proud_points} onNavigate={onNavigate} />)}
-      {tab === 'proud-points' && <ProudPointsPage />}
+      {tab === 'banners' && (director ? <BannerSubmissionsPage review /> : <BannersPanel b={th.banners} pp={th.proud_points} onNavigate={onNavigate} />)}
+      {tab === 'proud-points' && <ProudPointsPage review={director} />}
       {tab === 'director-guide' && <DocFrame slug="director-department" title="Director Guide" onOpen={(s) => router.push(`/?page=dashboard&tab=documents&doc=${encodeURIComponent(s)}`, { scroll: false })} />}
       {tab === 'ada' && director && <DirectorAudit ada={th.school_ada ?? th.ada} deptAda={th.ada} />}
       {tab === 'ada' && !director && (kind === 'appsvc' && th.school_ada
