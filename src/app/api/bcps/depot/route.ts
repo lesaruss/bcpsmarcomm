@@ -34,7 +34,7 @@ const clean = (s: unknown, max = 4000) => String(s ?? '').trim().slice(0, max)
 
 async function log(summary: string, link = 'https://bcpsmarcomm.com/?page=depot') {
   await svc.from('stream_events').insert({
-    timestamp: new Date().toISOString(), owner: 'logan', station: 'BCPS-depot', task_id: null,
+    timestamp: new Date().toISOString(), owner: 'logan', station: 'bcps', task_id: null,
     summary: `[BCPS Depot] ${summary}`, status: 'open', context_link: link,
   })
 }
