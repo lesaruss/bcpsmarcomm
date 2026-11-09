@@ -231,9 +231,19 @@ export default function MarcommRequestPage() {
                 {f.calendar_needed && <p className="note">Please complete the calendar post request in step 4 below.</p>}
               </fieldset>
               <label className="full">Attach files <span className="hint">Up to 5 files, 25 MB each: PDF, Word, Excel, PowerPoint, images or video</span>
-                <input type="file" multiple accept={ACCEPT} onChange={e => setFiles(Array.from(e.target.files ?? []).slice(0, 5))} />
+                {/* Each pick adds to the list (2026-11-09, request #5007): picking
+                    a second file used to replace the first, so only one arrived. */}
+                <input type="file" multiple accept={ACCEPT} disabled={files.length >= 5} onChange={e => {
+                  const picked = Array.from(e.target.files ?? [])
+                  e.target.value = ''
+                  const merged = [...files]
+                  for (const x of picked) if (!merged.some(m => m.name === x.name && m.size === x.size)) merged.push(x)
+                  if (merged.length > 5) setError('You can attach up to 5 files. Only the first 5 were kept.')
+                  setFiles(merged.slice(0, 5))
+                }} />
               </label>
-              {files.length > 0 && <ul className="files">{files.map(x => <li key={x.name}>{x.name}</li>)}</ul>}
+              {files.length > 0 && <ul className="files">{files.map((x, i) => <li key={`${x.name}-${x.size}`}>{x.name} <button type="button" className="file-remove" aria-label={`Remove ${x.name}`} onClick={() => setFiles(files.filter((_, j) => j !== i))}>Remove</button></li>)}</ul>}
+              {files.length > 0 && <p className="hint">{files.length} of 5 attached. {files.length < 5 ? 'Choose more files to add them.' : ''}</p>}
             </section>
 
             {f.calendar_needed && (

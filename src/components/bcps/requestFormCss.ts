@@ -32,6 +32,7 @@ export const REQUEST_FORM_CSS = `
 .note { font-size: 13px; margin: 8px 0 0; }
 .note a { color: #0e4e73; font-weight: 700; }
 .files { font-size: 13px; margin: 8px 0 0 18px; }
+.file-remove { font: inherit; font-size: 12px; font-weight: 700; color: #0e4e73; background: none; border: none; text-decoration: underline; cursor: pointer; padding: 0 0 0 8px; }
 .mcr-btn { font: inherit; font-size: 14px; font-weight: 800; padding: 13px 22px; border-radius: 6px; border: none; background: #1672A7; color: #fff; cursor: pointer; }
 .mcr-btn:disabled { opacity: 0.6; cursor: default; }
 .mcr-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
