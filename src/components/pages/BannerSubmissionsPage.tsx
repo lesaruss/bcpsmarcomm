@@ -12,17 +12,21 @@
 
 import BannerWidget from '@/components/bcps/BannerWidget'
 
-export default function BannerSubmissionsPage() {
+// review (2026-11-09): the reviewer's view, for a director following the
+// District Web Team (Charlene Collins): opens on the Review Queue.
+export default function BannerSubmissionsPage({ review = false }: { review?: boolean } = {}) {
   return (
     <div style={{ padding: 32, width: '100%', fontFamily: 'inherit' }}>
       <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>
         Banner Submissions
       </h1>
-      <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 20px' }}>
+      {review ? <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 20px' }}>
+        What schools have sent for their homepage banners. Open any submission to see the request, its files and where it stands.
+      </p> : <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 20px' }}>
         Submit a photo or video for your school&apos;s homepage banner, request removal of a prior submission, or
         review your submission history. Every submission goes to the District Web Team for review before it goes live.
-      </p>
-      <BannerWidget />
+      </p>}
+      <BannerWidget startTab={review ? 'review' : undefined} />
     </div>
   )
 }
