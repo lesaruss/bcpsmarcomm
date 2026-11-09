@@ -414,11 +414,44 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // The director's walkthrough video (Sean, 2026-11-09): the finished video of
+  // the Depot project made for this person, only once it is ready, so an out
+  // of date cut never plays on their dashboard.
+  const teamDirector = isDwt && leadsTeamDepartment && !isSuperadmin && role !== 'admin'
+  let directorVideo: { src: string; poster: string | null } | null = null
+  let directorTour: { key: string; title: string; say: string; tab: string; doc?: string; target?: string; audio?: string }[] = []
+  if (teamDirector) {
+    const { data: dv } = await svc.from('bcps_depot_projects').select('final_path, poster_path')
+      .eq('for_email', email).eq('status', 'ready').not('final_path', 'is', null)
+      .order('updated_at', { ascending: false }).limit(1).maybeSingle()
+    const base = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/`
+    if (dv?.final_path) directorVideo = { src: base + dv.final_path, poster: dv.poster_path ? base + dv.poster_path : null }
+    // The tour comes from the same Depot project: each tile with a tour cue is
+    // a step, in order, with its words and, once its line matches the words,
+    // its recording. Edit or approve a line in the Depot and the tour follows.
+    const { data: tp } = await svc.from('bcps_depot_projects').select('id').eq('for_email', email)
+      .order('updated_at', { ascending: false }).limit(1).maybeSingle()
+    if (tp?.id) {
+      const { data: tt } = await svc.from('bcps_depot_tiles').select('id, title, script, audio_path, status, version, tour')
+        .eq('project_id', tp.id).not('tour', 'is', null).order('position')
+      directorTour = (tt ?? []).filter((x) => (x.script || '').trim()).map((x) => {
+        const cue = (x.tour ?? {}) as { tab?: string; doc?: string; target?: string }
+        return {
+          key: x.id as string, title: x.title as string, say: x.script as string,
+          tab: cue.tab || 'overview', doc: cue.doc, target: cue.target,
+          audio: x.audio_path && x.status !== 'script' ? `${base}${x.audio_path}?v=${x.version}` : undefined,
+        }
+      })
+    }
+  }
+
   return NextResponse.json({
     experience,
     is_dwt: isDwt,
     is_director: isDirector,
-    team_director: isDwt && leadsTeamDepartment && !isSuperadmin && role !== 'admin',
+    team_director: teamDirector,
+    director_video: directorVideo,
+    director_tour: directorTour,
     viewing_as: viewingAs,
     oversight: isDirector && oversight,
     leadership_view: isDirector && leadershipView,

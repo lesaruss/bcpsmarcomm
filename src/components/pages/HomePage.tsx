@@ -8,6 +8,9 @@ import { createClient } from '@/lib/supabase'
 import { MARCOMM_PATH, type PageId, type BreadcrumbItem } from '@/lib/types'
 import DepartmentsPage from './DepartmentsPage'
 import SchoolsPage from './SchoolsPage'
+import ADAManagerPage from './ADAManagerPage'
+import BannerSubmissionsPage from './BannerSubmissionsPage'
+import ProudPointsPage from './ProudPointsPage'
 import SchoolProfileView from '@/components/bcps/SchoolProfileView'
 import AnalyticsPage, { PeriodSelector, defaultPeriod, getPeriodRange, type PeriodState } from './AnalyticsPage'
 import TrafficTrend from '@/components/bcps/TrafficTrend'
@@ -277,6 +280,10 @@ interface HomeData {
   // Charlene Collins, Application Services): the team's dashboard, with a
   // director's checklist on Overview in place of their own assignments.
   team_director?: boolean
+  // The finished walkthrough from the Depot for this director, when there is one.
+  director_video?: { src: string; poster: string | null } | null
+  // The tour, from the same Depot project (falls back to DIRECTOR_TOUR).
+  director_tour?: TourStep[]
   // Department Oversight: the Director dashboard across every department.
   oversight?: boolean
   // Leadership View (Sean, 2026-10-27): a trimmed, view-only Director view.
@@ -3125,13 +3132,29 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   const greet = who ? who.split(/\s+/)[0] : firstName(data)
   const director = !!data.team_director
   const [touring, setTouring] = useState(false)
+  const tourSteps = data.director_tour?.length ? data.director_tour : DIRECTOR_TOUR
   const tourTo = (t: string, doc?: string) => router.push(
     t === 'overview' ? '/?page=dashboard' : `/?page=dashboard&tab=${t}${doc ? `&doc=${encodeURIComponent(doc)}` : ''}`, { scroll: false })
   const mine = useMySchools(!previewNote)
   // Schools (Sean, 2026-10-22) replaces My Schools: Application Services and
   // any District Web Team Lead get it; it opens on the lead's own schools.
   const schoolsTab = kind === 'appsvc' || mine.schools ? [{ id: 'schools', label: 'Schools' }] : []
-  const tabs = kind === 'comms'
+  // Charlene's tabs (Sean, 2026-11-09): only what Application Services and
+  // the District Web Team are doing. The Director Guide in place of the guide
+  // list and Documents, ADA / Audit as a read-only example, Banners and Proud
+  // Points each opening their own submissions, the full Analytics, and no
+  // My Resources.
+  const tabs = director
+    ? [
+        { id: 'overview', label: 'Overview' },
+        { id: 'director-guide', label: 'Director Guide' },
+        ...schoolsTab,
+        { id: 'ada', label: 'ADA / Audit' },
+        { id: 'banners', label: 'Banners' },
+        { id: 'proud-points', label: 'Proud Points' },
+        ...(canAnalytics ? [{ id: 'analytics', label: 'Analytics' }] : []),
+      ]
+    : kind === 'comms'
     ? [
         { id: 'overview', label: 'Overview' },
         { id: 'guides', label: 'Guides' },
@@ -3175,7 +3198,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         <div className="home-actions">
           <button type="button" className="home-btn" onClick={() => router.push('/?page=dashboard&tab=documents&doc=web-team-assignments', { scroll: false })}>Open Web Team Assignments</button>
           {kind === 'comms' && <a className="wcm-hub2-card-btn" href={MARCOMM_PATH}>Open MarComm Assignments</a>}
-          {kind === 'appsvc' && <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('ada-scanner')}>Open ADA Scanner</button>}
+          {kind === 'appsvc' && !director && <button type="button" className="wcm-hub2-card-btn" onClick={() => onNavigate('ada-scanner')}>Open ADA Scanner</button>}
           {director && <button type="button" className="wcm-hub2-card-btn" onClick={() => setTouring(true)}>Take the tour</button>}
         </div>
       </div>
@@ -3196,11 +3219,13 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         <StatTile label="Banners to review" value={th.banners.pending} note="Banner Submissions" tone={th.banners.pending ? 'warn' : undefined} />
         <StatTile label="Proud Points to review" value={th.proud_points?.pending ?? 0} note={th.proud_points?.ready ? `${th.proud_points.ready} approved, not posted yet` : 'Proud Points'} tone={th.proud_points?.pending ? 'warn' : undefined} />
       </div>
-      {director && <DirectorStart onTour={() => setTouring(true)} />}
+      {director && <DirectorStart video={data.director_video ?? null} steps={tourSteps} onTour={() => setTouring(true)} />}
       {director ? <TeamDirectorSteps onTab={setTab} /> : <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />}
       {mine.schools && <MySchoolsSummary schools={mine.schools} onOpen={() => setTab('schools')} />}
+      {!director && <>
       <h3 className="home-grp">Program</h3>
       <ProgramPanel p={p} />
+      </>}
       </>}
       <div data-tour={`tab-${tab}`}>
       {(tab === 'schools' || tab === 'myschools') && <SchoolsPage />}
@@ -3209,8 +3234,11 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
       {tab === 'program' && <ProgramPanel p={p} />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} depts={data.departments} />}
-      {tab === 'banners' && <BannersPanel b={th.banners} pp={th.proud_points} onNavigate={onNavigate} />}
-      {tab === 'ada' && (kind === 'appsvc' && th.school_ada
+      {tab === 'banners' && (director ? <BannerSubmissionsPage /> : <BannersPanel b={th.banners} pp={th.proud_points} onNavigate={onNavigate} />)}
+      {tab === 'proud-points' && <ProudPointsPage />}
+      {tab === 'director-guide' && <DocFrame slug="director-department" title="Director Guide" onOpen={(s) => router.push(`/?page=dashboard&tab=documents&doc=${encodeURIComponent(s)}`, { scroll: false })} />}
+      {tab === 'ada' && director && <DirectorAudit ada={th.school_ada ?? th.ada} deptAda={th.ada} />}
+      {tab === 'ada' && !director && (kind === 'appsvc' && th.school_ada
         ? <AdaPanel ada={th.school_ada} onNavigate={onNavigate} schools onOpenSchools={() => setTab('schools')} />
         : <AdaPanel ada={th.ada} onNavigate={onNavigate} />)}
       {tab === 'analytics' && <AnalyticsTabPage onShowToast={onShowToast} />}
@@ -3219,7 +3247,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       {tab === 'guides' && <GuidesMenu showRestricted={!!data.is_superadmin} />}
       {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
       </div>
-      {touring && <SiteTour steps={DIRECTOR_TOUR} onTab={tourTo} onClose={() => { setTouring(false); setTab('overview') }} />}
+      {touring && <SiteTour steps={tourSteps} onTab={tourTo} onClose={() => { setTouring(false); setTab('overview') }} />}
     </div>
   )
 }
@@ -3232,13 +3260,13 @@ function TeamDirectorSteps({ onTab }: { onTab: (id: string) => void }) {
   const router = useRouter()
   const doc = (slug: string) => router.push(`/?page=dashboard&tab=documents&doc=${slug}`, { scroll: false })
   const steps: { title: string; body: string; action: React.ReactNode }[] = [
-    { title: 'Start with the District Web Team Guide', body: 'How the team works, who owns what, and how requests move from a ticket to a live page. Read it once; come back when something is unclear.',
-      action: <button type="button" className="wcm-hub2-card-btn" onClick={() => doc('district-web-team')}>Open the guide</button> },
+    { title: 'Start with the Director Guide', body: 'Everything you need as director is in one place, under the Director Guide tab.',
+      action: <button type="button" className="wcm-hub2-card-btn" onClick={() => onTab('director-guide')}>Open the Director Guide</button> },
     { title: 'Check Web Team Assignments each week', body: 'Every open item the team is carrying, who leads it, its status and its date. Items past their date are flagged. This is the fastest way to see what the team is doing.',
       action: <button type="button" className="wcm-hub2-card-btn" onClick={() => doc('web-team-assignments')}>Open Web Team Assignments</button> },
-    { title: 'Look in on the schools and accessibility', body: 'Schools shows each school site and its Web Content Manager; ADA shows accessibility scores across our sites and where the work is.',
-      action: <button type="button" className="wcm-hub2-card-btn" onClick={() => onTab('schools')}>Open Schools</button> },
-    { title: 'Glance at Banners and Analytics', body: 'Banners shows what schools have asked to post on their homepages and what is waiting. Analytics shows how people use our sites.',
+    { title: 'Look in on accessibility', body: 'ADA / Audit shows where the audits stand, with Silver Ridge Elementary as an example of a full-site scan.',
+      action: <button type="button" className="wcm-hub2-card-btn" onClick={() => onTab('ada')}>Open ADA / Audit</button> },
+    { title: 'Glance at Banners, Proud Points and Analytics', body: 'What schools have asked to post on their homepages, the good news they share, and how families and staff use our sites.',
       action: <button type="button" className="wcm-hub2-card-btn" onClick={() => onTab('banners')}>Open Banners</button> },
     { title: 'Make the final call when asked', body: 'When the team needs a decision on the site, it comes to you. Have a question or a direction for the team? Send it from here; it goes straight to them.',
       action: <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback()}>Send the team a message</button> },
@@ -3259,13 +3287,32 @@ function TeamDirectorSteps({ onTab }: { onTab: (id: string) => void }) {
   )
 }
 
-// The director's walkthrough (Sean, 2026-11-09, for Charlene Collins): an
-// 85-second video of this dashboard in Sean's voice, and the same eight lines
-// as a tour that opens each part of the real page (SiteTour). The video and
-// the tour use the same recordings (HQ Recording Queue, batch
-// bcps-charlene-walkthrough); change a line and both are re-voiced.
-const DIRECTOR_VIDEO = `${MEDIA_BASE}/object/public/bcps-public/dashboard-media/charlene-walkthrough-v2.mp4`
-const DIRECTOR_POSTER = `${MEDIA_BASE}/object/public/bcps-public/dashboard-media/charlene-walkthrough-v2-poster.jpg`
+// ADA / Audit for the director (Sean, 2026-11-09): where the audits stand, then
+// Silver Ridge Elementary's full-site scan as the example, view only. The
+// District Web Team runs the audits; nothing here starts a scan.
+function DirectorAudit({ ada, deptAda }: { ada: TeamAda; deptAda: TeamAda }) {
+  return (
+    <div>
+      <div className="home-dept home-section">
+        <h3 className="home-card-title">Where we are with accessibility</h3>
+        <p>The District Web Team checks our websites against WCAG 2.1 AA, the accessibility standard, with the same audit for department sites and for schools. Each issue is sorted into what the site&apos;s Web Content Manager can fix and what Finalsite has to fix.</p>
+        <ul className="home-bullets">
+          <li><b>Department sites:</b> {deptAda.sites_scanned} scanned{deptAda.average_score != null ? `, average score ${deptAda.average_score}` : ''}. Each department works through its findings in its review window.</li>
+          <li><b>Schools:</b> {ada.sites_scanned} school{ada.sites_scanned === 1 ? '' : 's'} with a full-site scan so far{ada.average_score != null ? `, average score ${ada.average_score}` : ''}. Silver Ridge Elementary is the pilot that shows how a school audit works.</li>
+        </ul>
+        <p className="home-muted">Below is Silver Ridge&apos;s scan, page by page. This is a view only: the District Web Team runs the audits.</p>
+      </div>
+      <ADAManagerPage readOnly onlySchool="Silver Ridge" />
+    </div>
+  )
+}
+
+// The director's walkthrough (Sean, 2026-11-09, for Charlene Collins). The tour
+// opens each part of the real page as Sean talks; its lines are tiles in the
+// Depot (project charlene-walkthrough). A step without a recording yet shows
+// its words and plays nothing until its line is voiced and approved. The
+// Start here video is whatever the Depot project has as its finished video
+// (home API: director_video), so nothing out of date plays here.
 const tourAudio = (n: number) => siteAudio(`director-tour-${n}.mp3`)
 const DIRECTOR_TOUR: TourStep[] = [
   { key: 'welcome', tab: 'overview', target: 'hero', title: 'Welcome', audio: tourAudio(1),
@@ -3274,29 +3321,33 @@ const DIRECTOR_TOUR: TourStep[] = [
     say: 'When you sign in, you land on your Overview. Up top are the numbers that matter: the average accessibility score, the next Hot Lab, and what is waiting in Banners and Proud Points.' },
   { key: 'checklist', tab: 'overview', target: 'director-steps', title: 'Your checklist', audio: tourAudio(3),
     say: 'Below that is your checklist as director. You are not in the day to day, so these five steps keep you in the loop.' },
+  { key: 'director-guide', tab: 'director-guide', target: 'tab-director-guide', title: 'The Director Guide',
+    say: 'The Director Guide tab is where everything you need as director lives. Start there.' },
   { key: 'assignments', tab: 'documents', doc: 'web-team-assignments', target: 'tab-documents', title: 'Web Team Assignments', audio: tourAudio(4),
     say: 'Start each week with Web Team Assignments. It is every open item the team is carrying, who leads it, where it stands, and anything past its date. You can filter it down to Application Services.' },
-  { key: 'guide', tab: 'documents', doc: 'district-web-team', target: 'tab-documents', title: 'The guide', audio: tourAudio(5),
-    say: 'The District Web Team Guide explains how we work, and This Week shows the decisions waiting on the team. You will find it under Documents.' },
-  { key: 'ada', tab: 'ada', target: 'tab-ada', title: 'Accessibility', audio: tourAudio(6),
-    say: 'The ADA tab shows accessibility across our school sites, the lowest scoring schools, and the scanner your team uses.' },
-  { key: 'banners', tab: 'banners', target: 'tab-banners', title: 'Banners and Analytics', audio: tourAudio(7),
-    say: 'Banners shows what schools have asked to post on their homepages. Analytics shows how families and staff use browardschools.com.' },
+  { key: 'ada', tab: 'ada', target: 'tab-ada', title: 'ADA and Audit',
+    say: 'ADA and Audit shows where we are with accessibility. Silver Ridge Elementary is the example: every page scanned, each with its score and what needs fixing.' },
+  { key: 'banners', tab: 'banners', target: 'tab-banners', title: 'Banners',
+    say: 'Banners opens the submissions schools send for their homepages. Open any one to see the request and where it stands.' },
+  { key: 'proud-points', tab: 'proud-points', target: 'tab-proud-points', title: 'Proud Points',
+    say: 'Proud Points has its own tab: the good news schools share, waiting for review or already posted.' },
+  { key: 'analytics', tab: 'analytics', target: 'tab-analytics', title: 'Analytics',
+    say: 'Analytics shows how families and staff use browardschools dot com, with the full reports.' },
   { key: 'final', tab: 'overview', target: 'final-call', title: 'The final call', audio: tourAudio(8),
     say: 'When the team needs a final call on the site, it comes to you. Have a question or a direction for us? Use the message button, and it comes straight to the team. Glad to have you in here, Charlene.' },
 ]
 
-function DirectorStart({ onTour }: { onTour: () => void }) {
+function DirectorStart({ video, steps, onTour }: { video: { src: string; poster: string | null } | null; steps: TourStep[]; onTour: () => void }) {
   return (
-    <div className="home-start" data-tour="start">
-      <video controls preload="metadata" playsInline poster={DIRECTOR_POSTER} src={DIRECTOR_VIDEO} aria-label="Video: a walkthrough of your dashboard with Sean" />
+    <div className={video ? 'home-start' : 'home-start home-start-novideo'} data-tour="start">
+      {video && <video controls preload="metadata" playsInline poster={video.poster ?? undefined} src={video.src} aria-label="Video: a walkthrough of your dashboard with Sean" />}
       <div className="home-start-text">
         <h3>Start here</h3>
-        <p>Sean walks you through this dashboard in about a minute and a half. Prefer to see it on the live page? Take the tour: it opens each part as he talks.</p>
+        <p>{video ? 'Sean walks you through this dashboard. Prefer to see it on the live page? Take the tour: it opens each part as he talks.' : 'Take the tour: Sean opens each part of this dashboard as he talks you through it.'}</p>
         <div><button type="button" className="home-btn" onClick={onTour}>Take the tour</button></div>
         <details className="home-video-transcript">
           <summary>Read the transcript</summary>
-          {DIRECTOR_TOUR.map((x) => <p key={x.key}>{x.say}</p>)}
+          {steps.map((x) => <p key={x.key}>{x.say}</p>)}
         </details>
       </div>
     </div>
