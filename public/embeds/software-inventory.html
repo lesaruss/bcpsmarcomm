@@ -554,9 +554,16 @@ function cardHtml(s, q) {
   const meta = [];
   if (s.department) meta.push(`<div class="meta-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg><span>${highlight(s.department, q)}</span></div>`);
   if (s.intended_use) meta.push(`<div class="meta-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><span>Intended use: ${highlight(s.intended_use, q)}</span></div>`);
-  if (s.bid_id) meta.push(`<div class="meta-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Bid/Agreement: ${highlight(s.bid_id, q)}</span></div>`);
+  // The bid/agreement number itself links to the School Board agreement
+  // (Trisha, 2026-11-09). No number but an agreement on file: "View agreement".
+  if (s.bid_id || agree) {
+    const label = s.bid_id ? highlight(s.bid_id, q) : 'View agreement';
+    const val = agree
+      ? `<a href="${escapeHtml(agree)}" target="_blank" rel="noopener noreferrer" aria-label="School Board agreement ${escapeHtml(s.bid_id || '')} for ${escapeHtml(s.program_name)} (opens in a new tab)">${label}</a>`
+      : label;
+    meta.push(`<div class="meta-row${agree ? ' meta-link' : ''}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Bid/Agreement: ${val}</span></div>`);
+  }
   const footer = [];
-  if (agree) footer.push(`<a href="${escapeHtml(agree)}" class="card-link" target="_blank" rel="noopener noreferrer" aria-label="School Board agreement for ${escapeHtml(s.program_name)} (opens in a new tab)">School Board agreement ${ICON_EXT}</a>`);
   if (terms) footer.push(`<a href="${escapeHtml(terms)}" class="card-link" target="_blank" rel="noopener noreferrer" aria-label="Vendor terms and conditions for ${escapeHtml(s.program_name)} (opens in a new tab)">Vendor terms ${ICON_EXT}</a>`);
   const showVendor = s.vendor && s.vendor !== s.program_name;
   return `<article class="card">
