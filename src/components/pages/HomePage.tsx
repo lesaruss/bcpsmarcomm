@@ -272,6 +272,10 @@ interface HomeData {
   department_guides?: { slug: string; title: string; department: string }[]
   is_dwt: boolean
   is_director: boolean
+  // The director of a department on the District Web Team (Sean, 2026-11-09:
+  // Charlene Collins, Application Services): the team's dashboard, with a
+  // director's checklist on Overview in place of their own assignments.
+  team_director?: boolean
   // Department Oversight: the Director dashboard across every department.
   oversight?: boolean
   // Leadership View (Sean, 2026-10-27): a trimmed, view-only Director view.
@@ -3118,6 +3122,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   const lead = assignments.filter((a) => a.role === 'lead').length
   const past = assignments.filter((a) => a.past_date).length
   const greet = who ? who.split(/\s+/)[0] : firstName(data)
+  const director = !!data.team_director
   const mine = useMySchools(!previewNote)
   // Schools (Sean, 2026-10-22) replaces My Schools: Application Services and
   // any District Web Team Lead get it; it opens on the lead's own schools.
@@ -3156,9 +3161,11 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       <HomeTabs tabs={tabs} active={tab === 'marcomm' ? 'documents' : tab} onChange={setTab} />
       {tab === 'overview' && <>
       <div className="home-hero">
-        <div className="home-hero-label">BCPS MarComm District Web Team</div>
+        <div className="home-hero-label">{director ? 'BCPS MarComm District Web Team, Director' : 'BCPS MarComm District Web Team'}</div>
         <h1 className="home-title">{greet ? `Welcome, ${greet}` : 'Welcome'}</h1>
-        <p>{kind === 'comms'
+        <p>{director
+          ? 'What the District Web Team is working on, how our sites are doing, and where a decision from you is needed. The team runs the day to day; this page keeps you in the loop.'
+          : kind === 'comms'
           ? 'Your assignments, the departments in this review window, and how the program is moving.'
           : 'Your assignments, accessibility across our sites, the widgets, and every tool you use.'}</p>
         <div className="home-actions">
@@ -3169,7 +3176,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       </div>
       <div className="home-strip">
         {kind === 'appsvc' && data.is_wcm && <MyCertTile cert={myCertOf(data)} label="Your certification" />}
-        <StatTile label="My open assignments" value={assignments.length} note={`Lead on ${lead}, support on ${assignments.length - lead}.${past ? ` ${past} past their date.` : ''}`} tone={past ? 'warn' : undefined} />
+        {!director && <StatTile label="My open assignments" value={assignments.length} note={`Lead on ${lead}, support on ${assignments.length - lead}.${past ? ` ${past} past their date.` : ''}`} tone={past ? 'warn' : undefined} />}
         {kind === 'comms' ? (
           <>
             <StatTile label={`${w.label} ${windowState(w) === 'open' ? 'open' : 'next'}`} value={`${wStats?.departments ?? 0} depts`} note={formatWindowRange(w)} />
@@ -3184,7 +3191,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         <StatTile label="Banners to review" value={th.banners.pending} note="Banner Submissions" tone={th.banners.pending ? 'warn' : undefined} />
         <StatTile label="Proud Points to review" value={th.proud_points?.pending ?? 0} note={th.proud_points?.ready ? `${th.proud_points.ready} approved, not posted yet` : 'Proud Points'} tone={th.proud_points?.pending ? 'warn' : undefined} />
       </div>
-      <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />
+      {director ? <TeamDirectorSteps onTab={setTab} /> : <MyWorkPanel items={assignments} who={who} onNavigate={onNavigate} />}
       {mine.schools && <MySchoolsSummary schools={mine.schools} onOpen={() => setTab('schools')} />}
       <h3 className="home-grp">Program</h3>
       <ProgramPanel p={p} />
@@ -3204,6 +3211,41 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       {tab === 'wcm' && <WcmCommunityHub />}
       {tab === 'guides' && <GuidesMenu showRestricted={!!data.is_superadmin} />}
       {tab === 'tools' && <ToolsPanel kind={kind} onNavigate={onNavigate} kb={th.kb_articles ?? []} hotLabs={data.hot_labs ?? []} />}
+    </div>
+  )
+}
+
+// A director's checklist for the Web Team dashboard (Sean, 2026-11-09:
+// Charlene Collins, Director, Application Services). She is not in the day
+// to day; these are the places to look to stay in the loop, and the one thing
+// only she does: make the final call when the team brings her a decision.
+function TeamDirectorSteps({ onTab }: { onTab: (id: string) => void }) {
+  const router = useRouter()
+  const doc = (slug: string) => router.push(`/?page=dashboard&tab=documents&doc=${slug}`, { scroll: false })
+  const steps: { title: string; body: string; action: React.ReactNode }[] = [
+    { title: 'Start with the District Web Team Guide', body: 'How the team works, who owns what, and how requests move from a ticket to a live page. Read it once; come back when something is unclear.',
+      action: <button type="button" className="wcm-hub2-card-btn" onClick={() => doc('district-web-team')}>Open the guide</button> },
+    { title: 'Check Web Team Assignments each week', body: 'Every open item the team is carrying, who leads it, its status and its date. Items past their date are flagged. This is the fastest way to see what the team is doing.',
+      action: <button type="button" className="wcm-hub2-card-btn" onClick={() => doc('web-team-assignments')}>Open Web Team Assignments</button> },
+    { title: 'Look in on the schools and accessibility', body: 'Schools shows each school site and its Web Content Manager; ADA shows accessibility scores across our sites and where the work is.',
+      action: <button type="button" className="wcm-hub2-card-btn" onClick={() => onTab('schools')}>Open Schools</button> },
+    { title: 'Glance at Banners and Analytics', body: 'Banners shows what schools have asked to post on their homepages and what is waiting. Analytics shows how people use our sites.',
+      action: <button type="button" className="wcm-hub2-card-btn" onClick={() => onTab('banners')}>Open Banners</button> },
+    { title: 'Make the final call when asked', body: 'When the team needs a decision on the site, it comes to you. Have a question or a direction for the team? Send it from here; it goes straight to them.',
+      action: <button type="button" className="wcm-hub2-card-btn" onClick={() => openFeedback()}>Send the team a message</button> },
+  ]
+  return (
+    <div className="home-dept home-section">
+      <h3 className="home-card-title">Your role as director: staying in the loop</h3>
+      <ol className="home-wsteps">
+        {steps.map((x) => (
+          <li key={x.title}>
+            <b>{x.title}</b>
+            <span>{x.body}</span>
+            {x.action}
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }
