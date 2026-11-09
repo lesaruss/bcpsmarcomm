@@ -87,6 +87,7 @@ const PAGE_TITLES: Record<string, { title: string; sub: string }> = {
   department:               { title: 'Department Profile',      sub: 'Audit & Analytics' },
   school:                   { title: 'School Profile',          sub: 'Audit, Banners & Proud Points' },
   'pulse-approvals':        { title: 'Note Approvals',          sub: 'Pulse Feedback Queue' },
+  'depot':                  { title: 'The Depot',               sub: 'Videos and media, tile by tile' },
   'department-audit':       { title: 'Department Name Audit',  sub: 'Profiles vs. Roster Consistency' },
   'find-it-fast':           { title: 'Find It Fast',          sub: 'Back to School Widget Content' },
   'widgets':                { title: 'Widgets',               sub: 'Embeddable Modules' },

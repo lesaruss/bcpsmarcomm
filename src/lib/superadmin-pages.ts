@@ -44,6 +44,8 @@ export const SUPERADMIN_PAGES: readonly PageId[] = [
   // Tag Register (2026-11-05): agency access to the District GTM container
   // and every tag on browardschools.com. Superadmin only, like its API.
   'tag-register',
+  // The Depot (2026-11-09): the media studio. Superadmin only, like its API.
+  'depot',
 ]
 
 export const SUPERADMIN_PAGES_SET: ReadonlySet<PageId> = new Set(SUPERADMIN_PAGES)

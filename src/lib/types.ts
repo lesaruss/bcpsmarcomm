@@ -27,6 +27,7 @@ export type PageId =
   | 'community-relations'
   | 'minibase'
   | 'pulse-approvals'
+  | 'depot'
   | 'find-it-fast'
   | 'directory'
   | 'widgets'
