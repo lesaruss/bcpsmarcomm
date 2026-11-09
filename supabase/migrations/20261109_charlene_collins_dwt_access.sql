@@ -12,3 +12,8 @@ select 'charlene.collins@browardschools.com', g.id, 'logan-2026-11-09'
 from public.acl_groups g
 where g.brand = 'bcps' and g.slug = 'dwt'
   and not exists (select 1 from public.bcps_pending_group_members p where p.group_id = g.id and lower(p.email) = 'charlene.collins@browardschools.com');
+
+-- 2026-11-09 (later): the director walkthrough media lives in Storage, not in
+-- this repository: bcps-public/dashboard-media/charlene-walkthrough-v2.mp4 (and
+-- -poster.jpg), and the tour lines in site-audio/bcps/director-tour-1..8.mp3.
+-- Recording Queue batch bcps-charlene-walkthrough holds the scripts.
