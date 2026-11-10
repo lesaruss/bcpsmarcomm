@@ -164,7 +164,10 @@ export async function middleware(request: NextRequest) {
     // checkDocAccess themselves and, signed out, show the password page when
     // the document has a password and otherwise redirect to /login with
     // ?next=, exactly as this middleware did.
-    pathname.startsWith('/playbooks/')
+    pathname.startsWith('/playbooks/') ||
+    // /guides/ the same way (Sean, 2026-11-10): the page checks a sign-in or
+    // the guide's 24-hour password pass, and otherwise redirects to /login.
+    pathname.startsWith('/guides/')
 
   if (isPublic) return supabaseResponse
 

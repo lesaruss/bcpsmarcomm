@@ -135,3 +135,43 @@ export function docSlugFromUrl(url: string | null | undefined): string | null {
   const m = (url || '').match(/^\/playbooks\/(?:[a-z0-9-]+\/)?([a-z0-9-]+)\/?$/)
   return m ? m[1] : null
 }
+
+/**
+ * Set (password string) or remove (null) a document's password. Used by the
+ * Documents Access panel and the open-document toolbar, so both behave the
+ * same. Only Playbooks and their docs (briefings, brand bcps) take one.
+ */
+export async function setDocPassword(
+  db: SupabaseClient, slug: string, password: string | null, setBy: string,
+): Promise<{ ok: true; on: boolean } | { ok: false; status: number; error: string }> {
+  if (!/^[a-z0-9-]+$/.test(slug)) return { ok: false, status: 400, error: 'slug required.' }
+  if (!(await passwordable(db, slug))) return { ok: false, status: 404, error: 'Passwords work on guides, Playbooks and their documents only.' }
+  if (password === null) {
+    const { error } = await db.from('bcps_doc_passwords').delete().eq('slug', slug)
+    if (error) return { ok: false, status: 500, error: 'Could not remove the password.' }
+    return { ok: true, on: false }
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) return { ok: false, status: 400, error: `Use at least ${MIN_PASSWORD_LENGTH} characters.` }
+  const { error } = await db.from('bcps_doc_passwords').upsert({
+    slug, password_hash: hashPassword(password), set_by: setBy,
+    failed_attempts: 0, failed_window_start: null, updated_at: new Date().toISOString(),
+  }, { onConflict: 'slug' })
+  if (error) return { ok: false, status: 500, error: 'Could not save the password.' }
+  return { ok: true, on: true }
+}
+
+/** A guide (public.bcps_guides) or a Playbook or doc (briefings, brand bcps) can take a password. */
+export async function passwordable(db: SupabaseClient, slug: string): Promise<boolean> {
+  if (!/^[a-z0-9-]+$/.test(slug)) return false
+  const [{ data: guide }, { data: doc }] = await Promise.all([
+    db.from('bcps_guides').select('slug').eq('slug', slug).maybeSingle(),
+    db.from('briefings').select('slug').eq('brand_slug', 'bcps').eq('slug', slug).in('type', ['playbook', 'record']).maybeSingle(),
+  ])
+  return !!guide || !!doc
+}
+
+/** When the password was set, or null when there is none. Never the password. */
+export async function passwordSetAt(db: SupabaseClient, slug: string): Promise<string | null> {
+  const { data } = await db.from('bcps_doc_passwords').select('updated_at').eq('slug', slug).maybeSingle()
+  return (data?.updated_at as string | undefined) ?? null
+}
