@@ -158,7 +158,13 @@ export async function middleware(request: NextRequest) {
     // and more people are accessing it"). It is deliberately absent from this
     // list, so a signed-out visitor to a campaign report is sent to /login
     // with ?next= and returns to the report after signing in.
-    pathname.startsWith('/embeds/')
+    pathname.startsWith('/embeds/') ||
+    // /playbooks/ passes through to the page (Sean, 2026-11-10: a document
+    // can have a password). It is NOT public: both /playbooks routes run
+    // checkDocAccess themselves and, signed out, show the password page when
+    // the document has a password and otherwise redirect to /login with
+    // ?next=, exactly as this middleware did.
+    pathname.startsWith('/playbooks/')
 
   if (isPublic) return supabaseResponse
 

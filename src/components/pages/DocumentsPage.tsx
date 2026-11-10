@@ -24,6 +24,7 @@ interface Doc {
   featured: boolean
   project?: string | null
   transcript_leads?: string[]
+  password?: { slug: string; set_at: string | null }
   series_id: string | null
   series_title: string | null
   effective_object_id: string
@@ -500,6 +501,17 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
                               <button type="submit" style={A.btn} disabled={busy}>Save</button>
                             </form>
                           )}
+                          {doc.password && (
+                            <DocPasswordControl
+                              doc={doc}
+                              busy={busy}
+                              onSave={async (password) => {
+                                if (await act({ action: 'doc_password', slug: doc.password!.slug, password })) {
+                                  showToast(password === null ? `Password removed from ${doc.title}.` : `Password saved for ${doc.title}.`); await load()
+                                }
+                              }}
+                            />
+                          )}
                           <datalist id="docs-projects">{Array.from(new Set(docs.map(d => d.project).filter(Boolean) as string[])).map(pr => <option key={pr} value={pr} />)}</datalist>
                           <div style={A.sublabel}>Who can access {doc.title}</div>
                           {doc.series_id && (
@@ -626,6 +638,39 @@ export default function DocumentsPage({ embedded = false, onOpen, extras, tracke
         </div>
       )}
     </div>
+  )
+}
+
+// Password access (Sean, 2026-11-10): anyone with the password opens this
+// document for 24 hours without signing in. The password is never shown
+// again after saving; share it yourself.
+function DocPasswordControl({ doc, busy, onSave }: {
+  doc: Doc; busy: boolean; onSave: (password: string | null) => Promise<void>
+}) {
+  const [value, setValue] = useState('')
+  const on = !!doc.password?.set_at
+  const when = on ? new Date(doc.password!.set_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
+  return (
+    <form style={{ display: 'grid', gap: 6, marginBottom: 12 }}
+      onSubmit={async (e) => {
+        e.preventDefault()
+        if (value.length < 8) return
+        await onSave(value); setValue('')
+      }}>
+      <span style={A.sublabel} title="Anyone with the password opens this document for 24 hours without signing in">Password access</span>
+      <div style={{ fontSize: 12, color: '#4b5563' }}>
+        {on
+          ? <>On since {when}. Anyone with the password can open it for 24 hours without signing in. Saving a new password, or removing it, ends every open pass.</>
+          : <>Off. Set a password to let someone without an account open this document for 24 hours.</>}
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <input type="password" autoComplete="new-password" value={value} onChange={e => setValue(e.target.value)}
+          placeholder={on ? 'New password (8+ characters)' : 'Password (8+ characters)'}
+          aria-label={`Password for ${doc.title}`} style={{ ...A.sel, flex: 1, minWidth: 200 }} />
+        <button type="submit" style={A.btn} disabled={busy || value.length < 8}>{on ? 'Change' : 'Turn on'}</button>
+        {on && <button type="button" style={{ ...A.btn, color: '#b91c1c', borderColor: '#fecaca' }} disabled={busy} onClick={() => onSave(null)}>Turn off</button>}
+      </div>
+    </form>
   )
 }
 
