@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { GuideDef } from '@/lib/guides/types'
 import GuideStepper from './GuideStepper'
 import GuideAudio from './GuideAudio'
+import GuideStart from './GuideStart'
 
 // A guide (Sean, 2026-10-29): one place per audience instead of several
 // documents that overlap. Tabs down the left (the steps first, then
@@ -197,7 +198,7 @@ export default function Guide({ def, overview, initialTab, actions, tabExtras }:
                 <p className="guide-body">Try another word, or <a href="#feedback" data-msg={`I searched the ${def.title} for "${query.trim()}" and could not find: `}>ask the District Web Team</a>. Your question helps us fill the gap.</p>
               )}
             </div>
-          ) : active === GUIDE_OVERVIEW ? overview : active === CHANGES ? (
+          ) : active === GUIDE_OVERVIEW ? <><GuideStart slug={def.slug} title={def.title} />{overview}</> : active === CHANGES ? (
             <div className="home-dept">
               <h2 className="guide-h2">What&apos;s New</h2>
               <p className="guide-intro">Every change to this guide, newest first.</p>

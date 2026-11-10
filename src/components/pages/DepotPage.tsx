@@ -261,13 +261,14 @@ function TileCard({ n, tile, first, last, projectId, run, busy, reload, setErr }
   const [confirmRm, setConfirmRm] = useState(false)
   useEffect(() => { setTitle(tile.title); setScript(tile.script) }, [tile.title, tile.script])
   const dirty = title !== tile.title || script !== tile.script
-  const doUpload = async (kind: 'still' | 'audio', f: File) => {
+  const doUpload = async (kind: 'still' | 'audio', f: File): Promise<boolean> => {
     try {
       const seconds = kind === 'audio' ? await audioLength(f) : null
       const path = await upload(projectId, kind, f)
       await api({ action: 'upload_done', tile_id: tile.id, kind, path, seconds })
       await reload()
-    } catch (e) { setErr((e as Error).message) }
+      return true
+    } catch (e) { setErr((e as Error).message); return false }
   }
   const canApprove = !!tile.audio_path && tile.status === 'voiced' && tile.checked !== false && (tile.stills ?? []).length > 0
   return (
@@ -316,6 +317,7 @@ function TileCard({ n, tile, first, last, projectId, run, busy, reload, setErr }
               title={canApprove ? '' : 'Needs a still and a voice line that matches the words'}>Approve</button>}
         <button type="button" className="dp-btn ghost" disabled={!!busy || !tile.script.trim() || dirty} onClick={() => run(`vr-${tile.id}`, { action: 'voice_request', id: tile.id })}>
           {tile.audio_path ? 'Re-voice in my voice' : 'Request my voice'}</button>
+        <RecordButton disabled={!!busy} onTake={(f) => doUpload('audio', f)} setErr={setErr} />
         <FileButton label="Upload a take" accept="audio/*" disabled={!!busy} onFile={(f) => doUpload('audio', f)} />
         <div className="dp-line">
           <button type="button" className="dp-mv" aria-label="Move up" disabled={first || !!busy} onClick={() => run('mv', { action: 'tile_move', id: tile.id, dir: 'up' })}>↑</button>
@@ -345,7 +347,63 @@ function Feedback({ project, run, busy }: { project: Project; run: Run; busy: st
   )
 }
 
-function FileButton({ label, accept, onFile, disabled, small }: { label: string; accept: string; onFile: (f: File) => void | Promise<void>; disabled?: boolean; small?: boolean }) {
+// Record a take right here (Sean, 2026-11-10: "I just need to get my
+// microphone and speak into it"). The line is in the box beside this button.
+// Record, Stop, listen back, then Use this take (saved like an upload) or
+// Record again. Logan cleans the audio afterwards (level, noise, hum).
+function RecordButton({ onTake, disabled, setErr }: { onTake: (f: File) => Promise<boolean>; disabled?: boolean; setErr: (s: string) => void }) {
+  const [state, setState] = useState<'idle' | 'recording' | 'review' | 'saving'>('idle')
+  const [secs, setSecs] = useState(0)
+  const [url, setUrl] = useState('')
+  const rec = useRef<MediaRecorder | null>(null)
+  const chunks = useRef<Blob[]>([])
+  const take = useRef<File | null>(null)
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => () => { if (timer.current) clearInterval(timer.current); rec.current?.stream.getTracks().forEach((t) => t.stop()); if (url) URL.revokeObjectURL(url) }, [url])
+
+  const start = async () => {
+    setErr('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } })
+      const type = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) || ''
+      const r = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 128000 } : undefined)
+      chunks.current = []
+      r.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data) }
+      r.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        const mime = r.mimeType || 'audio/webm'
+        const blob = new Blob(chunks.current, { type: mime })
+        take.current = new File([blob], `take.${mime.includes('mp4') ? 'm4a' : 'webm'}`, { type: mime })
+        setUrl(URL.createObjectURL(blob)); setState('review')
+      }
+      rec.current = r
+      r.start()
+      setSecs(0); setState('recording')
+      timer.current = setInterval(() => setSecs((n) => n + 1), 1000)
+    } catch {
+      setErr('The microphone did not start. Allow microphone access for bcpsmarcomm.com in your browser, then try again.')
+    }
+  }
+  const stop = () => { if (timer.current) clearInterval(timer.current); rec.current?.stop() }
+  const reset = () => { if (url) URL.revokeObjectURL(url); setUrl(''); take.current = null; setState('idle') }
+  // The take stays on screen until it has really saved, so a failed upload never loses it.
+  const use = async () => { if (!take.current) return; setState('saving'); if (await onTake(take.current)) reset(); else setState('review') }
+  const clock = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+
+  if (state === 'recording') return <button type="button" className="dp-btn rec on" onClick={stop} aria-live="polite">■ Stop ({clock})</button>
+  if (state === 'review' || state === 'saving') return (
+    <div className="dp-rec-review">
+      <audio controls src={url} className="dp-audio" />
+      <div className="dp-line">
+        <button type="button" className="dp-btn go" disabled={state === 'saving'} onClick={use}>{state === 'saving' ? 'Saving…' : 'Use this take'}</button>
+        <button type="button" className="dp-btn ghost" disabled={state === 'saving'} onClick={reset}>Record again</button>
+      </div>
+    </div>
+  )
+  return <button type="button" className="dp-btn rec" disabled={disabled} onClick={start}>● Record</button>
+}
+
+function FileButton({ label, accept, onFile, disabled, small }: { label: string; accept: string; onFile: (f: File) => unknown; disabled?: boolean; small?: boolean }) {
   const ref = useRef<HTMLInputElement>(null)
   const [working, setWorking] = useState(false)
   return (
@@ -398,6 +456,7 @@ const CSS = `
 .dp-still figcaption{display:flex;justify-content:space-between;align-items:center;gap:6px}.dp-still input{width:58px;border:1px solid #cbd5e1;border-radius:4px;padding:2px 4px;font:inherit;font-size:13px}
 .dp-addstill{width:200px;aspect-ratio:16/9;border:1px dashed #cbd5e1;border-radius:6px;background:#f8fafc;color:#0e4e73;font:inherit;font-weight:700;cursor:pointer}
 .dp-audio{width:100%;max-width:520px;height:36px}
+.dp-btn.rec{border-color:#b91c1c;color:#b91c1c;background:#fff}.dp-btn.rec.on{background:#b91c1c;color:#fff}.dp-rec-review{display:grid;gap:6px}
 .dp-card-side{display:flex;flex-direction:column;gap:8px;align-items:stretch}
 .dp-mv{width:32px;height:32px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;cursor:pointer}
 @media (max-width:820px){.depot{padding:20px 16px 48px}.dp-lb,.dp-final,.dp-card{grid-template-columns:1fr}.dp-lb-tiles{grid-template-columns:repeat(8,1fr)}}
