@@ -142,7 +142,9 @@ export async function POST(req: NextRequest) {
     }
   }
   const needFile = (slot: Slot, when = true) => { if (when && !attachments[slot]?.length) missing.push(`the ${SLOTS[slot].toLowerCase()}`) }
-  needFile('receipt'); needFile('site_plan'); needFile('survey')
+  needFile('receipt')
+  // Site plan OR plat: one is required, not both.
+  if (!attachments.site_plan?.length && !attachments.survey?.length) missing.push('the site plan or the plat')
   needFile('plat_letter', types.includes('Plat'))
   needFile('supporting', exemptions.length + vesting.length > 0)
   if (missing.length) return NextResponse.json({ error: `Please add ${missing.join(', ')}.` }, { status: 400 })

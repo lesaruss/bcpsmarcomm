@@ -24,7 +24,8 @@ export const APPLICATION_TYPES = ['Land Use', 'DRI', 'Rezoning', 'Flex/Reserve A
 export const SLOTS = {
   receipt: 'Payment confirmation',
   site_plan: 'Site plan',
-  survey: 'Survey of the project site',
+  // Key stays `survey` for stored applications; the applicant-facing name is Plat (2026-11-10).
+  survey: 'Plat',
   plat_letter: 'Plat approval letter',
   supporting: 'Supporting documents',
   scad_letter: 'SCAD letter',

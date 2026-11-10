@@ -12,8 +12,8 @@
   Planning and Real Estate, Intergovernmental Coordination Section, 2026-11-02). The
   online version of paper Form 4726 (05/24), embedded on the department's
   Finalsite page. Step 1: pay the review fee on the District e-store. Step 2:
-  fill in the application and upload the payment confirmation, site plan and
-  survey. Submitting saves to bcps_school_impact_applications through
+  fill in the application and upload the payment confirmation and the site plan
+  or plat (one, not both). Submitting saves to bcps_school_impact_applications through
   /api/bcps/school-impact-application, emails the applicant a confirmation
   (copy to prm_growthmanagement@browardschools.com) and notifies the shared
   inbox. Staff track each application in the Widgets hub editor.
@@ -284,8 +284,8 @@
   ];
   var SLOTS = [
     ["receipt", "Payment confirmation", "The e-store receipt (PDF or screenshot), or a copy of your check."],
-    ["site_plan", "Site plan", "A copy of the site plan."],
-    ["survey", "Survey of the project site", ""],
+    ["site_plan", "Site plan", "Upload the site plan or the plat. Only one is required, not both."],
+    ["survey", "Plat", "Upload the plat or the site plan. Only one is required, not both."],
     ["plat_letter", "Plat approval letter", "Required for Plat applications: an official letter with the plat name and municipal project number showing the plat has been approved or accepted by the municipality."],
     ["supporting", "Supporting documents", "Required for any exemption or vesting criterion you checked. Optional otherwise."]
   ];
@@ -336,7 +336,9 @@
 
   // Upload slots
   function required(slot) {
-    if (slot === "receipt" || slot === "site_plan" || slot === "survey") return true;
+    if (slot === "receipt") return true;
+    // Site plan OR plat: one of the two is required, not both (Intergovernmental Coordination, 2026-11-10).
+    if (slot === "site_plan" || slot === "survey") return !files.site_plan.length && !files.survey.length;
     if (slot === "plat_letter") return checked("application_types").indexOf("Plat") >= 0;
     if (slot === "supporting") return checked("vested.exemptions").length + checked("vested.vesting").length > 0;
     return false;
@@ -345,9 +347,10 @@
     $("sia-slots").innerHTML = SLOTS.map(function (s) {
       var req = required(s[0]);
       if (s[0] === "plat_letter" && !req) return "";
+      var either = s[0] === "site_plan" || s[0] === "survey";
       var miss = markMissing && req && !files[s[0]].length;
       return '<div class="slot' + (miss ? " missing" : "") + '">' +
-        '<div class="slot-title">' + esc(s[1]) + (req ? ' <span style="color:var(--orange)">*</span>' : ' <span class="hint">(optional)</span>') + "</div>" +
+        '<div class="slot-title">' + esc(s[1]) + (req || (either && files[s[0]].length) ? ' <span style="color:var(--orange)">*</span>' : ' <span class="hint">(optional)</span>') + "</div>" +
         (s[2] ? '<p class="hint" style="margin:2px 0 8px">' + esc(s[2]) + "</p>" : "") +
         '<label class="btn ghost" style="padding:6px 14px;font-size:13px">Choose files<input type="file" multiple data-slot="' + s[0] + '" class="hp" aria-label="Choose files for ' + esc(s[1]) + '"></label>' +
         (files[s[0]].length ? "<ul>" + files[s[0]].map(function (f, i) { return "<li>" + esc(f.name) + " (" + Math.max(1, Math.round(f.size / 1024)) + ' KB) <button type="button" data-remove="' + s[0] + "|" + i + '">Remove</button></li>'; }).join("") + "</ul>" : "") +
@@ -406,7 +409,8 @@
     if (!val("development.non_residential")) m.push("whether there is non-residential development");
     if (val("development.non_residential") === "yes" && !val("development.non_residential_desc")) m.push("the non-residential uses");
     if (checked("vested.exemptions").indexOf("Statutory exemption") >= 0 && !val("vested.statute")) m.push("the applicable statute");
-    SLOTS.forEach(function (s) { if (required(s[0]) && !files[s[0]].length) m.push("the " + s[1].toLowerCase()); });
+    if (!files.site_plan.length && !files.survey.length) m.push("the site plan or the plat");
+    SLOTS.forEach(function (s) { if (s[0] !== "site_plan" && s[0] !== "survey" && required(s[0]) && !files[s[0]].length) m.push("the " + s[1].toLowerCase()); });
     if (!val("certification.name") || !val("certification.agreed")) m.push("your typed-name signature and certification");
     return m;
   }
