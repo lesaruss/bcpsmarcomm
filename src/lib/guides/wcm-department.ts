@@ -539,21 +539,22 @@ ${auditFaq('Do I have to do the audit myself?', '<p>Your department page is your
           id: 'how',
           title: 'How the leaderboard works',
           html: `<p>Every Department WCM earns points for the work that keeps department sites in good shape. The leaderboard shows the <b>top 20</b> this school year. It starts over every school year, so everyone begins even.</p>
-<p>Points update after each Hot Lab, once the meeting notes are posted. The board shows first name, last initial and department.</p>
-<p>Hot Lab points come from the people named in each posted meeting note, so someone who joins and stays quiet may be missed. If a session is missing for you, <a href="#feedback" data-msg="A Hot Lab is missing from my leaderboard points: ">tell us</a> and we will add it.</p>`,
+<p>Points update after each Hot Lab, once its Teams attendance report is added. The board shows first name, last initial and department. There is no ceiling: the more you take part, the more you earn.</p>
+<p>Hot Lab points come from the Teams attendance report, so everyone in the room counts, whether or not they spoke. If a session is missing for you, <a href="#feedback" data-msg="A Hot Lab is missing from my leaderboard points: ">tell us</a> and we will check it.</p>`,
         },
         {
           id: 'rubric',
-          title: 'Point chart (100 points)',
+          title: 'Point chart',
           html: `<table>
   <thead><tr><th>Category</th><th>Points</th><th>How you earn them</th></tr></thead>
   <tbody>
     <tr><td><b>Certification</b></td><td>Up to 40</td><td>Certified by Oct 30: 40. By Nov 5: 30. By Nov 9: 20. After Nov 9: 10.</td></tr>
-    <tr><td><b>In-person Hot Labs</b></td><td>Up to 30</td><td>3 points for each Hot Lab you attend this school year, up to 30.</td></tr>
+    <tr><td><b>Hot Labs*</b></td><td>Up to 15 per Hot Lab</td><td>10 points if you stay for half the meeting or more, 5 if you stay for less. Plus 5 if you speak or contribute (once per meeting, however many times you speak).</td></tr>
     <tr><td><b>Kickoff</b></td><td>10</td><td>You attended the September 10 Kickoff.</td></tr>
     <tr><td><b>Audit started</b></td><td>Up to 20</td><td>10 for marking your first audit item, and 10 more once at least half your findings are fixed.</td></tr>
   </tbody>
 </table>
+<p>*Hot Lab points count from August 25, 2026, using each session's Teams attendance report: how long you were in the meeting, and whether you are named as a speaker in the session notes. Raised hands and unmuting alone do not count as speaking.</p>
 <p>Ties go to whoever certified first.</p>
 <p><a class="guide-btn" href="#guide/certify">Finish certification</a></p>`,
         },
@@ -596,6 +597,7 @@ ${auditFaq('Do I have to do the audit myself?', '<p>Your department page is your
     },
   ],
   changes: [
+    { date: '2026-11-11', text: 'New Hot Lab points: every Hot Lab now earns up to 15 points. 10 if you stay for half the meeting or more, 5 if less, plus 5 if you speak. Points come from the Teams attendance reports, so everyone in the room gets credit, not only the people who spoke, and there is no longer a 100-point ceiling. Counts from August 25.' },
     { date: '2026-11-10', text: 'Hot Lab & Help is simpler. Every Hot Lab is now a tile with its date and a frame from the recording, 8 to a page: search a topic (headings, PDF, links, the audit) to find the session where it came up, sort newest or oldest, and open the notes right here. The next Hot Lab and a Join button sit at the top, and getting help is three cards: join Hot Lab, message the District Web Team, or tell us what this guide is missing. The four latest sessions (October 29 through November 10) are now open to every Department WCM, not only the people who attended.' },
     { date: '2026-11-03', text: 'The audit walkthrough is now guided: one step at a time with Back and Next, the instructions beside an example, and your progress shown. From Patricia Sapp\'s feedback at the November 3 Hot Lab.' },
     { date: '2026-11-04', text: 'Certification no longer needs Finalsite access to finish. The last page, Submit Badge Evidence, accepts your place on the WCM Roster instead of a Composer screenshot, so new WCMs are not stuck waiting for a login that comes after certifying.' },
