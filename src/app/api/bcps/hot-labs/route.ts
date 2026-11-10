@@ -21,6 +21,23 @@ const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 const HOT_LAB_SERIES_ID = '158c496c-7964-407c-8015-4001ceddafdf'
 const SEARCH_TEXT_LIMIT = 12000
 
+const SHAREPOINT = 'https://browardcountyschools.sharepoint.com'
+
+// The session's Teams recording on SharePoint, as an absolute file address.
+// Notes embed it (embed.aspx?id=<server-relative path>) or link to it.
+function recordingUrl(html: string): string | null {
+  const embed = html.match(/sharepoint\.com\/[^"'\s]*?embed\.aspx\?id=([^"'&\s]+)/i)
+  if (embed) {
+    try { return SHAREPOINT + decodeURIComponent(embed[1]) } catch { /* fall through */ }
+  }
+  const stream = html.match(/sharepoint\.com\/[^"'\s]*?stream\.aspx\?id=([^"'&\s]+)/i)
+  if (stream) {
+    try { return SHAREPOINT + decodeURIComponent(stream[1]) } catch { /* fall through */ }
+  }
+  const direct = html.match(/https:\/\/browardcountyschools\.sharepoint\.com\/[^"'\s<>]+?\.mp4/i)
+  return direct ? direct[0] : null
+}
+
 function plain(html: string): string {
   return html
     .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
@@ -75,14 +92,18 @@ export async function GET(req: NextRequest) {
 
   const sessions = visible.map((d) => {
     const html = bodyOf.get(d.slug as string) ?? ''
+    const video = recordingUrl(html)
     return {
       slug: d.slug as string,
       title: d.title as string,
       date: d.doc_date_sort as string,
       summary: (d.description as string) || '',
-      // Opens inside the platform (Documents tab), so the page keeps one header.
-      href: `/?page=dashboard&tab=documents&doc=${encodeURIComponent(d.slug as string)}`,
-      has_recording: /<video|<iframe|recording-bar|class="recording/i.test(html),
+      doc_url: (d.doc_url as string) || `/playbooks/wcm-hot-labs/${d.slug as string}`,
+      // SharePoint draws a preview frame of the recording for anyone signed in
+      // to their district Microsoft account; the tile falls back to a designed
+      // cover when it cannot load.
+      thumb: video ? `${SHAREPOINT}/_layouts/15/getpreview.ashx?path=${encodeURIComponent(video)}&resolution=3` : null,
+      has_recording: !!video,
       text: plain(html).slice(0, SEARCH_TEXT_LIMIT),
     }
   })
