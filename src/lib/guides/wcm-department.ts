@@ -93,7 +93,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
   eyebrow: 'BCPS MarComm',
   title: 'Department WCM Guide',
   audience: 'Department Web Content Managers',
-  updated: '2026-11-04',
+  updated: '2026-11-10',
   cadence: 'refreshed every Thursday',
   replaces: {
     'bcps-wcm-registration-2026-27': 'start',
@@ -494,7 +494,7 @@ ${auditFaq('Do I have to do the audit myself?', '<p>Your department page is your
   <li><a href="/?page=dashboard&amp;tab=analytics"><b>Analytics</b><span>Your department's visitors and most visited pages.</span></a></li>
   <li><a href="/?page=dashboard&amp;tab=widgets"><b>Widgets</b><span>Every widget built so far, and the ones you edit.</span></a></li>
   <li><a href="/?page=members"><b>Members</b><span>Your roster status and your teammates.</span></a></li>
-  <li><a href="/?page=notes"><b>Meeting Notes</b><span>Every Hot Lab, with its recording.</span></a></li>
+  <li><a href="#guide/help/sessions"><b>Every Hot Lab</b><span>Every session, searchable by topic, with its notes and recording.</span></a></li>
 </ul>`,
         },
         {
@@ -568,13 +568,13 @@ ${auditFaq('Do I have to do the audit myself?', '<p>Your department page is your
     {
       id: 'help',
       label: 'Hot Lab & Help',
-      intro: 'Where to get an answer, fast.',
+      intro: 'Every Hot Lab, searchable by topic, and where to get an answer fast.',
       sections: [
         {
           id: 'hotlab',
           title: 'Hot Lab',
           html: `<p>Every <b>Tuesday and Thursday, 11:30 AM to 12:30 PM</b> on Teams. Bring a page, a task or a question. We also show work other departments are doing, walk through hard problems together, and build new tools every department can use. It is worth making time for.</p>
-<p>Every session is recorded, so missing one is fine: the notes and recording are in <a href="/?page=notes">Meeting Notes</a>. If an older Hot Lab series still shows on your calendar, use this link or the meeting titled Department WCM Hot Lab (Current).</p>
+<p>Missing a session is fine: every one has notes, and most have a recording. Find any of them in <a href="#guide/help/sessions">Every Hot Lab</a> at the top of this tab, searchable by topic. If an older Hot Lab series still shows on your calendar, use this link or the meeting titled Department WCM Hot Lab (Current).</p>
 <p>${'<a class="guide-btn" href="' + HOT_LAB_JOIN_URL + '" target="_blank" rel="noopener noreferrer">Join Hot Lab on Teams</a>'}</p>`,
         },
         {
@@ -608,6 +608,7 @@ ${auditFaq('Do I have to do the audit myself?', '<p>Your department page is your
     },
   ],
   changes: [
+    { date: '2026-11-10', text: 'Every Hot Lab is now in one place, at the top of Hot Lab & Help: search for a topic (headings, PDF, links, the audit) to find the session where it came up, sort by date, and open the notes without leaving the platform. The four latest sessions (October 29 through November 10) are now open to every Department WCM, not only the people who attended.' },
     { date: '2026-11-03', text: 'The audit walkthrough is now guided: one step at a time with Back and Next, the instructions beside an example, and your progress shown. From Patricia Sapp\'s feedback at the November 3 Hot Lab.' },
     { date: '2026-11-04', text: 'Certification no longer needs Finalsite access to finish. The last page, Submit Badge Evidence, accepts your place on the WCM Roster instead of a Composer screenshot, so new WCMs are not stuck waiting for a login that comes after certifying.' },
     { date: '2026-11-03', text: 'Your Audit rebuilt as one place for everything about the audit: the colors and the five areas at a glance, step-by-step fixes for the 15 items flagged most often, what is yours to fix and what is not, frequently asked questions, and four ways to get unstuck.' },

@@ -2928,3 +2928,33 @@ ul.guide-links.guide-quick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .home-start.home-start-novideo { grid-template-columns: 1fr; }
 .home-bullets { margin: 8px 0; padding-left: 20px; display: grid; gap: 6px; line-height: 1.55; }
 .home-muted { color: var(--text-muted, #56656f); font-size: 13.5px; }
+
+/* Hot Lab library in the Department WCM Guide (Sean, 2026-11-10): every
+   session, sortable by date and searchable by topic. */
+.hl-lib { margin-bottom: 16px; }
+.hl-lib-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.hl-lib-sub { margin: 4px 0 0; }
+.hl-lib-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.hl-lib-search { width: min(300px, 100%); }
+.hl-lib-sort { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #4a5560; }
+.hl-lib-sort select { font: inherit; font-weight: 600; font-size: 13px; padding: 9px 10px; border: 1px solid rgba(0,0,0,0.15); border-radius: 8px; background: #fff; }
+.hl-lib-topics { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 6px; }
+.hl-chip { font: inherit; font-size: 12.5px; font-weight: 700; padding: 6px 12px; border-radius: 999px; border: 1px solid #c9dbe8; background: #f3f8fc; color: #0e4e73; cursor: pointer; }
+.hl-chip:hover { border-color: #1672A7; }
+.hl-chip.on { background: #1672A7; border-color: #1672A7; color: #fff; }
+.hl-lib-count { font-size: 13px; color: #4a5560; margin: 8px 0; }
+.hl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.hl-item-btn { display: grid; gap: 4px; width: 100%; text-align: left; font: inherit; background: #fff; border: 1px solid #e3ebf2; border-left: 4px solid #1672A7; border-radius: 8px; padding: 12px 14px; cursor: pointer; color: #1a1a1a; }
+.hl-item-btn:hover, .hl-item-btn:focus-visible { border-color: #1672A7; background: #f7fbfe; }
+.hl-item-date { font-weight: 800; color: #0e4e73; font-size: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.hl-badge { font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; background: #e7f3e5; color: #16750C; }
+.hl-badge-rec { background: #fdeee7; color: #a3421c; }
+.hl-item-sum { font-size: 14px; line-height: 1.5; color: #2b3640; }
+.hl-item-hit { font-size: 13px; line-height: 1.5; color: #4a5560; background: #f7f9fb; border-radius: 6px; padding: 6px 8px; }
+.hl-item-open { font-size: 13px; font-weight: 700; color: #1672A7; }
+.hl-item-btn mark { background: #fff1b8; color: inherit; padding: 0 1px; border-radius: 2px; }
+.hl-more { margin-top: 10px; }
+@media (max-width: 640px) {
+  .hl-lib-tools { width: 100%; }
+  .hl-lib-search { width: 100%; }
+}
