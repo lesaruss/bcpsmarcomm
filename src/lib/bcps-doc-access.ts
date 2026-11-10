@@ -14,6 +14,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { hasValidPass } from './bcps-doc-password'
 
 export function serviceClient(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -90,13 +91,32 @@ export async function hasSeriesGrant(db: SupabaseClient, slug: string, email: st
   }
 }
 
+export interface DocAccess {
+  restricted: boolean
+  allowed: boolean
+  /** The document has a password an outside reader can enter (bcps-doc-password.ts). */
+  hasPassword: boolean
+  /** Allowed only because of a live password pass, not a sign-in. */
+  viaPassword: boolean
+}
+
 /**
  * Every document needs a signed-in BCPS MarComm account (Sean, 2026-10-20:
  * nobody outside BCPS needs to see anything). Beyond that, open to every
  * account unless recipients exist; then the session email must be listed,
  * an admin, or hold a grant on the doc's series (see hasSeriesGrant).
+ *
+ * One exception (Sean, 2026-11-10): a document an admin gave a password
+ * also opens for 24 hours to anyone who entered that password.
  */
-export async function checkDocAccess(db: SupabaseClient, slug: string): Promise<{ restricted: boolean; allowed: boolean }> {
+export async function checkDocAccess(db: SupabaseClient, slug: string): Promise<DocAccess> {
+  const signedIn = await checkSignedInAccess(db, slug)
+  if (signedIn.allowed) return { ...signedIn, hasPassword: false, viaPassword: false }
+  const pass = await hasValidPass(db, slug)
+  return { ...signedIn, allowed: pass.valid, hasPassword: pass.hasPassword, viaPassword: pass.valid }
+}
+
+async function checkSignedInAccess(db: SupabaseClient, slug: string): Promise<{ restricted: boolean; allowed: boolean }> {
   const { data: recipients } = await db
     .from('bcps_brief_recipients')
     .select('attendee_email')

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { isSuperadmin, resolvePerson } from '@/lib/bcps-view-as-person'
+import { hashPassword, docSlugFromUrl, MIN_PASSWORD_LENGTH } from '@/lib/bcps-doc-password'
 
 export const dynamic = 'force-dynamic'
 
@@ -313,6 +314,20 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Admins see which documents have a password (Sean, 2026-11-10). The
+  // password itself is never sent: only that one is set, and when.
+  if (isAdmin) {
+    const docSlugs = Array.from(new Set(result.map(d => docSlugFromUrl(d.doc_url)).filter(Boolean) as string[]))
+    if (docSlugs.length) {
+      const { data: pw } = await svc.from('bcps_doc_passwords').select('slug, updated_at').in('slug', docSlugs)
+      const set = new Map((pw ?? []).map(r => [r.slug as string, r.updated_at as string]))
+      for (const d of result as Array<Record<string, unknown>>) {
+        const ds = docSlugFromUrl(d.doc_url as string)
+        if (ds) d.password = { slug: ds, set_at: set.get(ds) ?? null }
+      }
+    }
+  }
+
   const res = NextResponse.json({ ok: true, role, documents: result, ...extra })
   res.headers.set('Cache-Control', 'no-store')
   return res
@@ -358,6 +373,33 @@ export async function POST(req: NextRequest) {
         if (error) throw error
         await audit(user.id, 'playbook_transcript_leads', null, { slug: pb, emails })
         return NextResponse.json({ ok: true, emails })
+      }
+
+      // Password access for one document (Sean, 2026-11-10): anyone with the
+      // password gets 24 hours of access without signing in. Only the hash is
+      // stored; setting a new one or removing it ends every open pass.
+      case 'doc_password': {
+        const slug = typeof body.slug === 'string' ? body.slug.trim().toLowerCase() : ''
+        if (!/^[a-z0-9-]+$/.test(slug)) return NextResponse.json({ error: 'slug required.' }, { status: 400 })
+        const { data: doc } = await svc.from('briefings').select('slug').eq('brand_slug', 'bcps').eq('slug', slug).in('type', ['playbook', 'record']).maybeSingle()
+        if (!doc) return NextResponse.json({ error: 'Passwords work on Playbooks and their documents only.' }, { status: 404 })
+        if (body.password === null) {
+          const { error } = await svc.from('bcps_doc_passwords').delete().eq('slug', slug)
+          if (error) throw error
+          await audit(user.id, 'document_password_removed', null, { slug })
+          return NextResponse.json({ ok: true, on: false })
+        }
+        const password = typeof body.password === 'string' ? body.password : ''
+        if (password.length < MIN_PASSWORD_LENGTH) {
+          return NextResponse.json({ error: `Use at least ${MIN_PASSWORD_LENGTH} characters.` }, { status: 400 })
+        }
+        const { error } = await svc.from('bcps_doc_passwords').upsert({
+          slug, password_hash: hashPassword(password), set_by: user.email ?? user.id,
+          failed_attempts: 0, failed_window_start: null, updated_at: new Date().toISOString(),
+        }, { onConflict: 'slug' })
+        if (error) throw error
+        await audit(user.id, 'document_password_set', null, { slug })
+        return NextResponse.json({ ok: true, on: true })
       }
 
       case 'meta_update': {
