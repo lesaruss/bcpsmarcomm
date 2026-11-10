@@ -420,6 +420,7 @@ function MicPicker() {
       </select>
       <button type="button" className="dp-btn ghost" onClick={test}>{testing ? 'Stop test' : 'Test'}</button>
       {testing && <LevelBar level={level} />}
+      {testing && <p className="dp-mic-now">Listening on: <b>{testing.getAudioTracks()[0]?.label || 'your microphone'}</b></p>}
       <p className="dp-muted dp-small">{testing ? 'Talk at your normal reading level. The bar should move into the green, and not hit red.' : named ? 'Every Record button below uses this microphone. Your choice is saved in this browser.' : 'Press Test once to let the browser list your microphones by name.'}</p>
       {note && <p className="dp-err" role="alert">{note}</p>}
     </div>
@@ -477,6 +478,7 @@ function RecordButton({ onTake, disabled, setErr }: { onTake: (f: File) => Promi
     <div className="dp-rec-review">
       <button type="button" className="dp-btn rec on" onClick={stop} aria-live="polite">■ Stop ({clock})</button>
       <LevelBar level={level} />
+      <span className="dp-muted dp-small">Recording on: {live?.getAudioTracks()[0]?.label || 'your microphone'}</span>
     </div>
   )
   if (state === 'review' || state === 'saving') return (
@@ -545,7 +547,7 @@ const CSS = `
 .dp-addstill{width:200px;aspect-ratio:16/9;border:1px dashed #cbd5e1;border-radius:6px;background:#f8fafc;color:#0e4e73;font:inherit;font-weight:700;cursor:pointer}
 .dp-audio{width:100%;max-width:520px;height:36px}
 .dp-btn.rec{border-color:#b91c1c;color:#b91c1c;background:#fff}.dp-btn.rec.on{background:#b91c1c;color:#fff}.dp-rec-review{display:grid;gap:6px}
-.dp-mic{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#fff;border:1px solid #d6dee5;border-radius:10px;padding:12px 14px;margin:0 0 14px}.dp-mic p{flex-basis:100%;margin:0}.dp-mic select{font:inherit;padding:7px 8px;border:1px solid #c5d0d9;border-radius:6px;max-width:100%}.dp-mic-label{font-weight:800;color:#0e4e73}
+.dp-mic{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#fff;border:1px solid #d6dee5;border-radius:10px;padding:12px 14px;margin:0 0 14px}.dp-mic p{flex-basis:100%;margin:0}.dp-mic select{font:inherit;padding:7px 8px;border:1px solid #c5d0d9;border-radius:6px;max-width:100%}.dp-mic-label{font-weight:800;color:#0e4e73}.dp-mic-now{color:#14212b}
 .dp-level{flex:1;min-width:140px;height:10px;background:#e8eef3;border-radius:5px;overflow:hidden}.dp-level span{display:block;height:100%;transition:width .06s}.dp-level .low{background:#9aa9b5}.dp-level .ok{background:#16750C}.dp-level .hot{background:#b91c1c}
 .dp-card-side{display:flex;flex-direction:column;gap:8px;align-items:stretch}
 .dp-mv{width:32px;height:32px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;cursor:pointer}
