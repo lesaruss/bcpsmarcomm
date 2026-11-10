@@ -21,6 +21,7 @@ import AssignmentsPage from './AssignmentsPage'
 import MeetingTranscriptUpload from '@/components/bcps/MeetingTranscriptUpload'
 import AgendaBuilder from '@/components/bcps/AgendaBuilder'
 import ProjectLeads from '@/components/bcps/ProjectLeads'
+import DocPasswordButton from '@/components/bcps/DocPasswordButton'
 import CompleteItemDialog, { type CompletableItem, type InputTarget } from '@/components/bcps/CompleteItemDialog'
 import AddDeliverableDialog, { type Person } from '@/components/bcps/AddDeliverableDialog'
 import DocumentsPage, { type PinnedDoc } from './DocumentsPage'
@@ -1462,7 +1463,10 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
     return (
       <div className="home-section">
         <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab} asEmail={asEmail} renderAnalytics={renderDeptAnalytics}
-          actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>} />
+          actions={<>
+            <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>
+            <DocPasswordButton key={`pw-${restricted.guide.slug}`} slug={restricted.guide.slug} sharePath={`/guides/${restricted.guide.slug}`} />
+          </>} />
       </div>
     )
   }
@@ -1495,6 +1499,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
             <MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} variant="button" onApplied={() => setRefresh((n) => n + 1)} />
             <AgendaBuilder key={`agenda-${doc}`} playbook={doc} onSaved={() => setRefresh((n) => n + 1)} />
             <ProjectLeads key={`leads-${doc}-${refresh}`} playbook={doc} onSaved={(m) => { setLeadsNote(m); setRefresh((n) => n + 1) }} />
+            <DocPasswordButton key={`pw-${doc}`} slug={doc} sharePath={`/playbooks/${doc}`} onSaved={(m) => setLeadsNote(m)} />
           </>}
           between={leadsNote ? <p className="home-hint doc-toolbar-note" role="status">{leadsNote}</p> : undefined} />
       </div>
@@ -1530,7 +1535,10 @@ function StandaloneDoc({ slug, asEmail }: { slug: string; asEmail?: string | nul
     return (
       <div className="home">
         <RestrictedGuide key={restricted.guide.slug} meta={restricted.guide} initialTab={restricted.tab} asEmail={asEmail} renderAnalytics={renderDeptAnalytics}
-          actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => router.push('/?page=dashboard', { scroll: false })}>Back to the dashboard</button>} />
+          actions={<>
+            <button type="button" className="wcm-hub2-card-btn" onClick={() => router.push('/?page=dashboard', { scroll: false })}>Back to the dashboard</button>
+            <DocPasswordButton key={`pw-${restricted.guide.slug}`} slug={restricted.guide.slug} sharePath={`/guides/${restricted.guide.slug}`} />
+          </>} />
       </div>
     )
   }
