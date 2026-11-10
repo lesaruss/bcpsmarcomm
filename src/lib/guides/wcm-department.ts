@@ -93,7 +93,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
   eyebrow: 'BCPS MarComm',
   title: 'Department WCM Guide',
   audience: 'Department Web Content Managers',
-  updated: '2026-11-04',
+  updated: '2026-11-10',
   cadence: 'refreshed every Thursday',
   replaces: {
     'bcps-wcm-registration-2026-27': 'start',
@@ -494,7 +494,7 @@ ${auditFaq('Do I have to do the audit myself?', '<p>Your department page is your
   <li><a href="/?page=dashboard&amp;tab=analytics"><b>Analytics</b><span>Your department's visitors and most visited pages.</span></a></li>
   <li><a href="/?page=dashboard&amp;tab=widgets"><b>Widgets</b><span>Every widget built so far, and the ones you edit.</span></a></li>
   <li><a href="/?page=members"><b>Members</b><span>Your roster status and your teammates.</span></a></li>
-  <li><a href="/?page=notes"><b>Meeting Notes</b><span>Every Hot Lab, with its recording.</span></a></li>
+  <li><a href="#guide/help/sessions"><b>Every Hot Lab</b><span>Every session, searchable by topic, with its notes and recording.</span></a></li>
 </ul>`,
         },
         {
@@ -568,46 +568,35 @@ ${auditFaq('Do I have to do the audit myself?', '<p>Your department page is your
     {
       id: 'help',
       label: 'Hot Lab & Help',
-      intro: 'Where to get an answer, fast.',
+      intro: 'Every Hot Lab, and the fastest ways to get an answer.',
       sections: [
+        // One action per card (Sean, 2026-11-10: the stacked sections were
+        // overwhelming). The words stay here so the guide's search finds them.
         {
           id: 'hotlab',
-          title: 'Hot Lab',
-          html: `<p>Every <b>Tuesday and Thursday, 11:30 AM to 12:30 PM</b> on Teams. Bring a page, a task or a question. We also show work other departments are doing, walk through hard problems together, and build new tools every department can use. It is worth making time for.</p>
-<p>Every session is recorded, so missing one is fine: the notes and recording are in <a href="/?page=notes">Meeting Notes</a>. If an older Hot Lab series still shows on your calendar, use this link or the meeting titled Department WCM Hot Lab (Current).</p>
-<p>${'<a class="guide-btn" href="' + HOT_LAB_JOIN_URL + '" target="_blank" rel="noopener noreferrer">Join Hot Lab on Teams</a>'}</p>`,
+          title: 'Get help',
+          html: `<div class="help-cards">
+<div class="help-card"><span class="help-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3"/></svg></span><b>Join Hot Lab</b><p>Tuesdays and Thursdays, 11:30 AM to 12:30 PM on Teams. Bring a page, a task or a question and we work through it live. If an older Hot Lab series still shows on your calendar, use this button or the meeting titled Department WCM Hot Lab (Current).</p>${'<a class="guide-btn" href="' + HOT_LAB_JOIN_URL + '" target="_blank" rel="noopener noreferrer">Join on Teams</a>'}</div>
+<div class="help-card"><span class="help-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><b>Message the District Web Team</b><p>The fastest way to ask about your department page. It goes straight to the team, so there is no need to also email or open an Incident IQ ticket. Tips worth sharing go in the Hot Lab chat.</p><a class="guide-btn" href="#feedback">Send a message</a></div>
+<div class="help-card"><span class="help-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span><b>Something missing here?</b><p>Unclear, out of date, or not in this guide yet? Tell us and it goes into the next Thursday refresh.</p><a class="guide-btn" href="#feedback" data-msg="Feedback on the Department WCM Guide: ">Leave feedback</a></div>
+</div>`,
         },
         {
-          id: 'message',
-          title: 'Send the District Web Team a message',
-          html: `<p>Use the blue message button in the bottom right of any page on BCPS MarComm. It goes straight to the District Web Team, so there is no need to also post in Teams or email. It is faster than an Incident IQ ticket for anything about your department page.</p>
-<p><a class="guide-btn" href="#feedback">Send a message</a></p>
-<p>Found a tool, tip or example worth sharing? Drop it in the Hot Lab chat so everyone can use it.</p>`,
-        },
-        {
-          id: 'current',
-          title: 'How this guide stays current',
-          html: `<p>This guide is refreshed every <b>Thursday by 5 PM</b> from that week's Hot Labs and updates, and a short email the following <b>Monday</b> points back here with what changed. The guide is always the current version: the email is just the pointer. See <a href="#guide/changes">What's New</a> for every change.</p>`,
-        },
-        {
-          id: 'reference',
-          title: 'Earlier documents',
-          html: `<p>Everything in these is now in this guide. They are kept as they were, for reference.</p>
+          id: 'about',
+          title: 'About this guide',
+          html: `<details class="help-about"><summary>How this guide stays current, and earlier documents</summary>
+<p>This guide is refreshed every <b>Thursday by 5 PM</b> from that week's Hot Labs and updates, and a short email the following <b>Monday</b> points back here with what changed. See <a href="#guide/changes">What's New</a> for every change.</p>
+<p>Earlier documents, now folded into this guide and kept as they were for reference:</p>
 <ul>
   <li><a href="/playbooks/wcm-department?standalone=1" target="_blank" rel="noopener">Department WCM Playbook</a>, as of October 29, 2026, including the September 10 Kickoff recap.</li>
   <li><a href="/playbooks/bcps-wcm-registration-2026-27?standalone=1" target="_blank" rel="noopener">Registration: Getting Started</a></li>
-</ul>`,
-        },
-        {
-          id: 'feedback',
-          title: 'Tell us what this guide is missing',
-          html: `<p>Something unclear, out of date, or missing? Tell us and it goes into the next Thursday refresh.</p>
-<p><a class="guide-btn" href="#feedback" data-msg="Feedback on the Department WCM Guide: ">Leave feedback on this guide</a></p>`,
+</ul></details>`,
         },
       ],
     },
   ],
   changes: [
+    { date: '2026-11-10', text: 'Hot Lab & Help is simpler. Every Hot Lab is now a tile with its date and a frame from the recording, 8 to a page: search a topic (headings, PDF, links, the audit) to find the session where it came up, sort newest or oldest, and open the notes right here. The next Hot Lab and a Join button sit at the top, and getting help is three cards: join Hot Lab, message the District Web Team, or tell us what this guide is missing. The four latest sessions (October 29 through November 10) are now open to every Department WCM, not only the people who attended.' },
     { date: '2026-11-03', text: 'The audit walkthrough is now guided: one step at a time with Back and Next, the instructions beside an example, and your progress shown. From Patricia Sapp\'s feedback at the November 3 Hot Lab.' },
     { date: '2026-11-04', text: 'Certification no longer needs Finalsite access to finish. The last page, Submit Badge Evidence, accepts your place on the WCM Roster instead of a Composer screenshot, so new WCMs are not stuck waiting for a login that comes after certifying.' },
     { date: '2026-11-03', text: 'Your Audit rebuilt as one place for everything about the audit: the colors and the five areas at a glance, step-by-step fixes for the 15 items flagged most often, what is yours to fix and what is not, frequently asked questions, and four ways to get unstuck.' },

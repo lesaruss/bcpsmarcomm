@@ -35,6 +35,7 @@ import SiteAudit from '@/components/bcps/SiteAudit'
 import Guide from '@/components/guides/Guide'
 import WcmGuideOverview, { type GuideViewer } from '@/components/guides/WcmGuideOverview'
 import WcmLeaderboard from '@/components/guides/WcmLeaderboard'
+import HotLabLibrary from '@/components/guides/HotLabLibrary'
 import { guideForDoc, GUIDES } from '@/lib/guides'
 import { restrictedGuideForDoc, RESTRICTED_GUIDES } from '@/lib/guides/restricted'
 import RestrictedGuide from '@/components/guides/RestrictedGuide'
@@ -1129,6 +1130,14 @@ function guideOverview(slug: string) {
   return <WcmGuideOverview />
 }
 
+// Live parts of a guide's tabs, by tab id: the Department WCM Guide's
+// Leaderboard and its Hot Lab library (every session, sortable and searchable,
+// Sean 2026-11-10). The same wherever the guide is opened.
+function guideExtras(slug: string): Record<string, React.ReactNode> | undefined {
+  if (slug === WCM_DEPARTMENT_GUIDE.slug) return { leaderboard: <WcmLeaderboard />, help: <HotLabLibrary /> }
+  return undefined
+}
+
 // Opens a doc inside the Documents tab; null goes back to the list.
 function useDocParam(): [string | null, (slug: string | null) => void] {
   const router = useRouter()
@@ -1474,7 +1483,7 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
   if (guide) {
     return (
       <div className="home-section">
-        <Guide def={guide.guide} initialTab={guide.tab} overview={guideOverview(guide.guide.slug)}
+        <Guide def={guide.guide} initialTab={guide.tab} overview={guideOverview(guide.guide.slug)} tabExtras={guideExtras(guide.guide.slug)}
           actions={<button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>} />
       </div>
     )
@@ -1774,7 +1783,7 @@ function WcmHome({ data, preview, onNavigate, page }: { data: HomeData; preview?
           {mine.map((d) => <WcmDepartmentCards key={d.id} dept={d} showName={mine.length > 1} onAudit={() => setTab('audit')} />)}
         </>
       )}
-      {tab === 'guide' && <Guide def={WCM_DEPARTMENT_GUIDE} overview={<WcmGuideOverview viewer={viewer} />} tabExtras={{ leaderboard: <WcmLeaderboard /> }} />}
+      {tab === 'guide' && <Guide def={WCM_DEPARTMENT_GUIDE} overview={<WcmGuideOverview viewer={viewer} />} tabExtras={guideExtras(WCM_DEPARTMENT_GUIDE.slug)} />}
       {tab === 'widgets' && <WidgetsPage embedded />}
       {tab === 'documents' && !docGuide && <DocumentsTab kind="wcm" canMarcomm={canMarcomm} asEmail={data.viewing_as?.email} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
