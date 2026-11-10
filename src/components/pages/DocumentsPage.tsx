@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useEffectiveRole } from '@/components/BCPSShell'
 import { GUIDES, REPLACED_DOCS } from '@/lib/guides'
 import { RESTRICTED_GUIDES } from '@/lib/guides/restricted'
+import { inPlatformDocSrc, fullPageDocHref } from '@/lib/doc-frame'
 
 interface Doc {
   id: string
@@ -76,9 +77,10 @@ export type PinnedDoc = { slug: string; title: string; description: string; doc_
 
 // Playbooks are served for framing by /api/bcps/doc-raw; their /playbooks/
 // address sends a signed-in reader into the dashboard instead.
+// Same rule as every other frame in the platform (src/lib/doc-frame.ts).
 const isPlaybook = (url: string) => url.startsWith('/playbooks/')
-const previewSrc = (d: Doc) => isPlaybook(d.doc_url) ? `/api/bcps/doc-raw/${encodeURIComponent(d.slug)}?bare=1` : d.doc_url
-const fullPageHref = (d: Doc) => isPlaybook(d.doc_url) ? `${d.doc_url}?standalone=1` : d.doc_url
+const previewSrc = (d: Doc) => inPlatformDocSrc(d.doc_url, d.slug)
+const fullPageHref = (d: Doc) => fullPageDocHref(d.doc_url)
 
 const ROLE_OPTS = ['view', 'comment', 'edit', 'manage']
 const BLUE = '#1672A7'

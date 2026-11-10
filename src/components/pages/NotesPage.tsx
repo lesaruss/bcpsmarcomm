@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useEffectiveRole } from '@/components/BCPSShell'
+import { inPlatformDocSrc, fullPageDocHref } from '@/lib/doc-frame'
 
 interface Doc {
   id: string
@@ -504,11 +505,11 @@ export default function NotesPage({ embedded = false, extras = [], asEmail }: { 
             <div className="lightbox-header">
               <span className="lightbox-title">{preview.title}</span>
               <div className="lightbox-actions">
-                <a href={preview.doc_url} target="_blank" rel="noopener noreferrer" className="lightbox-open-btn">Open full page &#8599;</a>
+                <a href={fullPageDocHref(preview.doc_url)} target="_blank" rel="noopener noreferrer" className="lightbox-open-btn">Open full page &#8599;</a>
                 <button className="lightbox-close-btn" onClick={() => setPreview(null)} aria-label="Close preview">&times;</button>
               </div>
             </div>
-            <iframe className="lightbox-iframe" src={preview.doc_url} title={preview.title} />
+            <iframe className="lightbox-iframe" src={inPlatformDocSrc(preview.doc_url, preview.slug)} title={preview.title} />
           </div>
         </div>
       )}

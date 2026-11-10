@@ -29,13 +29,9 @@ export default async function CompletePage() {
 
   return (
     <div style={S.page}>
-      <header style={S.header}>
-        <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" style={{ height: 40, width: "auto" }} />
-        <div>
-          <span style={S.headerTitle}>WCM Certification - Department</span>
-          <span style={S.headerSub}>Broward County Public Schools</span>
-        </div>
-      </header>
+      {/* No header of its own: the platform shell already shows the logo and
+          the Dashboard button above this page, so a second logo header read
+          as a duplicate (Patricia Sapp, Oct 29 and Nov 9). */}
 
       <main style={S.main}>
         <div style={S.card}>
@@ -94,9 +90,6 @@ const S: Record<string, React.CSSProperties> = {
   badgeBtn: { display: 'inline-block', padding: '12px 28px', background: '#fff', color: '#1672A7', border: '2px solid #1672A7', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none' },
   badgeHint: { fontSize: 12, color: '#777', margin: '12px 0 0' },
   page: { minHeight: '100vh', background: '#f0f4f8', fontFamily: "'Open Sans', sans-serif" },
-  header: { background: '#fff', borderBottom: '3px solid #1672A7', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', gap: 16 },
-  headerTitle: { display: 'block', fontSize: 16, fontWeight: 700, color: '#0e4e73' },
-  headerSub: { display: 'block', fontSize: 11, color: '#888' },
   main: { display: 'flex', justifyContent: 'center', padding: '60px 24px' },
   card: { background: '#fff', borderRadius: 16, boxShadow: '0 8px 40px rgba(0,0,0,0.10)', padding: '48px 40px', maxWidth: 520, width: '100%', textAlign: 'center' },
   heading: { fontSize: 28, fontWeight: 900, color: '#16750C', margin: '0 0 8px' },
