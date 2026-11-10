@@ -1,0 +1,8 @@
+-- Audit rule review: Nov 5 Hot Lab outcomes for rules 1-4, recorded from the
+-- Teams transcript (Sean, 2026-11-10). Applied through execute_sql the same day.
+insert into bcps_audit_rule_reviews (check_id, reviewer_email, reviewer_name, decision, comment) values
+('text-images','sean.russell@browardschools.com','Sean A. Russell','approve','Nov 5 Hot Lab (from the transcript): clear as written. Patricia Sapp and Ernesto Gonzalez said it makes sense just reading it. It is a spot check: fix any flyer or text graphic, then mark it checked; if the image has no text, confirm and move on. Information in an image must also be on the page as text; alt text alone is not enough for a flyer.'),
+('pdfs-accessible','sean.russell@browardschools.com','Sean A. Russell','change','Nov 5 Hot Lab (from the transcript): rewrite this rule once the PDF check-and-fix tool is ready (run any PDF, even a phone photo, through the checker and fix it with one button; also a widget and part of the audit). Gate: if a page links more than 10 PDFs, pause and flag it for Sean before scanning.'),
+('a11y-heading-order','sean.russell@browardschools.com','Sean A. Russell','change','Nov 5 Hot Lab (from the transcript): makes sense to Hot Lab regulars, but Jennifer Amador said it may not for WCMs who do not attend. Add a plain explanation with an example (an H1 followed by an H3 should be an H2). Related: propose smaller H1/H2 sizes side by side, after confirming sizes can change site-wide.'),
+('overview-label','sean.russell@browardschools.com','Sean A. Russell','approve','Nov 5 Hot Lab (from the transcript): hands raised, makes sense as written. Walked through adding an overview page under the department branch using Academics as the example.')
+on conflict do nothing;
