@@ -27,6 +27,8 @@ interface Tile {
   id: string; project_id: string; position: number; title: string; script: string; stills: Still[]
   audio_path: string | null; audio_seconds: number | null; checked: boolean | null
   status: 'script' | 'voiced' | 'approved'; voice_request_at: string | null; version: number; note: string | null; updated_at: string
+  // The screen a guide walkthrough line shows: the guide (doc) and its tab (gs).
+  tour?: { doc?: string; gs?: string; tab?: string; target?: string } | null
 }
 interface Project {
   id: string; slug: string; title: string; kind: string; audience: string | null; surface: string | null; status: string
@@ -173,6 +175,25 @@ function ProjectView({ slug, onBack }: { slug: string; onBack: () => void }) {
       </section>
 
       <h2 className="dp-h2">The tiles</h2>
+      {tiles.some((t) => t.tour?.doc && t.tour?.gs) && (
+        <div className="dp-line" style={{ marginBottom: 12 }}>
+          <button type="button" className="dp-btn" disabled={!!busy} onClick={async () => {
+            setErr('')
+            for (const t of tiles) {
+              if (!t.tour?.doc || !t.tour?.gs) continue
+              setBusy(`shoot-${t.id}`)
+              try {
+                const file = await captureGuide(t.tour.doc, t.tour.gs)
+                for (let k = (t.stills ?? []).length - 1; k >= 0; k--) await api({ action: 'still_remove', tile_id: t.id, index: k })
+                const path = await upload(project.id, 'still', file)
+                await api({ action: 'upload_done', tile_id: t.id, kind: 'still', path })
+              } catch (e) { setErr(`${t.title}: ${(e as Error).message}`); break }
+            }
+            setBusy(''); await load()
+          }}>{busy.startsWith('shoot-') ? `Taking pictures… (${tiles.findIndex((t) => `shoot-${t.id}` === busy) + 1} of ${tiles.length})` : 'Generate all stills'}</button>
+          <span className="dp-muted dp-small">Takes a picture of each line&apos;s screen in the guide, as you see it. About ten seconds a line.</span>
+        </div>
+      )}
       <MicPicker />
       <div className="dp-cards">
         {tiles.map((t, i) => (
@@ -271,6 +292,17 @@ function TileCard({ n, tile, first, last, projectId, run, busy, reload, setErr }
       return true
     } catch (e) { setErr((e as Error).message); return false }
   }
+  const [shooting, setShooting] = useState(false)
+  // Generate still: a fresh picture of this line's screen replaces the old ones.
+  const generate = async () => {
+    if (!tile.tour?.doc || !tile.tour?.gs) return
+    setShooting(true); setErr('')
+    try {
+      const file = await captureGuide(tile.tour.doc, tile.tour.gs)
+      for (let k = (tile.stills ?? []).length - 1; k >= 0; k--) await api({ action: 'still_remove', tile_id: tile.id, index: k })
+      await doUpload('still', file)
+    } catch (e) { setErr((e as Error).message) } finally { setShooting(false) }
+  }
   const canApprove = !!tile.audio_path && tile.status === 'voiced' && tile.checked !== false && (tile.stills ?? []).length > 0
   return (
     <article className={`dp-card ${tile.status}`} id={`dp-tile-${tile.id}`}>
@@ -297,6 +329,11 @@ function TileCard({ n, tile, first, last, projectId, run, busy, reload, setErr }
               </figcaption>
             </figure>
           ))}
+          {tile.tour?.doc && tile.tour?.gs && (
+            <button type="button" className="dp-addstill" disabled={!!busy || shooting} onClick={generate}
+              title={`Takes a picture of the ${tile.tour.doc} guide, ${tile.tour.gs} tab, as you see it`}>
+              {shooting ? 'Taking the picture…' : (tile.stills ?? []).length ? 'Generate again' : 'Generate still'}</button>
+          )}
           <FileButton label="Add a still" accept="image/*" small disabled={!!busy} onFile={(f) => doUpload('still', f)} />
         </div>
         <label className="dp-sr" htmlFor={`dp-script-${tile.id}`}>The line</label>
@@ -346,6 +383,75 @@ function Feedback({ project, run, busy }: { project: Project; run: Run; busy: st
       ))}</ul>}
     </div>
   )
+}
+
+// Generate still (Sean, 2026-11-10: "a button that says generate still"). It
+// takes the picture in this browser, signed in as you: the guide opens on the
+// line's tab in a hidden frame on this same site, and once it has drawn, the
+// guide (not the menu around it) is captured, cropped to the 16:9 top of the
+// page and saved as the tile's still. A guide line knows its screen from
+// tile.tour ({ doc, gs }).
+// The site's font comes from Google Fonts, whose stylesheet a page cannot read,
+// so html-to-image finds no fonts and the picture falls back to Arial. Fetch
+// that stylesheet and its font files (Google allows it) and hand them over
+// inline. An empty string means "use whatever the library finds".
+async function embeddedFonts(d: Document): Promise<string> {
+  try {
+    const links = Array.from(d.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][href*="fonts.googleapis.com"]'))
+    let out = ''
+    for (const link of links) {
+      let css = await (await fetch(link.href)).text()
+      const urls = Array.from(new Set(Array.from(css.matchAll(/url\((https:[^)]+)\)/g)).map((m) => m[1])))
+      for (const u of urls) {
+        const blob = await (await fetch(u)).blob()
+        const data = await new Promise<string>((r) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result)); fr.readAsDataURL(blob) })
+        css = css.split(u).join(data)
+      }
+      out += css
+    }
+    return out
+  } catch { return '' }
+}
+
+async function captureGuide(doc: string, gs: string): Promise<File> {
+  const { toCanvas } = await import('html-to-image')
+  const frame = document.createElement('iframe')
+  frame.setAttribute('aria-hidden', 'true')
+  frame.tabIndex = -1
+  frame.style.cssText = 'position:fixed;left:-20000px;top:0;width:1600px;height:1000px;border:0;opacity:0;pointer-events:none'
+  frame.src = `/?page=dashboard&tab=documents&doc=${encodeURIComponent(doc)}&gs=${encodeURIComponent(gs)}`
+  document.body.appendChild(frame)
+  try {
+    const started = Date.now()
+    let el: HTMLElement | null = null
+    // Wait for the guide to finish loading its content (a restricted guide
+    // fetches it), then a moment for images and fonts to settle.
+    while (Date.now() - started < 30000) {
+      await new Promise((r) => setTimeout(r, 400))
+      const d = frame.contentDocument
+      el = (d?.querySelector('.guide .guide-cols')?.closest('.guide') as HTMLElement | null) ?? null
+      if (el) break
+    }
+    if (!el) throw new Error('The guide did not open in time. Check that it opens for you, then try again.')
+    const d = frame.contentDocument!
+    await (d.fonts?.ready ?? Promise.resolve())
+    await new Promise((r) => setTimeout(r, 1200))
+    const width = el.scrollWidth
+    const fontEmbedCSS = await embeddedFonts(d)
+    const opts = {
+      pixelRatio: 2, backgroundColor: '#f4f7fb', width, height: Math.min(el.scrollHeight, Math.round(width * 9 / 16)), cacheBust: true,
+      // The guide's own outer margin would show as an empty band.
+      style: { margin: '0' },
+      ...(fontEmbedCSS ? { fontEmbedCSS } : {}),
+    }
+    let canvas: HTMLCanvasElement
+    try { canvas = await toCanvas(el, opts) } catch { canvas = await toCanvas(el, { ...opts, skipFonts: true }) }
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.9))
+    if (!blob) throw new Error('The picture could not be made. Try again.')
+    return new File([blob], `${doc}-${gs}.jpg`, { type: 'image/jpeg' })
+  } finally {
+    frame.remove()
+  }
 }
 
 // The microphone to record with (Sean, 2026-11-10: "I just be able to use the
