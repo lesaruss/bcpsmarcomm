@@ -173,6 +173,7 @@ function ProjectView({ slug, onBack }: { slug: string; onBack: () => void }) {
       </section>
 
       <h2 className="dp-h2">The tiles</h2>
+      <MicPicker />
       <div className="dp-cards">
         {tiles.map((t, i) => (
           <TileCard key={t.id} n={i + 1} tile={t} first={i === 0} last={i === tiles.length - 1} projectId={project.id} run={run} busy={busy} reload={load} setErr={setErr} />
@@ -347,6 +348,84 @@ function Feedback({ project, run, busy }: { project: Project; run: Run; busy: st
   )
 }
 
+// The microphone to record with (Sean, 2026-11-10: "I just be able to use the
+// microphone that I have"). Picked once and remembered in this browser; every
+// Record button uses it. Test shows a live level so you know it hears you.
+const MIC_KEY = 'bcps-depot-mic'
+const savedMic = () => { try { return localStorage.getItem(MIC_KEY) || '' } catch { return '' } }
+const audioConstraints = (deviceId: string): MediaTrackConstraints => ({
+  echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1,
+  ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+})
+
+// A live level bar for a stream (0 to 1), from an analyser on the mic.
+function useLevel(stream: MediaStream | null) {
+  const [level, setLevel] = useState(0)
+  useEffect(() => {
+    if (!stream) { setLevel(0); return }
+    const ctx = new AudioContext()
+    const an = ctx.createAnalyser(); an.fftSize = 1024
+    ctx.createMediaStreamSource(stream).connect(an)
+    const buf = new Float32Array(an.fftSize)
+    let raf = 0
+    const tick = () => {
+      an.getFloatTimeDomainData(buf)
+      let peak = 0; for (let k = 0; k < buf.length; k++) peak = Math.max(peak, Math.abs(buf[k]))
+      setLevel((l) => Math.max(peak, l * 0.85)); raf = requestAnimationFrame(tick)
+    }
+    tick()
+    return () => { cancelAnimationFrame(raf); ctx.close().catch(() => {}) }
+  }, [stream])
+  return level
+}
+
+function LevelBar({ level }: { level: number }) {
+  const pct = Math.min(100, Math.round(level * 100))
+  const tone = level > 0.9 ? 'hot' : level > 0.05 ? 'ok' : 'low'
+  return (
+    <div className="dp-level" role="meter" aria-label="Microphone level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+      <span className={tone} style={{ width: `${pct}%` }} />
+    </div>
+  )
+}
+
+function MicPicker() {
+  const [mics, setMics] = useState<MediaDeviceInfo[]>([])
+  const [mic, setMic] = useState('')
+  const [testing, setTesting] = useState<MediaStream | null>(null)
+  const [note, setNote] = useState('')
+  const level = useLevel(testing)
+  const list = async () => {
+    try { setMics((await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput')) } catch { /* no list */ }
+  }
+  useEffect(() => { setMic(savedMic()); list() }, [])
+  useEffect(() => () => { testing?.getTracks().forEach((t) => t.stop()) }, [testing])
+  const pick = (id: string) => { setMic(id); try { localStorage.setItem(MIC_KEY, id) } catch { /* not saved */ } }
+  const test = async () => {
+    if (testing) { testing.getTracks().forEach((t) => t.stop()); setTesting(null); return }
+    setNote('')
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints(mic) })
+      setTesting(s); await list()
+    } catch { setNote('The microphone did not start. Allow microphone access for bcpsmarcomm.com, or pick another microphone.') }
+  }
+  // Device names only show once the browser has been allowed to use a mic.
+  const named = mics.some((m) => m.label)
+  return (
+    <div className="dp-mic">
+      <label htmlFor="dp-mic-select" className="dp-mic-label">Your microphone</label>
+      <select id="dp-mic-select" value={mic} onChange={(e) => pick(e.target.value)}>
+        <option value="">Computer default</option>
+        {mics.filter((m) => m.deviceId && m.deviceId !== 'default').map((m, i) => <option key={m.deviceId} value={m.deviceId}>{m.label || `Microphone ${i + 1}`}</option>)}
+      </select>
+      <button type="button" className="dp-btn ghost" onClick={test}>{testing ? 'Stop test' : 'Test'}</button>
+      {testing && <LevelBar level={level} />}
+      <p className="dp-muted dp-small">{testing ? 'Talk at your normal reading level. The bar should move into the green, and not hit red.' : named ? 'Every Record button below uses this microphone. Your choice is saved in this browser.' : 'Press Test once to let the browser list your microphones by name.'}</p>
+      {note && <p className="dp-err" role="alert">{note}</p>}
+    </div>
+  )
+}
+
 // Record a take right here (Sean, 2026-11-10: "I just need to get my
 // microphone and speak into it"). The line is in the box beside this button.
 // Record, Stop, listen back, then Use this take (saved like an upload) or
@@ -358,30 +437,34 @@ function RecordButton({ onTake, disabled, setErr }: { onTake: (f: File) => Promi
   const rec = useRef<MediaRecorder | null>(null)
   const chunks = useRef<Blob[]>([])
   const take = useRef<File | null>(null)
+  const [live, setLive] = useState<MediaStream | null>(null)
+  const level = useLevel(live)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
   useEffect(() => () => { if (timer.current) clearInterval(timer.current); rec.current?.stream.getTracks().forEach((t) => t.stop()); if (url) URL.revokeObjectURL(url) }, [url])
 
   const start = async () => {
     setErr('')
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } })
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints(savedMic()) })
       const type = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) || ''
       const r = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 128000 } : undefined)
       chunks.current = []
       r.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data) }
       r.onstop = () => {
         stream.getTracks().forEach((t) => t.stop())
+        setLive(null)
         const mime = r.mimeType || 'audio/webm'
         const blob = new Blob(chunks.current, { type: mime })
         take.current = new File([blob], `take.${mime.includes('mp4') ? 'm4a' : 'webm'}`, { type: mime })
         setUrl(URL.createObjectURL(blob)); setState('review')
       }
       rec.current = r
+      setLive(stream)
       r.start()
       setSecs(0); setState('recording')
       timer.current = setInterval(() => setSecs((n) => n + 1), 1000)
     } catch {
-      setErr('The microphone did not start. Allow microphone access for bcpsmarcomm.com in your browser, then try again.')
+      setErr('The microphone did not start. Allow microphone access for bcpsmarcomm.com in your browser, or pick another microphone above, then try again.')
     }
   }
   const stop = () => { if (timer.current) clearInterval(timer.current); rec.current?.stop() }
@@ -390,7 +473,12 @@ function RecordButton({ onTake, disabled, setErr }: { onTake: (f: File) => Promi
   const use = async () => { if (!take.current) return; setState('saving'); if (await onTake(take.current)) reset(); else setState('review') }
   const clock = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
 
-  if (state === 'recording') return <button type="button" className="dp-btn rec on" onClick={stop} aria-live="polite">■ Stop ({clock})</button>
+  if (state === 'recording') return (
+    <div className="dp-rec-review">
+      <button type="button" className="dp-btn rec on" onClick={stop} aria-live="polite">■ Stop ({clock})</button>
+      <LevelBar level={level} />
+    </div>
+  )
   if (state === 'review' || state === 'saving') return (
     <div className="dp-rec-review">
       <audio controls src={url} className="dp-audio" />
@@ -457,6 +545,8 @@ const CSS = `
 .dp-addstill{width:200px;aspect-ratio:16/9;border:1px dashed #cbd5e1;border-radius:6px;background:#f8fafc;color:#0e4e73;font:inherit;font-weight:700;cursor:pointer}
 .dp-audio{width:100%;max-width:520px;height:36px}
 .dp-btn.rec{border-color:#b91c1c;color:#b91c1c;background:#fff}.dp-btn.rec.on{background:#b91c1c;color:#fff}.dp-rec-review{display:grid;gap:6px}
+.dp-mic{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#fff;border:1px solid #d6dee5;border-radius:10px;padding:12px 14px;margin:0 0 14px}.dp-mic p{flex-basis:100%;margin:0}.dp-mic select{font:inherit;padding:7px 8px;border:1px solid #c5d0d9;border-radius:6px;max-width:100%}.dp-mic-label{font-weight:800;color:#0e4e73}
+.dp-level{flex:1;min-width:140px;height:10px;background:#e8eef3;border-radius:5px;overflow:hidden}.dp-level span{display:block;height:100%;transition:width .06s}.dp-level .low{background:#9aa9b5}.dp-level .ok{background:#16750C}.dp-level .hot{background:#b91c1c}
 .dp-card-side{display:flex;flex-direction:column;gap:8px;align-items:stretch}
 .dp-mv{width:32px;height:32px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;cursor:pointer}
 @media (max-width:820px){.depot{padding:20px 16px 48px}.dp-lb,.dp-final,.dp-card{grid-template-columns:1fr}.dp-lb-tiles{grid-template-columns:repeat(8,1fr)}}
