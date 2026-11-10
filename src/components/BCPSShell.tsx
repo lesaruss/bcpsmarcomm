@@ -9,6 +9,7 @@ import ViewAsButton from '@/components/ViewAsButton'
 import { TOOLS } from '@/lib/bcps-tools'
 import { MARCOMM_PATH, type PageId } from '@/lib/types'
 import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
+import { inPlatformDocSrc, fullPageDocHref } from '@/lib/doc-frame'
 
 // The left menu is retired (Sean, 2026-10-02): every tool it listed is on the
 // dashboard's Tools & Resources tab, filtered by the same access rules, so the
@@ -519,11 +520,11 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
             <div className="doc-lightbox-header">
               <span className="doc-lightbox-title">{docPreview.title}</span>
               <div className="doc-lightbox-actions">
-                <a href={docPreview.url} target="_blank" rel="noopener noreferrer" className="doc-lightbox-open-btn">Open full page ↗</a>
+                <a href={fullPageDocHref(docPreview.url)} target="_blank" rel="noopener noreferrer" className="doc-lightbox-open-btn">Open full page ↗</a>
                 <button className="doc-lightbox-close-btn" onClick={() => setDocPreview(null)} aria-label="Close preview">x</button>
               </div>
             </div>
-            <iframe className="doc-lightbox-iframe" src={docPreview.url} title={docPreview.title} />
+            <iframe className="doc-lightbox-iframe" src={inPlatformDocSrc(docPreview.url)} title={docPreview.title} />
           </div>
         </div>
       )}
