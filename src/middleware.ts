@@ -194,6 +194,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // sitemap.xml and robots.txt are public metadata routes (src/app/sitemap.ts,
+    // src/app/robots.ts); without this exclusion the sign-in check sent them to /login.
+    '/((?!_next/static|_next/image|favicon.ico|sitemap\\.xml$|robots\\.txt$|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
