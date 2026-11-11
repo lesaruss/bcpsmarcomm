@@ -194,8 +194,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    // fonts/ and .woff2: the self-hosted font files (public/fonts) must load signed out, like images.
     // sitemap.xml and robots.txt are public metadata routes (src/app/sitemap.ts,
     // src/app/robots.ts); without this exclusion the sign-in check sent them to /login.
-    '/((?!_next/static|_next/image|favicon.ico|sitemap\\.xml$|robots\\.txt$|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|fonts/|sitemap\\.xml$|robots\\.txt$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff2)$).*)',
   ],
 }
