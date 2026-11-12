@@ -93,7 +93,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
   eyebrow: 'BCPS MarComm',
   title: 'Department WCM Guide',
   audience: 'Department Web Content Managers',
-  updated: '2026-11-10',
+  updated: '2026-11-12',
   cadence: 'refreshed every Thursday',
   replaces: {
     'bcps-wcm-registration-2026-27': 'start',
@@ -152,7 +152,7 @@ export const WCM_DEPARTMENT_GUIDE: GuideDef = {
           id: 'deadline',
           title: 'The deadline, and what happens after it',
           html: `
-<p>Certification is due <b>Thursday, November 5, 2026</b>, extended from October 30 to give everyone a little more room. If anything is in the way, or you need more time, <a href="#feedback" data-msg="I need help finishing the certification: ">tell us</a> and we will work it out with you. After the deadline, the District Web Team follows up with anyone who has not finished.</p>
+<p>Certification was due <b>Thursday, November 5, 2026</b>, extended from October 30. Not finished yet? Keep going: your progress is saved, and the District Web Team is following up with each WCM who has not finished. If anything is in the way, <a href="#feedback" data-msg="I need help finishing the certification: ">tell us</a> and we will work it out with you.</p>
 <p>New WCMs complete the course before update access is granted. If someone new has just taken over your pages, <a href="#feedback" data-msg="A new Web Content Manager just took over our department pages: ">tell us</a> and we will fast-track them.</p>
 <p><a class="guide-btn" href="/certification/departments/dashboard">Open the certification course</a></p>`,
         },
@@ -597,6 +597,7 @@ ${auditFaq('Do I have to do the audit myself?', '<p>Your department page is your
     },
   ],
   changes: [
+    { date: '2026-11-12', text: 'The certification deadline, Thursday, November 5, has passed, with 63 department WCMs certified. Not finished? Keep going: your progress is saved, and the District Web Team is following up with each WCM who has not finished.' },
     { date: '2026-11-11', text: 'New Hot Lab points: every Hot Lab now earns up to 15 points. 10 if you stay for half the meeting or more, 5 if less, plus 5 if you speak. Points come from the Teams attendance reports, so everyone in the room gets credit, not only the people who spoke, and there is no longer a 100-point ceiling. Counts from August 25.' },
     { date: '2026-11-10', text: 'Hot Lab & Help is simpler. Every Hot Lab is now a tile with its date and a frame from the recording, 8 to a page: search a topic (headings, PDF, links, the audit) to find the session where it came up, sort newest or oldest, and open the notes right here. The next Hot Lab and a Join button sit at the top, and getting help is three cards: join Hot Lab, message the District Web Team, or tell us what this guide is missing. The four latest sessions (October 29 through November 10) are now open to every Department WCM, not only the people who attended.' },
     { date: '2026-11-03', text: 'The audit walkthrough is now guided: one step at a time with Back and Next, the instructions beside an example, and your progress shown. From Patricia Sapp\'s feedback at the November 3 Hot Lab.' },
