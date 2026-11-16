@@ -11,6 +11,7 @@ import DirectoryPage from './DirectoryPage'
 import SchoolSupportLeadPage from './SchoolSupportLeadPage'
 import SchoolImpactApplicationsPage from './SchoolImpactApplicationsPage'
 import SoftwareInventoryPage from './SoftwareInventoryPage'
+import SchoolFinancialReportsPage from './SchoolFinancialReportsPage'
 import { useEffectiveRole } from '@/components/BCPSShell'
 
 interface Widget {
@@ -43,6 +44,7 @@ const EDITORS: Record<string, React.ComponentType> = {
   'school-support-lead': SchoolSupportLeadPage,
   'school-impact-application': SchoolImpactApplicationsPage,
   'software-inventory': SoftwareInventoryPage,
+  'school-financial-reports': SchoolFinancialReportsPage,
 }
 
 // Embeds with a microphone (voice search) button.
