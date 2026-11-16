@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { runAxeScan } from '@/lib/axe-scan'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 // Raised 2026-08-19: this route now runs a real headless-Chromium axe-core
 // pass plus a WAVE API call after the PageSpeed call, so worst case is
 // PSI's own ~110s timeout PLUS the axe scan's page-load/scan time, not PSI

@@ -31,6 +31,7 @@ import { requireBcpsPageAccess, requireBcpsAdmin } from '@/lib/bcps-auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,

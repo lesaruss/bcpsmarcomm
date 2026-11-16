@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 interface Props {
   params: Promise<{ slug: string }>

@@ -6,6 +6,7 @@ import { auditDepartmentPage } from '@/lib/dept-audit-run'
 // preview deployments (which sit behind Vercel's own login); production and
 // local builds answer 404.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 240
 
 export async function GET(req: NextRequest) {

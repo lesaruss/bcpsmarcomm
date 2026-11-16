@@ -12,6 +12,7 @@ import { identifyCaller, isDeptWcm, wcmDepartmentIds } from '@/lib/bcps-audit-au
 //                            for its current round (first department by default)
 //   POST { finding_id }      mark one finding fixed
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const supabase = createClient(process.env.LESARUSS_SUPABASE_URL!, process.env.LESARUSS_SUPABASE_SERVICE_KEY!)
 const DEPT = 'id, name, wcm_name, wcm_email, audit_status, current_round, wcm_notified_at, wcm_submitted_at'

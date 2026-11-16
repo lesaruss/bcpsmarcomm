@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto'
 import { welcomeWidgetEditors } from '@/lib/widget-editor-welcome'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

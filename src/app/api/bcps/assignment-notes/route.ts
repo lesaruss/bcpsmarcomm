@@ -14,6 +14,7 @@ import { requireBcpsPageAccess } from '@/lib/bcps-auth'
 //   GET ?recent=N   -> { notes }   the N newest notes overall (N <= 20)
 //   POST { slug, note_text, author } -> { ok }
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const PAGE = 'bcps-assignments'
 const SLUG = /^[a-z0-9][a-z0-9-]{0,160}$/

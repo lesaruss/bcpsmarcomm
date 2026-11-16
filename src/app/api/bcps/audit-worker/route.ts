@@ -15,6 +15,7 @@ import { discoverDeptPages, discoverSchoolPages, runAndSavePageAudit } from '@/l
 // page every few seconds at most. Callers prove themselves with the
 // x-audit-key header, checked against lesaruss_secrets.BCPS_AUDIT_WORKER_KEY.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 240
 
 const supabase = createClient(process.env.LESARUSS_SUPABASE_URL!, process.env.LESARUSS_SUPABASE_SERVICE_KEY!)

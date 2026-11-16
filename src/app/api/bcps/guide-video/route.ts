@@ -14,6 +14,7 @@ import { GUIDES } from '@/lib/guides'
 import { RESTRICTED_GUIDES } from '@/lib/guides/restricted'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const none = () => NextResponse.json({ video: null }, { headers: { 'Cache-Control': 'no-store' } })
 

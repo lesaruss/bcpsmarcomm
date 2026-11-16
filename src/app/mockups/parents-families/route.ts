@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase-server'
 // the page stays closed even if that list changes. The HTML lives in
 // src/mockups/, not public/, so it cannot be fetched as a static file.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const FILE = path.join(process.cwd(), 'src/mockups/parents-families.html')
 

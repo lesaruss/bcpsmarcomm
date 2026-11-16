@@ -12,6 +12,7 @@ import { askClaudeJson } from '@/lib/anthropic-key'
 //   POST { action: 'save', meeting }       -> { meeting }  create or update the agenda, title, date, recording
 //   POST { action: 'notes', id, transcript } -> { meeting } Claude writes the notes from the transcript
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 300
 
 const PAGE = 'web-team-meetings'

@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/resend'
 import { resolveOrInviteAccount, enrollBcpsMember, wcmConfirmationEmail, SITE } from '@/lib/bcps-portal-account'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

@@ -7,6 +7,7 @@ import {
 } from '@/lib/school-impact'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // Due-soon reminder for the Public School Impact Application tracker. Called
 // on weekdays by pg_cron (bcps-school-impact-reminders, migration

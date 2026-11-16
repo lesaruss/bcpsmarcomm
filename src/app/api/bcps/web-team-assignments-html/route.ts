@@ -7,6 +7,7 @@ import { trackerHtml, fetchStaticTracker } from '@/lib/web-team-tracker'
 // this needs no sign-in either. If the database read fails the plain file is
 // served rather than an error page.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const svc = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 

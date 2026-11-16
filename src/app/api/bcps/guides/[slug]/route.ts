@@ -18,6 +18,7 @@ import type { GuideDef } from '@/lib/guides/types'
 // (src/lib/guides/audience.ts). ?as=<email> lets a SuperAdmin see the guide
 // as one named person would, the same read-only preview as View as person.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params

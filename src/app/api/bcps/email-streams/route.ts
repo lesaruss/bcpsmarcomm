@@ -17,6 +17,7 @@ import { logChange } from '@/lib/doc-change-log'
 //   POST { action: 'approve' | 'withdraw', stream, week_start } -> { ok }
 //   POST { action: 'test', stream, email? } -> { ok, to }   sends one person's email to you
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 120
 
 const svc = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)

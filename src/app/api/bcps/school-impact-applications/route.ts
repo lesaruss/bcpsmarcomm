@@ -7,6 +7,7 @@ import {
 } from '@/lib/school-impact'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // Public School Impact Application tracker (Widgets hub editor,
 // src/components/pages/SchoolImpactApplicationsPage.tsx). Gated like every

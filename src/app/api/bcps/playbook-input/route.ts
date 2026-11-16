@@ -21,6 +21,7 @@ import { logChange } from '@/lib/doc-change-log'
 //   POST { action: 'add', slug, kind, key, response, files: [{ name, path, size }] } -> { ok, id }
 //   POST { action: 'accept' | 'dismiss', slug, id } -> { ok }
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 120
 
 const svc = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)

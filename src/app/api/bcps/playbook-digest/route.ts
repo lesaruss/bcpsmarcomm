@@ -18,6 +18,7 @@ import { easternDate } from '@/lib/playbook-people'
 //   POST { dry_run: true }          -> who would get what, nothing sent
 //   POST { preview_to, only? }      -> one digest (only: whose; default the first) sent to preview_to
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 120
 
 const supabase = createClient(process.env.LESARUSS_SUPABASE_URL!, process.env.LESARUSS_SUPABASE_SERVICE_KEY!)

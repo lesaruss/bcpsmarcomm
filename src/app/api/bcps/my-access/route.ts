@@ -4,6 +4,7 @@ import { VIEW_AS_GROUP_TIER, DIRECTOR_PREVIEW, SCHOOL_WCM_PREVIEW, previewableGr
 import { isSuperadmin, resolvePerson } from '@/lib/bcps-view-as-person'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

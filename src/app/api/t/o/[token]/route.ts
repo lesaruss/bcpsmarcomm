@@ -4,6 +4,7 @@ import { recordEmailEvent } from '@/lib/bcps-email-tracking'
 // The open pixel for tracked emails (src/lib/bcps-email-tracking.ts). Always
 // returns the image, whatever the token, so a bad token reveals nothing.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
 
 export async function GET(req: NextRequest, { params }: { params: { token: string } }) {

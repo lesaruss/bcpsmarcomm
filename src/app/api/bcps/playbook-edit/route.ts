@@ -12,6 +12,7 @@ import { logChange } from '@/lib/doc-change-log'
 //   GET  ?slug=        -> { can_edit }
 //   POST { slug, html } -> { ok, revision_id }
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const MAX_HTML = 3_000_000
 const SLUG = /^[a-z0-9][a-z0-9-]{0,160}$/

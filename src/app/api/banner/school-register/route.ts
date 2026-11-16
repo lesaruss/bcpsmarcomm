@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // School WCM self-registration (Sean, 2026-10-05). The department signup on
 // /login and /wcm-registration asks for a department, and a school WCM has to
