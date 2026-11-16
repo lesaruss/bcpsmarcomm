@@ -88,14 +88,14 @@ const LIVE_TABS: Record<string, LiveTab[]> = {
     label: 'Members',
     intro: 'Everyone with a BCPS MarComm account. Switch between Departments and Schools with the pill beside the title.',
     after: ['meetings', 'assignments'],
-    render: ({ side }) => <MembersPage defaultDivision="" defaultScope={side} />,
+    render: ({ side }) => <MembersPage defaultDivision="" defaultScope={side} embedded />,
   }, {
     // The school side's working tools (Sean, 2026-11-16): everything the
     // school-side team administers, in the menu, so nobody hunts for it.
     id: 'pilot-review',
     label: 'Pilot Review',
     intro: 'The WCM Pilot Review: which of the fifteen pilot WCMs have an account and have sent feedback, and what they said about the WCM Dashboard, Banner Submission and Proud Points.',
-    after: 'schools',
+    after: ['school-now', 'schools'],
     side: 'schools',
     check: '/api/bcps/pilot-review?results=1',
     render: () => <PilotReviewResults showTitle={false} />,
@@ -103,28 +103,28 @@ const LIVE_TABS: Record<string, LiveTab[]> = {
     id: 'banner-review',
     label: 'Banner Review',
     intro: 'Homepage banners schools have sent: review, approve or reject with a reason, and mark as posted.',
-    after: ['pilot-review', 'schools'],
+    after: ['pilot-review', 'school-now', 'schools'],
     side: 'schools',
     render: () => <BannerSubmissionsPage review />,
   }, {
     id: 'proud-points-review',
     label: 'Proud Points Review',
     intro: 'Proud Points schools have sent: review, approve or reject with a reason, and mark as posted.',
-    after: ['banner-review', 'pilot-review', 'schools'],
+    after: ['banner-review', 'pilot-review', 'school-now', 'schools'],
     side: 'schools',
     render: () => <ProudPointsPage review />,
   }, {
     id: 'school-list',
     label: 'School List',
     intro: 'Every school with its District Web Team lead, its WCM and its scores. It opens on your own schools if you are a lead.',
-    after: ['proud-points-review', 'banner-review', 'schools'],
+    after: ['proud-points-review', 'banner-review', 'pilot-review', 'school-now', 'schools'],
     side: 'schools',
     render: () => <SchoolsPage />,
   }, {
     id: 'school-leads',
     label: 'School Lead Assignments',
     intro: 'Which District Web Team lead supports each school. This is what Find Your District Web Team Lead shows to school WCMs.',
-    after: ['school-list', 'proud-points-review', 'schools'],
+    after: ['school-list', 'proud-points-review', 'banner-review', 'pilot-review', 'school-now', 'schools'],
     side: 'schools',
     render: () => <SchoolSupportLeadPage />,
   }],
@@ -134,7 +134,9 @@ const LIVE_TABS: Record<string, LiveTab[]> = {
 // side each belongs to. Anything not listed is shared.
 const SIDED: Record<string, { tabs: Record<string, GuideSide>; sections: Record<string, Record<string, GuideSide>> }> = {
   'district-web-team': {
-    tabs: { departments: 'departments', schools: 'schools' },
+    // The school side's own tabs (second draft, 2026-11-16, from the BOSS):
+    // Needs You Now, School Projects, How It Works, School Dates.
+    tabs: { departments: 'departments', schools: 'schools', 'school-now': 'schools', 'school-projects': 'schools', 'school-how': 'schools', 'school-dates': 'schools' },
     sections: { reference: { departments: 'departments', schools: 'schools' } },
   },
 }
