@@ -18,6 +18,16 @@ const LOC_RE = /^\d{4}$/
 
 const svc = createClient(URL, SERVICE, { auth: { persistSession: false } })
 
+// File names carry the school name and year, never only the location number
+// (Vanessa, 2026-11-16: both years opened as "0011.pdf"). Same rule as the
+// seeded files: title case, letters/digits/spaces/hyphens only, 2024-2025 -> 2024-25.
+function reportFileName(schoolName: string, year: string) {
+  const name = String(schoolName).toLowerCase().replace(/\b([a-z])/g, c => c.toUpperCase())
+    .replace(/\b(Pk|Ucp|Arc|Pace)\b/g, m => m.toUpperCase()).replace(/'S\b/g, "'s")
+    .replace(/[^A-Za-z0-9 -]/g, '').replace(/\s+/g, ' ').trim()
+  return `${name} ${year.slice(0, 5)}${year.slice(-2)}.pdf`
+}
+
 // Verifies the caller's session and confirms they may edit School Financial
 // Reports. Same check as the District Software Inventory
 // (src/app/api/bcps/software-inventory/route.ts), pointed at the
@@ -89,13 +99,14 @@ function invalid(f: Record<string, unknown>, partial: boolean): string | null {
 
 // Stores a PDF in the public bucket and returns its URL. Body carries the
 // file as a data: URL (same shape as /api/cert/upload).
-async function storePdf(loc: string, year: string, dataUrl: string) {
+async function storePdf(name: string, year: string, dataUrl: string) {
   const m = String(dataUrl || '').match(/^data:application\/pdf;base64,(.+)$/)
   if (!m) throw Object.assign(new Error('That file is not a PDF.'), { status: 400 })
   const buf = Buffer.from(m[1], 'base64')
   if (buf.subarray(0, 5).toString() !== '%PDF-') throw Object.assign(new Error('That file is not a PDF.'), { status: 400 })
   if (buf.byteLength > MAX_BYTES) throw Object.assign(new Error('That PDF is larger than 4MB.'), { status: 400 })
-  const path = `school-financial-reports/${year}/${loc}-${Date.now()}.pdf`
+  // A timestamp folder keeps every upload unique while the file itself keeps the readable name.
+  const path = `school-financial-reports/${year}/${Date.now()}/${reportFileName(name, year)}`
   const { error } = await svc.storage.from(BUCKET).upload(path, buf, { contentType: 'application/pdf', upsert: false })
   if (error) throw error
   return svc.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
@@ -123,10 +134,10 @@ export async function POST(req: NextRequest) {
     switch (body.action as string) {
       case 'create': {
         const fields = pick(body)
-        if (body.file) fields.file_url = await storePdf(String(fields.location_number), String(fields.school_year), body.file)
+        if (body.file) fields.file_url = await storePdf(String(fields.school_name), String(fields.school_year), body.file)
         const bad = invalid(fields, false)
         if (bad) return NextResponse.json({ error: bad }, { status: 400 })
-        fields.file_name = `${fields.school_year}_${fields.school_name}_${fields.location_number}.pdf`
+        fields.file_name = reportFileName(String(fields.school_name), String(fields.school_year))
         const { data, error } = await svc.from(TABLE).insert(fields).select().single()
         if (error) {
           if (error.code === '23505') return NextResponse.json({ error: 'That school already has a report for this year. Open it and replace the PDF instead.' }, { status: 409 })
@@ -142,10 +153,10 @@ export async function POST(req: NextRequest) {
         if (curErr || !cur) return NextResponse.json({ error: 'Report not found.' }, { status: 404 })
         const updates = pick(body)
         const merged = { ...cur, ...updates }
-        if (body.file) updates.file_url = await storePdf(String(merged.location_number), String(merged.school_year), body.file)
+        if (body.file) updates.file_url = await storePdf(String(merged.school_name), String(merged.school_year), body.file)
         const bad = invalid(updates, true)
         if (bad) return NextResponse.json({ error: bad }, { status: 400 })
-        updates.file_name = `${merged.school_year}_${merged.school_name}_${merged.location_number}.pdf`
+        updates.file_name = reportFileName(String(merged.school_name), String(merged.school_year))
         const { data, error } = await svc.from(TABLE)
           .update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single()
         if (error) {
