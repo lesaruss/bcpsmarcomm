@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
@@ -46,10 +46,12 @@ const openCounted = (m: { open_assignments?: { web_team: number | null; marcomm:
 type SortDir = 'asc' | 'desc'
 type ViewMode = 'tiles' | 'table'
 
-// defaultDivision: the division the directory opens on (the SuperAdmin's
-// Team tab opens on Chief of Staff, the Office of Communications; Sean,
-// 2026-10-20). Everyone else opens on All Divisions.
-export default function MembersPage({ defaultDivision = '' }: { defaultDivision?: string } = {}) {
+// defaultDivision: the division the directory opens on. '' = All Divisions.
+// Left out, it is decided by who is looking (Sean, 2026-11-16, replacing the
+// 2026-10-20 Chief of Staff default): the SuperAdmin and the District Web
+// Team (Application Services included) open on All Divisions; everyone else
+// opens on their own department's division, one click from All Divisions.
+export default function MembersPage({ defaultDivision }: { defaultDivision?: string } = {}) {
   const router = useRouter()
   const params = useSearchParams()
   const memberId = params.get('member')
@@ -77,7 +79,9 @@ export default function MembersPage({ defaultDivision = '' }: { defaultDivision?
 
   // ── Directory view controls (search / division filter / sort / view toggle) ──
   const [search, setSearch] = useState('')
-  const [divisionFilter, setDivisionFilter] = useState(defaultDivision)
+  const [divisionFilter, setDivisionFilter] = useState(defaultDivision ?? '')
+  // Set once, from the viewer's own row, when no default was passed in.
+  const autoDivisionDone = useRef(defaultDivision !== undefined)
   // Group filter (Sean, 2026-10-20: "by division ... as well as the groups").
   const [groupFilter, setGroupFilter] = useState('')
   const [sortCol, setSortCol] = useState<SortCol>('name')
@@ -108,6 +112,15 @@ export default function MembersPage({ defaultDivision = '' }: { defaultDivision?
   }, [token])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (autoDivisionDone.current || !meId || !members.length) return
+    autoDivisionDone.current = true
+    const me = members.find(m => m.user_id === meId)
+    if (!me) return
+    const seesAll = me.role === 'superadmin' || me.groups.includes('District Web Team')
+    if (!seesAll && me.department?.division) setDivisionFilter(me.department.division)
+  }, [meId, members])
 
   useEffect(() => {
     // Leaving a profile (or landing on a new one) clears any reset-link

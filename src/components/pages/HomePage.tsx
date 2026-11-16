@@ -3054,7 +3054,7 @@ function DepartmentsPanel({ onNavigate, depts }: { onNavigate: Navigate; depts?:
 
 function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, page }: { data: HomeData; onNavigate: Navigate; viewAsUserId?: string; preview?: boolean; onShowToast?: (msg: string) => void; page?: React.ReactNode }) {
   const router = useRouter()
-  const [tab, setTab] = useHomeTab('overview', { audit: 'audits' })
+  const [tab, setTab] = useHomeTab('overview', { audit: 'audits', team: 'members' })
   // The full inbox is the Messages page (V, 2026-10-26).
   const openInbox = () => router.push('/?page=messages')
   const th = data.team_home!
@@ -3069,7 +3069,8 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, 
     // Documents holds Web Team Assignments and MarComm Assignments together,
     // since both matter equally (Sean, 2026-10-20).
     { id: 'documents', label: 'Documents' },
-    ...((th.team_members?.length ?? 0) > 0 ? [{ id: 'team', label: 'Team' }] : []),
+    // Members, not Team (Sean, 2026-11-16: "team is confusing").
+    { id: 'members', label: 'Members' },
     { id: 'departments', label: 'Departments' },
     { id: 'schools', label: 'Schools' },
     { id: 'audits', label: 'Run Audit' },
@@ -3110,10 +3111,9 @@ function SuperAdminHome({ data, onNavigate, viewAsUserId, preview, onShowToast, 
       {tab === 'documents' && <DocumentsTab kind="superadmin" team canMarcomm />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'program' && <ProgramPanel p={p} />}
-      {/* Team is the Members directory, opening on Chief of Staff (the Office
-          of Communications); Application Services and everyone else are a
-          division or group away (Sean, 2026-10-20). */}
-      {tab === 'team' && <MembersPage defaultDivision="Chief of Staff" />}
+      {/* The Members directory, opening on All Divisions (Sean, 2026-11-16:
+          no more Chief of Staff default). ?tab=team links still land here. */}
+      {tab === 'members' && <MembersPage defaultDivision="" />}
       {tab === 'schools' && <SchoolsPage />}
       {tab === 'departments' && <DepartmentsPanel onNavigate={onNavigate} depts={data.departments} />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}
@@ -3136,7 +3136,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
   onShowToast?: (msg: string) => void
 }) {
   const router = useRouter()
-  const [tab, setTab] = useHomeTab('overview', { audit: 'audits' })
+  const [tab, setTab] = useHomeTab('overview', { audit: 'audits', team: 'members' })
   const { pages } = useBCPSShell()
   const canAnalytics = !pages || pages.includes('analytics')
   const canMarcomm = !!pages?.includes('marcomm-assignments')
@@ -3166,6 +3166,8 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         { id: 'overview', label: 'Overview' },
         { id: 'director-guide', label: 'Director Guide' },
         ...schoolsTab,
+        // Every District Web Team member gets Members (Sean, 2026-11-16).
+        { id: 'members', label: 'Members' },
         { id: 'ada', label: 'ADA / Audit' },
         { id: 'banners', label: 'Banners' },
         { id: 'proud-points', label: 'Proud Points' },
@@ -3176,6 +3178,8 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         { id: 'overview', label: 'Overview' },
         { id: 'guides', label: 'Guides' },
         ...schoolsTab,
+        // Every District Web Team member gets Members (Sean, 2026-11-16).
+        { id: 'members', label: 'Members' },
         { id: 'documents', label: 'Documents' },
         { id: 'audits', label: 'Run Audit' },
         { id: 'departments', label: 'Departments' },
@@ -3188,6 +3192,8 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
         { id: 'overview', label: 'Overview' },
         { id: 'guides', label: 'Guides' },
         ...schoolsTab,
+        // Every District Web Team member gets Members (Sean, 2026-11-16).
+        { id: 'members', label: 'Members' },
         { id: 'documents', label: 'Documents' },
         { id: 'ada', label: 'ADA' },
         { id: 'banners', label: 'Banners' },
@@ -3246,6 +3252,7 @@ function WebTeamHome({ data, kind, onNavigate, assignments, who, previewNote, on
       </>}
       <div data-tour={`tab-${tab}`}>
       {(tab === 'schools' || tab === 'myschools') && <SchoolsPage />}
+      {tab === 'members' && <MembersPage defaultDivision="" />}
       {tab === 'documents' && <DocumentsTab kind="dwt" team canMarcomm={kind === 'comms' || canMarcomm} />}
       {tab === 'marcomm' && <MarcommInDocuments />}
       {tab === 'audits' && <AuditsPanel depts={data.departments} onNavigate={onNavigate} ada={th.ada} />}

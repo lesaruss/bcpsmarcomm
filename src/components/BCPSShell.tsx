@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar, { SAMPLE_SUPERADMIN_ID, type UserRole, type TeamMember } from '@/components/Sidebar'
 import PulseWidget from '@/components/PulseWidget'
 import ViewAsButton from '@/components/ViewAsButton'
+import GlobalSearch from '@/components/GlobalSearch'
 import { TOOLS } from '@/lib/bcps-tools'
 import { MARCOMM_PATH, type PageId } from '@/lib/types'
 import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
@@ -449,9 +450,12 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
               {!SHOW_LEFT_MENU && !viewAs && role !== 'superadmin' && viewAsGroups.length > 0 && (
                 <ViewAsButton onPick={handleViewAs} groups={viewAsGroups} className="topbar-viewas-btn" />
               )}
-              <div className="topbar-search">
-                <input type="text" placeholder="Search..." className="search-input" />
-              </div>
+              {/* Live search (Sean, 2026-11-16): members, departments, tools. */}
+              <GlobalSearch
+                pages={effectivePages}
+                isSuperadmin={role === 'superadmin' && (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID)}
+                onNavigate={handleNavigate}
+              />
               {/* Phones: the Dashboard button moves over here beside the bell,
                   leaving the page name next to the logo (Sean, 2026-10-28). */}
               {!SHOW_LEFT_MENU && (activePage !== 'dashboard' || onDashboardTab) && (
