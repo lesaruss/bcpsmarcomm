@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js'
 import { hasSeriesGrant } from '@/lib/bcps-doc-access'
 
 export const dynamic = 'force-dynamic'
+// Without this the Next.js Data Cache keeps serving old supabase-js results, so a
+// newly filed Hot Lab stays missing from the library (registry BCPS-BRIEF-RAW-STALE-CACHE;
+// seen again 2026-11-16 with the Nov 12 notes).
+export const fetchCache = 'force-no-store'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
