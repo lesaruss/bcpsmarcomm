@@ -17,7 +17,7 @@ import { TOOLS, type Tool } from '@/lib/bcps-tools'
 import { MARCOMM_PATH, type PageId } from '@/lib/types'
 import { SUPERADMIN_PAGES_SET } from '@/lib/superadmin-pages'
 
-type MemberHit = { user_id: string; name: string; email: string; title: string | null; department: { name: string; division: string | null } | null }
+type MemberHit = { user_id: string; name: string; email: string; title: string | null; department: { name: string; division: string | null } | null; href?: string }
 type DeptHit = { id: string; name: string; division: string | null }
 type Result = { key: string; group: 'Members' | 'Departments' | 'Tools'; title: string; sub: string; go: () => void }
 
@@ -53,7 +53,15 @@ export default function GlobalSearch({ pages, isSuperadmin, onNavigate }: {
       canMembers && token
         ? fetch('/api/bcps/members', { headers: { Authorization: `Bearer ${token}` } })
             .then((r) => r.ok ? r.json() : { members: [] })
-            .then((j) => setMembers(j.members ?? []))
+            .then((j) => {
+              // School WCMs without a member-role row are only in school_members.
+              const seen = new Set((j.members ?? []).map((m: MemberHit) => m.user_id))
+              const schools = ((j.school_members ?? []) as { user_id: string; name: string; email: string; schools: { name: string; loc_no: string }[] }[])
+                .filter((x) => !seen.has(x.user_id))
+                .map((x) => ({ user_id: x.user_id, name: x.name, email: x.email, title: 'School WCM', department: { name: x.schools.map((sc) => sc.name).join(', '), division: 'Schools' },
+                  href: x.schools[0] ? `/school?loc=${encodeURIComponent(x.schools[0].loc_no)}` : undefined }))
+              setMembers([...(j.members ?? []), ...schools])
+            })
             .catch(() => setMembers([]))
         : Promise.resolve(setMembers(null)),
     ])
@@ -83,7 +91,7 @@ export default function GlobalSearch({ pages, isSuperadmin, onNavigate }: {
       .map((x) => ({
         key: `m:${x.user_id}`, group: 'Members', title: x.name,
         sub: [x.title, x.department?.name].filter(Boolean).join(' · ') || x.email,
-        go: () => { done(); router.push(`/?page=members&member=${x.user_id}`, { scroll: false }) },
+        go: () => { done(); router.push(x.href ?? `/?page=members&member=${x.user_id}`, { scroll: false }) },
       }))
     const d: Result[] = (depts ?? [])
       .filter((x) => hit(`${x.name} ${x.division ?? ''}`))

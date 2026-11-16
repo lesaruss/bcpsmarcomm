@@ -21,6 +21,11 @@ type Member = {
   sub_department?: string | null
 }
 type DeptOption = { slug: string; name: string; division: string | null }
+// The Schools side (Sean, 2026-11-16): school WCMs who have signed up, each
+// with their school(s) and that school's District Web Team support lead.
+type SchoolRef = { loc_no: string; name: string; level: string | null; lead_email: string | null; lead_name: string | null; cert_status: string | null }
+type SchoolMember = { user_id: string; name: string; email: string; initials: string; color: string; last_sign_in_at: string | null; schools: SchoolRef[] }
+type Scope = 'departments' | 'schools'
 
 type AdaScan = {
   id: string; page_url: string; ada_score: number | null; wave_score: number | null; status: string
@@ -87,6 +92,13 @@ export default function MembersPage({ defaultDivision }: { defaultDivision?: str
   const [sortCol, setSortCol] = useState<SortCol>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [view, setView] = useState<ViewMode>('tiles')
+  // Departments or Schools, Departments first (Sean, 2026-11-16).
+  const [scope, setScope] = useState<Scope>('departments')
+  const [schoolMembers, setSchoolMembers] = useState<SchoolMember[]>([])
+  const [mySchoolLocs, setMySchoolLocs] = useState<string[]>([])
+  // '' = all schools, 'mine' = the viewer's own schools as a support lead,
+  // or a lead's email for that lead's schools.
+  const [schoolFilter, setSchoolFilter] = useState('')
 
   // Full department list (every BCPS department, not just ones with a member
   // assigned yet) - powers the division filter options and the department
@@ -107,7 +119,11 @@ export default function MembersPage({ defaultDivision }: { defaultDivision?: str
     if (!t) { setLoading(false); return }
     const r = await fetch('/api/bcps/members', { headers: { Authorization: `Bearer ${t}` } })
     const j = await r.json()
-    if (r.ok) { setMembers(j.members); setMeId(j.me) }
+    if (r.ok) {
+      setMembers(j.members); setMeId(j.me)
+      setSchoolMembers(j.school_members ?? [])
+      setMySchoolLocs(j.my_school_locs ?? [])
+    }
     setLoading(false)
   }, [token])
 
@@ -483,7 +499,11 @@ export default function MembersPage({ defaultDivision }: { defaultDivision?: str
     return acc
   }, {})
 
+  // A school WCM with no department is listed under Schools, not as an
+  // Unassigned department member.
+  const schoolOnly = new Set(schoolMembers.map(s => s.user_id))
   const filtered = members.filter(m => {
+    if (!m.department && schoolOnly.has(m.user_id)) return false
     if (divisionFilter && m.department?.division !== divisionFilter) return false
     if (groupFilter && !m.groups.includes(groupFilter)) return false
     const q = search.trim().toLowerCase()
@@ -717,6 +737,98 @@ export default function MembersPage({ defaultDivision }: { defaultDivision?: str
     )
   }
 
+  // ── Schools side ──
+  const locKey = (n: string) => n.trim().replace(/^0+/, '')
+  const myLocs = new Set(mySchoolLocs.map(locKey))
+  const schoolLeads = Array.from(new Map(schoolMembers.flatMap(sm => sm.schools)
+    .filter(sc => sc.lead_email).map(sc => [sc.lead_email!, sc.lead_name || sc.lead_email!])).entries())
+    .sort((a, b) => a[1].localeCompare(b[1]))
+  const schoolMatches = (sc: SchoolRef) =>
+    !schoolFilter ? true
+      : schoolFilter === 'mine' ? myLocs.has(locKey(sc.loc_no))
+      : sc.lead_email === schoolFilter
+  const schoolRows = schoolMembers
+    .map(sm => ({ ...sm, shown: sm.schools.filter(schoolMatches) }))
+    .filter(sm => sm.shown.length > 0)
+    .filter(sm => {
+      const q = search.trim().toLowerCase()
+      if (!q) return true
+      return [sm.name, sm.email, ...sm.shown.flatMap(sc => [sc.name, sc.lead_name || '', sc.level || ''])].join(' ').toLowerCase().includes(q)
+    })
+    .sort((a, b) => sortCol === 'login'
+      ? new Date(b.last_sign_in_at || 0).getTime() - new Date(a.last_sign_in_at || 0).getTime()
+      : (a.shown[0]?.name || '').localeCompare(b.shown[0]?.name || '') || a.name.localeCompare(b.name))
+  type SchoolRow = (typeof schoolRows)[number]
+  const certBadge = (c: string | null) => {
+    if (!c) return <span className="mp-roster mp-roster-none" title="Not on the BCPS Central WCM roster">Not on roster</span>
+    const ok = /^certified$/i.test(c)
+    return <span className={`mp-roster ${ok ? 'mp-roster-ok' : 'mp-roster-on'}`}>{c}</span>
+  }
+  const schoolHref = (sc: SchoolRef) => `/school?loc=${encodeURIComponent(sc.loc_no)}`
+  const schoolLinks = (sm: SchoolRow) => sm.shown.map((sc, i) => (
+    <span key={sc.loc_no}>{i > 0 && ', '}<a className="mp-school-link" href={schoolHref(sc)} onClick={e => e.stopPropagation()}>{sc.name}</a></span>
+  ))
+  const leadsOf = (sm: SchoolRow) => Array.from(new Set(sm.shown.map(sc => sc.lead_name).filter(Boolean))).join(', ') || '—'
+  const certOf = (sm: SchoolRow) => sm.shown.find(sc => sc.cert_status)?.cert_status ?? null
+  const openSchool = (sm: SchoolRow) => { if (sm.shown[0]) window.location.href = schoolHref(sm.shown[0]) }
+
+  const schoolTile = (sm: SchoolRow) => (
+    <div key={sm.user_id} className="mp-card" role="button" tabIndex={0} style={{ cursor: 'pointer' }}
+      onClick={(e) => { if ((e.target as HTMLElement).closest('a, button')) return; openSchool(sm) }}
+      onKeyDown={(e) => { if (e.key === 'Enter') openSchool(sm) }}>
+      <div className="mp-top">
+        <div style={{ width: 52, height: 52, borderRadius: '50%', background: sm.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, flexShrink: 0 }}>{sm.initials}</div>
+        <div style={{ minWidth: 0 }}>
+          <div className="mp-name">{sm.name}</div>
+          <div className="mp-title">School WCM</div>
+          {sm.email && <a className="mp-email-link" href={`mailto:${sm.email}`} title={sm.email} onClick={e => e.stopPropagation()}>Email</a>}
+        </div>
+      </div>
+      {sm.shown[0]?.level && <div className="mp-division">{sm.shown[0].level}</div>}
+      <div className="mp-meta">
+        <div className="mp-row">School: <b>{schoolLinks(sm)}</b></div>
+        <div className="mp-row">Support lead: <b>{leadsOf(sm)}</b></div>
+        <div className="mp-row">Certification: {certBadge(certOf(sm))}</div>
+        <div className="mp-row">Last login: <b>{fmtLogin(sm.last_sign_in_at)}</b></div>
+      </div>
+    </div>
+  )
+
+  const schoolTable = () => (
+    <div className="mp-table-wrap">
+      <table className="mp-native-table">
+        <thead>
+          <tr><th>Name</th><th>School</th><th>Support Lead</th><th>Certification</th><th>Last Login</th></tr>
+        </thead>
+        <tbody>
+          {schoolRows.map(sm => (
+            <tr key={sm.user_id} style={{ cursor: 'pointer' }} onClick={(e) => { if ((e.target as HTMLElement).closest('a')) return; openSchool(sm) }}>
+              <td>
+                <div className="mp-t-name">{sm.name}</div>
+                {sm.email && <a className="mp-email-link" href={`mailto:${sm.email}`} title={sm.email} onClick={e => e.stopPropagation()}>Email</a>}
+              </td>
+              <td>{schoolLinks(sm)}</td>
+              <td>{leadsOf(sm)}</td>
+              <td>{certBadge(certOf(sm))}</td>
+              <td>{fmtLogin(sm.last_sign_in_at)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="mp-cards">
+        {schoolRows.map(sm => (
+          <div key={sm.user_id} className="mp-mc" style={{ cursor: 'pointer' }} onClick={(e) => { if ((e.target as HTMLElement).closest('a')) return; openSchool(sm) }}>
+            <div className="mp-mc-top"><div><div className="mp-t-name">{sm.name}</div></div>{sm.shown[0]?.level && <span className="mp-pill">{sm.shown[0].level}</span>}</div>
+            <div className="mp-mc-row"><span>School</span><span>{schoolLinks(sm)}</span></div>
+            <div className="mp-mc-row"><span>Support lead</span><span>{leadsOf(sm)}</span></div>
+            <div className="mp-mc-row"><span>Certification</span><span>{certBadge(certOf(sm))}</span></div>
+            <div className="mp-mc-row"><span>Last login</span><span>{fmtLogin(sm.last_sign_in_at)}</span></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
   const Th = ({ col, label }: { col: SortCol; label: string }) => (
     <th onClick={() => clickHeader(col)} aria-sort={sortCol === col ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
       {label}{sortArrow(col)}
@@ -806,9 +918,53 @@ export default function MembersPage({ defaultDivision }: { defaultDivision?: str
         .mp-roster-on{background:#e8f1f8;color:#0e4e73}
         .mp-roster-none{background:#f3f4f6;color:#6b7280}
         .mp-empty{padding:50px 20px;text-align:center;color:#6b7280;font-size:13px}
+        .mp-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+        .mp-school-link{color:#0e4e73;font-weight:700;text-decoration:none}
+        .mp-school-link:hover{text-decoration:underline}
       `}</style>
-      <h1 style={{ fontSize: 24, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: '0 0 4px' }}>Members</h1>
-      <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 22px' }}>{members.length} people on the BCPS web team.</p>
+      <div className="mp-head">
+        <h1 style={{ fontSize: 24, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: 0 }}>Members</h1>
+        {/* Departments or Schools, in the title row, same pill as Tiles / Table (Sean, 2026-11-16). */}
+        <div className="mp-view-toggle" role="group" aria-label="Show members from">
+          <button type="button" aria-pressed={scope === 'departments'} onClick={() => setScope('departments')}>Departments</button>
+          <button type="button" aria-pressed={scope === 'schools'} onClick={() => setScope('schools')}>Schools</button>
+        </div>
+      </div>
+      <p style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 22px' }}>
+        {scope === 'departments'
+          ? `${members.filter(m => m.department || !schoolOnly.has(m.user_id)).length} people on the BCPS web team.`
+          : `${schoolMembers.length} school WCM${schoolMembers.length === 1 ? '' : 's'} signed up so far.`}
+      </p>
+
+      {scope === 'schools' ? <>
+      <div className="mp-controls">
+        <input
+          className="mp-search"
+          type="search"
+          placeholder="Search name, email, school, or support lead..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          aria-label="Search school WCMs"
+        />
+        <select className="mp-select" value={schoolFilter} onChange={e => setSchoolFilter(e.target.value)} aria-label="Filter by schools">
+          <option value="">All Schools</option>
+          {mySchoolLocs.length > 0 && <option value="mine">My Schools</option>}
+          {schoolLeads.map(([email, name]) => <option key={email} value={email}>{name}&rsquo;s schools</option>)}
+        </select>
+        <select className="mp-select" value={sortCol === 'login' ? 'login' : 'name'} onChange={e => pickSort(e.target.value as SortCol)} aria-label="Sort school WCMs">
+          <option value="name">School A&ndash;Z</option>
+          <option value="login">Most recently active</option>
+        </select>
+        <div className="mp-view-toggle" role="group" aria-label="View">
+          <button type="button" aria-pressed={view === 'tiles'} onClick={() => setView('tiles')}>Tiles</button>
+          <button type="button" aria-pressed={view === 'table'} onClick={() => setView('table')}>Table</button>
+        </div>
+        <p className="mp-count">{schoolRows.length} shown</p>
+      </div>
+      {schoolRows.length === 0
+        ? <div className="mp-empty">{schoolFilter === 'mine' ? 'None of your schools has a WCM signed up yet.' : 'No school WCMs match that filter.'}</div>
+        : view === 'tiles' ? <div className="mp-grid">{schoolRows.map(schoolTile)}</div> : schoolTable()}
+      </> : <>
 
       <div className="mp-controls">
         <input
@@ -851,6 +1007,7 @@ export default function MembersPage({ defaultDivision }: { defaultDivision?: str
       {sorted.length === 0
         ? <div className="mp-empty">No members match that filter.</div>
         : (view === 'tiles' ? tilesView() : tableView())}
+      </>}
     </div>
   )
 }
