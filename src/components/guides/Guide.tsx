@@ -6,6 +6,7 @@ import type { GuideDef } from '@/lib/guides/types'
 import GuideStepper from './GuideStepper'
 import GuideAudio from './GuideAudio'
 import GuideStart from './GuideStart'
+import { CardStatus, CardFacts, TodoList, GUIDE_BLOCKS_CSS } from './GuideBlocks'
 
 // A guide (Sean, 2026-10-29): one place per audience instead of several
 // documents that overlap. Tabs down the left (the steps first, then
@@ -95,7 +96,10 @@ export default function Guide({ def, overview, initialTab, actions, tabExtras }:
   }, [target, active])
 
   const index = useMemo(() => [
-    ...def.tabs.flatMap((t) => t.sections.map((s) => ({ tab: t.id, tabLabel: t.label, id: s.id, title: s.title, text: textOf(s.html + (s.stepper ? ' ' + (s.stepper.brief ?? '') + ' ' + s.stepper.steps.map((st) => `${st.title} ${st.brief ?? ''} ${st.html}`).join(' ') : '')) }))),
+    ...def.tabs.flatMap((t) => t.sections.map((s) => ({ tab: t.id, tabLabel: t.label, id: s.id, title: s.title, text: textOf(s.html
+      + (s.stepper ? ' ' + (s.stepper.brief ?? '') + ' ' + s.stepper.steps.map((st) => `${st.title} ${st.brief ?? ''} ${st.html}`).join(' ') : '')
+      + (s.card ? ` ${s.card.lead ?? ''} ${s.card.next ?? ''} ${s.card.date ?? ''}` : '')
+      + (s.todos ? ' ' + s.todos.map((x) => `${x.text} ${x.owner ?? ''} ${x.due ?? ''}`).join(' ') : '')) }))),
     ...def.changes.map((c) => ({ tab: CHANGES, tabLabel: 'What’s New', id: null, title: fmtGuideDate(c.date), text: c.text })),
   ], [def])
 
@@ -129,6 +133,7 @@ export default function Guide({ def, overview, initialTab, actions, tabExtras }:
 
   return (
     <div className="guide" ref={topRef} onClick={onClick}>
+      <style dangerouslySetInnerHTML={{ __html: GUIDE_BLOCKS_CSS }} />
       <div className="guide-head">
         <div className="guide-head-text">
           <div className="home-hero-label">{def.eyebrow}</div>
@@ -218,9 +223,15 @@ export default function Guide({ def, overview, initialTab, actions, tabExtras }:
               {tabExtras?.[tab.id]}
               {tab.sections.map((s) => (
                 <section key={s.id} id={`guide-${tab.id}-${s.id}`} className="home-dept guide-sec">
-                  <h3 className="home-card-title">{s.title}</h3>
+                  {s.card
+                    ? <div className="gcard-head"><h3 className="home-card-title">{s.title}</h3><CardStatus status={s.card.status} /></div>
+                    : <h3 className="home-card-title">{s.title}</h3>}
                   <GuideAudio audio={s.audio} />
-                  <div className="guide-body" dangerouslySetInnerHTML={{ __html: s.html }} />
+                  {s.card && <CardFacts card={s.card} />}
+                  {s.card
+                    ? s.html.trim() && <details className="gcard-more"><summary>Details</summary><div className="guide-body" dangerouslySetInnerHTML={{ __html: s.html }} /></details>
+                    : s.html.trim() && <div className="guide-body" dangerouslySetInnerHTML={{ __html: s.html }} />}
+                  {s.todos && <TodoList todos={s.todos} />}
                   {s.stepper && <GuideStepper storageKey={`${def.slug}:${s.id}`} stepper={s.stepper} />}
                 </section>
               ))}

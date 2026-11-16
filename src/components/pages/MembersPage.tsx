@@ -58,7 +58,9 @@ type ViewMode = 'tiles' | 'table'
 // opens on their own department's division, one click from All Divisions.
 // defaultScope: which side the pill opens on (the District Web Team Guide opens
 // it on the reader's own side, 2026-11-16). Departments when left out.
-export default function MembersPage({ defaultDivision, defaultScope = 'departments' }: { defaultDivision?: string; defaultScope?: 'departments' | 'schools' } = {}) {
+// embedded: inside a guide, which already titles the page, so the heading is
+// left out and only the Departments / Schools pill shows in its row.
+export default function MembersPage({ defaultDivision, defaultScope = 'departments', embedded = false }: { defaultDivision?: string; defaultScope?: 'departments' | 'schools'; embedded?: boolean } = {}) {
   const router = useRouter()
   const params = useSearchParams()
   const memberId = params.get('member')
@@ -925,7 +927,7 @@ export default function MembersPage({ defaultDivision, defaultScope = 'departmen
         .mp-school-link:hover{text-decoration:underline}
       `}</style>
       <div className="mp-head">
-        <h1 style={{ fontSize: 24, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: 0 }}>Members</h1>
+        {embedded ? <span /> : <h1 style={{ fontSize: 24, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: 0 }}>Members</h1>}
         {/* Departments or Schools, in the title row, same pill as Tiles / Table (Sean, 2026-11-16). */}
         <div className="mp-view-toggle" role="group" aria-label="Show members from">
           <button type="button" aria-pressed={scope === 'departments'} onClick={() => setScope('departments')}>Departments</button>
