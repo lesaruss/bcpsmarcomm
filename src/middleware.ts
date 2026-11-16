@@ -149,6 +149,9 @@ export async function middleware(request: NextRequest) {
     // School WCM signup (2026-10-05): visitors have no account yet. Account
     // creation is gated server-side on bcps_schools.wcm_email.
     pathname.startsWith('/school-registration') ||
+    // WCM Pilot Review feedback form (Sean, 2026-11-16): open, so a pilot WCM
+    // who could not sign in can still say so. Must match (bcps)/layout.tsx.
+    pathname.startsWith('/pilot-review') ||
     // /briefs/ and /playbooks/ are no longer public (Sean, 2026-10-20): every
     // BCPS document needs a BCPS MarComm sign-in, which any BCPS employee can
     // create. Signed out, they land on /login and return after signing in.
