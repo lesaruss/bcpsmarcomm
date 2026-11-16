@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { rosterStatusForEmail } from '@/lib/cert-roster'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

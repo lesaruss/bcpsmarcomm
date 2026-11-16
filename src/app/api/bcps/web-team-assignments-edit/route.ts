@@ -17,6 +17,7 @@ import { loadAssignments } from '@/lib/bcps-team-home'
 //   POST { action: 'describe', slug, description }                   -> { ok }
 //   POST { action: 'input', slug, text }                              -> { ok }
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const READ_PAGE = 'bcps-assignments'
 const EDIT_PAGE = 'meeting-transcripts'

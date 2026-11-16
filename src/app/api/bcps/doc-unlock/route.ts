@@ -11,6 +11,7 @@ import {
 } from '@/lib/bcps-doc-password'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const WRONG = 'That password is not right. Check it and try again, or sign in.'
 

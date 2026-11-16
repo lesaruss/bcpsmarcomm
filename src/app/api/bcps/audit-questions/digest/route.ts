@@ -10,6 +10,7 @@ import { sendEmail } from '@/lib/resend'
 // question bank. Callers prove themselves with x-audit-key, checked against
 // lesaruss_secrets.BCPS_AUDIT_WORKER_KEY (same key as the audit worker).
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const supabase = createClient(process.env.LESARUSS_SUPABASE_URL!, process.env.LESARUSS_SUPABASE_SERVICE_KEY!)
 const BANK = 'https://bcpsmarcomm.com/audit-questions'

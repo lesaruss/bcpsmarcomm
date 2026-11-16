@@ -25,6 +25,7 @@ import { listItems, completeItem, addDeliverableSlot, hasShelf, type ItemKind, t
 // an owner from.
 //   POST { action: 'add_slot', slug, title, owner_email, due } -> { ok }
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 120
 
 const svc = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)

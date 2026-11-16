@@ -6,6 +6,7 @@ import { SITE } from '@/lib/bcps-portal-account'
 // the click, then sends the reader on. ?to= is a path on bcpsmarcomm.com only,
 // so this can never redirect off the site.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 export async function GET(req: NextRequest, { params }: { params: { token: string } }) {
   const { token } = params

@@ -14,6 +14,7 @@ import { requireBcpsPageAccess } from '@/lib/bcps-auth'
 //   POST { op: 'upsert', slug, fields }   insert the row or merge into it
 //   POST { op: 'seed',   rows }           insert missing rows, never overwrite
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const PAGE = 'bcps-assignments'
 const SLUG = /^[a-z0-9][a-z0-9-]{0,160}$/

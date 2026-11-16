@@ -7,6 +7,7 @@ import { createServiceClient } from '@/lib/supabase-admin'
 // /api/bcps/my-access, this route only manages the list. SuperAdmin only.
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

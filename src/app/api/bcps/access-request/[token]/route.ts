@@ -3,6 +3,7 @@ import { createServiceClient, createAnonClientWithToken } from '@/lib/supabase-a
 import { sendEmail } from '@/lib/resend'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

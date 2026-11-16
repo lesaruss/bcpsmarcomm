@@ -41,6 +41,7 @@ import { MARCOMM_TRANSCRIPT_PAGE, MARCOMM_PROPOSAL_SCHEMA, MARCOMM_SYSTEM, loadM
 // the lines to remove (lib/transcript-screen). Applying records each change in
 // the change trail, with what the lead left out (lib/doc-change-log).
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 300
 
 const PAGE = 'meeting-transcripts'

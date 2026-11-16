@@ -10,6 +10,7 @@ import { serviceClient } from '@/lib/bcps-doc-access'
 import { passwordable, passwordSetAt, setDocPassword } from '@/lib/bcps-doc-password'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 export async function GET(req: NextRequest) {
   const auth = await requireBcpsAdmin(req)
