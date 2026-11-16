@@ -56,7 +56,9 @@ type ViewMode = 'tiles' | 'table'
 // 2026-10-20 Chief of Staff default): the SuperAdmin and the District Web
 // Team (Application Services included) open on All Divisions; everyone else
 // opens on their own department's division, one click from All Divisions.
-export default function MembersPage({ defaultDivision }: { defaultDivision?: string } = {}) {
+// defaultScope: which side the pill opens on (the District Web Team Guide opens
+// it on the reader's own side, 2026-11-16). Departments when left out.
+export default function MembersPage({ defaultDivision, defaultScope = 'departments' }: { defaultDivision?: string; defaultScope?: 'departments' | 'schools' } = {}) {
   const router = useRouter()
   const params = useSearchParams()
   const memberId = params.get('member')
@@ -93,7 +95,7 @@ export default function MembersPage({ defaultDivision }: { defaultDivision?: str
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [view, setView] = useState<ViewMode>('tiles')
   // Departments or Schools, Departments first (Sean, 2026-11-16).
-  const [scope, setScope] = useState<Scope>('departments')
+  const [scope, setScope] = useState<Scope>(defaultScope)
   const [schoolMembers, setSchoolMembers] = useState<SchoolMember[]>([])
   const [mySchoolLocs, setMySchoolLocs] = useState<string[]>([])
   // '' = all schools, 'mine' = the viewer's own schools as a support lead,

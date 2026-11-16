@@ -10,12 +10,13 @@
 // also get a Responses view here: who has answered out of the fifteen, the
 // averages per app, and every comment.
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { REQUEST_FORM_CSS } from '@/components/bcps/requestFormCss'
+import PilotReviewResults from '@/components/bcps/PilotReviewResults'
 import {
-  PILOT_APPS, TRIED, SIGN_IN, TIME_SPENT, LAUNCH_READY, EASE_LABELS, emptyAnswers, labelOf,
+  PILOT_APPS, TRIED, SIGN_IN, TIME_SPENT, LAUNCH_READY, EASE_LABELS, emptyAnswers,
   type PilotAnswers, type PilotAppId,
 } from '@/lib/pilot-review'
 
@@ -27,11 +28,6 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 type Pilot = { full_name: string; school_name: string; lead_name: string }
-type RosterRow = { email: string; full_name: string; school_name: string; loc_no: string | null; lead_name: string; has_account: boolean; last_sign_in_at: string | null; responded: boolean }
-type Response = {
-  id: string; created_at: string; email: string; full_name: string; school_name: string; is_pilot_member: boolean
-  overall_rating: number | null; launch_ready: string | null; follow_up_ok: boolean; answers: PilotAnswers
-}
 
 export default function PilotReviewPage() {
   return <Suspense fallback={null}><PilotReview /></Suspense>
@@ -113,7 +109,7 @@ function PilotReview() {
           </div>
         )}
 
-        {view === 'results' && canSeeResults ? <Results /> : done ? (
+        {view === 'results' && canSeeResults ? <PilotReviewResults /> : done ? (
           <div className="mcr-card mcr-done">
             <h1>Thank you!</h1>
             <p>Your feedback is with the District Web Team. It goes straight into what we fix before every school gets these apps.</p>
@@ -245,107 +241,6 @@ function Scale({ name, value, onChange, labels }: { name: string; value: number 
   )
 }
 
-// ── Responses (District Web Team, admins, SuperAdmin) ──
-function Results() {
-  const [roster, setRoster] = useState<RosterRow[] | null>(null)
-  const [responses, setResponses] = useState<Response[]>([])
-  const [err, setErr] = useState('')
-
-  const load = useCallback(async () => {
-    const r = await fetch('/api/bcps/pilot-review?results=1', { headers: await authHeaders() })
-    const j = await r.json().catch(() => ({}))
-    if (!r.ok || !j.roster) { setErr('Could not load the responses.'); return }
-    setRoster(j.roster); setResponses(j.responses)
-  }, [])
-  useEffect(() => { load() }, [load])
-
-  const stats = useMemo(() => PILOT_APPS.map(app => {
-    const used = responses.map(r => r.answers?.apps?.[app.id]).filter(Boolean)
-    const eases = used.map(x => x!.ease).filter((n): n is number => typeof n === 'number')
-    return {
-      app,
-      avg: eases.length ? (eases.reduce((s, n) => s + n, 0) / eases.length) : null,
-      finished: used.filter(x => x!.tried === 'done').length,
-      blocked: used.filter(x => x!.tried === 'blocked').length,
-    }
-  }), [responses])
-
-  if (err) return <p className="mcr-error">{err}</p>
-  if (!roster) return <p className="lede">Loading responses...</p>
-
-  const answered = roster.filter(r => r.responded).length
-  const overall = responses.map(r => r.overall_rating).filter((n): n is number => typeof n === 'number')
-  const fmt = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-
-  return (
-    <>
-      <h1>Pilot Review responses</h1>
-      <p className="lede">{answered} of {roster.length} pilot WCMs have sent feedback{responses.length > answered ? `, plus ${responses.length - answered} more response${responses.length - answered === 1 ? '' : 's'} (repeat sends or people not on the pilot list)` : ''}. Share this form link with the pilot WCMs: <b>bcpsmarcomm.com/pilot-review</b></p>
-
-      <div className="pr-tiles">
-        <div className="pr-tile"><span>Overall</span><b>{overall.length ? (overall.reduce((s, n) => s + n, 0) / overall.length).toFixed(1) : '—'}</b><small>out of 5</small></div>
-        {stats.map(s => (
-          <div className="pr-tile" key={s.app.id}><span>{s.app.label}</span><b>{s.avg != null ? s.avg.toFixed(1) : '—'}</b><small>ease of 5 · {s.finished} finished{s.blocked ? ` · ${s.blocked} could not get to it` : ''}</small></div>
-        ))}
-        <div className="pr-tile"><span>Ready for every school</span><b>{responses.filter(r => r.launch_ready === 'yes').length}</b><small>{responses.filter(r => r.launch_ready === 'after_fixes').length} after fixes · {responses.filter(r => r.launch_ready === 'not_yet').length} not yet</small></div>
-      </div>
-
-      <section className="mcr-card">
-        <h2>The fifteen pilot WCMs</h2>
-        <div className="pr-table-wrap">
-          <table className="pr-table">
-            <thead><tr><th>WCM</th><th>School</th><th>Lead</th><th>Account</th><th>Feedback</th></tr></thead>
-            <tbody>
-              {roster.map(r => (
-                <tr key={r.email}>
-                  <td><b>{r.full_name}</b><br /><a href={`mailto:${r.email}`}>Email</a></td>
-                  <td>{r.school_name}</td>
-                  <td>{r.lead_name}</td>
-                  <td>{r.has_account ? (r.last_sign_in_at ? <span className="pr-ok">Signed in</span> : <span className="pr-mid">Not signed in yet</span>) : <span className="pr-no">No account</span>}</td>
-                  <td>{r.responded ? <span className="pr-ok">Sent</span> : <span className="pr-no">Waiting</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {responses.length === 0
-        ? <section className="mcr-card"><p className="note" style={{ margin: 0 }}>No feedback yet.</p></section>
-        : responses.map(r => (
-          <section className="mcr-card pr-resp" key={r.id}>
-            <div className="pr-resp-head">
-              <div><b>{r.full_name}</b> · {r.school_name}{!r.is_pilot_member && <span className="pr-mid"> not on the pilot list</span>}</div>
-              <span className="hint">{fmt(r.created_at)}</span>
-            </div>
-            <dl>
-              <dt>Overall</dt><dd>{r.overall_rating ?? '—'} of 5 · {labelOf(LAUNCH_READY, r.launch_ready)}</dd>
-              <dt>Signing in</dt><dd>{labelOf(SIGN_IN, r.answers?.sign_in)}{r.answers?.sign_in_notes ? <q>{r.answers.sign_in_notes}</q> : null}</dd>
-              {PILOT_APPS.map(app => {
-                const x = r.answers?.apps?.[app.id]
-                if (!x) return null
-                return (
-                  <div key={app.id} style={{ display: 'contents' }}>
-                    <dt>{app.label}</dt>
-                    <dd>
-                      {labelOf(TRIED, x.tried)}{x.ease ? ` · ${EASE_LABELS[x.ease - 1]}` : ''}
-                      {x.confusing && <q>{x.confusing}</q>}
-                      {x.better && <q className="better">{x.better}</q>}
-                    </dd>
-                  </div>
-                )
-              })}
-              <dt>Time</dt><dd>{labelOf(TIME_SPENT, r.answers?.time_spent)}</dd>
-              {r.answers?.top_fix && <><dt>Fix first</dt><dd><q>{r.answers.top_fix}</q></dd></>}
-              {r.answers?.anything_else && <><dt>Anything else</dt><dd><q>{r.answers.anything_else}</q></dd></>}
-              <dt>Follow up</dt><dd>{r.follow_up_ok ? <a href={`mailto:${r.email}`}>Yes, {r.email}</a> : 'No'}</dd>
-            </dl>
-          </section>
-        ))}
-    </>
-  )
-}
-
 const CSS = `
 .pr-switch { display: inline-flex; border: 1.5px solid #dde3ea; border-radius: 8px; overflow: hidden; margin-bottom: 20px; background: #fff; }
 .pr-switch button { font: inherit; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; padding: 8px 14px; border: none; background: #fff; color: #6b7280; cursor: pointer; }
@@ -365,30 +260,8 @@ const CSS = `
 .pr-step.on .n, .pr-step.on .l { color: #fff; }
 .pr-step:focus-within { outline: 3px solid #1672A7; outline-offset: 1px; }
 .mcr form > .mcr-btn { margin-top: 4px; }
-.pr-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr)); gap: 12px; margin-bottom: 16px; }
-.pr-tile { background: #fff; border: 1px solid rgba(0,0,0,0.09); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
-.pr-tile span { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: #1672A7; }
-.pr-tile b { font-size: 28px; font-weight: 900; }
-.pr-tile small { font-size: 12px; color: rgba(26,26,26,0.6); }
-.pr-table-wrap { overflow-x: auto; }
-.pr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.pr-table th { text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; padding: 6px 10px 6px 0; border-bottom: 1px solid #e5e7eb; }
-.pr-table td { padding: 8px 10px 8px 0; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
-.pr-table a, .pr-resp a { color: #0e4e73; font-weight: 700; }
-.pr-ok, .pr-mid, .pr-no { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
-.pr-ok { background: #e6f6ea; color: #1a7f37; }
-.pr-mid { background: #fff4d6; color: #8a5a00; }
-.pr-no { background: #f3f4f6; color: #6b7280; }
-.pr-resp-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; font-size: 15px; }
-.pr-resp dl { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 14px; }
-.pr-resp dt { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; padding-top: 2px; }
-.pr-resp dd { margin: 0; }
-.pr-resp q { display: block; quotes: none; margin-top: 4px; padding: 6px 10px; background: #f7f9fb; border-left: 3px solid #1672A7; border-radius: 0 4px 4px 0; white-space: pre-wrap; }
-.pr-resp q.better { border-left-color: #2E8B57; }
 @media (max-width: 640px) {
   .pr-scale { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
   .pr-step .l { font-size: 9.5px; }
-  .pr-resp dl { grid-template-columns: minmax(0, 1fr); }
-  .pr-resp dt { padding-top: 8px; }
 }
 `

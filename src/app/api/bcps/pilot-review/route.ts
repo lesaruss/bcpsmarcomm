@@ -42,6 +42,9 @@ export async function GET(req: NextRequest) {
     canSeeResults(auth.user.userId),
   ])
   const out: Record<string, unknown> = { ok: true, signed_in: true, email, pilot: me ?? null, already_sent: (count ?? 0) > 0, can_see_results: results }
+  // ?results=1 is also the District Web Team Guide's check for showing its
+  // Pilot Review item, so anyone who cannot see the results gets a 403.
+  if (req.nextUrl.searchParams.get('results') === '1' && !results) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   if (results && req.nextUrl.searchParams.get('results') === '1') {
     const [{ data: roster }, { data: responses }, { data: users }] = await Promise.all([
       svc.from('bcps_pilot_review_members').select('email, full_name, school_name, loc_no, lead_name').order('lead_name').order('school_name'),
