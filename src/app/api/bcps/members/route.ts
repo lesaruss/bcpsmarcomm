@@ -112,5 +112,58 @@ export async function GET(req: NextRequest) {
     }
   }).sort((a, b) => a.name.localeCompare(b.name))
 
-  return NextResponse.json({ ok: true, me: user.id, members })
+  // School WCMs who have signed up (Sean, 2026-11-16): the Schools side of
+  // Members. A school WCM is anyone on the BCPS Central WCM roster or named
+  // as a school's WCM on bcps_schools, matched to an account by email. Many
+  // have no acl_member_roles row, so they never appear in `members` above.
+  // Each school carries its District Web Team support lead, so a lead can
+  // narrow the list to their own schools (my_school_locs).
+  const [{ data: schoolRoster }, { data: schoolRows }, { data: assigns }, { data: leads }] = await Promise.all([
+    svc.from('bcps_school_wcm_roster').select('email, loc_no, cert_status'),
+    svc.from('bcps_schools').select('name, school_location_nbr, wcm_email'),
+    svc.from('bcps_school_assignments').select('loc_no, display_name, school_level, lead_email'),
+    svc.from('bcps_support_leads').select('email, full_name'),
+  ])
+  const locKey = (n: string | null | undefined) => (n || '').trim().replace(/^0+/, '')
+  const assignByLoc = new Map((assigns ?? []).map(a => [locKey(a.loc_no), a]))
+  const leadName = new Map((leads ?? []).map(l => [(l.email || '').toLowerCase(), l.full_name as string]))
+  type SchoolRef = { loc_no: string; name: string; level: string | null; lead_email: string | null; lead_name: string | null; cert_status: string | null }
+  const schoolsByEmail = new Map<string, Map<string, SchoolRef>>()
+  const addSchool = (email: string | null, loc: string | null, fallbackName: string | null, cert: string | null) => {
+    const e = (email || '').trim().toLowerCase()
+    const k = locKey(loc)
+    if (!e || !k) return
+    const a = assignByLoc.get(k)
+    const byLoc = schoolsByEmail.get(e) ?? new Map<string, SchoolRef>()
+    const prev = byLoc.get(k)
+    const lead = (a?.lead_email || '').toLowerCase() || null
+    byLoc.set(k, {
+      loc_no: a?.loc_no || loc || k,
+      name: a?.display_name || prev?.name || fallbackName || `Location ${k}`,
+      level: a?.school_level ?? null,
+      lead_email: lead,
+      lead_name: lead ? (leadName.get(lead) ?? lead) : null,
+      cert_status: cert ?? prev?.cert_status ?? null,
+    })
+    schoolsByEmail.set(e, byLoc)
+  }
+  for (const r of schoolRoster ?? []) addSchool(r.email, r.loc_no, null, r.cert_status)
+  for (const r of schoolRows ?? []) addSchool(r.wcm_email, r.school_location_nbr, r.name, null)
+  const usersByEmail = new Map((authList?.users ?? []).filter(u => u.email).map(u => [u.email!.toLowerCase(), u]))
+  const school_members = Array.from(schoolsByEmail.entries()).flatMap(([email, byLoc]) => {
+    const u = usersByEmail.get(email)
+    if (!u) return []
+    const meta = (u.user_metadata ?? {}) as Record<string, unknown>
+    const name = (meta.name as string) || (meta.full_name as string) || email.split('@')[0]
+    return [{
+      user_id: u.id, name, email: u.email ?? email,
+      initials: initials(name), color: colorFor(u.id),
+      last_sign_in_at: u.last_sign_in_at ?? null,
+      schools: Array.from(byLoc.values()).sort((a, b) => a.name.localeCompare(b.name)),
+    }]
+  }).sort((a, b) => a.name.localeCompare(b.name))
+  const myEmail = (user.email || '').toLowerCase()
+  const my_school_locs = (assigns ?? []).filter(a => (a.lead_email || '').toLowerCase() === myEmail).map(a => a.loc_no as string)
+
+  return NextResponse.json({ ok: true, me: user.id, members, school_members, my_school_locs })
 }
