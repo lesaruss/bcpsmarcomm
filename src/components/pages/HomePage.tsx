@@ -1457,6 +1457,10 @@ function DocFrame({ slug, title, onOpen, buttons, between, tools, refresh = 0 }:
   )
 }
 
+// Pages, not documents (Sean, 2026-11-17): an interactive page such as the
+// Audit Walkthrough opens without Open full page and Password.
+const PAGE_DOCS = new Set(['bcps-updated-department-audit'])
+
 function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kind: 'superadmin' | 'dwt' | 'director' | 'wcm' | 'leadership'; team?: boolean; canMarcomm?: boolean; asEmail?: string | null }) {
   const [doc, openDoc] = useDocParam()
   const [refresh, setRefresh] = useState(0)
@@ -1502,13 +1506,13 @@ function DocumentsTab({ kind, team = false, canMarcomm = false, asEmail }: { kin
         <DocFrame slug={doc} title="Document" onOpen={(s) => openDoc(s)} refresh={refresh}
           buttons={<>
             <button type="button" className="wcm-hub2-card-btn" onClick={() => openDoc(null)}>All documents</button>
-            <a className="wcm-hub2-card-btn" href={`/api/bcps/doc-raw/${encodeURIComponent(doc)}`} target="_blank" rel="noopener noreferrer">Open full page</a>
+            {!PAGE_DOCS.has(doc) && <a className="wcm-hub2-card-btn" href={`/api/bcps/doc-raw/${encodeURIComponent(doc)}`} target="_blank" rel="noopener noreferrer">Open full page</a>}
           </>}
           tools={<>
             <MeetingTranscriptUpload key={doc} tracker="playbook" playbook={doc} variant="button" onApplied={() => setRefresh((n) => n + 1)} />
             <AgendaBuilder key={`agenda-${doc}`} playbook={doc} onSaved={() => setRefresh((n) => n + 1)} />
             <ProjectLeads key={`leads-${doc}-${refresh}`} playbook={doc} onSaved={(m) => { setLeadsNote(m); setRefresh((n) => n + 1) }} />
-            <DocPasswordButton key={`pw-${doc}`} slug={doc} sharePath={`/playbooks/${doc}`} onSaved={(m) => setLeadsNote(m)} />
+            {!PAGE_DOCS.has(doc) && <DocPasswordButton key={`pw-${doc}`} slug={doc} sharePath={`/playbooks/${doc}`} onSaved={(m) => setLeadsNote(m)} />}
           </>}
           between={leadsNote ? <p className="home-hint doc-toolbar-note" role="status">{leadsNote}</p> : undefined} />
       </div>
