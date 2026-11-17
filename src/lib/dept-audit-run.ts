@@ -49,6 +49,25 @@ export async function auditPage(url: string, opts: { ownerName: string; mode: Au
   if (!scan.extra) return { ok: false, error: scan.extraError ?? 'page capture failed' }
   const cap = scan.extra
 
+  // Broken-page guard (Nov 16 rule review): Finalsite serves its 404 as a
+  // normal-looking page, and the audit used to score every rule against it
+  // (6 of 33 left-nav failures were "Oops" pages). A missing page gets one
+  // result and nothing else is scored.
+  if (/^Oops!.*Can.t Be Found/i.test(cap.facts.docTitle || '') || /^Oops!.*Can.t Be Found/i.test(cap.facts.title || '')) {
+    const results: CheckResult[] = [{
+      id: 'page-not-found', area: 'Navigation', title: 'This page is broken (Page not found)', status: 'fail',
+      detail: 'This address shows Finalsite\'s "Oops! That Page Can\'t Be Found" page, so nothing else on it was checked.',
+      why: 'Visitors who follow a link here reach a dead end. A broken page usually means a page was renamed, moved or deleted while a menu item or link still points to the old address.',
+      steps: ['If the page was renamed or moved, fix the menu item or link that points here (right-click, Edit Link, Internal Link, browse to the page).', 'If the page was deleted on purpose, remove the menu item or link that points here.', 'Not sure? Ask a question below and the District Web Team will help.'],
+      targets: [], course: { moduleId: 'mod5', pageId: 'dropdowns', label: 'Module 5: Checking and Correcting Navigation' },
+    }]
+    return {
+      ok: true, url: cap.facts.url || url, pageTitle: cap.facts.docTitle || cap.facts.title, results,
+      score: scoreOf(results), accessibility: scoreOf([]), finalsite: [], violations: [],
+      desktopShot: cap.desktopShot, mobileShot: cap.mobileShot, desktopSize: cap.desktopSize, mobileSize: cap.mobileSize,
+    }
+  }
+
   let standards: CheckResult[] = []
   if (!school) {
     const toCheck = linksToCheck(cap.facts)

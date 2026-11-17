@@ -52,11 +52,15 @@ export interface CheckResult {
 export interface StdFacts {
   url: string
   title: string
+  /** The browser tab title; Finalsite's 404 page is "Oops! That Page Can’t Be Found". */
+  docTitle?: string
   pageLayoutClass: string
+  /** The page frame (the layout around all content), for the single-column marker. */
+  pageRef?: string
   multiColumn: { ref: string; kind: string }[]
   first: { ref: string; kind: string; isContent: boolean; text: string } | null
   contentImages: { ref: string; name: string }[]
-  buttons: { ref: string; text: string }[]
+  buttons: { ref: string; text: string; big?: boolean }[]
   directory: { ref: string } | null
   contact: { ref: string; hasTel: boolean; telHref: string; hasMaps: boolean; hasBold: boolean; boldText: string; nearBottom: boolean } | null
   leftNav: { ref: string; links: number; genericLabels: { ref: string; text: string }[] } | null
@@ -108,9 +112,10 @@ export const COLLECT_STANDARDS_SCRIPT = `(() => {
   const images = Array.from(main.querySelectorAll('img')).filter((i) => visible(i) && bigImg(i) && !i.closest('.fsConstituent')).slice(0, 12).map((i) => ({ ref: ref(i), name: imgName(i) }))
 
   const BTN = /(^|\\s)(small-button|large-button|full-width-button|external-link-button|button-[a-z0-9-]+)(\\s|$)/
-  const buttons = Array.from(main.querySelectorAll('a[class]')).filter((a) => BTN.test(a.className) && visible(a)).map((a) => ({ ref: ref(a), text: txt(a).slice(0, 60) }))
+  const buttons = Array.from(main.querySelectorAll('a[class]')).filter((a) => BTN.test(a.className) && visible(a)).map((a) => ({ ref: ref(a), text: txt(a).slice(0, 60), big: /(^|\\s)(large-button|full-width-button)(\\s|$)/.test(a.className) }))
 
-  const dirEl = main.querySelector('.fsConstituent')
+  // The profile card, not the Directory Search box (same element family; Nov 16).
+  const dirEl = main.querySelector('.fsConstituent.fsDirectory')
   const directory = dirEl ? { ref: ref(dirEl) } : null
 
   // Contact block: the container around a tel: link (or a maps link) with the
@@ -163,7 +168,7 @@ export const COLLECT_STANDARDS_SCRIPT = `(() => {
     .filter((x) => x.words >= 150 && visible(x.p)).slice(0, 8).map((x) => ({ ref: ref(x.p), words: x.words }))
 
   return {
-    url: location.href, title: txt(titleEl), pageLayoutClass: layout ? layout.className : '',
+    url: location.href, title: txt(titleEl), docTitle: document.title, pageRef: ref(layout || main), pageLayoutClass: layout ? layout.className : '',
     multiColumn, first, contentImages, buttons, directory, contact, leftNav, links, longBlocks, images, headingSkips,
     mainText: txt(main).slice(0, 60000),
   }
@@ -218,7 +223,7 @@ export const STANDARD_CHECKS: StdCheck[] = [
   {
     id: 'description-first', area: 'Homepage', course: C.homepage,
     title: 'The department description comes first',
-    why: 'Department pages do not use a hero image. Content begins immediately at the top of the page, and the description is your opening statement to every visitor.',
+    why: 'Department pages do not use a hero image. Content begins immediately at the top of the page, and the description is your opening statement to every visitor. A logo beside your description is fine.',
     steps: ['Open the page in Composer.', 'Drag the Content element with your description to the top of the page, directly under the page title.', 'Move any photo, banner or other element below the description.'],
     run: ({ facts }) => {
       const f = facts.first
@@ -229,44 +234,51 @@ export const STANDARD_CHECKS: StdCheck[] = [
   },
   {
     id: 'description-length', area: 'Homepage', course: C.homepage,
-    title: 'The description is 250 characters or fewer',
-    why: 'A concise description is the first element visitors see. Keep it brief and direct; the rest of the page carries the detail.',
-    steps: ['Copy your description into Copilot and ask it to shorten it to 250 characters or fewer.', 'Paste the shorter version back into the first Content element.', 'Move the longer text further down the page, or into an accordion.'],
+    title: 'Keep your description short: aim for 250 to 300 characters',
+    why: 'Your description is the first thing visitors read. It should tell them in a few seconds what your department does and whether they are in the right place. Blocks of paragraphs at the top push everything else down and get skipped. Up to 300 characters passes. From 301 to 500, reread it and cut anything that belongs further down; if all of it truly has to stay, mark it reviewed. Over 500 needs to be updated: keep the opening sentences and move the rest below. Spaces count; the page title does not.',
+    steps: ['Copilot option: paste this into Copilot with your description: "Shorten this department description to about 250 characters. Keep what the department does and who it serves. Give me 2 options. Text: [paste your description]"', 'Paste the shorter version back into the first Content element.', 'Move the rest further down the page, or into an accordion.'],
     run: ({ facts }) => {
       const f = facts.first
       if (!f || !f.isContent) return { status: 'fail', detail: 'There is no description at the top of the page to measure (see the check above).', targets: [] }
+      // Bands (Sean, Nov 16 rule review): 250 is the aim, not a hard line.
       const n = f.text.length
-      return n <= 250
-        ? { status: 'pass', detail: `Your description is ${n} characters.`, targets: [] }
-        : { status: 'fail', detail: `Your description is ${n} characters, ${n - 250} over the limit.`, targets: [t(f.ref, `${n} characters`)] }
+      if (n <= 300) return { status: 'pass', detail: `Your description is ${n} characters.`, targets: [] }
+      if (n <= 500) return { status: 'review', detail: `Your description is ${n} characters. Reread it and cut anything that belongs further down; if all of it has to stay, mark it reviewed.`, targets: [t(f.ref, `${n} characters`)] }
+      return { status: 'fail', detail: `Your description is ${n} characters. Over 500 reads like a page of its own: keep the opening sentences and move the rest below.`, targets: [t(f.ref, `${n} characters`)] }
     },
   },
   {
     id: 'photo-element', area: 'Homepage', course: C.homepage,
     title: 'Photos use the rounded photo element, not a Content element',
-    why: 'Photos use the WCM Enhancements rounded-corner photo element. Images inserted directly into a content element do not follow the district style and are hard to manage.',
+    why: 'Photographs of people, places and events use the WCM Enhancements rounded-corner photo element. Images inserted directly into a Content element do not follow the district style and are hard to manage. Logos, and graphics on a white background (where a rounded border would not show), are exempt.',
     steps: ['Delete the image from inside the Content element.', 'Add a Resource (photo) element in its place and choose the image from your gallery.', 'Apply the rounded photo style from WCM Enhancements, and give the photo alt text.'],
-    run: ({ facts }) => facts.contentImages.length === 0
-      ? { status: 'pass', detail: 'No images are placed inside Content elements.', targets: [] }
-      : { status: 'fail', detail: `${facts.contentImages.length} image${facts.contentImages.length === 1 ? ' is' : 's are'} inserted inside a Content element.`, items: facts.contentImages.map((i) => i.name), targets: facts.contentImages.map((i) => t(i.ref, i.name)) },
+    run: ({ facts }) => {
+      // Logos are exempt (Sean, Nov 16 rule review).
+      const imgs = facts.contentImages.filter((i) => !/logo/i.test(i.name))
+      return imgs.length === 0
+        ? { status: 'pass', detail: 'No photos are placed inside Content elements.', targets: [] }
+        : { status: 'fail', detail: `${imgs.length} image${imgs.length === 1 ? ' is' : 's are'} inserted inside a Content element. If it is a logo or a graphic on a white background, it is exempt.`, items: imgs.map((i) => i.name), targets: imgs.map((i) => t(i.ref, i.name)) }
+    },
   },
   {
     id: 'quick-access', area: 'Homepage', course: C.homepage,
-    title: 'Three to six Quick Access buttons',
-    why: 'Quick Access buttons take visitors straight to your most visited pages. Limit them to your real top priorities; do not list every page.',
-    steps: ['Pick your three to six most visited pages (your Analytics tab shows them).', 'For each one, add a link in a Content element under your description.', 'Right-click the link, choose Edit Link, and apply a button size class and a color class (for example small button and button blue).'],
+    title: 'Information first, then a small button',
+    why: 'A button is not the way to show your information. Each program or topic shows its information first, as regular text (about 250 characters, so people know what they are clicking through to), then a small, left-aligned button under it. Keep the default text style. The reason is consistency across departments: your content is what sets you apart, not the layout.',
+    steps: ['Under each button, check there is a short paragraph above it that says what the program or page is.', 'Right-click the button, choose Edit Link, and set the size class to small button (not large or full width).', 'Keep the button left aligned, and its text 2 to 5 words.'],
     run: ({ facts }) => {
-      const n = facts.buttons.length
-      if (n >= 3 && n <= 6) return { status: 'pass', detail: `${n} Quick Access buttons.`, items: facts.buttons.map((b) => b.text), targets: [] }
-      if (n === 0) return { status: 'fail', detail: 'No Quick Access buttons were found.', targets: [] }
-      return { status: 'fail', detail: n < 3 ? `Only ${n} button${n === 1 ? '' : 's'}; add ${3 - n} more.` : `${n} buttons; trim to your top six.`, items: facts.buttons.map((b) => b.text), targets: facts.buttons.map((b) => t(b.ref, b.text || 'Button')) }
+      // Button standard (Sean, Nov 10 Hot Lab): replaces "Three to six Quick Access buttons"; no count.
+      const big = facts.buttons.filter((b) => b.big)
+      if (facts.buttons.length === 0) return { status: 'pass', detail: 'No buttons on this page.', targets: [] }
+      return big.length === 0
+        ? { status: 'pass', detail: `${facts.buttons.length} button${facts.buttons.length === 1 ? '' : 's'}, all small.`, items: facts.buttons.map((b) => b.text), targets: [] }
+        : { status: 'fail', detail: `${big.length} button${big.length === 1 ? ' is' : 's are'} large or full width. Use small buttons under your text.`, items: big.map((b) => b.text), targets: big.map((b) => t(b.ref, b.text || 'Button')) }
     },
   },
   {
     id: 'staff-directory', area: 'Homepage', course: C.homepage,
-    title: 'A Constituent Directory shows your key contacts',
-    why: 'The staff listing tells visitors who to contact. It is set up through WCM Enhancements, so names and titles stay current from one source.',
-    steps: ['Submit an IIQ request, or bring it to a Hot Lab, to have the Constituent Directory set up for your department.', 'Place it near the bottom of the homepage, above your contact information.'],
+    title: 'Key contacts come from the district directory, not typed in',
+    why: 'A contact typed into the page goes out of date when someone changes roles, and visitors call the wrong person. The Constituent Directory element pulls the person\'s photo, name, title and email from the district directory, so it stays current. It shows as a profile card for each key contact (usually the director), just above your contact information. See Early Childhood Education for an example.',
+    steps: ['If you typed your contacts into the page, that is why this is flagged.', 'Submit an IIQ request, or bring it to a Hot Lab, to have the Constituent Directory set up for your department, then remove the typed version.', 'Place it near the bottom of the homepage, above your contact information.', 'No staff to list? Ask a question below and explain why.'],
     run: ({ facts }) => facts.directory
       ? { status: 'pass', detail: 'A staff directory is on the page.', targets: [] }
       : { status: 'fail', detail: 'No Constituent Directory was found on this page.', targets: [] },
@@ -275,7 +287,7 @@ export const STANDARD_CHECKS: StdCheck[] = [
     id: 'contact-info', area: 'Homepage', course: C.homepage,
     title: 'Contact information at the bottom, in the required format',
     why: 'Visitors look for contact details at the bottom of the page. The required format (bold name, mapped address, tappable phone) works the same way on every department page.',
-    steps: ['At the bottom of the homepage, add (or edit) a Content element with: your department name in bold; your address, linked to your Google Maps location; and your phone number.', 'Link the phone number with tel: and no spaces, for example tel:7545551234.', 'Fax is optional: use the "F:" prefix in the same format.'],
+    steps: ['At the bottom of the homepage, add (or edit) a Content element with: your department name in bold; your address, linked to your Google Maps location; and your phone number. No contact of your own? Use the office that runs this program.', 'Select the phone number, right-click, choose Edit Link, choose External Link, and type tel: followed by the number with no spaces, for example tel:754-321-1961.', 'Fax is optional: use the "F:" prefix in the same format.', 'See Early Childhood Education for an example.'],
     run: ({ facts }) => {
       const c = facts.contact
       if (!c) return { status: 'fail', detail: 'No contact block with a phone link or a map link was found.', targets: [] }
@@ -292,9 +304,9 @@ export const STANDARD_CHECKS: StdCheck[] = [
   },
   {
     id: 'single-column', area: 'Layout', course: C.layoutStandards,
-    title: 'Single-column page layout',
-    why: 'All department landing and overview pages must use a single-column page layout. Pages laid out in two columns all the way down break on phones, are harder to scan, and do not match the district standard. A small section placed side by side, such as Important Links or a logo beside your introduction, is fine.',
-    steps: ['In Compose Mode, click the building block icon, then "Edit page layout, banners and themes", and confirm the page is single column.', 'For any two- or three-column layout element, drag its content out into the single column.', 'Use accordion or tab elements (Add Element, Layout tab) to organize what was in the side column.'],
+    title: 'The page is one column from top to bottom',
+    why: 'This rule is about the page frame, the area that holds everything on your page. The frame must be one column, so content can run full width across the page. A page whose frame is split into two columns all the way down (common on pages brought over from the old site) has no way to show anything full width, breaks on phones, and does not match the district standard. This is fine and never flagged: a two-column section placed inside a one-column page, such as your logo with your description beside it, or a side-by-side Important Links block.',
+    steps: ['In Compose Mode, click the building block icon, then "Edit page layout, banners and themes."', 'If the content area shows two columns, switch the page layout to one column.', 'Move the content from the old side column back onto the page, using an accordion or tabs if it needs organizing.'],
     run: ({ facts }) => {
       // The standard is the page layout (Sean, Oct 29 Hot Lab): pages brought
       // over from SchoolWires split into two columns all the way down. A
@@ -303,14 +315,15 @@ export const STANDARD_CHECKS: StdCheck[] = [
       const pageOne = /fsOneColumnLayout/.test(facts.pageLayoutClass) || !facts.pageLayoutClass
       const n = facts.multiColumn.length
       if (pageOne) return { status: 'pass', detail: n ? `The page is single column. ${n} section${n === 1 ? ' sits' : 's sit'} side by side inside it, which is fine.` : 'The page and everything on it is single column.', targets: [] }
-      return { status: 'fail', detail: 'The page itself uses a multi-column layout.', targets: facts.multiColumn.map((m) => t(m.ref, 'Side-by-side columns')) }
+      // Outline the page frame itself, not the side-by-side sections inside it (Nov 16).
+      return { status: 'fail', detail: 'The page frame is split into columns, so nothing can run full width.', targets: [t(facts.pageRef, 'Page frame')] }
     },
   },
   {
     id: 'dense-content', area: 'Layout', course: C.condensing,
-    title: 'No long unbroken blocks of text',
-    why: 'Pages with very long, unbroken blocks of content are flagged. Content that belongs together but does not all need to be visible should go in lists, accordions or tabs.',
-    steps: ['Turn any paragraph that lists three or more items into a bulleted list.', 'Move detail not every visitor needs into an accordion (Add Element, Layout tab, Accordion).', 'Use tabs when the content splits by audience or program.'],
+    title: 'Break up long blocks of text',
+    why: 'If a section reads like a story, with paragraph after paragraph, visitors skim past it. Start with one short sentence that sums up the point, then put the details in bullets. Put details not everyone needs in an accordion, or tabs if it splits by audience or program.',
+    steps: ['Open with one short sentence that says what the section is about.', 'Turn three or more points into bullets.', 'Move detail not every visitor needs into an accordion (Add Element, Layout tab, Accordion).', 'Use tabs when the content splits by audience or program.'],
     run: ({ facts }) => facts.longBlocks.length === 0
       ? { status: 'pass', detail: 'No paragraph runs 150 words or more.', targets: [] }
       : { status: 'review', detail: `${facts.longBlocks.length} paragraph${facts.longBlocks.length === 1 ? ' runs' : 's run'} 150 words or more. Check whether ${facts.longBlocks.length === 1 ? 'it' : 'each'} should become a list, an accordion or tabs.`, targets: facts.longBlocks.map((b) => t(b.ref, `${b.words} words`)) },
@@ -329,7 +342,7 @@ export const STANDARD_CHECKS: StdCheck[] = [
   {
     id: 'current-content', area: 'Content', course: C.writing,
     title: 'All dates and information are current',
-    why: 'Dates from past school years and expired deadlines are among the most common audit findings, and they undermine trust in everything else on the page.',
+    why: 'Dates from past school years and expired deadlines are among the most common audit findings, and they undermine trust in everything else on the page. A past date is fine when it is history or a record (when something started, or when a policy was adopted). What gets flagged is anything a visitor might act on: a deadline, an event, a calendar, or a "current" school year that has passed.',
     steps: ['Search the page for past school years (for example 2024-25 or 2024-2025).', 'Update or remove anything out of date.', 'If older material must stay, move it into an Archive section labeled by school year.'],
     run: ({ facts, now }) => {
       const start = currentSchoolYearStart(now)
@@ -344,14 +357,18 @@ export const STANDARD_CHECKS: StdCheck[] = [
   },
   {
     id: 'descriptive-links', area: 'Content', course: C.linkLanguage,
-    title: 'Every link describes where it goes',
-    why: 'Link text like "click here" or "read more" tells visitors nothing, and screen readers read links out of context. This is both a content standard and an ADA requirement.',
-    steps: ['Select the link text and type a description of the destination.', 'For example: "View the 2026-27 Professional Development Calendar (PDF)" instead of "click here".'],
+    title: 'Link and button text says where it goes, in a few words',
+    why: 'People scan links, and screen readers often read them out as a list, with no sentence around them. The words on a link or button should tell someone where it goes before they click, and clear words help people find the page through search. Buttons: 2 to 5 words, key word first ("Apply for Head Start"). Links in a sentence: link only the words that name the destination. Never "click here," "read more," "learn more," "here," or a pasted web address. Sources: ADA (WCAG 2.4.4 and 2.5.3), Google Search link guidance, Nielsen Norman Group.',
+    steps: ['Select the link or button text.', 'Replace it with the name of the page or file it opens, key word first. For a file, add the type at the end, for example "(PDF)".', 'Copilot option: paste this into Copilot: "Rewrite this as a website button label for a Broward County Public Schools department page. Use 2 to 5 words, start with the most important word, and say where the button goes. Don\'t use \'click here\' or \'learn more.\' Give me 3 options. Text: [paste your text]"'],
     run: ({ facts }) => {
       const bad = facts.links.filter((l) => VAGUE.test(l.text.replace(/[.:!»>›]+$/, '').trim()) || (/^https?:\/\//i.test(l.text)))
-      return bad.length === 0
-        ? { status: 'pass', detail: facts.links.length === 1 ? 'The one link on the page describes its destination.' : `All ${facts.links.length} links describe their destination.`, targets: [] }
-        : { status: 'fail', detail: `${bad.length} link${bad.length === 1 ? ' does' : 's do'} not say where ${bad.length === 1 ? 'it goes' : 'they go'}.`, items: bad.map((l) => `"${l.text}"`), targets: bad.map((l) => t(l.ref, `"${l.text}"`)) }
+      // Length (Nov 16): a button over 5 words, or a link over 12, is a whole sentence linked.
+      const words = (x: string) => x.trim().split(/\s+/).filter(Boolean).length
+      const btnText = new Set(facts.buttons.map((b) => b.text.trim()))
+      const long = facts.links.filter((l) => !bad.includes(l) && (btnText.has(l.text.trim()) ? words(l.text) > 5 : words(l.text) > 12))
+      if (bad.length === 0 && long.length === 0) return { status: 'pass', detail: facts.links.length === 1 ? 'The one link on the page describes its destination.' : `All ${facts.links.length} links describe their destination.`, targets: [] }
+      if (bad.length === 0) return { status: 'review', detail: `${long.length} link${long.length === 1 ? ' is' : 's are'} long. Buttons should be 2 to 5 words; in a sentence, link only the words that name the destination.`, items: long.map((l) => `"${l.text}"`), targets: long.map((l) => t(l.ref, `${words(l.text)} words`)) }
+      return { status: 'fail', detail: `${bad.length} link${bad.length === 1 ? ' does' : 's do'} not say where ${bad.length === 1 ? 'it goes' : 'they go'}.`, items: bad.map((l) => `"${l.text}"`), targets: bad.map((l) => t(l.ref, `"${l.text}"`)) }
     },
   },
   {
@@ -402,7 +419,7 @@ export const STANDARD_CHECKS: StdCheck[] = [
     id: 'working-links', area: 'Navigation', course: C.navStandards,
     title: 'All hyperlinks are working',
     why: 'Every link on your department site must work. Broken links are flagged in audits and leave visitors at a dead end.',
-    steps: ['Open each link listed here.', 'Relink it with the site page or file option (not a pasted address) so it keeps working when pages move.', 'Remove the link if the destination no longer exists.'],
+    steps: ['Open each link listed here.', 'Right-click the link and choose Edit Link. For a page on our site, choose Internal Link and browse to the page. For a document, image or video, choose Resources. Only use External Link for sites outside browardschools.com.', 'Remove the link if the destination no longer exists.'],
     run: ({ facts, brokenLinks, linksChecked }) => {
       if (brokenLinks.length === 0) return { status: 'pass', detail: `${linksChecked} link${linksChecked === 1 ? '' : 's'} checked; none are broken.`, targets: [] }
       const byHref = new Map(facts.links.map((l) => [l.href.split('#')[0], l]))
@@ -411,13 +428,13 @@ export const STANDARD_CHECKS: StdCheck[] = [
   },
   {
     id: 'site-page-links', area: 'Navigation', course: C.navChecking,
-    title: 'Internal links use site page links, not copied URLs',
-    why: 'Links made with Finalsite’s site page option update themselves when a page moves. Addresses copied from the browser break when pages are renamed.',
-    steps: ['Right-click each pinned link and choose Edit Link.', 'Change the link type to Site Page (or Site File) and pick the page from the list.', 'Save and publish.'],
+    title: 'Links to our own pages use Internal Link, not a copied address',
+    why: 'Links made with Internal Link update themselves when a page moves. Addresses copied from the browser break when pages are renamed.',
+    steps: ['In Composer, right-click the link and choose Edit Link.', 'It will show as an External Link (that is the problem). Change it to Internal Link and browse to the page.', 'If it points to a document, image or video, choose Resources instead: it opens your resource folders directly.', 'Save and publish.'],
     run: ({ facts }) => {
       const pasted = facts.links.filter((l) => SITE_HOST.test(l.raw) && !/\/fs\/resource-manager\//.test(l.raw))
       return pasted.length === 0
-        ? { status: 'pass', detail: 'Internal links use site page links.', targets: [] }
+        ? { status: 'pass', detail: 'Links to our own pages use Internal Link.', targets: [] }
         : { status: 'fail', detail: `${pasted.length} internal link${pasted.length === 1 ? ' uses' : 's use'} a copied browardschools.com address.`, items: pasted.map((l) => l.text || l.raw), targets: pasted.map((l) => t(l.ref, l.text || 'Copied URL')) }
     },
   },
@@ -428,13 +445,24 @@ export const STANDARD_CHECKS: StdCheck[] = [
 // Template-level rules (the header, menus, footer) are Finalsite's and are
 // reported separately; rules missing from the glossary are treated the same
 // way, because an unknown rule is not something the course taught.
-export const A11Y_ROWS: { axeIds: string[]; title: string; course: CourseRef }[] = [
+export const A11Y_ROWS: { axeIds: string[]; title: string; course: CourseRef; why?: string; steps?: string[] }[] = [
   { axeIds: ['image-alt', 'role-img-alt', 'input-image-alt'], title: 'Every image has alt text', course: C.altText },
-  { axeIds: ['heading-order', 'empty-heading', 'page-has-heading-one'], title: 'Headings are in order, with none skipped or empty', course: C.accessiblePage },
-  { axeIds: ['link-name'], title: 'Every link has readable text', course: C.linkLanguage },
-  { axeIds: ['listitem', 'list'], title: 'Lists use the list buttons, not typed bullets', course: C.accessiblePage },
-  { axeIds: ['th-has-data-cells', 'td-has-header', 'table-duplicate-name', 'empty-table-header'], title: 'Data tables have a header row', course: C.accessiblePage },
-  { axeIds: ['color-contrast'], title: 'Text has enough contrast', course: C.accessiblePage },
+  { axeIds: ['heading-order', 'empty-heading', 'page-has-heading-one'], title: 'Headings are in order, with none skipped or empty', course: C.accessiblePage,
+    why: 'Headings work like an outline: a Heading 2 starts a section, a Heading 3 sits under it. Screen reader users jump from heading to heading, so a skipped level makes it look like part of the page is missing. Example: a Heading 1 followed by a Heading 3 should be a Heading 2.',
+    steps: ['Use the marker on the screenshot to find each heading.', 'Select the heading in Composer and change it to the next level down from the heading above it (after a Heading 2, use a Heading 3).', 'Delete any empty heading.'] },
+  { axeIds: ['link-name'], title: 'Every link has words a screen reader can say', course: C.linkLanguage,
+    why: 'Some links on your page have no text: an image or icon used as a link with no alt text, or an empty link left behind after text was deleted. A screen reader announces these as just "link."',
+    steps: ['Use the marker on the screenshot to find each one.', 'If it is an image or icon, add alt text that says where it goes ("Follow us on Instagram").', 'If it is an empty link, delete it.'] },
+  { axeIds: ['listitem', 'list'], title: 'Lists use the list buttons, not typed bullets', course: C.accessiblePage,
+    why: 'Bullets typed by hand, or pasted in from Word or an email, look like a list but are not one. A screen reader reads them as one run-on paragraph and does not say "list of 5 items," so visitors cannot tell how many items there are or skip through them.' },
+  { axeIds: ['th-has-data-cells', 'td-has-header', 'table-duplicate-name', 'empty-table-header'], title: 'Data tables have a header row', course: C.accessiblePage,
+    why: 'In a table, the top row tells you what each column means. If the top row is only bolded, a screen reader user hears a string of numbers with no labels. Marking it as a header row makes the reader say "Enrollment: 1,250" instead of "1,250."' },
+  { axeIds: ['color-contrast'], title: 'Text has enough contrast', course: C.accessiblePage,
+    why: 'Light text on a light background, or dark on dark, is hard to read for anyone with low vision, and for everyone on a phone in sunlight. The template\'s default colors already pass, so the problem almost always comes from a color added by hand or pasted in from Word or an email.',
+    steps: ['Select the colored text.', 'Click Clear Formatting.', 'If the text needs to stand out, use bold instead of a color.'] },
+  { axeIds: ['frame-title'], title: 'Embedded videos, maps and forms have a title', course: C.adaIntro,
+    why: 'Screen readers announce an embedded item by its title. Without one, a visitor hears only "frame" and does not know what is there.',
+    steps: ['Open the Embed Code element.', 'In the code, find <iframe and add title="..." describing it, for example title="Map to the KCW Building".', 'Save and publish.'] },
   { axeIds: ['label', 'select-name'], title: 'Form fields have labels', course: C.adaIntro },
   { axeIds: ['video-caption'], title: 'Videos have captions', course: C.adaIntro },
 ]
@@ -444,7 +472,15 @@ export interface AxeLikeViolation { id: string; impact: string | null; descripti
 /** inContent says whether an axe selector points inside the department's own content area (#fsPageContent); template elements never count. */
 // The glossary's Finalsite-owned rules, plus Finalsite's image markup
 // (aria-allowed-role) found on every page in the Oct 28 Audit Error Guide.
-const FINALSITE_MARKUP_RULES = new Set(['aria-allowed-role'])
+// Rule review (Nov 10 and Nov 16 Hot Labs): rules a WCM cannot reach and fix
+// in Composer go to the Finalsite list and stay off WCM lists.
+const FINALSITE_MARKUP_RULES = new Set([
+  'aria-allowed-role', 'aria-allowed-attr', 'aria-command-name', 'aria-hidden-focus', 'aria-prohibited-attr',
+  'aria-required-children', 'aria-required-parent', 'aria-valid-attr', 'aria-valid-attr-value',
+  'landmark-main-is-top-level', 'landmark-no-duplicate-main', 'landmark-unique', 'link-in-text-block',
+])
+/** Elements Finalsite generates inside the content area: resource links, the translate menu, the YouTube element, the Custom Version accordion's bare images, and the district chat widget. */
+const FINALSITE_NODE = /\bfsResourceLink\b|\blanguage-item\b|\bfsYoutube|^<img\s*\/?>$|tfsweb\.browardschools\.com\/Chat/i
 function finalsiteRule(axeId: string): boolean {
   return FINALSITE_MARKUP_RULES.has(axeId) || lookupAxeEntry(axeId)?.owner === 'finalsite'
 }
@@ -459,7 +495,7 @@ export function accessibilityRows(violations: AxeLikeViolation[], inContent: (se
   // AudioEye's script writes its own attributes onto page content
   // (aria-describedby="audioeye_new_window_message"); the WCM cannot remove
   // them in Composer (Audit Error Guide, Oct 28).
-  const wcmOwns = (n: { target: string; html: string }) => inContent(n.target) && !/\bslick-cloned\b/.test(n.html) && !/audioeye/i.test(n.html)
+  const wcmOwns = (n: { target: string; html: string }) => inContent(n.target) && !/\bslick-cloned\b/.test(n.html) && !/audioeye/i.test(n.html) && !FINALSITE_NODE.test(n.html.trim())
   // Rules that are Finalsite's wherever the element sits, because the markup
   // comes from Finalsite's own elements (Sean, Oct 29 Hot Lab: Finalsite
   // items filtered off WCM lists; Audit Error Guide decision 4).
@@ -469,7 +505,8 @@ export function accessibilityRows(violations: AxeLikeViolation[], inContent: (se
     // Only elements in the WCM's content area count against them.
     const nodes = hits.flatMap((v) => (v.nodes ?? []).filter(wcmOwns).map((n) => ({ v, n })))
     const entry = lookupAxeEntry(row.axeIds[0])
-    const steps = entry?.fixSteps ?? []
+    const steps = row.steps ?? entry?.fixSteps ?? []
+    const why = row.why ?? entry?.definition ?? ''
     // Headings: our own reading-order check is the main signal; axe adds to it.
     if (row.axeIds.includes('heading-order') && own.headingSkips?.length) {
       const sk = own.headingSkips
@@ -479,17 +516,17 @@ export function accessibilityRows(violations: AxeLikeViolation[], inContent: (se
         detail: sk.length === 1 ? say(sk[0]) : `${sk.length} headings skip a level or are empty.`,
         items: sk.length > 1 ? sk.slice(0, 10).map(say) : undefined,
         targets: sk.slice(0, 10).map((h) => ({ label: h.text || 'Empty heading', ref: h.ref })),
-        why: entry?.definition ?? '', steps, course: row.course,
+        why, steps, course: row.course,
       }
     }
-    if (nodes.length === 0) return { id: `a11y-${row.axeIds[0]}`, area: 'Accessibility', title: row.title, status: 'pass', detail: 'The scan found no problems of this kind in your content.', targets: [], why: entry?.definition ?? '', steps, course: row.course }
+    if (nodes.length === 0) return { id: `a11y-${row.axeIds[0]}`, area: 'Accessibility', title: row.title, status: 'pass', detail: 'The scan found no problems of this kind in your content.', targets: [], why, steps, course: row.course }
     const total = hits.reduce((n, v) => n + v.nodeCount, 0)
     return {
       id: `a11y-${row.axeIds[0]}`, area: 'Accessibility', title: row.title, status: 'fail',
       detail: `The scan found ${total} element${total === 1 ? '' : 's'} to fix${total > nodes.length ? ` (${nodes.length} pinned)` : ''}.`,
       items: nodes.slice(0, 10).map(({ n }) => n.html.replace(/\s+/g, ' ').slice(0, 120)),
       targets: nodes.slice(0, 10).map(({ n }) => ({ label: row.title, selector: n.target })),
-      why: entry?.definition ?? '', steps, course: row.course,
+      why, steps, course: row.course,
     }
   })
   for (const v of violations) {
