@@ -124,7 +124,22 @@ export async function POST(req: NextRequest) {
     )
     if (roleError) throw roleError
 
-    if (group?.id) {
+    // Invited people get what they were invited to (Sean, 2026-11-17). Someone
+    // queued in bcps_pending_group_members (for example Early Childhood
+    // Education staff invited to their department guide) is NOT put in the
+    // WCM group: that group outranks the department experience on the
+    // dashboard, so they would land on the WCM certification view instead of
+    // their department's page. Their queued groups are claimed on first
+    // sign-in by /api/bcps/my-access. Approved roster WCMs are unaffected:
+    // the dashboard also treats a department roster entry as WCM.
+    const { data: invited } = await svc
+      .from('bcps_pending_group_members')
+      .select('id')
+      .eq('email', email)
+      .limit(1)
+    const skipWcmGroup = (invited?.length ?? 0) > 0
+
+    if (group?.id && !skipWcmGroup) {
       const { error: groupError } = await svc.from('acl_group_members').upsert(
         { group_id: group.id, user_id: user.id },
         { onConflict: 'group_id,user_id' }
