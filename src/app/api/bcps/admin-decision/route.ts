@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
         station:      'SAR-station',
         task_id:      null,
         summary:      `[BCPS Audit] ${dept.name} audit PASSED and marked complete by admin. Round ${dept.current_round}.`,
-        status:       'complete',
+        status:       'completed',
         context_link: 'https://bcpsmarcomm.com/departments',
       })
     } else {
@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
         station:      'SAR-station',
         task_id:      null,
         summary:      `[BCPS Audit] ${dept.name} sent back to WCM for Round ${newRound}. ${unfixedFindings?.length ?? 0} item(s) still need work. Notes: ${admin_notes ?? 'See findings checklist.'}`,
-        status:       'pending',
+        status:       'in_progress',
         context_link: 'https://bcpsmarcomm.com/departments',
       })
     }

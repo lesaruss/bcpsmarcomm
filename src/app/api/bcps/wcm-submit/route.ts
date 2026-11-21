@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
         station:      'SAR-station',
         task_id:      null,
         summary:      `[BCPS Audit] ${dept.name} WCM submitted Round ${dept.current_round} fixes for admin review.`,
-        status:       'pending',
+        status:       'in_progress',
         context_link: `https://bcpsmarcomm.com/departments`,
       })
 
