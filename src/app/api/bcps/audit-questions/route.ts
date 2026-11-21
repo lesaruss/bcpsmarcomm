@@ -13,6 +13,7 @@ import { requireBcpsPageAccess } from '@/lib/bcps-auth'
 //          check_title, question }            ask
 //   PATCH { id, answer?, status?, shared? }   answer or close (same people)
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const supabase = createClient(process.env.LESARUSS_SUPABASE_URL!, process.env.LESARUSS_SUPABASE_SERVICE_KEY!)
 // Who answers questions (Sean, 2026-11-05): admins by role, and the District

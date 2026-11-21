@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server'
 // example content only, and noindex keeps it out of search engines. The
 // mockup itself stays behind sign-in.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const FILE = path.join(process.cwd(), 'src/mockups/parents-families.html')
 const SLUG = 'parents-families'

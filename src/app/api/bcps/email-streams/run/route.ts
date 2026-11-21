@@ -22,6 +22,7 @@ import { logChange } from '@/lib/doc-change-log'
 //                       a week that is not approved.
 //   { mode: 'send', dry_run: true } -> who would get what today, nothing sent.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 300
 
 const keyClient = createClient(process.env.LESARUSS_SUPABASE_URL!, process.env.LESARUSS_SUPABASE_SERVICE_KEY!)

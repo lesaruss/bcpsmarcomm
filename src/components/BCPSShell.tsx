@@ -6,9 +6,11 @@ import { createClient } from '@/lib/supabase'
 import Sidebar, { SAMPLE_SUPERADMIN_ID, type UserRole, type TeamMember } from '@/components/Sidebar'
 import PulseWidget from '@/components/PulseWidget'
 import ViewAsButton from '@/components/ViewAsButton'
+import GlobalSearch from '@/components/GlobalSearch'
 import { TOOLS } from '@/lib/bcps-tools'
 import { MARCOMM_PATH, type PageId } from '@/lib/types'
 import { SUPERADMIN_PAGES_SET as SUPERADMIN_PAGES } from '@/lib/superadmin-pages'
+import { inPlatformDocSrc, fullPageDocHref } from '@/lib/doc-frame'
 
 // The left menu is retired (Sean, 2026-10-02): every tool it listed is on the
 // dashboard's Tools & Resources tab, filtered by the same access rules, so the
@@ -448,9 +450,12 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
               {!SHOW_LEFT_MENU && !viewAs && role !== 'superadmin' && viewAsGroups.length > 0 && (
                 <ViewAsButton onPick={handleViewAs} groups={viewAsGroups} className="topbar-viewas-btn" />
               )}
-              <div className="topbar-search">
-                <input type="text" placeholder="Search..." className="search-input" />
-              </div>
+              {/* Live search (Sean, 2026-11-16): members, departments, tools. */}
+              <GlobalSearch
+                pages={effectivePages}
+                isSuperadmin={role === 'superadmin' && (!viewAs || viewAs.id === SAMPLE_SUPERADMIN_ID)}
+                onNavigate={handleNavigate}
+              />
               {/* Phones: the Dashboard button moves over here beside the bell,
                   leaving the page name next to the logo (Sean, 2026-10-28). */}
               {!SHOW_LEFT_MENU && (activePage !== 'dashboard' || onDashboardTab) && (
@@ -519,11 +524,11 @@ function BCPSShellInner({ children }: { children: React.ReactNode }) {
             <div className="doc-lightbox-header">
               <span className="doc-lightbox-title">{docPreview.title}</span>
               <div className="doc-lightbox-actions">
-                <a href={docPreview.url} target="_blank" rel="noopener noreferrer" className="doc-lightbox-open-btn">Open full page ↗</a>
+                <a href={fullPageDocHref(docPreview.url)} target="_blank" rel="noopener noreferrer" className="doc-lightbox-open-btn">Open full page ↗</a>
                 <button className="doc-lightbox-close-btn" onClick={() => setDocPreview(null)} aria-label="Close preview">x</button>
               </div>
             </div>
-            <iframe className="doc-lightbox-iframe" src={docPreview.url} title={docPreview.title} />
+            <iframe className="doc-lightbox-iframe" src={inPlatformDocSrc(docPreview.url)} title={docPreview.title} />
           </div>
         </div>
       )}

@@ -226,8 +226,9 @@ function readDims(file: File): Promise<{ w: number; h: number } | null> {
   })
 }
 
-export default function ProudPointsWidget({ embed = false }: { embed?: boolean } = {}) {
+export default function ProudPointsWidget({ embed = false, startTab }: { embed?: boolean; startTab?: 'review' } = {}) {
   const [tab, setTab] = useState<Tab>(() => {
+    if (startTab) return startTab
     if (typeof window === 'undefined') return 'submit'
     const t = new URLSearchParams(window.location.search).get('tab')
     return t === 'mine' || t === 'ideas' || t === 'review' ? t : 'submit'

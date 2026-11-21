@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { requireDistrictUser } from '@/lib/bcps-auth'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // AUTH, added 2026-09-15 (PUBLIC-REPO-HARDCODED-KEY-ESCALATED, third pass).
 // Read-only, but it was returning the District's full department and WCM

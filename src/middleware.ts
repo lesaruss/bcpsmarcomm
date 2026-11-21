@@ -149,6 +149,9 @@ export async function middleware(request: NextRequest) {
     // School WCM signup (2026-10-05): visitors have no account yet. Account
     // creation is gated server-side on bcps_schools.wcm_email.
     pathname.startsWith('/school-registration') ||
+    // WCM Pilot Review feedback form (Sean, 2026-11-16): open, so a pilot WCM
+    // who could not sign in can still say so. Must match (bcps)/layout.tsx.
+    pathname.startsWith('/pilot-review') ||
     // /briefs/ and /playbooks/ are no longer public (Sean, 2026-10-20): every
     // BCPS document needs a BCPS MarComm sign-in, which any BCPS employee can
     // create. Signed out, they land on /login and return after signing in.
@@ -158,7 +161,16 @@ export async function middleware(request: NextRequest) {
     // and more people are accessing it"). It is deliberately absent from this
     // list, so a signed-out visitor to a campaign report is sent to /login
     // with ?next= and returns to the report after signing in.
-    pathname.startsWith('/embeds/')
+    pathname.startsWith('/embeds/') ||
+    // /playbooks/ passes through to the page (Sean, 2026-11-10: a document
+    // can have a password). It is NOT public: both /playbooks routes run
+    // checkDocAccess themselves and, signed out, show the password page when
+    // the document has a password and otherwise redirect to /login with
+    // ?next=, exactly as this middleware did.
+    pathname.startsWith('/playbooks/') ||
+    // /guides/ the same way (Sean, 2026-11-10): the page checks a sign-in or
+    // the guide's 24-hour password pass, and otherwise redirects to /login.
+    pathname.startsWith('/guides/')
 
   if (isPublic) return supabaseResponse
 
@@ -185,6 +197,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // fonts/ and .woff2: the self-hosted font files (public/fonts) must load signed out, like images.
+    // sitemap.xml and robots.txt are public metadata routes (src/app/sitemap.ts,
+    // src/app/robots.ts); without this exclusion the sign-in check sent them to /login.
+    '/((?!_next/static|_next/image|favicon.ico|fonts/|sitemap\\.xml$|robots\\.txt$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff2)$).*)',
   ],
 }

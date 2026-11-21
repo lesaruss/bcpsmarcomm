@@ -4,6 +4,7 @@ import { requireBcpsAdmin } from '@/lib/bcps-auth'
 import { deliver, type EmailAttachment } from '@/lib/resend'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,

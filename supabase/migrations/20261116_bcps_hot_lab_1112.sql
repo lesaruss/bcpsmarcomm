@@ -1,0 +1,126 @@
+-- Nov 12 Department WCM Hot Lab (led by Felicia C. Hicks, Sean out). Filed 2026-11-16 from the Teams transcript and attendance report.
+-- Applied through execute_sql. The attendance rows and the transcript went to bcps_hotlab_attendance / bcps_hotlab_transcripts directly and are not in this public repo.
+
+-- step: record
+insert into public.briefings (tenant_id, brand_slug, type, slug, title, author, status, briefing_date, metadata, content)
+select '00000000-0000-4000-a000-000000000001','bcps','record','bcps-hot-lab-dept-wcms-2026-11-12','Hot Lab for Department WCMs - November 12, 2026','logan','published','2026-11-12',
+ jsonb_build_object('parent_playbook_slug','wcm-hot-labs','doc_kind','meeting','client',true,'layout','groups'),
+ replace(substring(a.content from 1 for position('<body>' in a.content)-1),'<title>Hot Lab Agenda</title>','<title>Hot Lab for Department WCMs - November 12, 2026</title>') || $note$<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<header class="bcps-header" role="banner"><a aria-label="Back to the BCPS MarComm dashboard" class="bcps-logo-link" href="/?page=dashboard"><img alt="Broward County Public Schools" class="bcps-logo" src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png"/></a><div aria-hidden="true" class="bcps-header-divider"></div><span class="bcps-header-title">BCPS MarComm · Hot Lab for Department WCMs - November 12, 2026</span></header>
+<main id="content">
+<nav aria-label="Breadcrumb" class="breadcrumb"><a href="/playbooks/wcm-hot-labs">Department WCM Hot Lab</a><span aria-hidden="true" class="crumb-sep">/</span><span class="crumb-current">November 12, 2026</span></nav>
+<h1>Hot Lab for Department WCMs - November 12, 2026</h1>
+<div class="meta-row">
+<div class="meta-item"><span class="meta-label">Type</span><span class="meta-value"><span class="doc-type-badge">Meeting Record</span></span></div>
+<div class="meta-item"><span class="meta-label">Playbook</span><span class="meta-value">Department WCM Hot Lab</span></div>
+<div class="meta-item"><span class="meta-label">Date</span><span class="meta-value">November 12, 2026</span></div>
+<div class="meta-item"><span class="meta-label">Series</span><span class="meta-value">Recurring, Tuesdays and Thursdays</span></div>
+<div class="meta-item"><span class="meta-label">Platform</span><span class="meta-value">Microsoft Teams</span></div>
+<div class="meta-item"><span class="meta-label">Attendees</span><span class="meta-value">8 (Teams attendance report)</span></div>
+<div class="meta-item"><span class="meta-label">Version</span><span class="meta-value">1.0</span></div>
+</div>
+<div class="audience-banner"><p><strong>Audience:</strong> Department Web Content Managers and the District Web Team. Led by Felicia C. Hicks while Sean A. Russell was out. An open help session with no agenda: most of the hour went to Ernesto Gonzalez's new Project Management Office page, then a question about when audit follow-up starts.</p></div>
+<nav aria-label="On this page" class="page-index"><p class="pi-label">On this page</p><ol><li><a href="#g1">The Meeting</a><span class="pi-count">2 sections</span></li><li><a href="#g2">What We Decided</a><span class="pi-count">2 sections</span></li><li><a href="#g3">Your To-Do List</a><span class="pi-count">1 section</span></li><li><a href="#g4">Resources and History</a><span class="pi-count">2 sections</span></li></ol></nav>
+<h2 class="lead-heading">Summary</h2>
+<div class="section-block lead-summary">
+<div class="recording-embed">
+<div class="recording-embed-frame">
+<iframe allowfullscreen="" loading="lazy" src="https://browardcountyschools.sharepoint.com/sites/WCMCommunity-Departments/_layouts/15/embed.aspx?id=%2Fsites%2FWCMCommunity-Departments%2FShared%20Documents%2FRecordings%2FDepartment%20WCM%20Hot%20Lab%20%28Current%29-20261112_162310UTC-Meeting%20Recording.mp4" title="Hot Lab session recording"></iframe>
+</div>
+<details class="video-help">
+<summary>Having trouble viewing this video?</summary>
+<div class="video-help-body">You will need to be signed in to your BCPS Microsoft 365 account (SharePoint SSO) in this browser to view the recording. If it does not load, sign in at <a href="https://portal.office.com" rel="noopener noreferrer" target="_blank">portal.office.com</a> in this browser, then refresh this page.</div>
+</details>
+</div>
+<p><strong>Open help, no agenda.</strong> Sean was out Thursday and Friday, so Felicia C. Hicks ran the session as open help. Jennifer Amador and Sharmela Bacchas-Persaud each had a question for Sean and will bring it to next week's session. The audit rule review planned for this session was not held; it picks up when Sean is back.</p>
+<p><strong>Screen sharing was off.</strong> The meeting is set up so that only Sean can let people share their screen, so Ernesto Gonzalez had to describe his page out loud and send links in a separate chat. Felicia will raise it with Sean so whoever leads can allow sharing.</p>
+<p><strong>A board for the Project Management Office.</strong> Ernesto is the new WCM for the Project Management Office, a department that had no page before. His main page has the intro, overview, and contact information. Still missing is the section between the mission and the contacts: the department's three branches, each with a heading, a lead image, a short description, and a link to its subpage. He had planned to build it with a board but had no access to Boards or Posts. The board on the page had been copied from another page as a starting point. Felicia created a Project Management Office board during the session, and Ernesto now sees Posts and Boards in the waffle menu. He also asked about a three-column layout instead. Felicia's advice: look at how other departments lay out their pages first. Academics, Early Childhood Education, and Magnet are good examples.</p>
+<p><strong>Contact information is set by the District Web Team.</strong> Ernesto's contact block did not follow the District standard, and WCMs cannot change it themselves. Felicia replaced it with the standard contact block during the session. Next time, submit an Incident IQ ticket saying you need the contact information added to your page and who should be listed; it is routed to the District Web Team. One catch: the people picker shows two staff members named Ernesto Gonzalez and does not show which is which, so the right person has to be confirmed.</p>
+<p><strong>Copying elements from WCM Enhancements.</strong> In Finalsite Composer, the left column has WCM Tools, then WCM Enhancements. That page has ready-made elements (images, a video with rounded corners, a searchable leadership directory) to copy onto your page. Hover over an element and click the two-squares copy icon in its top right corner, next to the settings gear. Paste in the same browser window: a copy made in another tab will not paste. Ernesto, who is certified, does not see those icons when he hovers. Felicia is finding out why and will answer by Monday.</p>
+<p><strong>A missing left menu, fixed live.</strong> Ernesto's three branch subpages were cloned and are hidden until they are ready. One of them, Technology Business Operations, showed only "Records Retention" in its left menu instead of the full Information Systems menu. Its navigation was set to "Tier 3 left nav" while the other two used "2 levels above." Felicia changed it to match, and the full menu showed after a refresh.</p>
+<p><strong>When does audit follow-up start?</strong> Marcia Dixon asked when the audit needs to be finished and whether the District Web Team will sit with WCMs. Felicia has not started reviewing anyone's pages yet. Her advice: start now and do not wait until the last minute. Felicia or Sean will reach out, most likely by email first and then Teams. Marcia's office (EEO / ADA Compliance) is packing for a move, probably in December. Felicia will make sure Sean knows.</p>
+</div>
+<section aria-labelledby="g1" class="doc-group"><h2 class="eyebrow" id="g1">The Meeting</h2><p class="group-note">Who was there and what was covered.</p>
+<details class="doc-accordion"><summary><h3>Who Attended</h3></summary><div class="section-block"><div class="attendee-grid">
+<div class="attendee-card"><div class="attendee-name">Felicia C. Hicks</div><div class="attendee-title">Webmaster 1, Office of Communications (led the session)</div></div>
+<div class="attendee-card"><div class="attendee-name">Patricia Sapp</div><div class="attendee-title">Labor Relations</div></div>
+<div class="attendee-card"><div class="attendee-name">Fanny Ricketts</div><div class="attendee-title">North Region</div></div>
+<div class="attendee-card"><div class="attendee-name">Sharmela Bacchas-Persaud</div><div class="attendee-title">Employee Assistance Program</div></div>
+<div class="attendee-card"><div class="attendee-name">Jennifer Amador</div><div class="attendee-title">Early Childhood Education</div></div>
+<div class="attendee-card"><div class="attendee-name">Ernesto Gonzalez</div><div class="attendee-title">Project Management Office</div></div>
+<div class="attendee-card"><div class="attendee-name">Marcia Dixon</div><div class="attendee-title">EEO / ADA Compliance</div></div>
+<div class="attendee-card"><div class="attendee-name">Lilia E. Durham</div><div class="attendee-title">Safety &amp; Security Operations</div></div>
+</div><p class="gap-note">From the Teams attendance report. Sean A. Russell was out.</p></div></details>
+<details class="doc-accordion"><summary><h3>Fixed During the Session</h3></summary><div class="section-block">
+<div class="point-item"><div class="point-title">Project Management Office board</div><div class="point-detail">Created. Ernesto Gonzalez now has Posts and Boards and can build the three-branch section.</div></div>
+<div class="point-item"><div class="point-title">Project Management Office contact block</div><div class="point-detail">Replaced with the District standard contact block.</div></div>
+<div class="point-item"><div class="point-title">Technology Business Operations left menu</div><div class="point-detail">Navigation changed from "Tier 3 left nav" to "2 levels above," matching its sibling pages. The full menu now shows.</div></div>
+</div></details>
+</section>
+<section aria-labelledby="g2" class="doc-group"><h2 class="eyebrow" id="g2">What We Decided</h2><p class="group-note">How things work, and questions still open.</p>
+<details class="doc-accordion" open><summary><h3>Decisions</h3></summary><div class="section-block">
+<div class="highlight-row"><div class="hl-label">Confirmed</div><div class="hl-text"><strong>Contact information changes go through Incident IQ.</strong> Only the District Web Team can edit the contact block. Say what needs adding and who should be listed.</div></div>
+<div class="highlight-row"><div class="hl-label">Confirmed</div><div class="hl-text"><strong>Copy enhancements from WCM Enhancements, in the same window.</strong> Use the copy icon on the element and paste in the same browser window, not another tab.</div></div>
+<div class="highlight-row"><div class="hl-label">Confirmed</div><div class="hl-text"><strong>Start your audit now.</strong> Do not wait for the District Web Team to reach out first.</div></div>
+</div></details>
+<details class="doc-accordion"><summary><h3>Open Questions</h3></summary><div class="section-block">
+<div class="point-item"><div class="point-title">Why the copy icons are missing for Ernesto</div><div class="point-detail">He is certified but does not see the copy and settings icons on WCM Enhancements elements. Felicia is checking.</div></div>
+<div class="point-item"><div class="point-title">Questions held for Sean</div><div class="point-detail">Jennifer Amador and Sharmela Bacchas-Persaud each have one, for next week.</div></div>
+<div class="point-item"><div class="point-title">Audit rule review</div><div class="point-detail">Not held this session. About 15 rules are still left from November 10.</div></div>
+</div></details>
+</section>
+<section aria-labelledby="g3" class="doc-group"><h2 class="eyebrow" id="g3">Your To-Do List</h2><p class="group-note">Who does what next.</p>
+<details class="doc-accordion" open><summary><h3>Action Items</h3></summary><div class="section-block">
+<div class="action-item"><div class="action-num">1</div><div class="action-body"><div class="action-title">Let whoever leads allow screen sharing</div><div class="action-detail">Change the meeting setup so a District Web Team lead can let attendees share when Sean is out.</div><div class="action-owner">Owner: Sean A. Russell</div></div></div>
+<div class="action-item"><div class="action-num">2</div><div class="action-body"><div class="action-title">Find out why the copy icons do not show for Ernesto</div><div class="action-detail">On the WCM Enhancements page in Composer.</div><div class="action-owner">Owner: Felicia C. Hicks. Due: Monday, November 16</div></div></div>
+<div class="action-item"><div class="action-num">3</div><div class="action-body"><div class="action-title">Build the three-branch section on the Project Management Office page</div><div class="action-detail">Use the new board. Look at Academics, Early Childhood Education, and Magnet for layout ideas.</div><div class="action-owner">Owner: Ernesto Gonzalez</div></div></div>
+<div class="action-item"><div class="action-num">4</div><div class="action-body"><div class="action-title">Reach out to WCMs about the audit</div><div class="action-detail">Email first, then Teams.</div><div class="action-owner">Owner: Felicia C. Hicks or Sean A. Russell</div></div></div>
+<div class="action-item"><div class="action-num">5</div><div class="action-body"><div class="action-title">Tell Sean about the EEO / ADA Compliance office move</div><div class="action-detail">The office is packing for a move, probably in December, which affects Marcia Dixon's time for her audit.</div><div class="action-owner">Owner: Felicia C. Hicks</div></div></div>
+<div class="action-item"><div class="action-num">6</div><div class="action-body"><div class="action-title">Bring your questions for Sean</div><div class="action-detail">At next week's Hot Lab.</div><div class="action-owner">Owner: Jennifer Amador, Sharmela Bacchas-Persaud</div></div></div>
+<div class="action-item"><div class="action-num">7</div><div class="action-body"><div class="action-title">Keep working your audit</div><div class="action-detail">The first review window ends December 18.</div><div class="action-owner">Owner: Department WCMs</div></div></div>
+</div></details>
+</section>
+<section aria-labelledby="g4" class="doc-group"><h2 class="eyebrow" id="g4">Resources and History</h2><p class="group-note">Related documents and changes to these notes.</p>
+<details class="doc-accordion"><summary><h3>Related Documents</h3></summary><div class="section-block"><ul class="list"><li><a href="/playbooks/wcm-hot-labs">Department WCM Hot Lab</a>: the Playbook these notes are filed under.</li><li><a href="/playbooks/wcm-hot-labs/bcps-hot-lab-dept-wcms-2026-11-10">November 10, 2026 notes</a>: the previous session, where the audit rule review continued.</li></ul></div></details>
+<details class="history"><summary>Version History</summary><div class="body"><h2>November 12, 2026</h2><p>Notes filed from the Teams transcript and attendance report.</p></div></details>
+</section></main>
+</body>
+</html>
+$note$
+from public.briefings a where a.slug='bcps-hot-lab-agenda'
+and not exists (select 1 from public.briefings where slug='bcps-hot-lab-dept-wcms-2026-11-12');
+
+-- step: catalog
+insert into public.acl_objects (icon, kind, slug, brand, title, doc_url, section, doc_date, doc_type, featured, owner_id, sensitive, series_id, visibility, description, doc_date_sort)
+select '📝','document','bcps-hot-lab-dept-wcms-2026-11-12','bcps','Hot Lab for Department WCMs - November 12, 2026','/playbooks/wcm-hot-labs/bcps-hot-lab-dept-wcms-2026-11-12','meeting-notes','November 12, 2026','Meeting Notes',false,'12404ad5-3e28-457b-9439-992eaaecf01d',false,'158c496c-7964-407c-8015-4001ceddafdf','restricted',
+ 'Open help session led by Felicia Hicks while Sean was out: a new board and the standard contact block for Ernesto Gonzalez''s Project Management Office page, a fixed left menu on a cloned subpage, copying elements from WCM Enhancements, screen-sharing rights, and when audit follow-up starts.','2026-11-12'
+where not exists (select 1 from public.acl_objects where slug='bcps-hot-lab-dept-wcms-2026-11-12');
+
+-- step: recipients
+insert into public.bcps_brief_recipients (brief_slug, attendee_name, attendee_email, added_by) select 'bcps-hot-lab-dept-wcms-2026-11-12','Felicia C. Hicks','felicia.hicks@browardschools.com','auto' where not exists (select 1 from public.bcps_brief_recipients where brief_slug='bcps-hot-lab-dept-wcms-2026-11-12' and lower(attendee_email)=lower('felicia.hicks@browardschools.com'));
+insert into public.bcps_brief_recipients (brief_slug, attendee_name, attendee_email, added_by) select 'bcps-hot-lab-dept-wcms-2026-11-12','Patricia Sapp','patricia.sapp@browardschools.com','auto' where not exists (select 1 from public.bcps_brief_recipients where brief_slug='bcps-hot-lab-dept-wcms-2026-11-12' and lower(attendee_email)=lower('patricia.sapp@browardschools.com'));
+insert into public.bcps_brief_recipients (brief_slug, attendee_name, attendee_email, added_by) select 'bcps-hot-lab-dept-wcms-2026-11-12','Fanny Ricketts','fricketts@browardschools.com','auto' where not exists (select 1 from public.bcps_brief_recipients where brief_slug='bcps-hot-lab-dept-wcms-2026-11-12' and lower(attendee_email)=lower('fricketts@browardschools.com'));
+insert into public.bcps_brief_recipients (brief_slug, attendee_name, attendee_email, added_by) select 'bcps-hot-lab-dept-wcms-2026-11-12','Sharmela Bacchas-Persaud','sharmela.bacchaspersaud@browardschools.com','auto' where not exists (select 1 from public.bcps_brief_recipients where brief_slug='bcps-hot-lab-dept-wcms-2026-11-12' and lower(attendee_email)=lower('sharmela.bacchaspersaud@browardschools.com'));
+insert into public.bcps_brief_recipients (brief_slug, attendee_name, attendee_email, added_by) select 'bcps-hot-lab-dept-wcms-2026-11-12','Jennifer Amador','jennifer.amador@browardschools.com','auto' where not exists (select 1 from public.bcps_brief_recipients where brief_slug='bcps-hot-lab-dept-wcms-2026-11-12' and lower(attendee_email)=lower('jennifer.amador@browardschools.com'));
+insert into public.bcps_brief_recipients (brief_slug, attendee_name, attendee_email, added_by) select 'bcps-hot-lab-dept-wcms-2026-11-12','Ernesto Gonzalez','ernesto.gonzalez@browardschools.com','auto' where not exists (select 1 from public.bcps_brief_recipients where brief_slug='bcps-hot-lab-dept-wcms-2026-11-12' and lower(attendee_email)=lower('ernesto.gonzalez@browardschools.com'));
+insert into public.bcps_brief_recipients (brief_slug, attendee_name, attendee_email, added_by) select 'bcps-hot-lab-dept-wcms-2026-11-12','Marcia Dixon','marcia.dixon@browardschools.com','auto' where not exists (select 1 from public.bcps_brief_recipients where brief_slug='bcps-hot-lab-dept-wcms-2026-11-12' and lower(attendee_email)=lower('marcia.dixon@browardschools.com'));
+insert into public.bcps_brief_recipients (brief_slug, attendee_name, attendee_email, added_by) select 'bcps-hot-lab-dept-wcms-2026-11-12','Lilia E. Durham','lilia.durham@browardschools.com','auto' where not exists (select 1 from public.bcps_brief_recipients where brief_slug='bcps-hot-lab-dept-wcms-2026-11-12' and lower(attendee_email)=lower('lilia.durham@browardschools.com'));
+
+-- step: tracker
+insert into public.bcps_attendance (email, event_type, event_date, event_key, source) values ('patricia.sapp@browardschools.com','hot_lab','2026-11-12','bcps-hot-lab-dept-wcms-2026-11-12','teams-attendance-csv') on conflict (email, event_key) do nothing;
+insert into public.bcps_attendance (email, event_type, event_date, event_key, source) values ('fricketts@browardschools.com','hot_lab','2026-11-12','bcps-hot-lab-dept-wcms-2026-11-12','teams-attendance-csv') on conflict (email, event_key) do nothing;
+insert into public.bcps_attendance (email, event_type, event_date, event_key, source) values ('sharmela.bacchaspersaud@browardschools.com','hot_lab','2026-11-12','bcps-hot-lab-dept-wcms-2026-11-12','teams-attendance-csv') on conflict (email, event_key) do nothing;
+insert into public.bcps_attendance (email, event_type, event_date, event_key, source) values ('jennifer.amador@browardschools.com','hot_lab','2026-11-12','bcps-hot-lab-dept-wcms-2026-11-12','teams-attendance-csv') on conflict (email, event_key) do nothing;
+insert into public.bcps_attendance (email, event_type, event_date, event_key, source) values ('ernesto.gonzalez@browardschools.com','hot_lab','2026-11-12','bcps-hot-lab-dept-wcms-2026-11-12','teams-attendance-csv') on conflict (email, event_key) do nothing;
+insert into public.bcps_attendance (email, event_type, event_date, event_key, source) values ('marcia.dixon@browardschools.com','hot_lab','2026-11-12','bcps-hot-lab-dept-wcms-2026-11-12','teams-attendance-csv') on conflict (email, event_key) do nothing;
+insert into public.bcps_attendance (email, event_type, event_date, event_key, source) values ('lilia.durham@browardschools.com','hot_lab','2026-11-12','bcps-hot-lab-dept-wcms-2026-11-12','teams-attendance-csv') on conflict (email, event_key) do nothing;
+insert into public.bcps_assignment_tags (assignment_slug, status, priority, title_override, description_override, lead_override, playbook_url, added_at, updated_at) select 'hot-lab-screen-share','pending','high','Hot Lab: let the session lead allow screen sharing','Nov 12 Hot Lab (Sean out, Felicia Hicks led): Felicia could not let attendees share their screen, so Ernesto Gonzalez had to describe his page out loud. Change the meeting setup (presenter / co-organizer) so a District Web Team lead can allow sharing when Sean is out.','Sean','https://bcpsmarcomm.com/playbooks/wcm-hot-labs/bcps-hot-lab-dept-wcms-2026-11-12',now(),now() where not exists (select 1 from public.bcps_assignment_tags where assignment_slug='hot-lab-screen-share');
+insert into public.bcps_assignment_tags (assignment_slug, status, priority, title_override, description_override, lead_override, playbook_url, added_at, updated_at) select 'wcm-enhancements-copy-icons','pending','medium','WCM Enhancements: copy icons missing for a certified WCM','Nov 12 Hot Lab: Ernesto Gonzalez (Project Management Office, certified) does not see the copy / settings icons when hovering elements on the WCM Enhancements page in Composer. Felicia Hicks checking; answer promised Monday Nov 16.','Felicia','https://bcpsmarcomm.com/playbooks/wcm-hot-labs/bcps-hot-lab-dept-wcms-2026-11-12',now(),now() where not exists (select 1 from public.bcps_assignment_tags where assignment_slug='wcm-enhancements-copy-icons');
+update public.bcps_assignment_tags set description_override = description_override || ' Nov 12: not held (Sean out; Felicia Hicks ran open help). Picks up when Sean is back.', updated_at=now() where assignment_slug='audit-rule-review-finish' and description_override not like '%Nov 12: not held%';
+
+-- step: logs
+insert into public.playbook_records (slug, brand_slug, author, kind, source, applied, body) select 'wcm-hot-labs','bcps','logan','edit','text',true,'Doc filed: bcps-hot-lab-dept-wcms-2026-11-12 (Hot Lab for Department WCMs - November 12, 2026). Recipients: 8, plus the Department WCM series grant. URL: https://bcpsmarcomm.com/playbooks/wcm-hot-labs/bcps-hot-lab-dept-wcms-2026-11-12' where not exists (select 1 from public.playbook_records where slug='wcm-hot-labs' and body like 'Doc filed: bcps-hot-lab-dept-wcms-2026-11-12 %');
+insert into public.bcps_assignment_notes (assignment_slug, note_text, author) select 'department-hot-labs','Nov 12 Hot Lab: Held Nov 12 (Felicia Hicks led, Sean out). Notes: https://bcpsmarcomm.com/playbooks/wcm-hot-labs/bcps-hot-lab-dept-wcms-2026-11-12','Logan' where not exists (select 1 from public.bcps_assignment_notes where assignment_slug='department-hot-labs' and note_text like 'Nov 12 Hot Lab:%');
+insert into public.studio_projects (id, slug, name, brand_slug, scope, status, owner_role, owner_label, unread, source, position, created_at, updated_at) select gen_random_uuid(),'bcps-hot-lab-dept-wcms-2026-11-12','Hot Lab for Department WCMs - November 12, 2026','bcps','Notes from the November 12 Department WCM Hot Lab: open help led by Felicia Hicks, the Project Management Office page, WCM Enhancements, and audit follow-up timing.','shipped','sar','SAR',0,'auto',10,now(),now() where not exists (select 1 from public.studio_projects where slug='bcps-hot-lab-dept-wcms-2026-11-12');
+insert into public.stream_events (timestamp, owner, station, summary, status, task_id) select now(),'logan','bcps','Nov 12 Hot Lab processed: notes filed under wcm-hot-labs and in the Hot Lab catalog, 8 recipients, WCM attendance and leaderboard rows with speaker credit, transcript stored, 2 tracker items added. Recording embedded.','completed','bcps-hot-lab-dept-wcms-2026-11-12' where not exists (select 1 from public.stream_events where task_id='bcps-hot-lab-dept-wcms-2026-11-12');

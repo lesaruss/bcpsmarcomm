@@ -13,6 +13,7 @@ import { requireBcpsPageAccess } from '@/lib/bcps-auth'
 // Gated on the 'audit-rules-review' page, the same acl rows that decide the
 // page in the sidebar (admins by role, the District Web Team by group grant).
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const PAGE = 'audit-rules-review'
 const DECISIONS = ['approve', 'change', 'not_applicable', 'discuss'] as const

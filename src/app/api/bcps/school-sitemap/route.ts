@@ -13,6 +13,7 @@ import { createClient } from '@supabase/supabase-js'
 import { discoverSchoolPages } from '@/lib/sitemap-crawl'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 60
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!

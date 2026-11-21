@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { requireBcpsSuperAdmin } from '@/lib/bcps-auth'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // The Depot (Sean, 2026-11-09): BCPS MarComm's studio for videos and other
 // media, in the lookbook format from the HQ podcast studio. A project is a run

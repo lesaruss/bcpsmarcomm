@@ -83,15 +83,13 @@ export default async function AdminDashboard() {
 
   return (
     <div style={S.page}>
-      <header style={S.header}>
-        <img src="https://resources.finalsite.net/images/f_auto,q_auto/v1722824051/browardschoolscom/wwnjoznupmdrvqlgbnip/00DistrictDemoLogo.png" alt="Broward County Public Schools" style={{ height: 40, width: "auto" }} />
-        <div>
-          <span style={S.headerTitle}>Admin - WCM Certification Dashboard</span>
-          <span style={S.headerSub}>Department - Broward County Public Schools</span>
-        </div>
+      {/* The platform shell already shows the logo and the Dashboard button,
+          so this page keeps only its title and links (no second logo header). */}
+      <div style={S.header}>
+        <h1 style={S.headerTitle}>WCM Certification Dashboard</h1>
         <Link href="/certification/departments/course/mod1/welcome" style={{ ...S.backBtn, marginLeft: 'auto' }}>Preview Course Content</Link>
         <Link href="/certification/departments" style={S.backBtn}>My Progress</Link>
-      </header>
+      </div>
 
       <main style={S.main}>
         <div style={S.statsRow}>
@@ -203,9 +201,8 @@ export default async function AdminDashboard() {
 
 const S: Record<string, React.CSSProperties> = {
   page: { minHeight: '100vh', background: '#f0f4f8', fontFamily: "'Open Sans', sans-serif" },
-  header: { background: '#fff', borderBottom: '3px solid #1672A7', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', gap: 16 },
-  headerTitle: { display: 'block', fontSize: 16, fontWeight: 700, color: '#0e4e73' },
-  headerSub: { display: 'block', fontSize: 11, color: '#888' },
+  header: { maxWidth: 1200, margin: '0 auto', padding: '24px 32px 0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' },
+  headerTitle: { fontSize: 20, fontWeight: 700, color: '#0e4e73', margin: 0 },
   backBtn: { fontSize: 13, color: '#1672A7', fontWeight: 600, textDecoration: 'none' },
   main: { maxWidth: 1200, margin: '0 auto', padding: 32 },
   statsRow: { display: 'flex', gap: 16, marginBottom: 28 },

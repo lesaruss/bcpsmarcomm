@@ -27,6 +27,8 @@ interface Tile {
   id: string; project_id: string; position: number; title: string; script: string; stills: Still[]
   audio_path: string | null; audio_seconds: number | null; checked: boolean | null
   status: 'script' | 'voiced' | 'approved'; voice_request_at: string | null; version: number; note: string | null; updated_at: string
+  // The screen a guide walkthrough line shows: the guide (doc) and its tab (gs).
+  tour?: { doc?: string; gs?: string; tab?: string; target?: string } | null
 }
 interface Project {
   id: string; slug: string; title: string; kind: string; audience: string | null; surface: string | null; status: string
@@ -173,6 +175,26 @@ function ProjectView({ slug, onBack }: { slug: string; onBack: () => void }) {
       </section>
 
       <h2 className="dp-h2">The tiles</h2>
+      {tiles.some((t) => t.tour?.doc && t.tour?.gs) && (
+        <div className="dp-line" style={{ marginBottom: 12 }}>
+          <button type="button" className="dp-btn" disabled={!!busy} onClick={async () => {
+            setErr('')
+            for (const t of tiles) {
+              if (!t.tour?.doc || !t.tour?.gs) continue
+              setBusy(`shoot-${t.id}`)
+              try {
+                const file = await captureGuide(t.tour.doc, t.tour.gs)
+                for (let k = (t.stills ?? []).length - 1; k >= 0; k--) await api({ action: 'still_remove', tile_id: t.id, index: k })
+                const path = await upload(project.id, 'still', file)
+                await api({ action: 'upload_done', tile_id: t.id, kind: 'still', path })
+              } catch (e) { setErr(`${t.title}: ${(e as Error).message}`); break }
+            }
+            setBusy(''); await load()
+          }}>{busy.startsWith('shoot-') ? `Taking pictures… (${tiles.findIndex((t) => `shoot-${t.id}` === busy) + 1} of ${tiles.length})` : 'Generate all stills'}</button>
+          <span className="dp-muted dp-small">Takes a picture of each line&apos;s screen in the guide, as you see it. About ten seconds a line.</span>
+        </div>
+      )}
+      <MicPicker />
       <div className="dp-cards">
         {tiles.map((t, i) => (
           <TileCard key={t.id} n={i + 1} tile={t} first={i === 0} last={i === tiles.length - 1} projectId={project.id} run={run} busy={busy} reload={load} setErr={setErr} />
@@ -261,13 +283,25 @@ function TileCard({ n, tile, first, last, projectId, run, busy, reload, setErr }
   const [confirmRm, setConfirmRm] = useState(false)
   useEffect(() => { setTitle(tile.title); setScript(tile.script) }, [tile.title, tile.script])
   const dirty = title !== tile.title || script !== tile.script
-  const doUpload = async (kind: 'still' | 'audio', f: File) => {
+  const doUpload = async (kind: 'still' | 'audio', f: File): Promise<boolean> => {
     try {
       const seconds = kind === 'audio' ? await audioLength(f) : null
       const path = await upload(projectId, kind, f)
       await api({ action: 'upload_done', tile_id: tile.id, kind, path, seconds })
       await reload()
-    } catch (e) { setErr((e as Error).message) }
+      return true
+    } catch (e) { setErr((e as Error).message); return false }
+  }
+  const [shooting, setShooting] = useState(false)
+  // Generate still: a fresh picture of this line's screen replaces the old ones.
+  const generate = async () => {
+    if (!tile.tour?.doc || !tile.tour?.gs) return
+    setShooting(true); setErr('')
+    try {
+      const file = await captureGuide(tile.tour.doc, tile.tour.gs)
+      for (let k = (tile.stills ?? []).length - 1; k >= 0; k--) await api({ action: 'still_remove', tile_id: tile.id, index: k })
+      await doUpload('still', file)
+    } catch (e) { setErr((e as Error).message) } finally { setShooting(false) }
   }
   const canApprove = !!tile.audio_path && tile.status === 'voiced' && tile.checked !== false && (tile.stills ?? []).length > 0
   return (
@@ -295,6 +329,11 @@ function TileCard({ n, tile, first, last, projectId, run, busy, reload, setErr }
               </figcaption>
             </figure>
           ))}
+          {tile.tour?.doc && tile.tour?.gs && (
+            <button type="button" className="dp-addstill" disabled={!!busy || shooting} onClick={generate}
+              title={`Takes a picture of the ${tile.tour.doc} guide, ${tile.tour.gs} tab, as you see it`}>
+              {shooting ? 'Taking the picture…' : (tile.stills ?? []).length ? 'Generate again' : 'Generate still'}</button>
+          )}
           <FileButton label="Add a still" accept="image/*" small disabled={!!busy} onFile={(f) => doUpload('still', f)} />
         </div>
         <label className="dp-sr" htmlFor={`dp-script-${tile.id}`}>The line</label>
@@ -316,6 +355,7 @@ function TileCard({ n, tile, first, last, projectId, run, busy, reload, setErr }
               title={canApprove ? '' : 'Needs a still and a voice line that matches the words'}>Approve</button>}
         <button type="button" className="dp-btn ghost" disabled={!!busy || !tile.script.trim() || dirty} onClick={() => run(`vr-${tile.id}`, { action: 'voice_request', id: tile.id })}>
           {tile.audio_path ? 'Re-voice in my voice' : 'Request my voice'}</button>
+        <RecordButton disabled={!!busy} onTake={(f) => doUpload('audio', f)} setErr={setErr} />
         <FileButton label="Upload a take" accept="audio/*" disabled={!!busy} onFile={(f) => doUpload('audio', f)} />
         <div className="dp-line">
           <button type="button" className="dp-mv" aria-label="Move up" disabled={first || !!busy} onClick={() => run('mv', { action: 'tile_move', id: tile.id, dir: 'up' })}>↑</button>
@@ -345,7 +385,221 @@ function Feedback({ project, run, busy }: { project: Project; run: Run; busy: st
   )
 }
 
-function FileButton({ label, accept, onFile, disabled, small }: { label: string; accept: string; onFile: (f: File) => void | Promise<void>; disabled?: boolean; small?: boolean }) {
+// Generate still (Sean, 2026-11-10: "a button that says generate still"). It
+// takes the picture in this browser, signed in as you: the guide opens on the
+// line's tab in a hidden frame on this same site, and once it has drawn, the
+// guide (not the menu around it) is captured, cropped to the 16:9 top of the
+// page and saved as the tile's still. A guide line knows its screen from
+// tile.tour ({ doc, gs }).
+// The site's font comes from Google Fonts, whose stylesheet a page cannot read,
+// so html-to-image finds no fonts and the picture falls back to Arial. Fetch
+// that stylesheet and its font files (Google allows it) and hand them over
+// inline. An empty string means "use whatever the library finds".
+async function embeddedFonts(d: Document): Promise<string> {
+  try {
+    const links = Array.from(d.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][href*="fonts.googleapis.com"]'))
+    let out = ''
+    for (const link of links) {
+      let css = await (await fetch(link.href)).text()
+      const urls = Array.from(new Set(Array.from(css.matchAll(/url\((https:[^)]+)\)/g)).map((m) => m[1])))
+      for (const u of urls) {
+        const blob = await (await fetch(u)).blob()
+        const data = await new Promise<string>((r) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result)); fr.readAsDataURL(blob) })
+        css = css.split(u).join(data)
+      }
+      out += css
+    }
+    return out
+  } catch { return '' }
+}
+
+async function captureGuide(doc: string, gs: string): Promise<File> {
+  const { toCanvas } = await import('html-to-image')
+  const frame = document.createElement('iframe')
+  frame.setAttribute('aria-hidden', 'true')
+  frame.tabIndex = -1
+  frame.style.cssText = 'position:fixed;left:-20000px;top:0;width:1600px;height:1000px;border:0;opacity:0;pointer-events:none'
+  frame.src = `/?page=dashboard&tab=documents&doc=${encodeURIComponent(doc)}&gs=${encodeURIComponent(gs)}`
+  document.body.appendChild(frame)
+  try {
+    const started = Date.now()
+    let el: HTMLElement | null = null
+    // Wait for the guide to finish loading its content (a restricted guide
+    // fetches it), then a moment for images and fonts to settle.
+    while (Date.now() - started < 30000) {
+      await new Promise((r) => setTimeout(r, 400))
+      const d = frame.contentDocument
+      el = (d?.querySelector('.guide .guide-cols')?.closest('.guide') as HTMLElement | null) ?? null
+      if (el) break
+    }
+    if (!el) throw new Error('The guide did not open in time. Check that it opens for you, then try again.')
+    const d = frame.contentDocument!
+    await (d.fonts?.ready ?? Promise.resolve())
+    await new Promise((r) => setTimeout(r, 1200))
+    const width = el.scrollWidth
+    const fontEmbedCSS = await embeddedFonts(d)
+    const opts = {
+      pixelRatio: 2, backgroundColor: '#f4f7fb', width, height: Math.min(el.scrollHeight, Math.round(width * 9 / 16)), cacheBust: true,
+      // The guide's own outer margin would show as an empty band.
+      style: { margin: '0' },
+      ...(fontEmbedCSS ? { fontEmbedCSS } : {}),
+    }
+    let canvas: HTMLCanvasElement
+    try { canvas = await toCanvas(el, opts) } catch { canvas = await toCanvas(el, { ...opts, skipFonts: true }) }
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.9))
+    if (!blob) throw new Error('The picture could not be made. Try again.')
+    return new File([blob], `${doc}-${gs}.jpg`, { type: 'image/jpeg' })
+  } finally {
+    frame.remove()
+  }
+}
+
+// The microphone to record with (Sean, 2026-11-10: "I just be able to use the
+// microphone that I have"). Picked once and remembered in this browser; every
+// Record button uses it. Test shows a live level so you know it hears you.
+const MIC_KEY = 'bcps-depot-mic'
+const savedMic = () => { try { return localStorage.getItem(MIC_KEY) || '' } catch { return '' } }
+const audioConstraints = (deviceId: string): MediaTrackConstraints => ({
+  echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1,
+  ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+})
+
+// A live level bar for a stream (0 to 1), from an analyser on the mic.
+function useLevel(stream: MediaStream | null) {
+  const [level, setLevel] = useState(0)
+  useEffect(() => {
+    if (!stream) { setLevel(0); return }
+    const ctx = new AudioContext()
+    const an = ctx.createAnalyser(); an.fftSize = 1024
+    ctx.createMediaStreamSource(stream).connect(an)
+    const buf = new Float32Array(an.fftSize)
+    let raf = 0
+    const tick = () => {
+      an.getFloatTimeDomainData(buf)
+      let peak = 0; for (let k = 0; k < buf.length; k++) peak = Math.max(peak, Math.abs(buf[k]))
+      setLevel((l) => Math.max(peak, l * 0.85)); raf = requestAnimationFrame(tick)
+    }
+    tick()
+    return () => { cancelAnimationFrame(raf); ctx.close().catch(() => {}) }
+  }, [stream])
+  return level
+}
+
+function LevelBar({ level }: { level: number }) {
+  const pct = Math.min(100, Math.round(level * 100))
+  const tone = level > 0.9 ? 'hot' : level > 0.05 ? 'ok' : 'low'
+  return (
+    <div className="dp-level" role="meter" aria-label="Microphone level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+      <span className={tone} style={{ width: `${pct}%` }} />
+    </div>
+  )
+}
+
+function MicPicker() {
+  const [mics, setMics] = useState<MediaDeviceInfo[]>([])
+  const [mic, setMic] = useState('')
+  const [testing, setTesting] = useState<MediaStream | null>(null)
+  const [note, setNote] = useState('')
+  const level = useLevel(testing)
+  const list = async () => {
+    try { setMics((await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput')) } catch { /* no list */ }
+  }
+  useEffect(() => { setMic(savedMic()); list() }, [])
+  useEffect(() => () => { testing?.getTracks().forEach((t) => t.stop()) }, [testing])
+  const pick = (id: string) => { setMic(id); try { localStorage.setItem(MIC_KEY, id) } catch { /* not saved */ } }
+  const test = async () => {
+    if (testing) { testing.getTracks().forEach((t) => t.stop()); setTesting(null); return }
+    setNote('')
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints(mic) })
+      setTesting(s); await list()
+    } catch { setNote('The microphone did not start. Allow microphone access for bcpsmarcomm.com, or pick another microphone.') }
+  }
+  // Device names only show once the browser has been allowed to use a mic.
+  const named = mics.some((m) => m.label)
+  return (
+    <div className="dp-mic">
+      <label htmlFor="dp-mic-select" className="dp-mic-label">Your microphone</label>
+      <select id="dp-mic-select" value={mic} onChange={(e) => pick(e.target.value)}>
+        <option value="">Computer default</option>
+        {mics.filter((m) => m.deviceId && m.deviceId !== 'default').map((m, i) => <option key={m.deviceId} value={m.deviceId}>{m.label || `Microphone ${i + 1}`}</option>)}
+      </select>
+      <button type="button" className="dp-btn ghost" onClick={test}>{testing ? 'Stop test' : 'Test'}</button>
+      {testing && <LevelBar level={level} />}
+      {testing && <p className="dp-mic-now">Listening on: <b>{testing.getAudioTracks()[0]?.label || 'your microphone'}</b></p>}
+      <p className="dp-muted dp-small">{testing ? 'Talk at your normal reading level. The bar should move into the green, and not hit red.' : named ? 'Every Record button below uses this microphone. Your choice is saved in this browser.' : 'Press Test once to let the browser list your microphones by name.'}</p>
+      {note && <p className="dp-err" role="alert">{note}</p>}
+    </div>
+  )
+}
+
+// Record a take right here (Sean, 2026-11-10: "I just need to get my
+// microphone and speak into it"). The line is in the box beside this button.
+// Record, Stop, listen back, then Use this take (saved like an upload) or
+// Record again. Logan cleans the audio afterwards (level, noise, hum).
+function RecordButton({ onTake, disabled, setErr }: { onTake: (f: File) => Promise<boolean>; disabled?: boolean; setErr: (s: string) => void }) {
+  const [state, setState] = useState<'idle' | 'recording' | 'review' | 'saving'>('idle')
+  const [secs, setSecs] = useState(0)
+  const [url, setUrl] = useState('')
+  const rec = useRef<MediaRecorder | null>(null)
+  const chunks = useRef<Blob[]>([])
+  const take = useRef<File | null>(null)
+  const [live, setLive] = useState<MediaStream | null>(null)
+  const level = useLevel(live)
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => () => { if (timer.current) clearInterval(timer.current); rec.current?.stream.getTracks().forEach((t) => t.stop()); if (url) URL.revokeObjectURL(url) }, [url])
+
+  const start = async () => {
+    setErr('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints(savedMic()) })
+      const type = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find((t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) || ''
+      const r = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 128000 } : undefined)
+      chunks.current = []
+      r.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data) }
+      r.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        setLive(null)
+        const mime = r.mimeType || 'audio/webm'
+        const blob = new Blob(chunks.current, { type: mime })
+        take.current = new File([blob], `take.${mime.includes('mp4') ? 'm4a' : 'webm'}`, { type: mime })
+        setUrl(URL.createObjectURL(blob)); setState('review')
+      }
+      rec.current = r
+      setLive(stream)
+      r.start()
+      setSecs(0); setState('recording')
+      timer.current = setInterval(() => setSecs((n) => n + 1), 1000)
+    } catch {
+      setErr('The microphone did not start. Allow microphone access for bcpsmarcomm.com in your browser, or pick another microphone above, then try again.')
+    }
+  }
+  const stop = () => { if (timer.current) clearInterval(timer.current); rec.current?.stop() }
+  const reset = () => { if (url) URL.revokeObjectURL(url); setUrl(''); take.current = null; setState('idle') }
+  // The take stays on screen until it has really saved, so a failed upload never loses it.
+  const use = async () => { if (!take.current) return; setState('saving'); if (await onTake(take.current)) reset(); else setState('review') }
+  const clock = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+
+  if (state === 'recording') return (
+    <div className="dp-rec-review">
+      <button type="button" className="dp-btn rec on" onClick={stop} aria-live="polite">■ Stop ({clock})</button>
+      <LevelBar level={level} />
+      <span className="dp-muted dp-small">Recording on: {live?.getAudioTracks()[0]?.label || 'your microphone'}</span>
+    </div>
+  )
+  if (state === 'review' || state === 'saving') return (
+    <div className="dp-rec-review">
+      <audio controls src={url} className="dp-audio" />
+      <div className="dp-line">
+        <button type="button" className="dp-btn go" disabled={state === 'saving'} onClick={use}>{state === 'saving' ? 'Saving…' : 'Use this take'}</button>
+        <button type="button" className="dp-btn ghost" disabled={state === 'saving'} onClick={reset}>Record again</button>
+      </div>
+    </div>
+  )
+  return <button type="button" className="dp-btn rec" disabled={disabled} onClick={start}>● Record</button>
+}
+
+function FileButton({ label, accept, onFile, disabled, small }: { label: string; accept: string; onFile: (f: File) => unknown; disabled?: boolean; small?: boolean }) {
   const ref = useRef<HTMLInputElement>(null)
   const [working, setWorking] = useState(false)
   return (
@@ -398,6 +652,9 @@ const CSS = `
 .dp-still figcaption{display:flex;justify-content:space-between;align-items:center;gap:6px}.dp-still input{width:58px;border:1px solid #cbd5e1;border-radius:4px;padding:2px 4px;font:inherit;font-size:13px}
 .dp-addstill{width:200px;aspect-ratio:16/9;border:1px dashed #cbd5e1;border-radius:6px;background:#f8fafc;color:#0e4e73;font:inherit;font-weight:700;cursor:pointer}
 .dp-audio{width:100%;max-width:520px;height:36px}
+.dp-btn.rec{border-color:#b91c1c;color:#b91c1c;background:#fff}.dp-btn.rec.on{background:#b91c1c;color:#fff}.dp-rec-review{display:grid;gap:6px}
+.dp-mic{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#fff;border:1px solid #d6dee5;border-radius:10px;padding:12px 14px;margin:0 0 14px}.dp-mic p{flex-basis:100%;margin:0}.dp-mic select{font:inherit;padding:7px 8px;border:1px solid #c5d0d9;border-radius:6px;max-width:100%}.dp-mic-label{font-weight:800;color:#0e4e73}.dp-mic-now{color:#14212b}
+.dp-level{flex:1;min-width:140px;height:10px;background:#e8eef3;border-radius:5px;overflow:hidden}.dp-level span{display:block;height:100%;transition:width .06s}.dp-level .low{background:#9aa9b5}.dp-level .ok{background:#16750C}.dp-level .hot{background:#b91c1c}
 .dp-card-side{display:flex;flex-direction:column;gap:8px;align-items:stretch}
 .dp-mv{width:32px;height:32px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;cursor:pointer}
 @media (max-width:820px){.depot{padding:20px 16px 48px}.dp-lb,.dp-final,.dp-card{grid-template-columns:1fr}.dp-lb-tiles{grid-template-columns:repeat(8,1fr)}}

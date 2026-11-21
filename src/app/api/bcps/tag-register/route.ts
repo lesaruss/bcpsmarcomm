@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { requireBcpsSuperAdmin } from '@/lib/bcps-auth'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // Tag register for browardschools.com (Sean, 2026-11-05): who has access to
 // the District's Tag Manager container GTM-NTGC6X38, with open and close

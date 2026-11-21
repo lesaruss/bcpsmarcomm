@@ -54,10 +54,38 @@ export interface GuideStepper {
   videoTitle?: string
 }
 
+// A project card (Sean, 2026-11-16, from the BOSS on sorting the District Web
+// Team Guide's school side): the same five facts in the same place for every
+// project, so a reader finds the owner, the next step and the date without
+// reading paragraphs. The section's html becomes the card's Details, folded
+// away until asked for. `updated` (YYYY-MM-DD) shows how fresh the card is.
+export type GuideCardStatus = 'live' | 'pilot' | 'building' | 'proposed' | 'planning' | 'waiting'
+export interface GuideCard {
+  status: GuideCardStatus
+  lead?: string
+  next?: string
+  date?: string
+  updated: string
+}
+
+// An open to-do, gathered from across a guide into one list (same BOSS).
+// Shown grouped by owner, soonest due first. Plain text; href is optional.
+export interface GuideTodo {
+  text: string
+  owner?: string
+  // Shown as written ("Dec 4", "Before winter break").
+  due?: string
+  // YYYY-MM-DD for sorting, when there is a real date.
+  sort?: string
+  href?: string
+}
+
 export interface GuideSection {
   id: string
   title: string
   html: string
+  card?: GuideCard
+  todos?: GuideTodo[]
   audio?: GuideAudio
   stepper?: GuideStepper
   for?: GuideAudience[]

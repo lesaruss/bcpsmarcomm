@@ -17,3 +17,12 @@ where g.brand = 'bcps' and g.slug = 'dwt'
 -- this repository: bcps-public/dashboard-media/charlene-walkthrough-v2.mp4 (and
 -- -poster.jpg), and the tour lines in site-audio/bcps/director-tour-1..8.mp3.
 -- Recording Queue batch bcps-charlene-walkthrough holds the scripts.
+
+-- 2026-11-09 (Sean: she opens banner and Proud Points submissions). Run once the
+-- invitation has created her account (both tables key on user_id):
+--   insert into public.bcps_banner_admins (user_id, email, role, added_by_email, notify_on_submit)
+--   select id, email, 'manager', 'logan', false from auth.users where lower(email) = 'charlene.collins@browardschools.com'
+--   and not exists (select 1 from public.bcps_banner_admins b where lower(b.email) = 'charlene.collins@browardschools.com');
+--   Tricia's direct document grants: view on bcps-wcm-scope-2026 and website-platform.
+-- Manager, not admin: she sees the Banner and Proud Points review queues; only
+-- the admin list itself stays with admins. No email on every submission.

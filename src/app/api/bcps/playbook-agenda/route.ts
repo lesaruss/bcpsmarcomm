@@ -14,6 +14,7 @@ import { proposeAgenda, cleanAgendaItems, agendaRecordHtml, applyAgendaToPlayboo
 //   GET ?slug=   -> { allowed, label, date, items, more, last }
 //   POST { action: 'save', slug, label, date, items } -> { path, playbook_updated }
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const svc = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 const SLUG = /^[a-z0-9][a-z0-9-]{0,120}$/

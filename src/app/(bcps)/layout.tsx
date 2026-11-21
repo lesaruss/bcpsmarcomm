@@ -19,6 +19,8 @@ export default async function BCPSLayout({ children }: { children: React.ReactNo
   // 2026-10-20 (Sean). Must match the
   // public path in middleware.ts.
   const isMarcommRequest = pathname.startsWith('/marcomm-request') || pathname.startsWith('/calendar-request')
+    // WCM Pilot Review feedback form (2026-11-16): public and standalone the same way.
+    || pathname.startsWith('/pilot-review')
 
   // WCM Certification is gated the same as every other /bcps/* module now
   // (per V, 2026-07-28) - no more bespoke cert-only auth bypass here.

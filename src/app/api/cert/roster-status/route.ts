@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { rosterStatusForEmail, verifyCertCaller } from '@/lib/cert-roster'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // The caller's own WCM Roster standing, for the Submit Badge Evidence page
 // (Sean, 2026-11-04): a WCM who is on the roster does not have to upload a

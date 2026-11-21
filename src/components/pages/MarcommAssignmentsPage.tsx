@@ -183,10 +183,29 @@ export default function MarcommAssignmentsPage({ embedded = false, onBack }: { e
   }, [version])
 
   // ?row=<id> opens a request directly, like Web Team Assignments.
+  // Shareable links (Sean, 2026-11-09): the open request's ?row= stays in the
+  // address bar, so the URL can be copied and shared; Back closes the drawer.
+  // Only people with MarComm Assignments access can open it: the page and
+  // its API are gated, and signing in returns to the link (middleware ?next=).
   useEffect(() => {
-    const row = new URLSearchParams(window.location.search).get('row')
-    if (row) setOpenId(row)
+    const read = () => setOpenId(new URLSearchParams(window.location.search).get('row'))
+    read()
+    window.addEventListener('popstate', read)
+    return () => window.removeEventListener('popstate', read)
   }, [])
+  const setRowUrl = (id: string | null, push: boolean) => {
+    const url = new URL(window.location.href)
+    if (id) url.searchParams.set('row', id); else url.searchParams.delete('row')
+    if (push) window.history.pushState({ mcaRow: true }, '', url)
+    else window.history.replaceState(window.history.state, '', url)
+  }
+  // Opening from the list adds a history entry, so Back closes the drawer.
+  const openRowId = (id: string) => { setOpenId(id); setRowUrl(id, true) }
+  const clearRow = () => { setOpenId(null); setRowUrl(null, false) }
+  const closeRow = () => {
+    if ((window.history.state as { mcaRow?: boolean } | null)?.mcaRow) window.history.back()
+    else clearRow()
+  }
 
   const notesFor = useMemo(() => {
     const m = new Map<string, Note[]>()
@@ -286,7 +305,7 @@ export default function MarcommAssignmentsPage({ embedded = false, onBack }: { e
         </div>
         <div className="mca-head-actions">
           <label className="mca-asof"><span className="fl">View as of</span>
-            <select value={version} onChange={e => { setVersion(e.target.value); setOpenId(null) }} title="A new version is saved after each Marcomm Meeting">
+            <select value={version} onChange={e => { setVersion(e.target.value); clearRow() }} title="A new version is saved after each Marcomm Meeting">
               <option value="live">Today (live)</option>
               {snapshots.map(sn => <option key={sn.id} value={sn.id}>{sn.label}</option>)}
             </select>
@@ -330,7 +349,7 @@ export default function MarcommAssignmentsPage({ embedded = false, onBack }: { e
       <div className="mca-tabs" role="tablist">
         <button role="tab" aria-selected={tab === 'active'} onClick={() => setTab('active')}>Active <span>{active.length}</span></button>
         <button role="tab" aria-selected={tab === 'completed'} onClick={() => setTab('completed')}>Completed <span>{done.length}</span></button>
-        {!viewing && <button role="tab" aria-selected={tab === 'calendar'} onClick={() => { setTab('calendar'); setOpenId(null) }}>Calendar posts</button>}
+        {!viewing && <button role="tab" aria-selected={tab === 'calendar'} onClick={() => { setTab('calendar'); clearRow() }}>Calendar posts</button>}
       </div>
 
       {tab === 'calendar' && !viewing ? <CalendarPosts canEdit={canEdit} /> : <>
@@ -404,7 +423,7 @@ export default function MarcommAssignmentsPage({ embedded = false, onBack }: { e
             const n = 'note_count' in r ? r.note_count : notesFor.get(r.id)?.length ?? 0
             const link = 'link_url' in r ? r.link_url : null
             // Past versions are read only, so their rows do not open.
-            const openRow = viewing ? undefined : () => setOpenId(r.id)
+            const openRow = viewing ? undefined : () => openRowId(r.id)
             return (
               <div key={r.id} className={`mca-row${viewing ? ' ro' : ''}${r.status === 'new' ? ' is-new' : ''}`} role={viewing ? undefined : 'button'} tabIndex={viewing ? undefined : 0} onClick={openRow}
                 onKeyDown={e => { if (openRow && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openRow() } }}>
@@ -442,7 +461,7 @@ export default function MarcommAssignmentsPage({ embedded = false, onBack }: { e
 
       </>}
 
-      {open && !viewing && <Drawer req={open} canEdit={canEdit} team={team} notes={notesFor.get(open.id) ?? []} onClose={() => setOpenId(null)} post={post}
+      {open && !viewing && <Drawer key={open.id} req={open} canEdit={canEdit} team={team} notes={notesFor.get(open.id) ?? []} onClose={closeRow} post={post}
         others={liveRows.filter(r => r.id !== open.id)} combined={requests.filter(r => r.merged_into === open.id)} />}
       {savingSnapshot && <SaveSnapshot onClose={() => setSavingSnapshot(false)} post={post} />}
       {adding && <AddItem team={team} defaultLead={myName} onClose={() => setAdding(false)} post={post} />}
@@ -497,6 +516,12 @@ function Drawer({ req, canEdit, team, notes, onClose, post, others, combined }: 
   const [link, setLink] = useState(req.link_url ?? '')
   const [title, setTitle] = useState(req.title)
   const [editingTitle, setEditingTitle] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const copyLink = async () => {
+    const url = `${window.location.origin}/marcomm-assignments?row=${req.id}`
+    try { await navigator.clipboard.writeText(url) } catch { window.prompt('Copy this link:', url); return }
+    setCopied(true); setTimeout(() => setCopied(false), 4000)
+  }
   // Full screen for presenting in the Marcomm Meeting: the request fills the
   // window like a document, with bigger type. The choice is remembered on
   // this browser.
@@ -565,10 +590,12 @@ function Drawer({ req, canEdit, team, notes, onClose, post, others, combined }: 
             )}
           </div>
           <div className="d-head-actions">
+            <button className="mca-btn small ghost" onClick={copyLink} title="Only people with MarComm Assignments access can open this link">{copied ? 'Link copied' : 'Copy link'}</button>
             <button className="mca-btn small ghost" onClick={toggleLarge} aria-pressed={large}>{large ? 'Exit full screen' : 'Full screen'}</button>
             <button className="d-close" onClick={onClose} aria-label="Close">&times;</button>
           </div>
         </div>
+        {copied && <p className="d-copied" role="status">Link copied. Only people with MarComm Assignments access can open it.</p>}
 
         {/* Viewers see every field, locked (Sean, 2026-10-21). */}
         <fieldset className="d-fields" disabled={!canEdit}>
@@ -1097,7 +1124,8 @@ const CSS = `
 .d-crumb { font-size: 11px; font-weight: 700; color: #0e4e73; margin-bottom: 6px; }
 .d-job { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(26,26,26,0.55); margin-bottom: 6px; }
 .d-job b { font-size: 30px; font-weight: 900; color: #0e4e73; letter-spacing: -0.01em; margin-left: 4px; font-variant-numeric: tabular-nums; }
-.d-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.d-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.d-copied { margin: -8px 0 14px; font-size: 13px; font-weight: 700; color: #1b5e20; }
 .mca-drawer.large { position: fixed; inset: 0; width: auto; max-height: none; border-radius: 0; padding: 32px max(40px, calc((100vw - 1100px) / 2)) 56px; }
 .mca-drawer.large h2 { font-size: 26px; }
 .mca-drawer.large .d-job b { font-size: 44px; }

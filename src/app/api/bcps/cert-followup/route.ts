@@ -29,6 +29,7 @@ import { isAllWcmCampaign } from '@/lib/bcps-cert-followup-groups'
 // SuperAdmin only.
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } })
 const CAMPAIGN = 'cert-followup-2026-10'

@@ -6,6 +6,7 @@ import { identifyCaller, isDeptWcm } from '@/lib/bcps-audit-auth'
 // the same budget its siblings already use (ada-scan, school-scan). Without
 // it the default function timeout kills the scan mid-run.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 240
 import { createClient } from '@supabase/supabase-js'
 

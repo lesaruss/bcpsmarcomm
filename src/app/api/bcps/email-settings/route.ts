@@ -12,6 +12,7 @@ import { FREQUENCY_LABEL, type Frequency } from '@/lib/email-stream-copy'
 //   GET  -> { email, frequencies: [{ key, label }], streams: [{ key, name, description, frequency }] }
 //   POST { stream, frequency } -> { ok }
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const svc = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 const FREQS = Object.keys(FREQUENCY_LABEL) as Frequency[]

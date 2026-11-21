@@ -5,6 +5,7 @@ import { sendEmail } from '@/lib/resend'
 import { resolveOrInviteAccount, brandedEmail, esc, firstName, tempPasswordHtml, SITE } from '@/lib/bcps-portal-account'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // WCM Banner Submission App - invite a SCHOOL Web Content Manager.
 //

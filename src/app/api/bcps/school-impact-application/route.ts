@@ -8,6 +8,7 @@ import {
 } from '@/lib/school-impact'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 // Public School Impact Application, public intake (Sean + Glennika D. Gordon,
 // 2026-11-02). Open to anyone: applicants are developers, attorneys,

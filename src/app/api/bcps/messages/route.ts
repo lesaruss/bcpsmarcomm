@@ -5,6 +5,7 @@ import { sendEmail } from '@/lib/resend'
 import { INBOX_NOTIFY_EMAILS, conversationUrl, escapeHtml } from '@/lib/site-inbox'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

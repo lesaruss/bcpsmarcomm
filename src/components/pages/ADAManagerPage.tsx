@@ -374,7 +374,7 @@ function PageIssueDetail({ page, overrides, onReclassify, onRescan, rescanning }
   page: SchoolPage
   overrides: OwnerOverrideMap
   onReclassify?: (glossaryKey: string, owner: GlossaryOwner) => void
-  onRescan: () => void
+  onRescan?: () => void
   rescanning: boolean
 }) {
   const [tab, setTab] = useState<GlossaryOwner>('wcm')
@@ -387,7 +387,7 @@ function PageIssueDetail({ page, overrides, onReclassify, onRescan, rescanning }
         <a href={page.page_url} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>
           Open the live page ↗
         </a>
-        <button
+        {onRescan && <button
           onClick={onRescan}
           disabled={rescanning}
           style={{
@@ -396,7 +396,7 @@ function PageIssueDetail({ page, overrides, onReclassify, onRescan, rescanning }
           }}
         >
           {rescanning ? 'Re-scanning…' : 'Re-scan this page'}
-        </button>
+        </button>}
       </div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         {OWNER_TABS.map(t => (
@@ -509,7 +509,10 @@ export function SchoolAuditPages({ schoolId, score, onChanged, canReclassify = t
   )
 }
 
-export default function ADAManagerPage() {
+// readOnly + onlySchool (Sean, 2026-11-09): a director's look at one school's
+// audit (Charlene Collins, Application Services: Silver Ridge Elementary as the
+// example) with no scans, re-scans, reclassifying or onboarding.
+export default function ADAManagerPage({ readOnly = false, onlySchool }: { readOnly?: boolean; onlySchool?: string } = {}) {
   const supabase = createClient()
   const [schools, setSchools] = useState<School[]>([])
   const [scores, setScores] = useState<Record<string, SchoolScore>>({})
@@ -520,6 +523,12 @@ export default function ADAManagerPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [expandedPage, setExpandedPage] = useState<string | null>(null)
   const [rescanningPages, setRescanningPages] = useState<Set<string>>(new Set())
+  // The read-only example opens on its school's pages.
+  useEffect(() => {
+    if (!readOnly || expanded) return
+    const first = schools.find(sc => !onlySchool || sc.name.toLowerCase().includes(onlySchool.toLowerCase()))
+    if (first) setExpanded(first.id)
+  }, [readOnly, onlySchool, schools, expanded])
 
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -687,16 +696,18 @@ export default function ADAManagerPage() {
       <div style={C.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 14, flexWrap: 'wrap' }}>
           <div>
-            <div style={C.sublabel}>ADA Manager</div>
-            <p style={{ fontSize: 13, color: '#4b5563', margin: 0, maxWidth: 640 }}>
+            <div style={C.sublabel}>{readOnly ? 'An example audit' : 'ADA Manager'}</div>
+            {readOnly ? <p style={{ fontSize: 13, color: '#4b5563', margin: 0, maxWidth: 640 }}>
+              Every page of the school&apos;s site is scanned. Open a page to see its score and each issue, split into what the school&apos;s WCM can fix, what Finalsite has to fix, and what needs a closer look.
+            </p> : <p style={{ fontSize: 13, color: '#4b5563', margin: 0, maxWidth: 640 }}>
               Onboard a school and oversee its real accessibility score in one place. Schools are set up here by
               the district team, a school&apos;s WCM never creates their own record. Once a school exists here,
               they&apos;re handed a login that opens their own scan portal, scoped to just their site.
-            </p>
+            </p>}
           </div>
-          <button style={{ ...C.btnPrimary, whiteSpace: 'nowrap' }} onClick={() => setShowForm(v => !v)}>
+          {!readOnly && <button style={{ ...C.btnPrimary, whiteSpace: 'nowrap' }} onClick={() => setShowForm(v => !v)}>
             {showForm ? 'Cancel' : '+ Add School'}
-          </button>
+          </button>}
         </div>
 
         {showForm && (
@@ -767,7 +778,7 @@ export default function ADAManagerPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {schools.map(school => {
+          {schools.filter(sc => !onlySchool || sc.name.toLowerCase().includes(onlySchool.toLowerCase())).map(school => {
             const score = scores[school.id]
             const isScanning = progress?.schoolId === school.id
             const isExpanded = expanded === school.id
@@ -807,7 +818,7 @@ export default function ADAManagerPage() {
                         {isExpanded ? 'Hide pages' : 'View pages'}
                       </button>
                     )}
-                    {canFullScan && (
+                    {canFullScan && !readOnly && (
                       <button style={{ ...C.btnPrimary, opacity: isScanning ? 0.6 : 1 }} onClick={() => scanFullSite(school)} disabled={isScanning || !!progress}>
                         {isScanning ? `Scanning ${progress!.current}/${progress!.total}…` : 'Scan Full Site'}
                       </button>
@@ -853,8 +864,8 @@ export default function ADAManagerPage() {
                             <PageIssueDetail
                               page={p}
                               overrides={overrides}
-                              onReclassify={reclassify}
-                              onRescan={() => rescanPage(school, score, p.page_url)}
+                              onReclassify={readOnly ? undefined : reclassify}
+                              onRescan={readOnly ? undefined : () => rescanPage(school, score, p.page_url)}
                               rescanning={rescanningPages.has(p.page_url)}
                             />
                           )}

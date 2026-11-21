@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { isSuperadmin, resolvePerson } from '@/lib/bcps-view-as-person'
+import { docSlugFromUrl, setDocPassword } from '@/lib/bcps-doc-password'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -313,6 +315,20 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Admins see which documents have a password (Sean, 2026-11-10). The
+  // password itself is never sent: only that one is set, and when.
+  if (isAdmin) {
+    const docSlugs = Array.from(new Set(result.map(d => docSlugFromUrl(d.doc_url)).filter(Boolean) as string[]))
+    if (docSlugs.length) {
+      const { data: pw } = await svc.from('bcps_doc_passwords').select('slug, updated_at').in('slug', docSlugs)
+      const set = new Map((pw ?? []).map(r => [r.slug as string, r.updated_at as string]))
+      for (const d of result as Array<Record<string, unknown>>) {
+        const ds = docSlugFromUrl(d.doc_url as string)
+        if (ds) d.password = { slug: ds, set_at: set.get(ds) ?? null }
+      }
+    }
+  }
+
   const res = NextResponse.json({ ok: true, role, documents: result, ...extra })
   res.headers.set('Cache-Control', 'no-store')
   return res
@@ -358,6 +374,18 @@ export async function POST(req: NextRequest) {
         if (error) throw error
         await audit(user.id, 'playbook_transcript_leads', null, { slug: pb, emails })
         return NextResponse.json({ ok: true, emails })
+      }
+
+      // Password access for one document (Sean, 2026-11-10): anyone with the
+      // password gets 24 hours of access without signing in. Only the hash is
+      // stored; setting a new one or removing it ends every open pass.
+      case 'doc_password': {
+        const slug = typeof body.slug === 'string' ? body.slug.trim().toLowerCase() : ''
+        const password = body.password === null ? null : (typeof body.password === 'string' ? body.password : '')
+        const r = await setDocPassword(svc, slug, password, user.email ?? user.id)
+        if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status })
+        await audit(user.id, r.on ? 'document_password_set' : 'document_password_removed', null, { slug })
+        return NextResponse.json({ ok: true, on: r.on })
       }
 
       case 'meta_update': {

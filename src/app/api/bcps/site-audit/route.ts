@@ -40,6 +40,7 @@ import { sendEmail } from '@/lib/resend'
 // Departments: admins, the department's WCM and its director may view.
 // Schools: admins only for now.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 const supabase = createClient(process.env.LESARUSS_SUPABASE_URL!, process.env.LESARUSS_SUPABASE_SERVICE_KEY!)
 const FULL = 'id, department_id, school_id, site_page_id, run_id, audited_at, page_url, audit_version, overall_score, ada_score, checks, checks_passed, checks_failed, checks_review, screenshots, ada_violations, run_by'

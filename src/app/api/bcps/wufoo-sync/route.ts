@@ -17,6 +17,7 @@ import { timingSafeEqual } from 'crypto'
 // Nothing is imported until bcps_marcomm_wufoo_state.enabled is set, after the
 // field map from discover has been checked against the form.
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const maxDuration = 60
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
