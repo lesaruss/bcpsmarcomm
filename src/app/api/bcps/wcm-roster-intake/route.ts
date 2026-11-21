@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireDistrictUser, isDistrictEmail, normalizeDistrictEmail, DISTRICT_DOMAIN } from '@/lib/bcps-auth'
 import { verifyDirector } from '@/lib/bcps-director-match'
+import { logStreamEventResult } from '@/lib/stream-events'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -274,7 +275,7 @@ export async function POST(req: NextRequest) {
       `add WCM ${(wcm_name as string)?.trim()}`
 
     // Surface it on the stream so it's not missed.
-    await supabase.from('stream_events').insert({
+    await logStreamEventResult('wcm-roster-intake', supabase.from('stream_events').insert({
       timestamp: new Date().toISOString(),
       owner: 'sar',
       station: 'SAR-station',
@@ -284,7 +285,7 @@ export async function POST(req: NextRequest) {
         : `[BCPS WCM Roster] "${(department_name as string).trim()}" wants to ${actionLabel} - awaiting review.`,
       status: 'pending',
       context_link: 'https://bcpsmarcomm.com/bcps?page=wcm',
-    })
+    }))
 
     if (isFlagged) {
       await notifyIdentityMismatch({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { logStreamEventResult } from '@/lib/stream-events'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
         .eq('id', department_id)
 
       // Log completion
-      await supabase.from('stream_events').insert({
+      await logStreamEventResult('admin-decision', supabase.from('stream_events').insert({
         timestamp:    now,
         owner:        'sar',
         station:      'SAR-station',
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
         summary:      `[BCPS Audit] ${dept.name} audit PASSED and marked complete by admin. Round ${dept.current_round}.`,
         status:       'complete',
         context_link: 'https://bcpsmarcomm.com/departments',
-      })
+      }))
     } else {
       // Send back: carry forward unfixed findings into next round, increment round
       const { data: unfixedFindings } = await supabase
@@ -139,7 +140,7 @@ export async function POST(req: NextRequest) {
         .eq('id', department_id)
 
       // Log send-back with admin notes for WCM visibility
-      await supabase.from('stream_events').insert({
+      await logStreamEventResult('admin-decision', supabase.from('stream_events').insert({
         timestamp:    now,
         owner:        'sar',
         station:      'SAR-station',
@@ -147,7 +148,7 @@ export async function POST(req: NextRequest) {
         summary:      `[BCPS Audit] ${dept.name} sent back to WCM for Round ${newRound}. ${unfixedFindings?.length ?? 0} item(s) still need work. Notes: ${admin_notes ?? 'See findings checklist.'}`,
         status:       'pending',
         context_link: 'https://bcpsmarcomm.com/departments',
-      })
+      }))
     }
 
     return NextResponse.json({ success: true, decision, new_round: newRound })

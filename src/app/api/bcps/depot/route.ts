@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireBcpsSuperAdmin } from '@/lib/bcps-auth'
+import { logStreamEventResult } from '@/lib/stream-events'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -34,10 +35,10 @@ const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').repla
 const clean = (s: unknown, max = 4000) => String(s ?? '').trim().slice(0, max)
 
 async function log(summary: string, link = 'https://bcpsmarcomm.com/?page=depot') {
-  await svc.from('stream_events').insert({
+  await logStreamEventResult('depot', svc.from('stream_events').insert({
     timestamp: new Date().toISOString(), owner: 'logan', station: 'bcps', task_id: null,
     summary: `[BCPS Depot] ${summary}`, status: 'in_progress', context_link: link,
-  })
+  }))
 }
 
 async function tileWithProject(id: string) {

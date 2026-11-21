@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireDistrictUser, isBcpsAdmin } from '@/lib/bcps-auth'
 import { isDeptWcm } from '@/lib/bcps-audit-auth'
+import { logStreamEventResult } from '@/lib/stream-events'
 
 const supabase = createClient(
   process.env.LESARUSS_SUPABASE_URL!,
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
       .eq('id', department_id)
 
     // Log to stream_events for admin notification
-    await supabase
+    await logStreamEventResult('wcm-submit', supabase
       .from('stream_events')
       .insert({
         timestamp:    now,
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest) {
         summary:      `[BCPS Audit] ${dept.name} WCM submitted Round ${dept.current_round} fixes for admin review.`,
         status:       'pending',
         context_link: `https://bcpsmarcomm.com/departments`,
-      })
+      }))
 
     return NextResponse.json({ success: true, round: dept.current_round })
   } catch (e: unknown) {

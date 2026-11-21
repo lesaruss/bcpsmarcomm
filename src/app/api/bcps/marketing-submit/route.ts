@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { logStreamEventResult } from '@/lib/stream-events'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,17 +32,15 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    try {
-      await supabase.from('stream_events').insert({
-        timestamp: new Date().toISOString(),
-        owner: 'sar',
-        station: 'SAR-station',
-        task_id: null,
-        summary: `[BCPS Marketing Guide] ${school_name} submitted a marketing plan for specialist review.`,
-        status: 'in_progress',
-        context_link: 'https://bcpsmarcomm.com/marketing-specialist.html',
-      })
-    } catch {}
+    await logStreamEventResult('marketing-submit', supabase.from('stream_events').insert({
+      timestamp: new Date().toISOString(),
+      owner: 'sar',
+      station: 'SAR-station',
+      task_id: null,
+      summary: `[BCPS Marketing Guide] ${school_name} submitted a marketing plan for specialist review.`,
+      status: 'in_progress',
+      context_link: 'https://bcpsmarcomm.com/marketing-specialist.html',
+    }))
 
     return NextResponse.json({ ok: true, id: data?.id })
   } catch (err) {
