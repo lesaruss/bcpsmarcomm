@@ -31,6 +31,17 @@
 //                               preview parameters, for testing first.
 // POST {"action": "publish"}  - versions the workspace and publishes it.
 // POST {"action": "ga4"}      - read-only GA4 checks of property 527326342.
+// POST {"action": "users"}    - who has access to the account and container.
+// POST {"action": "grant", "email": "<x>", "permission": "edit"}
+//                             - adds or updates a vendor: account User,
+//                               container permission as given (default edit;
+//                               publish and approve are refused).
+// POST {"action": "revoke", "email": "<x>"}
+//                             - removes that person from the account. Never
+//                               removes bcps.pio or this service account.
+//   (users/grant/revoke added 2026-11-23, once bcps.pio made this service
+//   account an Administrator, so vendor access opens and closes on the dates
+//   in the Tag Register without Sean in Tag Manager.)
 // POST {"action": "review", "workspace": "<name>"}
 //                             - read-only pass/fail on an agency workspace
 //                               before the District publishes it (naming,
@@ -67,6 +78,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/tagmanager.edit.containers',
   'https://www.googleapis.com/auth/tagmanager.edit.containerversions',
   'https://www.googleapis.com/auth/tagmanager.publish',
+  'https://www.googleapis.com/auth/tagmanager.manage.users',
   'https://www.googleapis.com/auth/analytics.readonly',
 ].join(' ');
 
@@ -264,6 +276,43 @@ Deno.serve(async (req: Request) => {
     }
     const { workspace: workspaces = [] } = await gtm('GET', `${container.path}/workspaces`);
     const ws = workspaces.find((w: any) => w.name === 'Default Workspace') || workspaces[0];
+
+    // ---- Vendor access (needs account Administrator + manage.users) -------
+    if (action === 'users' || action === 'grant' || action === 'revoke') {
+      const acct = `accounts/${container.accountId}`;
+      const all = async () => (await gtm('GET', `${acct}/user_permissions`)).userPermission || [];
+      const shape = (u: any) => ({
+        email: u.emailAddress, account: u.accountAccess?.permission,
+        container: (u.containerAccess || []).find((c: any) => c.containerId === container.containerId)?.permission || 'none',
+        path: u.path,
+      });
+      if (action === 'users') return json({ success: true, container: CONTAINER_PUBLIC_ID, users: (await all()).map(shape) });
+
+      const email = String(payload.email || '').trim().toLowerCase();
+      if (!email) return json({ success: false, error: 'email is required' }, 400);
+      const existing = (await all()).find((u: any) => String(u.emailAddress).toLowerCase() === email);
+      const protectedAccount = email === 'bcps.pio@gmail.com' || email.endsWith('.iam.gserviceaccount.com');
+
+      if (action === 'revoke') {
+        if (protectedAccount) return json({ success: false, error: `${email} is a District owner account and is never removed here` }, 400);
+        if (!existing) return json({ success: true, removed: false, note: `${email} has no access` });
+        await gtm('DELETE', existing.path);
+        return json({ success: true, removed: true, email });
+      }
+
+      const permission = String(payload.permission || 'edit').toLowerCase();
+      if (!['read', 'edit'].includes(permission)) {
+        return json({ success: false, error: 'Vendors get read or edit only; the District approves and publishes' }, 400);
+      }
+      if (protectedAccount) return json({ success: false, error: `${email} is a District owner account and is not changed here` }, 400);
+      const body = {
+        emailAddress: email,
+        accountAccess: { permission: 'user' },
+        containerAccess: [{ containerId: container.containerId, permission }],
+      };
+      const saved = existing ? await gtm('PUT', existing.path, body) : await gtm('POST', `${acct}/user_permissions`, body);
+      return json({ success: true, updated: !!existing, user: shape(saved) });
+    }
 
     const list = async () => {
       const [tags, triggers, variables, builtins] = await Promise.all([
