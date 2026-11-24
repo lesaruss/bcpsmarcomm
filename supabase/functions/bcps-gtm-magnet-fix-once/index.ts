@@ -2,7 +2,10 @@
 // Floodlight tags in the Default Workspace of GTM-NTGC6X38. Applies the two District rules:
 //   1. every tag they added is named "MAGNET | ..."
 //   2. the Floodlight base tag (was on Initialization - All Pages) fires only on magnet-programs pages.
-// POST {} = plan (no changes). POST {"apply":true} = apply. Safe to rerun. Never publishes.
+// POST {} = plan (no changes). POST {"apply":true} = apply. POST {"publish":true} = version and publish the
+// workspace (Sean, 2026-11-24: "I give you permission"). Safe to rerun.
+// Apply also fixes the Apply Now trigger: the live link is /bcps-departments/school-choice123 on
+// www.browardschools.com, not the finalsite.com staging address Brkthru matched.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 const URL_ = Deno.env.get('SUPABASE_URL')!, KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const API = 'https://tagmanager.googleapis.com/tagmanager/v2';
@@ -12,7 +15,7 @@ const b64 = (s: string) => btoa(s).replace(/=/g, '').replace(/\+/g, '-').replace
 async function token(saJson: string) {
   const sa = JSON.parse(saJson), now = Math.floor(Date.now() / 1000);
   const input = `${b64(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64(JSON.stringify({ iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/tagmanager.readonly https://www.googleapis.com/auth/tagmanager.edit.containers',
+    scope: 'https://www.googleapis.com/auth/tagmanager.readonly https://www.googleapis.com/auth/tagmanager.edit.containers https://www.googleapis.com/auth/tagmanager.edit.containerversions https://www.googleapis.com/auth/tagmanager.publish',
     aud: 'https://oauth2.googleapis.com/token', exp: now + 3600, iat: now }))}`;
   const pem = sa.private_key.replace('-----BEGIN PRIVATE KEY-----', '').replace('-----END PRIVATE KEY-----', '').replace(/\n/g, '');
   const k = await crypto.subtle.importKey('pkcs8', Uint8Array.from(atob(pem), c => c.charCodeAt(0)), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
@@ -31,6 +34,7 @@ Deno.serve(async (req: Request) => {
     if (!sent || (sent !== KEY && sent !== k2?.value)) return out({ success: false, error: 'unauthorized' }, 401);
     const body: any = await req.json().catch(() => ({}));
     const apply = body.apply === true;
+    const publish = body.publish === true;
     const { data: secret } = await sb.from('lesaruss_secrets').select('value').eq('key', 'GA4_SERVICE_ACCOUNT_BCPS').single();
     const tk = await token(secret!.value);
     const gtm = async (m: string, p: string, b?: unknown) => {
@@ -58,7 +62,21 @@ Deno.serve(async (req: Request) => {
     if (base && !trig) plan.push('create trigger "MAGNET | Initialization - magnet-programs pages"');
     if (base) plan.push(`base tag "${base.name}" -> fires only on that trigger (was ${JSON.stringify(base.firingTriggerId)})`);
     for (const t of mine) if (!t.name.startsWith(PREFIX)) plan.push(`rename "${t.name}" -> "${PREFIX}${t.name}"`);
+    const applyNow = trigs.find((t: any) => t.name === 'Floodlights - Apply Now Links - Trigger');
+    const clickCond = (applyNow?.filter || []).find((c: any) => (c.parameter || []).some((p: any) => p.key === 'arg0' && p.value === '{{Click URL}}'));
+    const clickArg1 = clickCond?.parameter.find((p: any) => p.key === 'arg1');
+    const needsClickFix = !!clickArg1 && clickArg1.value.includes('finalsite.com');
+    if (needsClickFix) plan.push(`Apply Now trigger: Click URL contains "${clickArg1.value}" -> "/bcps-departments/school-choice123"`);
+    if (publish) {
+      const created = await gtm('POST', `${ws.path}:create_version`, {
+        name: 'Magnet School Choice Floodlights (Brkthru)',
+        notes: 'Brkthru Digital Floodlight tags DC-18130941 for the Magnet School Choice campaign. Reviewed by BCPS MarComm: tags named MAGNET |, fire only on magnet-programs pages, no existing tags changed. Published by Logan with Sean approval 2026-11-24.' });
+      if (created.compilerError || !created.containerVersion) return out({ success: false, created }, 422);
+      const pub = await gtm('POST', `${created.containerVersion.path}:publish`);
+      return out({ success: true, published: true, version: pub.containerVersion?.containerVersionId, tags: (pub.containerVersion?.tag || []).map((t: any) => t.name) });
+    }
     if (!apply) return out({ success: true, applied: false, workspace: ws.name, plan });
+    if (needsClickFix) { clickArg1.value = '/bcps-departments/school-choice123'; await gtm('PUT', applyNow.path, applyNow); }
     if (base && !trig) {
       trig = await gtm('POST', `${ws.path}/triggers`, { name: `${PREFIX}Initialization - magnet-programs pages`, type: 'init',
         filter: [{ type: 'matchRegex', parameter: [{ type: 'template', key: 'arg0', value: '{{Page Path}}' }, { type: 'template', key: 'arg1', value: MAGNET_PATH_RE }] }] });
