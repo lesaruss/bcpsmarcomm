@@ -57,8 +57,8 @@ interface ReviewSubmission extends MySubmission {
   school_name: string | null
   posted_at: string | null
   posted_by_email: string | null
-  content_scan: { text_detected?: boolean; text_reason?: string } | null
-  checklist_ack: { in_scene_text?: boolean } | null
+  content_scan: { text_detected?: boolean; text_reason?: string; face_check?: 'clear' | 'borderline' | 'problem' | 'unknown'; face_reason?: string } | null
+  checklist_ack: { in_scene_text?: boolean; face_clear?: boolean } | null
 }
 
 interface BannerAdminRow {
@@ -155,7 +155,11 @@ const VALIDATION_CHECKLIST = [
   { key: 'filesize', label: 'File size 50 MB or less (video exported at 1080p, not 4K)' },
   { key: 'dims', label: 'Media meets size requirements (photo 1920 × 800 px, video up to 30 seconds)' },
   { key: 'no_overlays', label: 'Image is free of graphics, borders, text overlays' },
-  { key: 'nav_clearance', label: 'Homepage navigation face-clearance (flagged for manual review)' },
+  // Never an automatic Pass (Sean + Vanessa Deslandes, 2026-11-24): the
+  // tool cannot see faces, and a green Pass here made WCMs and the Web Team
+  // think a photo with a head cut off by the top banner was fine. The row
+  // shows Review until the WCM checks the preview and clicks Confirm.
+  { key: 'nav_clearance', label: 'Faces clear of the top banner and right navigation' },
   { key: 'title', label: 'Banner title provided' },
   { key: 'alt', label: 'Required alternative text provided' },
   { key: 'approvals', label: 'Approvals and permissions acknowledged' },
@@ -179,13 +183,18 @@ const VALIDATION_CHECKLIST = [
 // 'confirm' (added 2026-09-29): the scan found text, which may be a real sign
 // in the scene rather than an overlay - the WCM has to confirm which before
 // the row passes. Amber, same palette as the degraded-scan notice.
-type ValidationState = 'pass' | 'fail' | 'pending' | 'confirm'
+type ValidationState = 'pass' | 'fail' | 'pending' | 'confirm' | 'review' | 'checking'
 
 const VALIDATION_CHIP: Record<ValidationState, { bg: string; fg: string; ring: string; label: string }> = {
   pass:    { bg: '#1e6b3a', fg: '#fff',    ring: 'none',                       label: 'Pass' },
   fail:    { bg: '#fbe9e7', fg: '#a13a2f', ring: 'inset 0 0 0 1px #f0c4bd',    label: 'Fail' },
   confirm: { bg: '#fdf3e0', fg: '#8a5a00', ring: 'inset 0 0 0 1px #f0d9a8',    label: 'Confirm' },
   pending: { bg: '#e4e4e4', fg: '#666',    ring: 'none',                       label: 'Pending' },
+  // A visual check only the WCM can make (faces vs. banner and nav).
+  review:  { bg: '#fdf3e0', fg: '#8a5a00', ring: 'inset 0 0 0 1px #f0d9a8',    label: 'Review' },
+  // The photo check is running (Vanessa Deslandes, 2026-11-24: a pulse
+  // alone did not say anything was happening).
+  checking: { bg: '#eaf1f8', fg: '#0a3764', ring: 'inset 0 0 0 1px #c9dbee',   label: 'Checking' },
 }
 
 type Tab = 'upload' | 'removal' | 'mine' | 'review' | 'admins' | 'wcms'
@@ -201,6 +210,7 @@ const REJECT_REASON_CATEGORIES = [
   'Image quality too low',
   'Embedded text or logos',
   'Faces blurred, erased, or covered',
+  'Face cut off by the top banner or covered by the navigation',
   'Other',
 ] as const
 
@@ -237,6 +247,8 @@ interface ScanResult {
   nav_clearance_pass: boolean
   nav_clearance_note?: string
   text_detected?: boolean
+  face_check?: 'clear' | 'borderline' | 'problem' | 'unknown'
+  face_reason?: string
   reasons: string[]
 }
 
@@ -259,6 +271,9 @@ interface BannerItem {
   alt: string
   // WCM confirms detected text is part of the scene, per banner.
   inSceneText: boolean
+  // WCM checked the preview: no face is cut off by the top banner or covered
+  // by the right-hand nav (Sean + Vanessa Deslandes, 2026-11-24).
+  faceClear: boolean
   // JPEG EXIF orientation (1-8), null if none. 5-8 means the camera saved
   // the pixels sideways with a "rotate on display" flag.
   orientation: number | null
@@ -277,7 +292,7 @@ function newBannerItem(): BannerItem {
     key: Math.random().toString(36).slice(2),
     file: null, previewUrl: null, kind: null, dims: null, duration: null,
     scanState: 'idle', scanResult: null, scanError: null,
-    title: '', caption: '', alt: '', inSceneText: false, orientation: null, compress: null,
+    title: '', caption: '', alt: '', inSceneText: false, faceClear: false, orientation: null, compress: null,
   }
 }
 
@@ -329,41 +344,29 @@ function CharCount({ value, max }: { value: string; max: number }) {
 // make a file smaller). Clipchamp is the District-supported editor; Stream
 // cannot shrink a file (its trim only hides parts from viewers), so a Stream
 // video is downloaded and re-exported in Clipchamp.
-function OversizeAlert({ file, kind, autoFailed }: { file: File; kind: 'image' | 'video' | null; autoFailed?: boolean }) {
-  return (
-    <div role="alert" style={{ marginTop: 8, background: '#fbe9e7', color: '#a13a2f', border: '2px solid #a13a2f', borderRadius: 6, padding: '10px 12px', fontSize: 12.5 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 13.5 }}>
-        <span style={{ background: '#a13a2f', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 999 }}>Error</span>
-        File is over the {MAX_MB} MB limit
+// How to make an over-limit file smaller, shown inside the file-size row of
+// the checklist (Sean + Vanessa Deslandes, 2026-11-24: results live in the
+// right column only).
+function SizeFixSteps({ kind }: { kind: 'image' | 'video' | null }) {
+  return kind === 'video' ? (
+    <div style={{ marginTop: 6, lineHeight: 1.5, color: '#1f2937', fontWeight: 500 }}>
+      <div style={{ fontWeight: 700 }}>In Clipchamp (sign in with your District Microsoft account):</div>
+      <ol style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+        <li>Open Clipchamp and select <strong>Create a new video</strong>.</li>
+        <li>Select <strong>Import media</strong>, choose this video, and drag it onto the timeline.</li>
+        <li>Trim it to {VIDEO_MAX_SECONDS} seconds or less if it is longer. A shorter clip is also a smaller file.</li>
+        <li>Select <strong>Export</strong> (top right) and choose <strong>1080p</strong>. Do not choose 4K.</li>
+        <li>Upload the new file here. If it is still over {MAX_MB} MB, shorten the clip, or export again at <strong>720p</strong>.</li>
+      </ol>
+      <div style={{ marginTop: 6 }}>
+        <strong>Video saved in Stream?</strong> Stream cannot make a file smaller. Download the video from Stream
+        (select <strong>...</strong> then <strong>Download</strong>), then follow the Clipchamp steps above.
       </div>
-      <div style={{ marginTop: 6, fontWeight: 600 }}>
-        This file is {fileMB(file)} MB. It cannot be submitted until it is {MAX_MB} MB or less.
-        {autoFailed && ' We tried to shrink it automatically, but this browser could not. Use Microsoft Edge or Chrome, or follow the steps below.'}
-      </div>
-      <details open style={{ marginTop: 8, color: '#1f2937' }}>
-        <summary style={{ fontWeight: 700, cursor: 'pointer', color: '#a13a2f' }}>How to make this file smaller</summary>
-        {kind === 'video' ? (
-          <div style={{ marginTop: 6, lineHeight: 1.5 }}>
-            <div style={{ fontWeight: 700 }}>In Clipchamp (sign in with your District Microsoft account):</div>
-            <ol style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-              <li>Open Clipchamp and select <strong>Create a new video</strong>.</li>
-              <li>Select <strong>Import media</strong>, choose this video, and drag it onto the timeline.</li>
-              <li>Trim it to {VIDEO_MAX_SECONDS} seconds or less if it is longer. A shorter clip is also a smaller file.</li>
-              <li>Select <strong>Export</strong> (top right) and choose <strong>1080p</strong>. Do not choose 4K.</li>
-              <li>Upload the new file here. If it is still over {MAX_MB} MB, shorten the clip, or export again at <strong>720p</strong>.</li>
-            </ol>
-            <div style={{ marginTop: 6 }}>
-              <strong>Video saved in Stream?</strong> Stream cannot make a file smaller. Download the video from Stream
-              (select <strong>...</strong> then <strong>Download</strong>), then follow the Clipchamp steps above.
-            </div>
-          </div>
-        ) : (
-          <div style={{ marginTop: 6, lineHeight: 1.5 }}>
-            Save the photo as a <strong>JPG</strong> instead of PNG (open it in Photos or Paint and use <strong>Save as</strong>),
-            or resize it to about 2400 px wide. Upload the new copy here.
-          </div>
-        )}
-      </details>
+    </div>
+  ) : (
+    <div style={{ marginTop: 6, lineHeight: 1.5, color: '#1f2937', fontWeight: 500 }}>
+      Save the photo as a <strong>JPG</strong> instead of PNG (open it in Photos or Paint and use <strong>Save as</strong>),
+      or resize it to about 2400 px wide. Upload the new copy here.
     </div>
   )
 }
@@ -395,6 +398,16 @@ function statusBadge(status: SubmissionStatus) {
   return (
     <span style={{ background: s.bg, color: s.fg, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999 }}>
       {s.label}
+    </span>
+  )
+}
+
+// Three dots that fill in turn, so a running check reads as working.
+function CheckingDots() {
+  return (
+    <span aria-hidden="true" className="bw-dots">
+      <style>{`.bw-dots span{animation:bwDot 1.2s infinite both;display:inline-block}.bw-dots span:nth-child(2){animation-delay:.2s}.bw-dots span:nth-child(3){animation-delay:.4s}@keyframes bwDot{0%,80%,100%{opacity:.15}40%{opacity:1}}`}</style>
+      <span>.</span><span>.</span><span>.</span>
     </span>
   )
 }
@@ -541,7 +554,9 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     if (startTab) return startTab
     if (typeof window === 'undefined') return 'upload'
     const t = new URLSearchParams(window.location.search).get('tab')
-    return t === 'mine' || t === 'removal' ? t : 'upload'
+    // ?tab=review: the District WCM's "Review the banner" email link (2026-11-24);
+    // the queue API still checks they are a reviewer.
+    return t === 'mine' || t === 'removal' || t === 'review' ? t : 'upload'
   })
   // "View as" preview state, see canReview below.
   const { viewAs } = useBCPSShell()
@@ -852,7 +867,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     if (prevUrl) URL.revokeObjectURL(prevUrl)
     setActiveKey(key)
     if (!f) {
-      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, duration: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false, orientation: null, compress: null })
+      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, duration: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false, faceClear: false, orientation: null, compress: null })
       return
     }
     const url = URL.createObjectURL(f)
@@ -862,7 +877,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     const compress: BannerItem['compress'] = compressed
       ? { state: 'done', progress: 1, ...compressed }
       : kind === 'video' && f.size > MAX_BYTES ? { state: 'running', progress: 0, fromBytes: f.size, trimmed: false } : null
-    patchItem(key, { file: f, previewUrl: url, kind, dims: null, duration: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false, orientation: null, compress })
+    patchItem(key, { file: f, previewUrl: url, kind, dims: null, duration: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false, faceClear: false, orientation: null, compress })
 
     if (kind === 'image') {
       const img = new Image()
@@ -916,6 +931,8 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
               nav_clearance_pass: !!data.nav_clearance_pass,
               nav_clearance_note: data.nav_clearance_note,
               text_detected: !!data.text_detected,
+              face_check: data.face_check,
+              face_reason: data.face_reason,
               reasons: data.reasons || [],
             },
             scanState: 'done',
@@ -928,7 +945,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
   }
 
   function addItem() {
-    if (items.length >= MAX_FILES) return
+    if (items.length >= MAX_FILES || items.some(i => !bannerPassed(i))) return
     const item = newBannerItem()
     setItems(prev => [...prev, item])
     setActiveKey(item.key)
@@ -954,56 +971,61 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
   const dimsOk = (i: BannerItem) => (i.kind === 'video' ? lengthOk(i) : !!(i.dims && i.dims.width >= MIN_WIDTH && i.dims.height >= MIN_HEIGHT))
   const overlaysOk = (i: BannerItem) => !!i.scanResult?.no_overlays_pass && (!i.scanResult?.text_detected || i.inSceneText)
   const needsConfirm = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult?.no_overlays_pass && !!i.scanResult?.text_detected && !i.inSceneText
+  const faceFlagged = (i: BannerItem) => i.scanState === 'done' && i.scanResult?.face_check === 'problem'
+  const facesOk = (i: BannerItem) => !faceFlagged(i) && i.faceClear
   const scanFailed = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult && !i.scanResult.no_overlays_pass
-  const all = (pred: (i: BannerItem) => boolean) => filled.length > 0 && filled.every(pred)
   const compressing = filled.some(i => i.compress?.state === 'running')
 
-  // Live Validation checklist status (right-hand panel) - each row derived
-  // from current form state across every banner in the request, matching
-  // Vanessa's mockup's per-item Pass display. See VALIDATION_CHECKLIST.
-  const validationStatus: Record<string, boolean> = {
-    school: !!selectedSchool,
-    files: filled.length > 0,
-    filesize: all(sizeOk),
-    dims: all(dimsOk),
-    no_overlays: all(overlaysOk),
-    nav_clearance: all(i => !!i.scanResult?.nav_clearance_pass),
-    title: all(i => i.title.trim() !== ''),
-    alt: all(i => i.alt.trim() !== ''),
-    approvals: !!checks.media_release && !!checks.faces_visible,
-    final_ack: !!checks.final_ack,
+  // Each banner has its own checklist (Sean + Vanessa Deslandes,
+  // 2026-11-24): one shared list hid which banner was failing. Rows that
+  // belong to a banner are judged per banner; school and the two
+  // acknowledgements cover the whole request.
+  const BANNER_ROWS = ['files', 'filesize', 'dims', 'no_overlays', 'nav_clearance', 'title', 'alt'] as const
+  const faceBorderline = (i: BannerItem) => i.scanState === 'done' && i.scanResult?.face_check === 'borderline'
+  function bannerChecks(i: BannerItem): { state: Record<string, ValidationState>; reason: Record<string, string> } {
+    const has = !!i.file
+    const checking = i.kind === 'image' && i.scanState === 'scanning'
+    const comp = i.compress?.state === 'running'
+    const state: Record<string, ValidationState> = {
+      files: has ? 'pass' : 'pending',
+      filesize: !has ? 'pending' : sizeOk(i) ? 'pass' : comp ? 'pending' : 'fail',
+      dims: !has ? 'pending' : dimsOk(i) ? 'pass' : comp ? 'pending' : (i.kind === 'video' ? !lengthOk(i) : !!i.dims) ? 'fail' : 'pending',
+      no_overlays: !has ? 'pending' : overlaysOk(i) ? 'pass' : scanFailed(i) ? 'fail' : checking ? 'checking' : needsConfirm(i) ? 'confirm' : 'pending',
+      nav_clearance: !has ? 'pending' : faceFlagged(i) ? 'fail' : facesOk(i) ? 'pass' : checking ? 'checking' : 'review',
+      title: i.title.trim() ? 'pass' : 'pending',
+      alt: i.alt.trim() ? 'pass' : 'pending',
+    }
+    const reason: Record<string, string> = {}
+    if (state.filesize === 'fail' && i.file) reason.filesize = `This file is ${fileMB(i.file)} MB, over the ${MAX_MB} MB limit.${i.compress?.state === 'failed' ? ' This browser could not shrink it automatically.' : ''} How to make it smaller:`
+    if (i.kind === 'image' && i.dims) reason.dims = dimsOk(i)
+      ? `Measured ${i.dims.width} x ${i.dims.height} px.`
+      : `This photo is ${i.dims.width} x ${i.dims.height} px, below the ${MIN_WIDTH} x ${MIN_HEIGHT} px minimum. Choose a larger photo.`
+    if (i.kind === 'video' && i.duration !== null) reason.dims = lengthOk(i)
+      ? `Video is ${Math.round(i.duration)} seconds.`
+      : `This video is ${Math.round(i.duration)} seconds, over the ${VIDEO_MAX_SECONDS}-second limit.`
+    if (state.no_overlays === 'fail') reason.no_overlays = (i.scanResult?.reasons || []).join(' ')
+    else if (i.scanState === 'error') reason.no_overlays = i.scanError || 'The automatic check failed. Choose the file again.'
+    else if (i.scanState === 'degraded') reason.no_overlays = 'The automatic check could not run on this file. The District Web Team will check it by eye.'
+    else if (state.no_overlays === 'confirm') reason.no_overlays = 'Text was found in this photo. Confirm below if it is part of the scene, like a sign someone is holding.'
+    else if (state.no_overlays === 'checking') reason.no_overlays = 'Checking for faces, added text and graphics. This takes a few seconds.'
+    if (state.nav_clearance === 'fail') reason.nav_clearance = `${i.scanResult?.face_reason || 'A face or head is cut off or covered.'} Choose a different photo.`
+    else if (state.nav_clearance === 'review') reason.nav_clearance = faceBorderline(i)
+      ? `${i.scanResult?.face_reason || 'Someone is partly cut off.'} Look at the preview and decide: check Confirm below, or choose a different photo.`
+      : 'Look at the preview. If a face or head is cut off by the top banner or covered by the right-hand navigation, choose a different photo. If not, check Confirm below.'
+    return { state, reason }
   }
-  const allValidationPassed = VALIDATION_CHECKLIST.every(v => validationStatus[v.key])
+  const bannerPassed = (i: BannerItem) => BANNER_ROWS.every(k => bannerChecks(i).state[k] === 'pass')
 
-  // Display-only companion to validationStatus above: which rows have
-  // actually FAILED versus which are merely not done yet. Only the rows the
-  // tool itself adjudicates can reach 'fail'; an inconclusive or in-flight
-  // scan stays 'pending'. See VALIDATION_CHIP.
-  const validationState: Record<string, ValidationState> = {
-    school: validationStatus.school ? 'pass' : 'pending',
-    files: validationStatus.files ? 'pass' : 'pending',
-    filesize: validationStatus.filesize ? 'pass' : filled.length > 0 && !compressing ? 'fail' : 'pending',
-    // A video is exempt from the pixel minimum but not the 30-second limit.
-    dims: validationStatus.dims ? 'pass' : compressing ? 'pending' : (filled.some(i => (i.kind === 'video' ? !lengthOk(i) : !!i.dims && !dimsOk(i))) ? 'fail' : 'pending'),
-    no_overlays: validationStatus.no_overlays ? 'pass'
-      : filled.some(scanFailed) ? 'fail'
-      : filled.some(needsConfirm) ? 'confirm'
-      : 'pending',
-    nav_clearance: validationStatus.nav_clearance ? 'pass'
-      : (filled.some(i => i.scanState === 'done' && !!i.scanResult && !i.scanResult.nav_clearance_pass) ? 'fail' : 'pending'),
-    title: validationStatus.title ? 'pass' : 'pending',
-    alt: validationStatus.alt ? 'pass' : 'pending',
-    approvals: validationStatus.approvals ? 'pass' : 'pending',
-    final_ack: validationStatus.final_ack ? 'pass' : 'pending',
+  const requestState: Record<string, ValidationState> = {
+    school: selectedSchool ? 'pass' : 'pending',
+    approvals: checks.media_release && checks.faces_visible ? 'pass' : 'pending',
+    final_ack: checks.final_ack ? 'pass' : 'pending',
   }
-
-  // Why a row failed, printed under it, so the checklist itself says what is
-  // blocking (Sean, 2026-10-23).
-  const validationReason: Record<string, string> = {
-    filesize: filled
-      .map((i, n) => sizeOk(i) ? null : `${filled.length > 1 ? `Banner ${n + 1}: ` : ''}file is ${fileMB(i.file!)} MB, over the ${MAX_MB} MB limit. Export at 1080p (not 4K). Steps are under the file.`)
-      .filter(Boolean).join(' '),
-  }
+  const allValidationPassed = filled.length > 0 && filled.every(bannerPassed) && Object.values(requestState).every(v => v === 'pass')
+  // A new banner opens only once every banner so far has passed its own
+  // checklist (Sean + Vanessa Deslandes, 2026-11-24).
+  const firstUnfinished = items.findIndex(i => !bannerPassed(i))
+  const canAddBanner = items.length < MAX_FILES && firstUnfinished === -1
 
   async function handleSubmitUpload() {
     setUploadNotice(null)
@@ -1020,6 +1042,8 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
       if (i.scanState === 'scanning') { setUploadNotice(`${name}Still running the automated content scan - one moment.`); return }
       if (i.scanState === 'error') { setUploadNotice(`${name}${i.scanError || 'The automated content scan failed - please try re-selecting the file.'}`); return }
       if (!i.scanResult?.no_overlays_pass || !i.scanResult?.nav_clearance_pass) { setUploadNotice(`${name}This image needs to pass the automated content scan before it can be submitted.`); return }
+      if (faceFlagged(i)) { setUploadNotice(`${name}${i.scanResult?.face_reason || 'A face or head is cut off or covered.'} Choose a different photo.`); return }
+      if (!facesOk(i)) { setUploadNotice(`${name}Check the preview and confirm no face is cut off by the top banner or covered by the navigation.`); return }
       if (i.scanResult?.text_detected && !i.inSceneText) { setUploadNotice(`${name}Text was detected - confirm it is part of the actual scene before submitting.`); return }
     }
     if (!allChecked) { setUploadNotice('All requirement checkboxes must be checked before submitting.'); return }
@@ -1054,7 +1078,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
             banner_title: i.title,
             banner_caption: i.caption,
             alt_text: i.alt,
-            checklist_ack: { ...checks, in_scene_text: i.inSceneText },
+            checklist_ack: { ...checks, in_scene_text: i.inSceneText, face_clear: i.faceClear },
             school_location_nbr: selectedSchool,
           }),
         })
@@ -1325,8 +1349,10 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
               const title = active.title.trim()
               const caption = active.caption.trim()
               return (
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Live preview</label>
+              <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
+                {/* Titled and boxed like the banner cards so the note under
+                    it is not lost (Vanessa Deslandes, 2026-11-12). */}
+                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>Page Banner Preview</div>
 
                 <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                   {[{ label: 'Desktop', px: null as number | null }, { label: 'Tablet', px: 768 }, { label: 'Mobile', px: 375 }].map(p => (
@@ -1362,9 +1388,9 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
 
                 <BannerSiteFrame url={displayUrl} kind={displayKind} alt={active.previewUrl ? 'Banner preview' : 'Sample banner placeholder'} title={title} caption={caption} frameRef={previewFrameRef} resizable />
 
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                <div style={{ fontSize: 12.5, color: '#111827', marginTop: 8, lineHeight: 1.45 }}>
                   {active.previewUrl
-                    ? 'This preview mirrors the real school-site header, homepage banner, and navigation, including how they reflow on a smaller screen. Drag the frame’s bottom-right corner (or use the width buttons above) to check narrower widths. Make sure faces and important subjects stay clear of the right-hand nav.'
+                    ? 'This preview mirrors the real school-site header, homepage banner, and navigation, including how they reflow on a smaller screen. Drag the frame’s bottom-right corner (or use the width buttons above) to check narrower widths. Make sure faces and important subjects stay clear of the top banner and the right navigation.'
                     : 'This is a sample image showing how your upload will look on the homepage. Choose a photo or video below and it will replace this placeholder automatically.'}
                 </div>
               </div>
@@ -1387,16 +1413,31 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                   <div style={{ fontSize: 13, fontWeight: 800 }}>
                     Banner {n + 1}
                     {n > 0 && <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}> (optional)</span>}
+                    {it.key !== active.key && it.title.trim() && <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}> &middot; {it.title.trim()}</span>}
                   </div>
-                  {items.length > 1 && (
-                    <button type="button" className="btn-outline" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => removeItem(it.key)}>
-                      Remove
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {items.length > 1 && (() => {
+                      const ok = bannerPassed(it)
+                      return <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: ok ? '#1e6b3a' : '#fdf3e0', color: ok ? '#fff' : '#8a5a00' }}>{ok ? 'Passed' : 'Not finished'}</span>
+                    })()}
+                    {items.length > 1 && it.key !== active.key && (
+                      <button type="button" className="btn-outline" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => setActiveKey(it.key)}>
+                        Open
+                      </button>
+                    )}
+                    {items.length > 1 && (
+                      <button type="button" className="btn-outline" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => removeItem(it.key)}>
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {/* Accordion (Sean + Vanessa Deslandes, 2026-11-24): only the
+                    open banner shows its fields; the others fold to a line. */}
+                {it.key === active.key && (<>
 
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Photo or video{n === 0 ? ' *' : ''}</label>
+                  <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Photo or Video{n === 0 ? ' *' : ''}</label>
                   <input
                     type="file"
                     accept="image/png,image/jpeg,video/mp4"
@@ -1405,20 +1446,6 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                     Image: 1920 x 800 px or larger, same wide shape (the Finalsite homepage banner standard). Video: MP4 only, max 30 seconds, 1080p HD recommended (not 4K).
                   </div>
-                  {/* The size this tool measured, so a Fail on the size row
-                      always says why (Vanessa Deslandes, 2026-10-02). */}
-                  {it.kind === 'image' && it.dims && (
-                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: dimsOk(it) ? '#1e6b3a' : '#a13a2f' }}>
-                      Measured size: {it.dims.width} &times; {it.dims.height} px
-                      {dimsOk(it) ? ' - meets the minimum.' : ` - below the ${MIN_WIDTH} \u00d7 ${MIN_HEIGHT} px minimum.`}
-                    </div>
-                  )}
-                  {it.kind === 'video' && it.duration !== null && (
-                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: lengthOk(it) ? '#1e6b3a' : '#a13a2f' }}>
-                      Video length: {Math.round(it.duration)} seconds
-                      {lengthOk(it) ? ` - within the ${VIDEO_MAX_SECONDS}-second limit.` : ` - over the ${VIDEO_MAX_SECONDS}-second limit.`}
-                    </div>
-                  )}
                   {it.file && it.compress?.state === 'running' && (
                     <CompressProgress fromBytes={it.compress.fromBytes} progress={it.compress.progress} trimming={it.compress.trimmed} />
                   )}
@@ -1452,9 +1479,6 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                       This browser could not trim the video. Trim it to {VIDEO_MAX_SECONDS} seconds in Clipchamp (or try Microsoft Edge or Chrome) and upload it again.
                     </div>
                   )}
-                  {it.file && !sizeOk(it) && (!it.compress || it.compress.state === 'failed') && (
-                    <OversizeAlert file={it.file} kind={it.kind} autoFailed={it.compress?.state === 'failed'} />
-                  )}
                   {it.kind === 'image' && it.dims && (it.orientation ?? 1) >= 5 && (
                     <div style={{ fontSize: 12, marginTop: 4, background: '#fdf3e0', color: '#8a5a00', padding: '6px 10px', borderRadius: 5 }}>
                       This photo has a rotation setting from the camera. Browsers and school websites apply it, so it
@@ -1464,62 +1488,6 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                     </div>
                   )}
                 </div>
-
-                {/* Automated Photo Content Requirements scan - shown right
-                    where it runs, per Sean 2026-09-03. Only once a real file
-                    is selected. */}
-                {it.file && sizeOk(it) && (
-                  <div style={{
-                    borderRadius: 6, padding: '10px 12px', fontSize: 12.5,
-                    background: it.scanState === 'scanning' ? '#f3f4f6'
-                      : it.scanState === 'error' ? '#fbe9e7'
-                      : it.scanState === 'degraded' ? '#fdf3e0'
-                      : !(it.scanResult?.no_overlays_pass && it.scanResult?.nav_clearance_pass) ? '#fbe9e7'
-                      : it.scanResult?.text_detected ? '#fdf3e0' : '#e6f4ea',
-                    color: it.scanState === 'scanning' ? '#4b5563'
-                      : it.scanState === 'error' ? '#a13a2f'
-                      : it.scanState === 'degraded' ? '#8a5a00'
-                      : !(it.scanResult?.no_overlays_pass && it.scanResult?.nav_clearance_pass) ? '#a13a2f'
-                      : it.scanResult?.text_detected ? '#8a5a00' : '#1e6b3a',
-                  }}>
-                    <div style={{ fontWeight: 700, marginBottom: it.scanResult?.reasons?.length ? 4 : 0 }}>
-                      {it.scanState === 'scanning' && 'Scanning image for graphics, text overlays, and nav clearance...'}
-                      {it.scanState === 'error' && `Automated scan failed: ${it.scanError}`}
-                      {it.scanState === 'degraded' && 'Automated scan unavailable for this file - it will be flagged for the District Web Team to review manually.'}
-                      {it.scanState === 'done' && (!(it.scanResult?.no_overlays_pass && it.scanResult?.nav_clearance_pass)
-                        ? 'Automated content scan flagged this image - it cannot be submitted as-is.'
-                        : it.scanResult?.text_detected
-                          ? 'Text detected in this image - please confirm below.'
-                          : 'Automated content scan passed.')}
-                    </div>
-                    {it.scanResult?.reasons && it.scanResult.reasons.length > 0 && (
-                      <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-                        {it.scanResult.reasons.map((r, i) => <li key={i}>{r}</li>)}
-                      </ul>
-                    )}
-                    {/* In-scene text attestation (Vanessa Deslandes, 2026-09-29):
-                        a sign someone is holding is fine; text added on top of
-                        the photo is not. OCR can't tell which, so the WCM says,
-                        and the District Web Team makes the final call. The text
-                        the scanner read is not shown here (Vanessa Deslandes,
-                        2026-10-02: often unreadable); only the review queue
-                        shows it. */}
-                    {it.scanState === 'done' && it.scanResult?.no_overlays_pass && it.scanResult?.text_detected && (
-                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', color: '#4b3200', marginTop: 6 }}>
-                        <input
-                          type="checkbox"
-                          checked={it.inSceneText}
-                          onChange={e => patchItem(it.key, { inSceneText: e.target.checked })}
-                          style={{ marginTop: 2 }}
-                        />
-                        <span>The text is part of the actual scene (a sign or banner in the photo), not added as a graphic. The District Web Team will make the final call.</span>
-                      </label>
-                    )}
-                    {it.scanState === 'done' && it.scanResult?.nav_clearance_note && (
-                      <div style={{ marginTop: 6, fontWeight: 400, color: '#8a5a00' }}>{it.scanResult.nav_clearance_note}</div>
-                    )}
-                  </div>
-                )}
 
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner title *</label>
@@ -1535,6 +1503,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                   <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Alternative text *</label>
                   <input type="text" value={it.alt} onChange={e => patchItem(it.key, { alt: e.target.value })} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                 </div>
+                </>)}
               </div>
             ))}
 
@@ -1551,9 +1520,14 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                   Optional. One photo or video is all you need to submit. If you have more for your school&apos;s homepage,
                   you can add up to {MAX_FILES} in this request ({MAX_FILES - items.length} more available).
                 </div>
-                <button type="button" className="btn-primary" onClick={addItem} style={{ justifySelf: 'start', fontSize: 12.5, padding: '7px 14px' }}>
+                <button type="button" className="btn-primary" onClick={addItem} disabled={!canAddBanner} style={{ justifySelf: 'start', fontSize: 12.5, padding: '7px 14px' }}>
                   + Add another banner
                 </button>
+                {!canAddBanner && firstUnfinished >= 0 && (
+                  <div style={{ fontSize: 12, color: '#8a5a00', fontWeight: 600 }}>
+                    Pending: Banner {firstUnfinished + 1} must pass every row in its checklist before you can add another.
+                  </div>
+                )}
               </div>
             )}
 
@@ -1592,26 +1566,77 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
             <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, padding: 16, position: 'sticky', top: 12 }}>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Validation checklist</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
-                All items must pass before review{filled.length > 1 ? `, for all ${filled.length} banners` : ''}.
+                All items must pass before review{items.length > 1 ? '. Each banner has its own checklist.' : '.'}
               </div>
-              {VALIDATION_CHECKLIST.map(v => {
-                const chip = VALIDATION_CHIP[validationState[v.key]]
+              {(() => {
+                const label = (k: string) => VALIDATION_CHECKLIST.find(v => v.key === k)!.label
+                // The face Confirm lives in its own checklist row, so the WCM
+                // does not have to find a second box under the photo (Sean +
+                // Vanessa Deslandes, 2026-11-24).
+                const faceConfirm = (k: string, st: ValidationState) =>
+                  k === 'nav_clearance' && !!active.file && (st === 'review' || (st === 'pass' && active.faceClear))
+                const row = (k: string, st: ValidationState, why?: string) => {
+                  const chip = VALIDATION_CHIP[st]
+                  return (
+                    <div key={k} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8,
+                      background: chip.bg, color: chip.fg, boxShadow: chip.ring,
+                      borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: 12.5, fontWeight: 600,
+                    }}>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        {label(k)}
+                        {why && (
+                          <span style={{ display: 'block', fontWeight: 500, fontSize: 12, marginTop: 3 }}>{why}</span>
+                        )}
+                        {k === 'filesize' && st === 'fail' && <SizeFixSteps kind={active.kind} />}
+                        {k === 'no_overlays' && st === 'confirm' && (
+                          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontWeight: 500, fontSize: 12, marginTop: 6, background: '#fff', color: '#1f2937', borderRadius: 5, padding: '6px 8px' }}>
+                            <input type="checkbox" checked={active.inSceneText} onChange={e => patchItem(active.key, { inSceneText: e.target.checked })} style={{ marginTop: 2 }} />
+                            <span><strong>Confirm:</strong> the text is part of the actual scene (a sign or banner in the photo), not added as a graphic.</span>
+                          </label>
+                        )}
+                        {faceConfirm(k, st) && (
+                          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontWeight: 500, fontSize: 12, marginTop: 6, background: '#fff', color: '#1f2937', borderRadius: 5, padding: '6px 8px' }}>
+                            <input
+                              type="checkbox"
+                              checked={active.faceClear}
+                              onChange={e => patchItem(active.key, { faceClear: e.target.checked })}
+                              style={{ marginTop: 2 }}
+                            />
+                            <span><strong>Confirm:</strong> I checked the preview. No face or head is cut off by the top banner or covered by the right navigation.</span>
+                          </label>
+                        )}
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{chip.label}{st === 'checking' && <CheckingDots />}</span>
+                    </div>
+                  )
+                }
+                const open = bannerChecks(active)
+                const openIndex = items.findIndex(i => i.key === active.key)
                 return (
-                  <div key={v.key} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
-                    background: chip.bg, color: chip.fg, boxShadow: chip.ring,
-                    borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: 12.5, fontWeight: 600,
-                  }}>
-                    <span>
-                      {v.label}
-                      {validationState[v.key] === 'fail' && validationReason[v.key] && (
-                        <span style={{ display: 'block', fontWeight: 500, fontSize: 12, marginTop: 3 }}>{validationReason[v.key]}</span>
-                      )}
-                    </span>
-                    <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{chip.label}</span>
-                  </div>
+                  <>
+                    {row('school', requestState.school)}
+                    {items.length > 1 && (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '4px 0 8px' }}>
+                        {items.map((it, n) => {
+                          const ok = bannerPassed(it)
+                          return (
+                            <button key={it.key} type="button" onClick={() => setActiveKey(it.key)}
+                              className={it.key === active.key ? 'btn-primary' : 'btn-outline'}
+                              style={{ fontSize: 11, padding: '4px 10px' }}>
+                              Banner {n + 1}: {ok ? 'Passed' : 'Not finished'}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#0a3764', margin: '6px 0 6px' }}>Banner {openIndex + 1}</div>
+                    {BANNER_ROWS.map(k => row(k, open.state[k], open.reason[k]))}
+                    {row('approvals', requestState.approvals)}
+                    {row('final_ack', requestState.final_ack)}
+                  </>
                 )
-              })}
+              })()}
               <button
                 className="btn-primary"
                 disabled={submitting || !allValidationPassed}
@@ -1634,6 +1659,19 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
                 Up to {MAX_FILES} banners per request. Each banner is reviewed on its own.
+              </div>
+              {/* One help button for the whole form, not one per row; school
+                  questions go to Incident IQ so the team can track them
+                  (Sean + Vanessa Deslandes, 2026-11-24). */}
+              <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#0a3764' }}>Need help?</div>
+                <div style={{ fontSize: 12, color: '#1f2937', margin: '4px 0 8px', lineHeight: 1.45 }}>
+                  Submit an Incident IQ ticket to the District Web Team. Say which school and banner it is about.
+                </div>
+                <a href="https://browardschools.incidentiq.com/" target="_blank" rel="noopener noreferrer" className="btn-outline"
+                  style={{ display: 'inline-block', fontSize: 12.5, padding: '7px 14px', textDecoration: 'none' }}>
+                  Open Incident IQ
+                </a>
               </div>
             </div>
           </div>
@@ -1790,6 +1828,15 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                         Text detected by the scanner (may be inaccurate): {r.content_scan.text_reason.replace(/^Text overlay detected:\s*/, '')}
                       </div>
                     )}
+                  </div>
+                )}
+                {r.type === 'upload' && (
+                  <div style={{ marginTop: 8, fontSize: 12, background: r.checklist_ack?.face_clear ? '#eaf1f8' : '#fdf3e0', color: r.checklist_ack?.face_clear ? '#0a3764' : '#8a5a00', padding: '6px 10px', borderRadius: 5 }}>
+                    <strong>Check faces</strong> - {r.checklist_ack?.face_clear
+                      ? r.content_scan?.face_check === 'borderline'
+                        ? `Automatic check asked for a closer look: ${r.content_scan.face_reason || 'someone is partly cut off.'} The WCM confirmed it is fine. Look at the top and right side before you approve.`
+                        : `${r.content_scan?.face_check === 'clear' ? 'Automatic check found no problem and the WCM confirmed' : 'WCM confirmed'} no face is cut off by the top banner or covered by the navigation. Spot check the top and right side.`
+                      : 'not confirmed by the WCM (sent before the face check). Check the top and right side.'}
                   </div>
                 )}
                 {r.type === 'upload' && r.signed_url && (
