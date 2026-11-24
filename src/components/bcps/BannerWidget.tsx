@@ -344,43 +344,45 @@ function CharCount({ value, max }: { value: string; max: number }) {
 // make a file smaller). Clipchamp is the District-supported editor; Stream
 // cannot shrink a file (its trim only hides parts from viewers), so a Stream
 // video is downloaded and re-exported in Clipchamp.
-function OversizeAlert({ file, kind, autoFailed }: { file: File; kind: 'image' | 'video' | null; autoFailed?: boolean }) {
-  return (
-    <div role="alert" style={{ marginTop: 8, background: '#fbe9e7', color: '#a13a2f', border: '2px solid #a13a2f', borderRadius: 6, padding: '10px 12px', fontSize: 12.5 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 13.5 }}>
-        <span style={{ background: '#a13a2f', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 999 }}>Error</span>
-        File is over the {MAX_MB} MB limit
+// How to make an over-limit file smaller, shown inside the file-size row of
+// the checklist (Sean + Vanessa Deslandes, 2026-11-24: results live in the
+// right column only).
+function SizeFixSteps({ kind }: { kind: 'image' | 'video' | null }) {
+  return kind === 'video' ? (
+    <div style={{ marginTop: 6, lineHeight: 1.5, color: '#1f2937', fontWeight: 500 }}>
+      <div style={{ fontWeight: 700 }}>In Clipchamp (sign in with your District Microsoft account):</div>
+      <ol style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+        <li>Open Clipchamp and select <strong>Create a new video</strong>.</li>
+        <li>Select <strong>Import media</strong>, choose this video, and drag it onto the timeline.</li>
+        <li>Trim it to {VIDEO_MAX_SECONDS} seconds or less if it is longer. A shorter clip is also a smaller file.</li>
+        <li>Select <strong>Export</strong> (top right) and choose <strong>1080p</strong>. Do not choose 4K.</li>
+        <li>Upload the new file here. If it is still over {MAX_MB} MB, shorten the clip, or export again at <strong>720p</strong>.</li>
+      </ol>
+      <div style={{ marginTop: 6 }}>
+        <strong>Video saved in Stream?</strong> Stream cannot make a file smaller. Download the video from Stream
+        (select <strong>...</strong> then <strong>Download</strong>), then follow the Clipchamp steps above.
       </div>
-      <div style={{ marginTop: 6, fontWeight: 600 }}>
-        This file is {fileMB(file)} MB. It cannot be submitted until it is {MAX_MB} MB or less.
-        {autoFailed && ' We tried to shrink it automatically, but this browser could not. Use Microsoft Edge or Chrome, or follow the steps below.'}
-      </div>
-      <details open style={{ marginTop: 8, color: '#1f2937' }}>
-        <summary style={{ fontWeight: 700, cursor: 'pointer', color: '#a13a2f' }}>How to make this file smaller</summary>
-        {kind === 'video' ? (
-          <div style={{ marginTop: 6, lineHeight: 1.5 }}>
-            <div style={{ fontWeight: 700 }}>In Clipchamp (sign in with your District Microsoft account):</div>
-            <ol style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-              <li>Open Clipchamp and select <strong>Create a new video</strong>.</li>
-              <li>Select <strong>Import media</strong>, choose this video, and drag it onto the timeline.</li>
-              <li>Trim it to {VIDEO_MAX_SECONDS} seconds or less if it is longer. A shorter clip is also a smaller file.</li>
-              <li>Select <strong>Export</strong> (top right) and choose <strong>1080p</strong>. Do not choose 4K.</li>
-              <li>Upload the new file here. If it is still over {MAX_MB} MB, shorten the clip, or export again at <strong>720p</strong>.</li>
-            </ol>
-            <div style={{ marginTop: 6 }}>
-              <strong>Video saved in Stream?</strong> Stream cannot make a file smaller. Download the video from Stream
-              (select <strong>...</strong> then <strong>Download</strong>), then follow the Clipchamp steps above.
-            </div>
-          </div>
-        ) : (
-          <div style={{ marginTop: 6, lineHeight: 1.5 }}>
-            Save the photo as a <strong>JPG</strong> instead of PNG (open it in Photos or Paint and use <strong>Save as</strong>),
-            or resize it to about 2400 px wide. Upload the new copy here.
-          </div>
-        )}
-      </details>
+    </div>
+  ) : (
+    <div style={{ marginTop: 6, lineHeight: 1.5, color: '#1f2937', fontWeight: 500 }}>
+      Save the photo as a <strong>JPG</strong> instead of PNG (open it in Photos or Paint and use <strong>Save as</strong>),
+      or resize it to about 2400 px wide. Upload the new copy here.
     </div>
   )
+}
+
+// What each checklist row checks and how to meet it, in the row's dropdown.
+const ROW_HELP: Record<string, string> = {
+  school: 'Pick the school this banner is for. If your school is not in the list, ask the District Web Team below.',
+  files: 'Choose one photo (JPG or PNG) or one MP4 video for this banner.',
+  filesize: `The file must be ${50} MB or less. Export videos at 1080p, not 4K. A large video is shrunk for you automatically when the browser can.`,
+  dims: 'Photos must be at least 1920 x 800 px and wide like the homepage banner. Videos can be up to 30 seconds.',
+  no_overlays: 'Nothing can be added on top of the photo: no words, titles, logos, borders or graphics. Text that is part of the scene, like shirts, ribbons or signs people hold, is fine.',
+  nav_clearance: 'On the homepage, the top banner and the right navigation sit over the photo. No face or head can be cut off or covered. Look at the Page Banner Preview, then confirm.',
+  title: 'A short title for the banner, up to 40 characters.',
+  alt: 'Describe the photo for people who use screen readers, for example: "Students holding their medals after the 5K."',
+  approvals: 'Confirm media releases are on file for every student shown, and that no face was blurred, erased or covered.',
+  final_ack: 'Confirm the banner follows the District guidelines before you submit.',
 }
 
 function CompressProgress({ fromBytes, progress, trimming }: { fromBytes: number; progress: number; trimming: boolean }) {
@@ -593,6 +595,12 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
   // check and the scan (no frame pipeline yet) and is flagged for review.
   const [items, setItems] = useState<BannerItem[]>(() => [newBannerItem()])
   const [activeKey, setActiveKey] = useState<string | null>(null)
+  // Checklist row dropdowns and "Still stuck?" (Sean + Vanessa Deslandes,
+  // 2026-11-24, from the audit's pattern).
+  const [openHelp, setOpenHelp] = useState<string | null>(null)
+  const [stuckText, setStuckText] = useState('')
+  const [stuckSending, setStuckSending] = useState(false)
+  const [stuckNotice, setStuckNotice] = useState<{ row: string; ok: boolean; text: string } | null>(null)
   const active = items.find(i => i.key === activeKey) ?? items[0]
   const itemsRef = useRef(items)
   itemsRef.current = items
@@ -1006,8 +1014,18 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
       alt: i.alt.trim() ? 'pass' : 'pending',
     }
     const reason: Record<string, string> = {}
-    if (state.filesize === 'fail' && i.file) reason.filesize = `File is ${fileMB(i.file)} MB, over the ${MAX_MB} MB limit. Export at 1080p (not 4K). Steps are under the file.`
+    if (state.filesize === 'fail' && i.file) reason.filesize = `This file is ${fileMB(i.file)} MB, over the ${MAX_MB} MB limit.${i.compress?.state === 'failed' ? ' This browser could not shrink it automatically.' : ''} How to make it smaller:`
+    if (i.kind === 'image' && i.dims) reason.dims = dimsOk(i)
+      ? `Measured ${i.dims.width} x ${i.dims.height} px.`
+      : `This photo is ${i.dims.width} x ${i.dims.height} px, below the ${MIN_WIDTH} x ${MIN_HEIGHT} px minimum. Choose a larger photo.`
+    if (i.kind === 'video' && i.duration !== null) reason.dims = lengthOk(i)
+      ? `Video is ${Math.round(i.duration)} seconds.`
+      : `This video is ${Math.round(i.duration)} seconds, over the ${VIDEO_MAX_SECONDS}-second limit.`
     if (state.no_overlays === 'fail') reason.no_overlays = (i.scanResult?.reasons || []).join(' ')
+    else if (i.scanState === 'error') reason.no_overlays = i.scanError || 'The automatic check failed. Choose the file again.'
+    else if (i.scanState === 'degraded') reason.no_overlays = 'The automatic check could not run on this file. The District Web Team will check it by eye.'
+    else if (state.no_overlays === 'confirm') reason.no_overlays = 'Text was found in this photo. Confirm below if it is part of the scene, like a sign someone is holding.'
+    else if (state.no_overlays === 'checking') reason.no_overlays = 'Checking for faces, added text and graphics. This takes a few seconds.'
     if (state.nav_clearance === 'fail') reason.nav_clearance = `${i.scanResult?.face_reason || 'A face or head is cut off or covered.'} Choose a different photo.`
     else if (state.nav_clearance === 'review') reason.nav_clearance = faceBorderline(i)
       ? `${i.scanResult?.face_reason || 'Someone is partly cut off.'} Look at the preview and decide: check Confirm below, or choose a different photo.`
@@ -1026,6 +1044,34 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
   // checklist (Sean + Vanessa Deslandes, 2026-11-24).
   const firstUnfinished = items.findIndex(i => !bannerPassed(i))
   const canAddBanner = items.length < MAX_FILES && firstUnfinished === -1
+
+  // "Still stuck?" from a checklist row: opens a conversation in Messages,
+  // tagged with the school, banner and row; the team is emailed and the WCM
+  // gets a receipt (see /api/bcps/messages startConversation).
+  async function askWebTeam(rowKey: string, rowLabel: string) {
+    const text = stuckText.trim()
+    if (text.length < 3) return
+    setStuckSending(true)
+    setStuckNotice(null)
+    const n = items.findIndex(i => i.key === active.key) + 1
+    const school = schools.find(sc => sc.loc_no === selectedSchool)?.school_name || 'No school selected'
+    const topic = `Banner Submissions · ${school} · Banner ${n} · ${rowLabel}`
+    const fileLine = active.file ? `\n\nFile: ${active.file.name}` : ''
+    try {
+      const res = await authedFetch('/api/bcps/messages', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'new', topic, message: `${text}${fileLine}` }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Could not send.')
+      setStuckText('')
+      setStuckNotice({ row: rowKey, ok: true, text: data.receipt ? 'Sent to the District Web Team. A receipt is on its way to your email.' : 'Sent to the District Web Team.' })
+    } catch (e: any) {
+      setStuckNotice({ row: rowKey, ok: false, text: e?.message || 'Could not send. Try again.' })
+    } finally {
+      setStuckSending(false)
+    }
+  }
 
   async function handleSubmitUpload() {
     setUploadNotice(null)
@@ -1446,28 +1492,6 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                     Image: 1920 x 800 px or larger, same wide shape (the Finalsite homepage banner standard). Video: MP4 only, max 30 seconds, 1080p HD recommended (not 4K).
                   </div>
-                  {/* The size this tool measured, so a Fail on the size row
-                      always says why (Vanessa Deslandes, 2026-10-02). */}
-                  {it.kind === 'image' && it.dims && (dimsOk(it) ? (
-                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: '#1e6b3a' }}>
-                      Measured size: {it.dims.width} &times; {it.dims.height} px - meets the minimum.
-                    </div>
-                  ) : (
-                    // A clear red error box, with room around it (Vanessa
-                    // Deslandes, 2026-11-12).
-                    <div role="alert" style={{ marginTop: 10, marginBottom: 4, background: '#fbe9e7', color: '#a13a2f', border: '1px solid #e8a79c', borderRadius: 6, padding: '10px 12px', fontSize: 12.5 }}>
-                      <div style={{ fontWeight: 800 }}>Error: measured size does not meet the requirement</div>
-                      <div style={{ marginTop: 4 }}>
-                        This photo is {it.dims.width} &times; {it.dims.height} px, below the {MIN_WIDTH} &times; {MIN_HEIGHT} px minimum. Choose a larger photo.
-                      </div>
-                    </div>
-                  ))}
-                  {it.kind === 'video' && it.duration !== null && (
-                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: lengthOk(it) ? '#1e6b3a' : '#a13a2f' }}>
-                      Video length: {Math.round(it.duration)} seconds
-                      {lengthOk(it) ? ` - within the ${VIDEO_MAX_SECONDS}-second limit.` : ` - over the ${VIDEO_MAX_SECONDS}-second limit.`}
-                    </div>
-                  )}
                   {it.file && it.compress?.state === 'running' && (
                     <CompressProgress fromBytes={it.compress.fromBytes} progress={it.compress.progress} trimming={it.compress.trimmed} />
                   )}
@@ -1501,9 +1525,6 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                       This browser could not trim the video. Trim it to {VIDEO_MAX_SECONDS} seconds in Clipchamp (or try Microsoft Edge or Chrome) and upload it again.
                     </div>
                   )}
-                  {it.file && !sizeOk(it) && (!it.compress || it.compress.state === 'failed') && (
-                    <OversizeAlert file={it.file} kind={it.kind} autoFailed={it.compress?.state === 'failed'} />
-                  )}
                   {it.kind === 'image' && it.dims && (it.orientation ?? 1) >= 5 && (
                     <div style={{ fontSize: 12, marginTop: 4, background: '#fdf3e0', color: '#8a5a00', padding: '6px 10px', borderRadius: 5 }}>
                       This photo has a rotation setting from the camera. Browsers and school websites apply it, so it
@@ -1513,59 +1534,6 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                     </div>
                   )}
                 </div>
-
-                {/* Automated Photo Content Requirements scan - shown right
-                    where it runs, per Sean 2026-09-03. Only once a real file
-                    is selected. */}
-                {it.file && sizeOk(it) && (
-                  <div style={{
-                    borderRadius: 6, padding: '10px 12px', fontSize: 12.5,
-                    background: it.scanState === 'scanning' ? '#f3f4f6'
-                      : it.scanState === 'error' ? '#fbe9e7'
-                      : it.scanState === 'degraded' ? '#fdf3e0'
-                      : !(it.scanResult?.no_overlays_pass && it.scanResult?.nav_clearance_pass) ? '#fbe9e7'
-                      : it.scanResult?.text_detected ? '#fdf3e0' : '#e6f4ea',
-                    color: it.scanState === 'scanning' ? '#4b5563'
-                      : it.scanState === 'error' ? '#a13a2f'
-                      : it.scanState === 'degraded' ? '#8a5a00'
-                      : !(it.scanResult?.no_overlays_pass && it.scanResult?.nav_clearance_pass) ? '#a13a2f'
-                      : it.scanResult?.text_detected ? '#8a5a00' : '#1e6b3a',
-                  }}>
-                    <div style={{ fontWeight: 700, marginBottom: it.scanResult?.reasons?.length ? 4 : 0 }}>
-                      {it.scanState === 'scanning' && <>Checking your photo for faces, added text and graphics<CheckingDots /> This takes a few seconds.</>}
-                      {it.scanState === 'error' && `Automated scan failed: ${it.scanError}`}
-                      {it.scanState === 'degraded' && 'Automated scan unavailable for this file - it will be flagged for the District Web Team to review manually.'}
-                      {it.scanState === 'done' && (!(it.scanResult?.no_overlays_pass && it.scanResult?.nav_clearance_pass)
-                        ? 'Automated content scan flagged this image - it cannot be submitted as-is.'
-                        : it.scanResult?.text_detected
-                          ? 'Text detected in this image - please confirm below.'
-                          : 'No graphics, borders, or text overlays found.')}
-                    </div>
-                    {it.scanResult?.reasons && it.scanResult.reasons.length > 0 && (
-                      <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-                        {it.scanResult.reasons.map((r, i) => <li key={i}>{r}</li>)}
-                      </ul>
-                    )}
-                    {/* In-scene text attestation (Vanessa Deslandes, 2026-09-29):
-                        a sign someone is holding is fine; text added on top of
-                        the photo is not. OCR can't tell which, so the WCM says,
-                        and the District Web Team makes the final call. The text
-                        the scanner read is not shown here (Vanessa Deslandes,
-                        2026-10-02: often unreadable); only the review queue
-                        shows it. */}
-                    {it.scanState === 'done' && it.scanResult?.no_overlays_pass && it.scanResult?.text_detected && (
-                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', color: '#4b3200', marginTop: 6 }}>
-                        <input
-                          type="checkbox"
-                          checked={it.inSceneText}
-                          onChange={e => patchItem(it.key, { inSceneText: e.target.checked })}
-                          style={{ marginTop: 2 }}
-                        />
-                        <span>The text is part of the actual scene (a sign or banner in the photo), not added as a graphic. The District Web Team will make the final call.</span>
-                      </label>
-                    )}
-                  </div>
-                )}
 
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner title *</label>
@@ -1661,10 +1629,17 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                       background: chip.bg, color: chip.fg, boxShadow: chip.ring,
                       borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: 12.5, fontWeight: 600,
                     }}>
-                      <span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
                         {label(k)}
-                        {(st === 'fail' || st === 'review') && why && (
+                        {why && (
                           <span style={{ display: 'block', fontWeight: 500, fontSize: 12, marginTop: 3 }}>{why}</span>
+                        )}
+                        {k === 'filesize' && st === 'fail' && <SizeFixSteps kind={active.kind} />}
+                        {k === 'no_overlays' && st === 'confirm' && (
+                          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontWeight: 500, fontSize: 12, marginTop: 6, background: '#fff', color: '#1f2937', borderRadius: 5, padding: '6px 8px' }}>
+                            <input type="checkbox" checked={active.inSceneText} onChange={e => patchItem(active.key, { inSceneText: e.target.checked })} style={{ marginTop: 2 }} />
+                            <span><strong>Confirm:</strong> the text is part of the actual scene (a sign or banner in the photo), not added as a graphic.</span>
+                          </label>
                         )}
                         {faceConfirm(k, st) && (
                           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontWeight: 500, fontSize: 12, marginTop: 6, background: '#fff', color: '#1f2937', borderRadius: 5, padding: '6px 8px' }}>
@@ -1677,8 +1652,31 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                             <span><strong>Confirm:</strong> I checked the preview. No face or head is cut off by the top banner or covered by the right navigation.</span>
                           </label>
                         )}
+                        {openHelp === k && (
+                          <span style={{ display: 'block', marginTop: 8, background: '#fff', color: '#1f2937', borderRadius: 5, padding: '8px 10px', fontWeight: 500, fontSize: 12, lineHeight: 1.45 }}>
+                            <span style={{ display: 'block' }}>{ROW_HELP[k]}</span>
+                            <span style={{ display: 'block', fontWeight: 800, marginTop: 8, color: '#0a3764' }}>Still stuck? Ask the District Web Team</span>
+                            <textarea value={stuckText} onChange={e => setStuckText(e.target.value)} rows={3}
+                              placeholder="Type your question. We will reply by email and in Messages."
+                              style={{ width: '100%', boxSizing: 'border-box', marginTop: 4, fontSize: 12, padding: 6, borderRadius: 4, border: '1px solid var(--border)', fontFamily: 'inherit' }} />
+                            <button type="button" className="btn-primary" disabled={stuckSending || stuckText.trim().length < 3}
+                              onClick={() => askWebTeam(k, label(k))} style={{ fontSize: 12, padding: '5px 12px', marginTop: 4 }}>
+                              {stuckSending ? 'Sending...' : 'Send question'}
+                            </button>
+                            {stuckNotice && stuckNotice.row === k && (
+                              <span style={{ display: 'block', marginTop: 6, fontWeight: 600, color: stuckNotice.ok ? '#1e6b3a' : '#a13a2f' }}>{stuckNotice.text}</span>
+                            )}
+                          </span>
+                        )}
                       </span>
-                      <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{chip.label}{st === 'checking' && <CheckingDots />}</span>
+                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800 }}>{chip.label}{st === 'checking' && <CheckingDots />}</span>
+                        <button type="button" aria-expanded={openHelp === k} aria-label={`Help with: ${label(k)}`}
+                          onClick={() => { setOpenHelp(openHelp === k ? null : k); setStuckNotice(null) }}
+                          style={{ fontSize: 11, fontWeight: 700, background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                          {openHelp === k ? 'Close' : 'Help'}
+                        </button>
+                      </span>
                     </div>
                   )
                 }

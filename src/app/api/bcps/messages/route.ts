@@ -376,17 +376,41 @@ async function startConversation(viewer: Viewer, body: any) {
     return NextResponse.json({ ok: true, id: row.id, emailed: result.ok, staff_started: true })
   }
 
+  // Where the question came from (Sean + Vanessa Deslandes, 2026-11-24):
+  // "Still stuck?" in the Banner Submission tool opens a conversation tagged
+  // with the tool, school, banner and checklist row. Banner questions also
+  // go to the banner admins (Vanessa), not only the general inbox.
+  const topic = String(body?.topic || '').trim().slice(0, 200)
+  const fromBanner = topic.startsWith('Banner Submissions')
+  let notify: string[] = [...INBOX_NOTIFY_EMAILS]
+  if (fromBanner) {
+    const { data: admins } = await svc.from('bcps_banner_admins').select('email')
+    notify = Array.from(new Set([...notify, ...(admins ?? []).map(a => String(a.email || '').toLowerCase()).filter(Boolean)]))
+  }
   const { data: row, error } = await svc.from('wcm_pilot_feedback').insert({
-    user_id: viewer.userId, email: viewer.email || null, page: 'Messages',
+    user_id: viewer.userId, email: viewer.email || null, page: topic || 'Messages',
     message: text, member_read_at: now, last_activity_at: now,
   }).select('id').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const topicHtml = topic ? `<p><strong>About:</strong> ${escapeHtml(topic)}</p>` : ''
   const result = await sendEmail({
-    to: INBOX_NOTIFY_EMAILS,
-    subject: `New message on bcpsmarcomm.com from ${viewer.email || 'a member'}`,
+    to: notify,
+    subject: `${fromBanner ? 'Banner question' : 'New message'} on bcpsmarcomm.com from ${viewer.email || 'a member'}`,
     replyTo: viewer.email || undefined,
-    html: `<p><strong>From:</strong> ${escapeHtml(viewer.email || 'not identified')}</p><p style="white-space:pre-wrap">${safe}</p><p><a href="${conversationUrl(row.id)}">Open in Messages</a></p>`,
+    html: `<p><strong>From:</strong> ${escapeHtml(viewer.email || 'not identified')}</p>${topicHtml}<p style="white-space:pre-wrap">${safe}</p><p><a href="${conversationUrl(row.id)}">Open in Messages</a></p>`,
   })
   await svc.from('wcm_pilot_feedback').update({ notified_at: now, notify_error: result.ok ? null : result.error }).eq('id', row.id)
-  return NextResponse.json({ ok: true, id: row.id, emailed: result.ok })
+  // Receipt to the sender (Sean + Vanessa Deslandes, 2026-11-24): every
+  // member who writes in gets an email saying it reached the team.
+  let receipt = false
+  if (viewer.email) {
+    const r = await sendEmail({
+      to: viewer.email,
+      subject: 'We received your message - bcpsmarcomm.com',
+      kind: 'message-receipt',
+      html: `<p>Hi,</p><p>Your message reached the District Web Team. We will reply by email and in Messages on bcpsmarcomm.com.</p>${topicHtml}<p><strong>Your message:</strong></p><p style="white-space:pre-wrap;border-left:3px solid #0a3764;padding-left:10px">${safe}</p><p><a href="${conversationUrl(row.id)}">Open this conversation in Messages</a></p><p>District Web Team</p>`,
+    })
+    receipt = r.ok
+  }
+  return NextResponse.json({ ok: true, id: row.id, emailed: result.ok, receipt })
 }
