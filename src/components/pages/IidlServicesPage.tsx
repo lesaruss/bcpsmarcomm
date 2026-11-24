@@ -28,6 +28,8 @@ interface Service {
   booking_note: string | null
   audience: string | null
   service_url: string | null
+  extra_link_label: string | null
+  extra_link_url: string | null
   review_note: string | null
   sort_order: number
 }
@@ -44,6 +46,7 @@ const BLUE = '#1672A7'
 const EMPTY_NEW = {
   name: '', unit_slug: '', description: '', contact_name: '', contact_title: '', contact_email: '',
   contact_phone: '', contact_address: '', booking_url: '', booking_note: '', audience: '', service_url: '',
+  extra_link_label: '', extra_link_url: '',
 }
 
 // Matches the audience check constraint on bcps_iidl_services: school is
@@ -232,6 +235,12 @@ export default function IidlServicesPage() {
             <input style={C.input} placeholder="Service page URL (replaces the Unit page link)" aria-label="Service page URL" disabled={busy}
               value={editVal(s, 'service_url')} onChange={e => setEdit(s.id, 'service_url', e.target.value)} />
           </div>
+          <div style={C.row}>
+            <input style={C.input} placeholder="Extra button label (e.g. Find Your ITF)" aria-label="Extra button label" disabled={busy}
+              value={editVal(s, 'extra_link_label')} onChange={e => setEdit(s.id, 'extra_link_label', e.target.value)} />
+            <input style={C.input} placeholder="Extra button URL (orange button; needs a label too)" aria-label="Extra button URL" disabled={busy}
+              value={editVal(s, 'extra_link_url')} onChange={e => setEdit(s.id, 'extra_link_url', e.target.value)} />
+          </div>
           <textarea style={{ ...C.input, minHeight: 44, resize: 'vertical', marginBottom: 8 }} placeholder="What the booking session covers (shown above the button)"
             aria-label="Booking note" disabled={busy}
             value={editVal(s, 'booking_note')} onChange={e => setEdit(s.id, 'booking_note', e.target.value)} />
@@ -293,6 +302,12 @@ export default function IidlServicesPage() {
                 onChange={e => setNewService({ ...newService, booking_url: e.target.value })} />
               <input style={C.input} placeholder="Service page URL (replaces the Unit page link)" aria-label="New service page URL" value={newService.service_url}
                 onChange={e => setNewService({ ...newService, service_url: e.target.value })} />
+            </div>
+            <div style={C.row}>
+              <input style={C.input} placeholder="Extra button label (e.g. Find Your ITF)" aria-label="New extra button label" value={newService.extra_link_label}
+                onChange={e => setNewService({ ...newService, extra_link_label: e.target.value })} />
+              <input style={C.input} placeholder="Extra button URL" aria-label="New extra button URL" value={newService.extra_link_url}
+                onChange={e => setNewService({ ...newService, extra_link_url: e.target.value })} />
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <textarea style={{ ...C.input, flex: '1 1 260px', minHeight: 44, resize: 'vertical' }} placeholder="What the booking session covers"
