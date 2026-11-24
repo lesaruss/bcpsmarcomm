@@ -54,7 +54,9 @@
 
 import path from 'path'
 import sharp from 'sharp'
+import Anthropic from '@anthropic-ai/sdk'
 import { createWorker } from 'tesseract.js'
+import { anthropicKey } from '@/lib/anthropic-key'
 
 export interface BannerScanResult {
   no_overlays_pass: boolean
@@ -67,6 +69,14 @@ export interface BannerScanResult {
   // frames stay hard blocks via no_overlays_pass / reasons.
   text_detected?: boolean
   text_reason?: string
+  // Face check (Sean + Vanessa Deslandes, 2026-11-24): Claude Haiku looks at
+  // the photo the way the school site shows it and says whether a face or
+  // head is cut off or covered. 'problem' fails the row (the WCM picks
+  // another photo, or says the check is wrong and the Web Team decides);
+  // 'clear' and 'unknown' still need the WCM's own Confirm. Never a block
+  // on its own when the check could not run.
+  face_check?: 'clear' | 'problem' | 'unknown'
+  face_reason?: string
   reasons: string[]
   skipped?: boolean
   error?: string
@@ -176,9 +186,73 @@ async function detectBorderOverlay(buffer: Buffer): Promise<{ hit: boolean; reas
   return { hit: false }
 }
 
+// The live homepage banner: the photo is cropped to 1920 x 800 (object-fit
+// cover, centered) and the right-hand nav, solid white button rows, covers
+// the right 22% (BannerSiteFrame in BannerWidget.tsx). The check sees that
+// exact view, nav drawn in, so "covered" means what the WCM sees.
+const FACE_MODEL = 'claude-haiku-5-5'
+const VIEW_W = 1536
+const VIEW_H = 640
+const NAV_FRACTION = 0.22
+
+const FACE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['people_visible', 'problem', 'where', 'explanation'],
+  properties: {
+    people_visible: { type: 'boolean' },
+    problem: { type: 'boolean' },
+    where: { type: 'string', enum: ['none', 'top edge', 'white panel on the right', 'top edge and white panel', 'other edge'] },
+    explanation: { type: 'string' },
+  },
+}
+
+const FACE_SYSTEM = `You check school homepage banner photos before they go live.
+The image is exactly what the website shows: the photo cropped to the banner, with the site's white navigation panel drawn over the right side.
+Decide whether any person's face or head is cut off by the top edge, cut off by another edge, or covered (even partly) by the white panel on the right.
+A problem means a viewer would see a head sliced off, a face cut by the frame, or a face or head behind the white panel. Bodies, hands or backs of heads at an edge, or people far in the background that are only a few pixels tall, are not a problem.
+If no people are visible, there is no problem.
+Write the explanation in one short plain sentence a school staff member will read, for example: "The girl on the left has the top of her head cut off by the top edge." or "No faces are cut off or covered."`
+
+async function checkFaces(buffer: Buffer): Promise<{ check: 'clear' | 'problem' | 'unknown'; reason?: string }> {
+  try {
+    const key = await anthropicKey()
+    if (!key) return { check: 'unknown', reason: 'The automatic face check is not set up on this site.' }
+    const navW = Math.round(VIEW_W * NAV_FRACTION)
+    const view = await sharp(buffer)
+      .rotate()
+      .resize(VIEW_W, VIEW_H, { fit: 'cover', position: 'centre' })
+      .composite([{ input: { create: { width: navW, height: VIEW_H, channels: 3, background: '#ffffff' } }, left: VIEW_W - navW, top: 0 }])
+      .jpeg({ quality: 80 })
+      .toBuffer()
+    const client = new Anthropic({ apiKey: key })
+    const msg = await client.messages.create({
+      model: FACE_MODEL,
+      max_tokens: 4000,
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: FACE_SCHEMA } },
+      system: FACE_SYSTEM,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: view.toString('base64') } },
+          { type: 'text', text: 'Check this banner as shown on the site.' },
+        ],
+      }],
+    })
+    if (msg.stop_reason !== 'end_turn') return { check: 'unknown', reason: 'The automatic face check did not finish for this photo.' }
+    const text = msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('')
+    const out = JSON.parse(text) as { people_visible: boolean; problem: boolean; where: string; explanation: string }
+    return { check: out.problem ? 'problem' : 'clear', reason: out.explanation }
+  } catch (e: any) {
+    console.error('[bannerVision] face check failed:', e?.message || e)
+    return { check: 'unknown', reason: 'The automatic face check could not run for this photo.' }
+  }
+}
+
 export async function analyzeBannerImage(opts: {
   base64: string // raw base64, no data: prefix
   mediaType: string // e.g. image/jpeg
+  faces?: boolean // run the face check (banner photos only)
 }): Promise<BannerScanResult> {
   // nav_clearance_pass stays true here (never a block), but the widget no
   // longer shows it as a Pass: since 2026-11-24 the face row needs the WCM's
@@ -195,9 +269,10 @@ export async function analyzeBannerImage(opts: {
     // originally flagged, just relocated). A genuine failure propagates to
     // the outer catch below, which fails OPEN with the real error attached,
     // not a silent clean bill of health.
-    const [ocr, border] = await Promise.all([
+    const [ocr, border, faces] = await Promise.all([
       detectTextOverlay(buffer),
       detectBorderOverlay(buffer),
+      opts.faces ? checkFaces(buffer) : Promise.resolve(null),
     ])
 
     if (border.hit && border.reason) reasons.push(border.reason)
@@ -208,6 +283,7 @@ export async function analyzeBannerImage(opts: {
       text_reason: ocr.hit ? ocr.reason : undefined,
       nav_clearance_pass: true,
       nav_clearance_note: NAV_NOTE,
+      ...(faces ? { face_check: faces.check, face_reason: faces.reason } : {}),
       reasons,
     }
   } catch (e: any) {

@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const match = file_base64.match(/^data:([a-zA-Z0-9/.+-]+);base64,(.+)$/)
   const raw = match ? match[2] : file_base64
-  const result = await analyzeBannerImage({ base64: raw, mediaType: mime_type })
+  const result = await analyzeBannerImage({ base64: raw, mediaType: mime_type, faces: true })
   if (result.error) {
     // Same fail-open policy as /api/banner/submit: a scanner outage doesn't
     // block the WCM, it flags for manual review. Client shows a distinct
