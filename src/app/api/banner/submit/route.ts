@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/resend'
+import { brandedEmail } from '@/lib/bcps-portal-account'
 import { analyzeBannerImage } from '@/lib/bannerVision'
 import { BANNER_ALLOWED_MIME, BANNER_MAX_BYTES, bannerUploadPrefix } from '@/lib/bannerFiles'
 
@@ -66,39 +67,86 @@ async function verifyCaller(token: string) {
   return user
 }
 
+const QUEUE_URL = 'https://bcpsmarcomm.com/?page=banner-submissions&tab=review'
+const MINE_URL = 'https://bcpsmarcomm.com/?page=banner-submissions&tab=mine'
+const escHtml = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+// On submit (Sean + Vanessa Deslandes, 2026-11-24):
+//  1. the WCM gets a branded confirmation with a link to My Submissions;
+//  2. the District WCM assigned to that school (bcps_school_assignments.
+//     lead_email) gets a branded email AND a Messages notification in BCPS
+//     MarComm (lights their bell), both linking to the review queue. Only
+//     that school's District WCM, not all five; a school with no lead falls
+//     back to every reviewer with notify_on_submit.
 async function notifySubmissionReceived(row: {
   id: string
   banner_title: string | null
   file_name: string | null
   wcm_email: string | null
   school_name: string | null
-}) {
-  // notify_on_submit: only the Application Services reviewers are emailed;
-  // other District Web Team admins review without it (Sean, 2026-10-05).
-  const { data: admins } = await svc.from('bcps_banner_admins').select('email').eq('notify_on_submit', true)
-  const recipients = (admins ?? []).map(a => a.email).filter((e): e is string => !!e)
+}, locNo: string) {
+  const label = row.banner_title || row.file_name || 'a new banner'
+  const school = row.school_name || 'your school'
+
+  // 1. Confirmation to the WCM who submitted.
+  if (row.wcm_email) {
+    await sendEmail({
+      to: row.wcm_email,
+      subject: `Banner received: "${label}" (${school})`,
+      kind: 'banner-submit-receipt',
+      html: brandedEmail({
+        heading: 'We received your banner',
+        body: `<p>Your banner <strong>"${escHtml(label)}"</strong> for <strong>${escHtml(school)}</strong> was submitted to the District Web Team for review.</p><p>Submitting is not approval. You will get an email when it is approved or if changes are needed.</p>`,
+        ctaLabel: 'View my submissions',
+        ctaHref: MINE_URL,
+        footer: 'This is an automated message from the School WCM Banner Submission Form.',
+      }),
+    }).catch(() => {})
+  }
+
+  // 2. The school's District WCM.
+  const { data: assign } = await svc.from('bcps_school_assignments').select('lead_email').eq('loc_no', locNo).maybeSingle()
+  const lead = (assign?.lead_email || '').trim().toLowerCase()
+  const { data: admins } = await svc.from('bcps_banner_admins').select('email, user_id, notify_on_submit')
+  const leadAdmin = lead ? (admins ?? []).find(a => (a.email || '').toLowerCase() === lead) : undefined
+  const recipients = leadAdmin
+    ? [lead]
+    : (admins ?? []).filter(a => a.notify_on_submit).map(a => a.email).filter((e): e is string => !!e)
   if (recipients.length === 0) return
 
-  const label = row.banner_title || row.file_name || 'a new banner'
-  const schoolLine = row.school_name ? ` for <strong>${row.school_name}</strong>` : ''
   const result = await sendEmail({
     to: recipients,
-    subject: `New School banner submission: "${label}"${row.school_name ? ` (${row.school_name})` : ''}`,
-    html: `
-      <p>Hi,</p>
-      <p>${row.wcm_email ? `<strong>${row.wcm_email}</strong>` : 'A WCM'} just submitted a new banner${schoolLine} for review:
-      <strong>"${label}"</strong>.</p>
-      <p><a href="https://bcpsmarcomm.com/?page=banner-submissions">Review it in the Banner Submissions queue</a>.</p>
-      <p style="color:#888;font-size:12px">This is an automated message from the School WCM Banner Submission Form. You're
-      receiving it because you're listed as an Admin or Manager for this tool - manage that list from the Manage Admins
-      tab on the Banner Submissions page.</p>
-    `,
+    subject: `New banner to review: "${label}" (${school})`,
+    kind: 'banner-submit-lead',
+    html: brandedEmail({
+      heading: 'A banner is ready for your review',
+      body: `<p><strong>${escHtml(row.wcm_email || 'A WCM')}</strong> submitted <strong>"${escHtml(label)}"</strong> for <strong>${escHtml(school)}</strong>.</p><p>Open the Banner Submissions queue in BCPS MarComm to review it and approve it or send it back.</p>`,
+      ctaLabel: 'Review the banner',
+      ctaHref: QUEUE_URL,
+      footer: leadAdmin
+        ? 'You are receiving this because you are the District WCM for this school.'
+        : 'This school has no District WCM assigned, so every banner reviewer received this.',
+    }),
   })
 
   await svc.from('bcps_banner_submissions').update({
     notify_email_sent_at: result.ok ? new Date().toISOString() : null,
     notify_email_error: result.ok ? null : (result.error || 'Unknown send error'),
   }).eq('id', row.id)
+
+  // In-app: a Messages notification for the District WCM (their bell), as a
+  // conversation opened by the District Web Team so it counts as unread.
+  const inApp = leadAdmin ? [leadAdmin] : (admins ?? []).filter(a => a.notify_on_submit)
+  const now = new Date().toISOString()
+  const text = `New banner to review: "${label}" for ${school}, submitted by ${row.wcm_email || 'a WCM'}.\n\nReview it here: ${QUEUE_URL}`
+  for (const a of inApp) {
+    if (!a.user_id) continue
+    await svc.from('wcm_pilot_feedback').insert({
+      user_id: a.user_id, email: a.email, page: 'Banner Submissions', created_at: now,
+      message: text, status: 'replied', read_at: now, last_activity_at: now,
+      admin_reply: text, replied_at: now, replied_by: 'banner-submissions',
+    }).then(() => {}, () => {})
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -233,7 +281,7 @@ export async function POST(req: NextRequest) {
 
   if (insertErr) return refuse({ error: insertErr.message }, 500)
 
-  await notifySubmissionReceived(row).catch(() => {})
+  await notifySubmissionReceived(row, schoolRow.loc_no).catch(() => {})
 
   return NextResponse.json({ ok: true, id: row.id })
 }

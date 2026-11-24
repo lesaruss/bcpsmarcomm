@@ -554,7 +554,9 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     if (startTab) return startTab
     if (typeof window === 'undefined') return 'upload'
     const t = new URLSearchParams(window.location.search).get('tab')
-    return t === 'mine' || t === 'removal' ? t : 'upload'
+    // ?tab=review: the District WCM's "Review the banner" email link (2026-11-24);
+    // the queue API still checks they are a reviewer.
+    return t === 'mine' || t === 'removal' || t === 'review' ? t : 'upload'
   })
   // "View as" preview state, see canReview below.
   const { viewAs } = useBCPSShell()
