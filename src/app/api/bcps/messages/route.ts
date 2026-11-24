@@ -3,7 +3,6 @@ import { createServiceClient, createAnonClientWithToken } from '@/lib/supabase-a
 import { randomBytes } from 'crypto'
 import { sendEmail } from '@/lib/resend'
 import { INBOX_NOTIFY_EMAILS, conversationUrl, escapeHtml } from '@/lib/site-inbox'
-import { brandedEmail } from '@/lib/bcps-portal-account'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -389,23 +388,5 @@ async function startConversation(viewer: Viewer, body: any) {
     html: `<p><strong>From:</strong> ${escapeHtml(viewer.email || 'not identified')}</p><p style="white-space:pre-wrap">${safe}</p><p><a href="${conversationUrl(row.id)}">Open in Messages</a></p>`,
   })
   await svc.from('wcm_pilot_feedback').update({ notified_at: now, notify_error: result.ok ? null : result.error }).eq('id', row.id)
-  // Receipt to the sender (Sean + Vanessa Deslandes, 2026-11-24): every
-  // member who writes in gets an email saying it reached the team.
-  let receipt = false
-  if (viewer.email) {
-    const r = await sendEmail({
-      to: viewer.email,
-      subject: 'We received your message - bcpsmarcomm.com',
-      kind: 'message-receipt',
-      html: brandedEmail({
-        heading: 'We received your message',
-        body: `<p>Your message reached the District Web Team. We will reply by email and in Messages on BCPS MarComm.</p><p style="margin:16px 0 4px"><strong>Your message</strong></p><p style="white-space:pre-wrap;border-left:3px solid #0e4e73;padding-left:12px;margin:0">${safe}</p>`,
-        ctaLabel: 'Open the conversation',
-        ctaHref: conversationUrl(row.id),
-        footer: 'This is an automated receipt from BCPS MarComm.',
-      }),
-    })
-    receipt = r.ok
-  }
-  return NextResponse.json({ ok: true, id: row.id, emailed: result.ok, receipt })
+  return NextResponse.json({ ok: true, id: row.id, emailed: result.ok })
 }

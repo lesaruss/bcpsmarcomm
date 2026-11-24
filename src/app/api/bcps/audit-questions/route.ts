@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { deptAccessFor, identifyCaller } from '@/lib/bcps-audit-auth'
 import { requireBcpsPageAccess } from '@/lib/bcps-auth'
-import { sendEmail } from '@/lib/resend'
-import { brandedEmail } from '@/lib/bcps-portal-account'
 
 // Audit question bank (Sean, 2026-10-08). A WCM stuck on an audit or ADA item
 // asks from the item itself; the District Web Team answers; the answer then
@@ -66,23 +64,7 @@ export async function POST(req: NextRequest) {
     check_id: b.check_id.slice(0, 120), check_title: b.check_title.slice(0, 300), question: question.slice(0, 2000),
   }).select('id').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  // Receipt to the WCM who asked (Sean + Vanessa Deslandes, 2026-11-24).
-  let receipt = false
-  if (caller.email) {
-    const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    const r = await sendEmail({
-      to: caller.email,
-      subject: 'We received your audit question - bcpsmarcomm.com',
-      kind: 'audit-question-receipt',
-      html: brandedEmail({
-        heading: 'We received your question',
-        body: `<p>Your question reached the District Web Team. The answer will show under this item in your audit.</p><p style="margin:16px 0 4px"><strong>Item</strong></p><p style="margin:0">${esc(b.check_title)}</p><p style="margin:16px 0 4px"><strong>Your question</strong></p><p style="white-space:pre-wrap;border-left:3px solid #0e4e73;padding-left:12px;margin:0">${esc(question)}</p>`,
-        footer: 'This is an automated receipt from BCPS MarComm.',
-      }),
-    })
-    receipt = r.ok
-  }
-  return NextResponse.json({ ok: true, id: data.id, receipt })
+  return NextResponse.json({ ok: true, id: data.id })
 }
 
 export async function PATCH(req: NextRequest) {
