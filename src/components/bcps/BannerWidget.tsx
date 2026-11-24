@@ -371,20 +371,6 @@ function SizeFixSteps({ kind }: { kind: 'image' | 'video' | null }) {
   )
 }
 
-// What each checklist row checks and how to meet it, in the row's dropdown.
-const ROW_HELP: Record<string, string> = {
-  school: 'Pick the school this banner is for. If your school is not in the list, ask the District Web Team below.',
-  files: 'Choose one photo (JPG or PNG) or one MP4 video for this banner.',
-  filesize: `The file must be ${50} MB or less. Export videos at 1080p, not 4K. A large video is shrunk for you automatically when the browser can.`,
-  dims: 'Photos must be at least 1920 x 800 px and wide like the homepage banner. Videos can be up to 30 seconds.',
-  no_overlays: 'Nothing can be added on top of the photo: no words, titles, logos, borders or graphics. Text that is part of the scene, like shirts, ribbons or signs people hold, is fine.',
-  nav_clearance: 'On the homepage, the top banner and the right navigation sit over the photo. No face or head can be cut off or covered. Look at the Page Banner Preview, then confirm.',
-  title: 'A short title for the banner, up to 40 characters.',
-  alt: 'Describe the photo for people who use screen readers, for example: "Students holding their medals after the 5K."',
-  approvals: 'Confirm media releases are on file for every student shown, and that no face was blurred, erased or covered.',
-  final_ack: 'Confirm the banner follows the District guidelines before you submit.',
-}
-
 function CompressProgress({ fromBytes, progress, trimming }: { fromBytes: number; progress: number; trimming: boolean }) {
   const pct = Math.round(progress * 100)
   return (
@@ -595,12 +581,6 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
   // check and the scan (no frame pipeline yet) and is flagged for review.
   const [items, setItems] = useState<BannerItem[]>(() => [newBannerItem()])
   const [activeKey, setActiveKey] = useState<string | null>(null)
-  // Checklist row dropdowns and "Still stuck?" (Sean + Vanessa Deslandes,
-  // 2026-11-24, from the audit's pattern).
-  const [openHelp, setOpenHelp] = useState<string | null>(null)
-  const [stuckText, setStuckText] = useState('')
-  const [stuckSending, setStuckSending] = useState(false)
-  const [stuckNotice, setStuckNotice] = useState<{ row: string; ok: boolean; text: string } | null>(null)
   const active = items.find(i => i.key === activeKey) ?? items[0]
   const itemsRef = useRef(items)
   itemsRef.current = items
@@ -1044,34 +1024,6 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
   // checklist (Sean + Vanessa Deslandes, 2026-11-24).
   const firstUnfinished = items.findIndex(i => !bannerPassed(i))
   const canAddBanner = items.length < MAX_FILES && firstUnfinished === -1
-
-  // "Still stuck?" from a checklist row: opens a conversation in Messages,
-  // tagged with the school, banner and row; the team is emailed and the WCM
-  // gets a receipt (see /api/bcps/messages startConversation).
-  async function askWebTeam(rowKey: string, rowLabel: string) {
-    const text = stuckText.trim()
-    if (text.length < 3) return
-    setStuckSending(true)
-    setStuckNotice(null)
-    const n = items.findIndex(i => i.key === active.key) + 1
-    const school = schools.find(sc => sc.loc_no === selectedSchool)?.school_name || 'No school selected'
-    const topic = `Banner Submissions · ${school} · Banner ${n} · ${rowLabel}`
-    const fileLine = active.file ? `\n\nFile: ${active.file.name}` : ''
-    try {
-      const res = await authedFetch('/api/bcps/messages', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'new', topic, message: `${text}${fileLine}` }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Could not send.')
-      setStuckText('')
-      setStuckNotice({ row: rowKey, ok: true, text: data.receipt ? 'Sent to the District Web Team. A receipt is on its way to your email.' : 'Sent to the District Web Team.' })
-    } catch (e: any) {
-      setStuckNotice({ row: rowKey, ok: false, text: e?.message || 'Could not send. Try again.' })
-    } finally {
-      setStuckSending(false)
-    }
-  }
 
   async function handleSubmitUpload() {
     setUploadNotice(null)
@@ -1652,31 +1604,8 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                             <span><strong>Confirm:</strong> I checked the preview. No face or head is cut off by the top banner or covered by the right navigation.</span>
                           </label>
                         )}
-                        {openHelp === k && (
-                          <span style={{ display: 'block', marginTop: 8, background: '#fff', color: '#1f2937', borderRadius: 5, padding: '8px 10px', fontWeight: 500, fontSize: 12, lineHeight: 1.45 }}>
-                            <span style={{ display: 'block' }}>{ROW_HELP[k]}</span>
-                            <span style={{ display: 'block', fontWeight: 800, marginTop: 8, color: '#0a3764' }}>Still stuck? Ask the District Web Team</span>
-                            <textarea value={stuckText} onChange={e => setStuckText(e.target.value)} rows={3}
-                              placeholder="Type your question. We will reply by email and in Messages."
-                              style={{ width: '100%', boxSizing: 'border-box', marginTop: 4, fontSize: 12, padding: 6, borderRadius: 4, border: '1px solid var(--border)', fontFamily: 'inherit' }} />
-                            <button type="button" className="btn-primary" disabled={stuckSending || stuckText.trim().length < 3}
-                              onClick={() => askWebTeam(k, label(k))} style={{ fontSize: 12, padding: '5px 12px', marginTop: 4 }}>
-                              {stuckSending ? 'Sending...' : 'Send question'}
-                            </button>
-                            {stuckNotice && stuckNotice.row === k && (
-                              <span style={{ display: 'block', marginTop: 6, fontWeight: 600, color: stuckNotice.ok ? '#1e6b3a' : '#a13a2f' }}>{stuckNotice.text}</span>
-                            )}
-                          </span>
-                        )}
                       </span>
-                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800 }}>{chip.label}{st === 'checking' && <CheckingDots />}</span>
-                        <button type="button" aria-expanded={openHelp === k} aria-label={`Help with: ${label(k)}`}
-                          onClick={() => { setOpenHelp(openHelp === k ? null : k); setStuckNotice(null) }}
-                          style={{ fontSize: 11, fontWeight: 700, background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-                          {openHelp === k ? 'Close' : 'Help'}
-                        </button>
-                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{chip.label}{st === 'checking' && <CheckingDots />}</span>
                     </div>
                   )
                 }
@@ -1728,6 +1657,19 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
                 Up to {MAX_FILES} banners per request. Each banner is reviewed on its own.
+              </div>
+              {/* One help button for the whole form, not one per row; school
+                  questions go to Incident IQ so the team can track them
+                  (Sean + Vanessa Deslandes, 2026-11-24). */}
+              <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#0a3764' }}>Need help?</div>
+                <div style={{ fontSize: 12, color: '#1f2937', margin: '4px 0 8px', lineHeight: 1.45 }}>
+                  Submit an Incident IQ ticket to the District Web Team. Say which school and banner it is about.
+                </div>
+                <a href="https://browardschools.incidentiq.com/" target="_blank" rel="noopener noreferrer" className="btn-outline"
+                  style={{ display: 'inline-block', fontSize: 12.5, padding: '7px 14px', textDecoration: 'none' }}>
+                  Open Incident IQ
+                </a>
               </div>
             </div>
           </div>
