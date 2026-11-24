@@ -309,6 +309,25 @@
     transition: background 0.12s;
   }
   .book-btn:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
+  /* Optional second button per service (extra_link_*), e.g. Find Your ITF.
+     Orange #B54708 keeps white text above 4.5:1 contrast. */
+  .extra-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    background: #B54708;
+    border: 1px solid #B54708;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.12s;
+  }
+  .extra-btn:hover { background: #8A3505; border-color: #8A3505; }
+  .extra-btn:focus-visible { outline: 2px solid #B54708; outline-offset: 2px; }
   .card-link:focus-visible, .book-btn:focus-visible, .meta-row a:focus-visible, .unit-intro a:focus-visible {
     outline: 2px solid var(--blue);
     outline-offset: 2px;
@@ -579,6 +598,7 @@ function cardHtml(s, q) {
   const book = safeUrl(s.booking_url);
   const unitPage = safeUrl(unit?.page_url);
   const servicePage = safeUrl(s.service_url);
+  const extraUrl = s.extra_link_label ? safeUrl(s.extra_link_url) : '';
   const ICON_MAIL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>';
   const ICON_PHONE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.64 19.79 19.79 0 01.22 1.05 2 2 0 012.22 3h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 10.91a16 16 0 006.18 6.18l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>';
 
@@ -631,6 +651,12 @@ function cardHtml(s, q) {
   } else if (unitPage) {
     footer.push(`<a href="${escapeHtml(unitPage)}" class="card-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(unit.name)} unit page (opens in a new tab)">
       Unit page ${ICON_EXT}
+    </a>`);
+  }
+
+  if (extraUrl) {
+    footer.push(`<a href="${escapeHtml(extraUrl)}" class="extra-btn" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(s.extra_link_label)} (opens in a new tab)">
+      ${escapeHtml(s.extra_link_label)} ${ICON_EXT}
     </a>`);
   }
 
@@ -713,7 +739,7 @@ document.getElementById('clearFilters').addEventListener('click', () => {
 // made in the Widgets hub editor show up here with no deploy.
 const SUPABASE_URL = 'https://fwbhwfxpncrsfhttimna.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Ymh3ZnhwbmNyc2ZodHRpbW5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjAxMzksImV4cCI6MjA5MDIzNjEzOX0.9mxjK0bn5WATCbNLWrHPakD6yHUDtHFHrOaklPnWkOA';
-const SERVICE_COLS = 'id,name,unit_slug,description,contact_name,contact_title,contact_email,contact_phone,contact_address,booking_url,booking_note,audience,service_url,sort_order';
+const SERVICE_COLS = 'id,name,unit_slug,description,contact_name,contact_title,contact_email,contact_phone,contact_address,booking_url,booking_note,audience,service_url,extra_link_label,extra_link_url,sort_order';
 
 async function fetchRows(path) {
   const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {

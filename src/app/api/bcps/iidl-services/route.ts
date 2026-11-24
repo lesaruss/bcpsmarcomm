@@ -64,7 +64,7 @@ async function audit(actor: string, action: string, detail: unknown) {
 // Fields an editor may set. Anything else in the request body is ignored,
 // so a client can never write id/created_at or an unknown column.
 const SERVICE_FIELDS = ['name', 'unit_slug', 'description', 'contact_name', 'contact_title', 'contact_email',
-  'contact_phone', 'contact_address', 'booking_url', 'booking_note', 'audience', 'service_url', 'review_note',
+  'contact_phone', 'contact_address', 'booking_url', 'booking_note', 'audience', 'service_url', 'extra_link_label', 'extra_link_url', 'review_note',
   'sort_order'] as const
 const UNIT_FIELDS = ['name', 'summary', 'page_url'] as const
 
