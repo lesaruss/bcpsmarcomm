@@ -1010,8 +1010,8 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     if (state.no_overlays === 'fail') reason.no_overlays = (i.scanResult?.reasons || []).join(' ')
     if (state.nav_clearance === 'fail') reason.nav_clearance = `${i.scanResult?.face_reason || 'A face or head is cut off or covered.'} Choose a different photo.`
     else if (state.nav_clearance === 'review') reason.nav_clearance = faceBorderline(i)
-      ? `${i.scanResult?.face_reason || 'Someone is partly cut off.'} Look at the preview and decide: confirm under the photo, or choose a different one.`
-      : 'Look at the preview. If a face or head is cut off by the top banner or covered by the right-hand navigation, choose a different photo. If not, click Confirm under the photo.'
+      ? `${i.scanResult?.face_reason || 'Someone is partly cut off.'} Look at the preview and decide: check Confirm below, or choose a different photo.`
+      : 'Look at the preview. If a face or head is cut off by the top banner or covered by the right-hand navigation, choose a different photo. If not, check Confirm below.'
     return { state, reason }
   }
   const bannerPassed = (i: BannerItem) => BANNER_ROWS.every(k => bannerChecks(i).state[k] === 'pass')
@@ -1349,8 +1349,10 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
               const title = active.title.trim()
               const caption = active.caption.trim()
               return (
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Live preview</label>
+              <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
+                {/* Titled and boxed like the banner cards so the note under
+                    it is not lost (Vanessa Deslandes, 2026-11-12). */}
+                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>Page Banner Preview</div>
 
                 <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                   {[{ label: 'Desktop', px: null as number | null }, { label: 'Tablet', px: 768 }, { label: 'Mobile', px: 375 }].map(p => (
@@ -1386,9 +1388,9 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
 
                 <BannerSiteFrame url={displayUrl} kind={displayKind} alt={active.previewUrl ? 'Banner preview' : 'Sample banner placeholder'} title={title} caption={caption} frameRef={previewFrameRef} resizable />
 
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                <div style={{ fontSize: 12.5, color: '#111827', marginTop: 8, lineHeight: 1.45 }}>
                   {active.previewUrl
-                    ? 'This preview mirrors the real school-site header, homepage banner, and navigation, including how they reflow on a smaller screen. Drag the frame’s bottom-right corner (or use the width buttons above) to check narrower widths. Make sure faces and important subjects stay clear of the right-hand nav.'
+                    ? 'This preview mirrors the real school-site header, homepage banner, and navigation, including how they reflow on a smaller screen. Drag the frame’s bottom-right corner (or use the width buttons above) to check narrower widths. Make sure faces and important subjects stay clear of the top banner and the right navigation.'
                     : 'This is a sample image showing how your upload will look on the homepage. Choose a photo or video below and it will replace this placeholder automatically.'}
                 </div>
               </div>
@@ -1435,7 +1437,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                 {it.key === active.key && (<>
 
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Photo or video{n === 0 ? ' *' : ''}</label>
+                  <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Photo or Video{n === 0 ? ' *' : ''}</label>
                   <input
                     type="file"
                     accept="image/png,image/jpeg,video/mp4"
@@ -1446,12 +1448,20 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                   </div>
                   {/* The size this tool measured, so a Fail on the size row
                       always says why (Vanessa Deslandes, 2026-10-02). */}
-                  {it.kind === 'image' && it.dims && (
-                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: dimsOk(it) ? '#1e6b3a' : '#a13a2f' }}>
-                      Measured size: {it.dims.width} &times; {it.dims.height} px
-                      {dimsOk(it) ? ' - meets the minimum.' : ` - below the ${MIN_WIDTH} \u00d7 ${MIN_HEIGHT} px minimum.`}
+                  {it.kind === 'image' && it.dims && (dimsOk(it) ? (
+                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: '#1e6b3a' }}>
+                      Measured size: {it.dims.width} &times; {it.dims.height} px - meets the minimum.
                     </div>
-                  )}
+                  ) : (
+                    // A clear red error box, with room around it (Vanessa
+                    // Deslandes, 2026-11-12).
+                    <div role="alert" style={{ marginTop: 10, marginBottom: 4, background: '#fbe9e7', color: '#a13a2f', border: '1px solid #e8a79c', borderRadius: 6, padding: '10px 12px', fontSize: 12.5 }}>
+                      <div style={{ fontWeight: 800 }}>Error: measured size does not meet the requirement</div>
+                      <div style={{ marginTop: 4 }}>
+                        This photo is {it.dims.width} &times; {it.dims.height} px, below the {MIN_WIDTH} &times; {MIN_HEIGHT} px minimum. Choose a larger photo.
+                      </div>
+                    </div>
+                  ))}
                   {it.kind === 'video' && it.duration !== null && (
                     <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: lengthOk(it) ? '#1e6b3a' : '#a13a2f' }}>
                       Video length: {Math.round(it.duration)} seconds
@@ -1557,49 +1567,6 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                   </div>
                 )}
 
-                {/* Face check (Sean + Vanessa Deslandes, 2026-11-24): the tool
-                    cannot see faces, so it never passes this on its own. The
-                    WCM looks at the preview and confirms with one click, or
-                    picks another photo. The Web Team sees the confirmation in
-                    the review queue and spot checks it. */}
-                {it.file && it.kind === 'image' && it.scanState === 'scanning' && (
-                  <div style={{ borderRadius: 6, padding: '10px 12px', fontSize: 12.5, background: '#f3f4f6', color: '#4b5563', fontWeight: 700 }}>
-                    Checking whether any face or head is cut off or covered<CheckingDots />
-                  </div>
-                )}
-                {it.file && faceFlagged(it) && (
-                  <div role="alert" style={{ borderRadius: 6, padding: '10px 12px', fontSize: 12.5, background: '#fbe9e7', color: '#a13a2f', boxShadow: 'inset 0 0 0 1px #f0c4bd' }}>
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>Faces: this photo does not meet the requirement</div>
-                    <div>{it.scanResult?.face_reason || 'A face or head is cut off by the top banner or covered by the navigation.'} Choose a different photo.</div>
-                  </div>
-                )}
-                {it.file && !faceFlagged(it) && !(it.kind === 'image' && it.scanState === 'scanning') && (
-                  <div style={{ borderRadius: 6, padding: '10px 12px', fontSize: 12.5, background: it.faceClear ? '#e6f4ea' : '#fdf3e0', color: it.faceClear ? '#1e6b3a' : '#4b3200', boxShadow: it.faceClear ? 'none' : 'inset 0 0 0 1px #f0d9a8' }}>
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>{it.faceClear ? 'Faces confirmed clear' : 'Review needed: faces'}</div>
-                    {!it.faceClear && it.scanResult?.face_check === 'clear' && (
-                      <div style={{ marginBottom: 6 }}>The automatic check did not find a face cut off or covered.</div>
-                    )}
-                    {!it.faceClear && it.scanResult?.face_check === 'borderline' && (
-                      <div style={{ marginBottom: 6 }}><strong>Look closely:</strong> {it.scanResult.face_reason}</div>
-                    )}
-                    {!it.faceClear && (
-                      <div style={{ marginBottom: 6 }}>
-                        Look at the preview above. Is any face or head cut off by the top banner, or covered by the navigation on the right?
-                        If yes, choose a different photo. If no, confirm below.
-                      </div>
-                    )}
-                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={it.faceClear}
-                        onChange={e => patchItem(it.key, { faceClear: e.target.checked })}
-                        style={{ marginTop: 2 }}
-                      />
-                      <span><strong>Confirm:</strong> I checked the preview. No face or head is cut off by the top banner or covered by the right-hand navigation. The District Web Team will check this too.</span>
-                    </label>
-                  </div>
-                )}
-
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 4 }}>Banner title *</label>
                   <input type="text" maxLength={TITLE_MAX} value={it.title} onChange={e => patchItem(it.key, { title: e.target.value })} className="form-input" style={{ width: '100%', boxSizing: 'border-box' }} />
@@ -1681,11 +1648,16 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
               </div>
               {(() => {
                 const label = (k: string) => VALIDATION_CHECKLIST.find(v => v.key === k)!.label
+                // The face Confirm lives in its own checklist row, so the WCM
+                // does not have to find a second box under the photo (Sean +
+                // Vanessa Deslandes, 2026-11-24).
+                const faceConfirm = (k: string, st: ValidationState) =>
+                  k === 'nav_clearance' && !!active.file && (st === 'review' || (st === 'pass' && active.faceClear))
                 const row = (k: string, st: ValidationState, why?: string) => {
                   const chip = VALIDATION_CHIP[st]
                   return (
                     <div key={k} style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8,
                       background: chip.bg, color: chip.fg, boxShadow: chip.ring,
                       borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: 12.5, fontWeight: 600,
                     }}>
@@ -1693,6 +1665,17 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                         {label(k)}
                         {(st === 'fail' || st === 'review') && why && (
                           <span style={{ display: 'block', fontWeight: 500, fontSize: 12, marginTop: 3 }}>{why}</span>
+                        )}
+                        {faceConfirm(k, st) && (
+                          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontWeight: 500, fontSize: 12, marginTop: 6, background: '#fff', color: '#1f2937', borderRadius: 5, padding: '6px 8px' }}>
+                            <input
+                              type="checkbox"
+                              checked={active.faceClear}
+                              onChange={e => patchItem(active.key, { faceClear: e.target.checked })}
+                              style={{ marginTop: 2 }}
+                            />
+                            <span><strong>Confirm:</strong> I checked the preview. No face or head is cut off by the top banner or covered by the right navigation.</span>
+                          </label>
                         )}
                       </span>
                       <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{chip.label}{st === 'checking' && <CheckingDots />}</span>

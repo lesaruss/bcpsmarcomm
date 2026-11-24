@@ -282,10 +282,7 @@ export default function SchoolProfile() {
                           ? 'Automated content scan unavailable for this submission - flagged for manual review.'
                           : s.content_scan.reasons?.length
                             ? `Automated scan flagged: ${s.content_scan.reasons.join('; ')}`
-                            : 'Automated content scan passed.'}
-                        {s.content_scan.nav_clearance_note && (
-                          <div style={{ color: '#8a5a00', marginTop: 2 }}>{s.content_scan.nav_clearance_note}</div>
-                        )}
+                            : 'No graphics, borders, or text overlays found.'}
                       </div>
                     )}
 
