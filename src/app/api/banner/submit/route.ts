@@ -130,6 +130,9 @@ export async function POST(req: NextRequest) {
   if (banner_title.trim().length > TITLE_MAX) return NextResponse.json({ error: `Banner title must be ${TITLE_MAX} characters or fewer` }, { status: 400 })
   if ((banner_caption?.trim().length ?? 0) > CAPTION_MAX) return NextResponse.json({ error: `Banner caption must be ${CAPTION_MAX} characters or fewer` }, { status: 400 })
   if (!alt_text?.trim()) return NextResponse.json({ error: 'Alternative text is required' }, { status: 400 })
+  // Face check is the WCM's one-click confirmation (Sean + Vanessa Deslandes,
+  // 2026-11-24); the scanner cannot see faces, so it is never auto-passed.
+  if (checklist_ack?.face_clear !== true) return NextResponse.json({ error: 'Check the preview and confirm no face is cut off by the top banner or covered by the navigation.' }, { status: 400 })
 
   const { data: schoolRow, error: schoolErr } = await svc
     .from('bcps_school_directory')

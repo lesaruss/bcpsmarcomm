@@ -30,6 +30,7 @@ const FIXED_REJECT_REASONS = [
   'Image quality too low',
   'Embedded text or logos',
   'Faces blurred, erased, or covered',
+  'Face cut off by the top banner or covered by the navigation',
 ]
 
 // Wording per Vanessa Deslandes, 2026-10-02: these emails come from the

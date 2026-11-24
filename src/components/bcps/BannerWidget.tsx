@@ -58,7 +58,7 @@ interface ReviewSubmission extends MySubmission {
   posted_at: string | null
   posted_by_email: string | null
   content_scan: { text_detected?: boolean; text_reason?: string } | null
-  checklist_ack: { in_scene_text?: boolean } | null
+  checklist_ack: { in_scene_text?: boolean; face_clear?: boolean } | null
 }
 
 interface BannerAdminRow {
@@ -155,7 +155,11 @@ const VALIDATION_CHECKLIST = [
   { key: 'filesize', label: 'File size 50 MB or less (video exported at 1080p, not 4K)' },
   { key: 'dims', label: 'Media meets size requirements (photo 1920 × 800 px, video up to 30 seconds)' },
   { key: 'no_overlays', label: 'Image is free of graphics, borders, text overlays' },
-  { key: 'nav_clearance', label: 'Homepage navigation face-clearance (flagged for manual review)' },
+  // Never an automatic Pass (Sean + Vanessa Deslandes, 2026-11-24): the
+  // tool cannot see faces, and a green Pass here made WCMs and the Web Team
+  // think a photo with a head cut off by the top banner was fine. The row
+  // shows Review until the WCM checks the preview and clicks Confirm.
+  { key: 'nav_clearance', label: 'Faces clear of the top banner and right navigation' },
   { key: 'title', label: 'Banner title provided' },
   { key: 'alt', label: 'Required alternative text provided' },
   { key: 'approvals', label: 'Approvals and permissions acknowledged' },
@@ -179,13 +183,15 @@ const VALIDATION_CHECKLIST = [
 // 'confirm' (added 2026-09-29): the scan found text, which may be a real sign
 // in the scene rather than an overlay - the WCM has to confirm which before
 // the row passes. Amber, same palette as the degraded-scan notice.
-type ValidationState = 'pass' | 'fail' | 'pending' | 'confirm'
+type ValidationState = 'pass' | 'fail' | 'pending' | 'confirm' | 'review'
 
 const VALIDATION_CHIP: Record<ValidationState, { bg: string; fg: string; ring: string; label: string }> = {
   pass:    { bg: '#1e6b3a', fg: '#fff',    ring: 'none',                       label: 'Pass' },
   fail:    { bg: '#fbe9e7', fg: '#a13a2f', ring: 'inset 0 0 0 1px #f0c4bd',    label: 'Fail' },
   confirm: { bg: '#fdf3e0', fg: '#8a5a00', ring: 'inset 0 0 0 1px #f0d9a8',    label: 'Confirm' },
   pending: { bg: '#e4e4e4', fg: '#666',    ring: 'none',                       label: 'Pending' },
+  // A visual check only the WCM can make (faces vs. banner and nav).
+  review:  { bg: '#fdf3e0', fg: '#8a5a00', ring: 'inset 0 0 0 1px #f0d9a8',    label: 'Review' },
 }
 
 type Tab = 'upload' | 'removal' | 'mine' | 'review' | 'admins' | 'wcms'
@@ -201,6 +207,7 @@ const REJECT_REASON_CATEGORIES = [
   'Image quality too low',
   'Embedded text or logos',
   'Faces blurred, erased, or covered',
+  'Face cut off by the top banner or covered by the navigation',
   'Other',
 ] as const
 
@@ -259,6 +266,9 @@ interface BannerItem {
   alt: string
   // WCM confirms detected text is part of the scene, per banner.
   inSceneText: boolean
+  // WCM checked the preview: no face is cut off by the top banner or covered
+  // by the right-hand nav (Sean + Vanessa Deslandes, 2026-11-24).
+  faceClear: boolean
   // JPEG EXIF orientation (1-8), null if none. 5-8 means the camera saved
   // the pixels sideways with a "rotate on display" flag.
   orientation: number | null
@@ -277,7 +287,7 @@ function newBannerItem(): BannerItem {
     key: Math.random().toString(36).slice(2),
     file: null, previewUrl: null, kind: null, dims: null, duration: null,
     scanState: 'idle', scanResult: null, scanError: null,
-    title: '', caption: '', alt: '', inSceneText: false, orientation: null, compress: null,
+    title: '', caption: '', alt: '', inSceneText: false, faceClear: false, orientation: null, compress: null,
   }
 }
 
@@ -852,7 +862,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     if (prevUrl) URL.revokeObjectURL(prevUrl)
     setActiveKey(key)
     if (!f) {
-      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, duration: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false, orientation: null, compress: null })
+      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, duration: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false, faceClear: false, orientation: null, compress: null })
       return
     }
     const url = URL.createObjectURL(f)
@@ -862,7 +872,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     const compress: BannerItem['compress'] = compressed
       ? { state: 'done', progress: 1, ...compressed }
       : kind === 'video' && f.size > MAX_BYTES ? { state: 'running', progress: 0, fromBytes: f.size, trimmed: false } : null
-    patchItem(key, { file: f, previewUrl: url, kind, dims: null, duration: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false, orientation: null, compress })
+    patchItem(key, { file: f, previewUrl: url, kind, dims: null, duration: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false, faceClear: false, orientation: null, compress })
 
     if (kind === 'image') {
       const img = new Image()
@@ -967,7 +977,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     filesize: all(sizeOk),
     dims: all(dimsOk),
     no_overlays: all(overlaysOk),
-    nav_clearance: all(i => !!i.scanResult?.nav_clearance_pass),
+    nav_clearance: all(i => i.faceClear),
     title: all(i => i.title.trim() !== ''),
     alt: all(i => i.alt.trim() !== ''),
     approvals: !!checks.media_release && !!checks.faces_visible,
@@ -989,8 +999,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
       : filled.some(scanFailed) ? 'fail'
       : filled.some(needsConfirm) ? 'confirm'
       : 'pending',
-    nav_clearance: validationStatus.nav_clearance ? 'pass'
-      : (filled.some(i => i.scanState === 'done' && !!i.scanResult && !i.scanResult.nav_clearance_pass) ? 'fail' : 'pending'),
+    nav_clearance: validationStatus.nav_clearance ? 'pass' : filled.length > 0 ? 'review' : 'pending',
     title: validationStatus.title ? 'pass' : 'pending',
     alt: validationStatus.alt ? 'pass' : 'pending',
     approvals: validationStatus.approvals ? 'pass' : 'pending',
@@ -1003,6 +1012,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     filesize: filled
       .map((i, n) => sizeOk(i) ? null : `${filled.length > 1 ? `Banner ${n + 1}: ` : ''}file is ${fileMB(i.file!)} MB, over the ${MAX_MB} MB limit. Export at 1080p (not 4K). Steps are under the file.`)
       .filter(Boolean).join(' '),
+    nav_clearance: 'Look at the preview. If a face or head is cut off by the top banner or covered by the right-hand navigation, choose a different photo. If not, click Confirm under the photo.',
   }
 
   async function handleSubmitUpload() {
@@ -1020,6 +1030,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
       if (i.scanState === 'scanning') { setUploadNotice(`${name}Still running the automated content scan - one moment.`); return }
       if (i.scanState === 'error') { setUploadNotice(`${name}${i.scanError || 'The automated content scan failed - please try re-selecting the file.'}`); return }
       if (!i.scanResult?.no_overlays_pass || !i.scanResult?.nav_clearance_pass) { setUploadNotice(`${name}This image needs to pass the automated content scan before it can be submitted.`); return }
+      if (!i.faceClear) { setUploadNotice(`${name}Check the preview and confirm no face is cut off by the top banner or covered by the navigation.`); return }
       if (i.scanResult?.text_detected && !i.inSceneText) { setUploadNotice(`${name}Text was detected - confirm it is part of the actual scene before submitting.`); return }
     }
     if (!allChecked) { setUploadNotice('All requirement checkboxes must be checked before submitting.'); return }
@@ -1054,7 +1065,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
             banner_title: i.title,
             banner_caption: i.caption,
             alt_text: i.alt,
-            checklist_ack: { ...checks, in_scene_text: i.inSceneText },
+            checklist_ack: { ...checks, in_scene_text: i.inSceneText, face_clear: i.faceClear },
             school_location_nbr: selectedSchool,
           }),
         })
@@ -1490,7 +1501,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                         ? 'Automated content scan flagged this image - it cannot be submitted as-is.'
                         : it.scanResult?.text_detected
                           ? 'Text detected in this image - please confirm below.'
-                          : 'Automated content scan passed.')}
+                          : 'No graphics, borders, or text overlays found.')}
                     </div>
                     {it.scanResult?.reasons && it.scanResult.reasons.length > 0 && (
                       <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
@@ -1515,9 +1526,32 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                         <span>The text is part of the actual scene (a sign or banner in the photo), not added as a graphic. The District Web Team will make the final call.</span>
                       </label>
                     )}
-                    {it.scanState === 'done' && it.scanResult?.nav_clearance_note && (
-                      <div style={{ marginTop: 6, fontWeight: 400, color: '#8a5a00' }}>{it.scanResult.nav_clearance_note}</div>
+                  </div>
+                )}
+
+                {/* Face check (Sean + Vanessa Deslandes, 2026-11-24): the tool
+                    cannot see faces, so it never passes this on its own. The
+                    WCM looks at the preview and confirms with one click, or
+                    picks another photo. The Web Team sees the confirmation in
+                    the review queue and spot checks it. */}
+                {it.file && (
+                  <div style={{ borderRadius: 6, padding: '10px 12px', fontSize: 12.5, background: it.faceClear ? '#e6f4ea' : '#fdf3e0', color: it.faceClear ? '#1e6b3a' : '#4b3200', boxShadow: it.faceClear ? 'none' : 'inset 0 0 0 1px #f0d9a8' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>{it.faceClear ? 'Faces confirmed clear' : 'Review needed: faces'}</div>
+                    {!it.faceClear && (
+                      <div style={{ marginBottom: 6 }}>
+                        Look at the preview above. Is any face or head cut off by the top banner, or covered by the navigation on the right?
+                        If yes, choose a different photo. If no, confirm below.
+                      </div>
                     )}
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={it.faceClear}
+                        onChange={e => patchItem(it.key, { faceClear: e.target.checked })}
+                        style={{ marginTop: 2 }}
+                      />
+                      <span><strong>Confirm:</strong> I checked the preview. No face or head is cut off by the top banner or covered by the right-hand navigation. The District Web Team will check this too.</span>
+                    </label>
                   </div>
                 )}
 
@@ -1790,6 +1824,13 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                         Text detected by the scanner (may be inaccurate): {r.content_scan.text_reason.replace(/^Text overlay detected:\s*/, '')}
                       </div>
                     )}
+                  </div>
+                )}
+                {r.type === 'upload' && (
+                  <div style={{ marginTop: 8, fontSize: 12, background: r.checklist_ack?.face_clear ? '#eaf1f8' : '#fdf3e0', color: r.checklist_ack?.face_clear ? '#0a3764' : '#8a5a00', padding: '6px 10px', borderRadius: 5 }}>
+                    <strong>Check faces</strong> - {r.checklist_ack?.face_clear
+                      ? 'WCM confirmed no face is cut off by the top banner or covered by the navigation. Spot check the top and right side.'
+                      : 'not confirmed by the WCM (sent before the face check). Check the top and right side.'}
                   </div>
                 )}
                 {r.type === 'upload' && r.signed_url && (

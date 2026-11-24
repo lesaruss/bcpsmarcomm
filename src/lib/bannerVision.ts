@@ -180,7 +180,10 @@ export async function analyzeBannerImage(opts: {
   base64: string // raw base64, no data: prefix
   mediaType: string // e.g. image/jpeg
 }): Promise<BannerScanResult> {
-  const NAV_NOTE = 'Homepage nav face-clearance is not yet automated (no verified free face-detector) - flagged for the District Web Team to check by eye.'
+  // nav_clearance_pass stays true here (never a block), but the widget no
+  // longer shows it as a Pass: since 2026-11-24 the face row needs the WCM's
+  // own Confirm (checklist_ack.face_clear), enforced in /api/banner/submit.
+  const NAV_NOTE = 'Faces are checked by the WCM (Confirm under the preview) and spot checked by the District Web Team.'
 
   try {
     const buffer = Buffer.from(opts.base64, 'base64')
