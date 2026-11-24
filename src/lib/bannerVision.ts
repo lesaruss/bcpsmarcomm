@@ -75,7 +75,7 @@ export interface BannerScanResult {
   // another photo, or says the check is wrong and the Web Team decides);
   // 'clear' and 'unknown' still need the WCM's own Confirm. Never a block
   // on its own when the check could not run.
-  face_check?: 'clear' | 'problem' | 'unknown'
+  face_check?: 'clear' | 'borderline' | 'problem' | 'unknown'
   face_reason?: string
   // True when Claude judged added text/graphics (not OCR). Text that is
   // part of the scene (a shirt, a ribbon, a sign) passes with no WCM
@@ -202,10 +202,10 @@ const NAV_FRACTION = 0.22
 const FACE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['people_visible', 'problem', 'where', 'explanation', 'added_overlay', 'overlay_explanation'],
+  required: ['people_visible', 'face_verdict', 'where', 'explanation', 'added_overlay', 'overlay_explanation'],
   properties: {
     people_visible: { type: 'boolean' },
-    problem: { type: 'boolean' },
+    face_verdict: { type: 'string', enum: ['clear', 'borderline', 'problem'] },
     where: { type: 'string', enum: ['none', 'top edge', 'white panel on the right', 'top edge and white panel', 'other edge'] },
     explanation: { type: 'string' },
     added_overlay: { type: 'boolean' },
@@ -218,12 +218,13 @@ Image 1 is the original photo. Image 2 is exactly what the website shows: the ph
 
 Check 1, added text or graphics (use image 1): was anything added on top of the photo after it was taken? That means words, titles, captions, dates, logos, stickers, watermarks, frames, borders, color bars or graphic shapes laid over the picture. Text that is physically part of the scene is fine and is NOT an overlay: words on clothing, ribbons, medals, banners or signs people hold, posters on a wall, building signs, scoreboards. Set added_overlay and write overlay_explanation in one short plain sentence, for example "A title is printed across the top of the photo." or "No text or graphics were added to the photo."
 
-Check 2, faces (use image 2): decide whether any person's face or head is cut off by the top edge, cut off by another edge, or covered (even partly) by the white panel on the right.
-A problem means a viewer would see a head sliced off, a face cut by the frame, or a face or head behind the white panel. Bodies, hands or backs of heads at an edge, or people far in the background that are only a few pixels tall, are not a problem.
-If no people are visible, there is no problem.
-Write the explanation in one short plain sentence a school staff member will read, for example: "The girl on the left has the top of her head cut off by the top edge." or "No faces are cut off or covered."`
+Check 2, faces (use image 2). Pick face_verdict:
+- problem: a face or head is cut off by the top edge or another edge, or a face or head is covered (even partly) by the white panel, so a viewer would see a head sliced off or a face hidden.
+- borderline: every face is fully visible, but a person is noticeably cut off: part of a body or shoulder behind the white panel or at an edge, or a person squeezed against the edge so it looks awkward. A person should look at it.
+- clear: no faces or heads cut off or covered and nobody noticeably cut off. Hands, feet, or people far in the background only a few pixels tall do not count. If no people are visible, it is clear.
+Write the explanation in one short plain sentence a school staff member will read, for example: "The girl on the left has the top of her head cut off by the top edge.", "The boy on the right is half behind the navigation panel, but his face is visible." or "No faces are cut off or covered."`
 
-type PhotoCheck = { check: 'clear' | 'problem' | 'unknown'; reason?: string; overlay?: { hit: boolean; reason: string } }
+type PhotoCheck = { check: 'clear' | 'borderline' | 'problem' | 'unknown'; reason?: string; overlay?: { hit: boolean; reason: string } }
 
 async function checkFaces(buffer: Buffer): Promise<PhotoCheck> {
   try {
@@ -260,8 +261,8 @@ async function checkFaces(buffer: Buffer): Promise<PhotoCheck> {
     })
     if (msg.stop_reason !== 'end_turn') return { check: 'unknown', reason: 'The automatic face check did not finish for this photo.' }
     const text = msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('')
-    const out = JSON.parse(text) as { people_visible: boolean; problem: boolean; where: string; explanation: string; added_overlay: boolean; overlay_explanation: string }
-    return { check: out.problem ? 'problem' : 'clear', reason: out.explanation, overlay: { hit: !!out.added_overlay, reason: out.overlay_explanation } }
+    const out = JSON.parse(text) as { people_visible: boolean; face_verdict: 'clear' | 'borderline' | 'problem'; where: string; explanation: string; added_overlay: boolean; overlay_explanation: string }
+    return { check: out.face_verdict, reason: out.explanation, overlay: { hit: !!out.added_overlay, reason: out.overlay_explanation } }
   } catch (e: any) {
     console.error('[bannerVision] face check failed:', e?.message || e)
     return { check: 'unknown', reason: 'The automatic face check could not run for this photo.' }
