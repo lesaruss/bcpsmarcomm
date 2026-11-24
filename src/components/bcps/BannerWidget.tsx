@@ -58,7 +58,7 @@ interface ReviewSubmission extends MySubmission {
   posted_at: string | null
   posted_by_email: string | null
   content_scan: { text_detected?: boolean; text_reason?: string; face_check?: 'clear' | 'problem' | 'unknown'; face_reason?: string } | null
-  checklist_ack: { in_scene_text?: boolean; face_clear?: boolean; face_override?: boolean } | null
+  checklist_ack: { in_scene_text?: boolean; face_clear?: boolean } | null
 }
 
 interface BannerAdminRow {
@@ -183,7 +183,7 @@ const VALIDATION_CHECKLIST = [
 // 'confirm' (added 2026-09-29): the scan found text, which may be a real sign
 // in the scene rather than an overlay - the WCM has to confirm which before
 // the row passes. Amber, same palette as the degraded-scan notice.
-type ValidationState = 'pass' | 'fail' | 'pending' | 'confirm' | 'review'
+type ValidationState = 'pass' | 'fail' | 'pending' | 'confirm' | 'review' | 'checking'
 
 const VALIDATION_CHIP: Record<ValidationState, { bg: string; fg: string; ring: string; label: string }> = {
   pass:    { bg: '#1e6b3a', fg: '#fff',    ring: 'none',                       label: 'Pass' },
@@ -192,6 +192,9 @@ const VALIDATION_CHIP: Record<ValidationState, { bg: string; fg: string; ring: s
   pending: { bg: '#e4e4e4', fg: '#666',    ring: 'none',                       label: 'Pending' },
   // A visual check only the WCM can make (faces vs. banner and nav).
   review:  { bg: '#fdf3e0', fg: '#8a5a00', ring: 'inset 0 0 0 1px #f0d9a8',    label: 'Review' },
+  // The photo check is running (Vanessa Deslandes, 2026-11-24: a pulse
+  // alone did not say anything was happening).
+  checking: { bg: '#eaf1f8', fg: '#0a3764', ring: 'inset 0 0 0 1px #c9dbee',   label: 'Checking' },
 }
 
 type Tab = 'upload' | 'removal' | 'mine' | 'review' | 'admins' | 'wcms'
@@ -271,9 +274,6 @@ interface BannerItem {
   // WCM checked the preview: no face is cut off by the top banner or covered
   // by the right-hand nav (Sean + Vanessa Deslandes, 2026-11-24).
   faceClear: boolean
-  // The face check flagged this photo and the WCM says it is wrong; the
-  // District Web Team decides.
-  faceOverride: boolean
   // JPEG EXIF orientation (1-8), null if none. 5-8 means the camera saved
   // the pixels sideways with a "rotate on display" flag.
   orientation: number | null
@@ -292,7 +292,7 @@ function newBannerItem(): BannerItem {
     key: Math.random().toString(36).slice(2),
     file: null, previewUrl: null, kind: null, dims: null, duration: null,
     scanState: 'idle', scanResult: null, scanError: null,
-    title: '', caption: '', alt: '', inSceneText: false, faceClear: false, faceOverride: false, orientation: null, compress: null,
+    title: '', caption: '', alt: '', inSceneText: false, faceClear: false, orientation: null, compress: null,
   }
 }
 
@@ -410,6 +410,16 @@ function statusBadge(status: SubmissionStatus) {
   return (
     <span style={{ background: s.bg, color: s.fg, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999 }}>
       {s.label}
+    </span>
+  )
+}
+
+// Three dots that fill in turn, so a running check reads as working.
+function CheckingDots() {
+  return (
+    <span aria-hidden="true" className="bw-dots">
+      <style>{`.bw-dots span{animation:bwDot 1.2s infinite both;display:inline-block}.bw-dots span:nth-child(2){animation-delay:.2s}.bw-dots span:nth-child(3){animation-delay:.4s}@keyframes bwDot{0%,80%,100%{opacity:.15}40%{opacity:1}}`}</style>
+      <span>.</span><span>.</span><span>.</span>
     </span>
   )
 }
@@ -867,7 +877,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     if (prevUrl) URL.revokeObjectURL(prevUrl)
     setActiveKey(key)
     if (!f) {
-      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, duration: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false, faceClear: false, faceOverride: false, orientation: null, compress: null })
+      patchItem(key, { file: null, previewUrl: null, kind: null, dims: null, duration: null, scanState: 'idle', scanResult: null, scanError: null, inSceneText: false, faceClear: false, orientation: null, compress: null })
       return
     }
     const url = URL.createObjectURL(f)
@@ -877,7 +887,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     const compress: BannerItem['compress'] = compressed
       ? { state: 'done', progress: 1, ...compressed }
       : kind === 'video' && f.size > MAX_BYTES ? { state: 'running', progress: 0, fromBytes: f.size, trimmed: false } : null
-    patchItem(key, { file: f, previewUrl: url, kind, dims: null, duration: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false, faceClear: false, faceOverride: false, orientation: null, compress })
+    patchItem(key, { file: f, previewUrl: url, kind, dims: null, duration: null, scanState: 'scanning', scanResult: null, scanError: null, inSceneText: false, faceClear: false, orientation: null, compress })
 
     if (kind === 'image') {
       const img = new Image()
@@ -972,7 +982,8 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
   const overlaysOk = (i: BannerItem) => !!i.scanResult?.no_overlays_pass && (!i.scanResult?.text_detected || i.inSceneText)
   const needsConfirm = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult?.no_overlays_pass && !!i.scanResult?.text_detected && !i.inSceneText
   const faceFlagged = (i: BannerItem) => i.scanState === 'done' && i.scanResult?.face_check === 'problem'
-  const facesOk = (i: BannerItem) => (faceFlagged(i) ? i.faceOverride : i.faceClear)
+  const facesOk = (i: BannerItem) => !faceFlagged(i) && i.faceClear
+  const photoChecking = filled.some(i => i.kind === 'image' && i.scanState === 'scanning')
   const scanFailed = (i: BannerItem) => i.scanState === 'done' && !!i.scanResult && !i.scanResult.no_overlays_pass
   const all = (pred: (i: BannerItem) => boolean) => filled.length > 0 && filled.every(pred)
   const compressing = filled.some(i => i.compress?.state === 'running')
@@ -1006,10 +1017,12 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     dims: validationStatus.dims ? 'pass' : compressing ? 'pending' : (filled.some(i => (i.kind === 'video' ? !lengthOk(i) : !!i.dims && !dimsOk(i))) ? 'fail' : 'pending'),
     no_overlays: validationStatus.no_overlays ? 'pass'
       : filled.some(scanFailed) ? 'fail'
+      : photoChecking ? 'checking'
       : filled.some(needsConfirm) ? 'confirm'
       : 'pending',
-    nav_clearance: validationStatus.nav_clearance ? 'pass'
-      : filled.some(i => faceFlagged(i) && !i.faceOverride) ? 'fail'
+    nav_clearance: filled.some(faceFlagged) ? 'fail'
+      : validationStatus.nav_clearance ? 'pass'
+      : photoChecking ? 'checking'
       : filled.length > 0 ? 'review' : 'pending',
     title: validationStatus.title ? 'pass' : 'pending',
     alt: validationStatus.alt ? 'pass' : 'pending',
@@ -1023,8 +1036,8 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
     filesize: filled
       .map((i, n) => sizeOk(i) ? null : `${filled.length > 1 ? `Banner ${n + 1}: ` : ''}file is ${fileMB(i.file!)} MB, over the ${MAX_MB} MB limit. Export at 1080p (not 4K). Steps are under the file.`)
       .filter(Boolean).join(' '),
-    nav_clearance: filled.some(i => faceFlagged(i) && !i.faceOverride)
-      ? filled.map((i, n) => (faceFlagged(i) && !i.faceOverride ? `${filled.length > 1 ? `Banner ${n + 1}: ` : ''}${i.scanResult?.face_reason || 'A face or head is cut off or covered.'} Choose a different photo.` : null)).filter(Boolean).join(' ')
+    nav_clearance: filled.some(faceFlagged)
+      ? filled.map((i, n) => (faceFlagged(i) ? `${filled.length > 1 ? `Banner ${n + 1}: ` : ''}${i.scanResult?.face_reason || 'A face or head is cut off or covered.'} Choose a different photo.` : null)).filter(Boolean).join(' ')
       : 'Look at the preview. If a face or head is cut off by the top banner or covered by the right-hand navigation, choose a different photo. If not, click Confirm under the photo.',
   }
 
@@ -1043,7 +1056,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
       if (i.scanState === 'scanning') { setUploadNotice(`${name}Still running the automated content scan - one moment.`); return }
       if (i.scanState === 'error') { setUploadNotice(`${name}${i.scanError || 'The automated content scan failed - please try re-selecting the file.'}`); return }
       if (!i.scanResult?.no_overlays_pass || !i.scanResult?.nav_clearance_pass) { setUploadNotice(`${name}This image needs to pass the automated content scan before it can be submitted.`); return }
-      if (faceFlagged(i) && !i.faceOverride) { setUploadNotice(`${name}${i.scanResult?.face_reason || 'A face or head is cut off or covered.'} Choose a different photo.`); return }
+      if (faceFlagged(i)) { setUploadNotice(`${name}${i.scanResult?.face_reason || 'A face or head is cut off or covered.'} Choose a different photo.`); return }
       if (!facesOk(i)) { setUploadNotice(`${name}Check the preview and confirm no face is cut off by the top banner or covered by the navigation.`); return }
       if (i.scanResult?.text_detected && !i.inSceneText) { setUploadNotice(`${name}Text was detected - confirm it is part of the actual scene before submitting.`); return }
     }
@@ -1079,7 +1092,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
             banner_title: i.title,
             banner_caption: i.caption,
             alt_text: i.alt,
-            checklist_ack: { ...checks, in_scene_text: i.inSceneText, face_clear: i.faceClear, face_override: faceFlagged(i) && i.faceOverride },
+            checklist_ack: { ...checks, in_scene_text: i.inSceneText, face_clear: i.faceClear },
             school_location_nbr: selectedSchool,
           }),
         })
@@ -1508,7 +1521,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                       : it.scanResult?.text_detected ? '#8a5a00' : '#1e6b3a',
                   }}>
                     <div style={{ fontWeight: 700, marginBottom: it.scanResult?.reasons?.length ? 4 : 0 }}>
-                      {it.scanState === 'scanning' && 'Scanning image for graphics, text overlays, and nav clearance...'}
+                      {it.scanState === 'scanning' && <>Checking your photo for faces, added text and graphics<CheckingDots /> This takes a few seconds.</>}
                       {it.scanState === 'error' && `Automated scan failed: ${it.scanError}`}
                       {it.scanState === 'degraded' && 'Automated scan unavailable for this file - it will be flagged for the District Web Team to review manually.'}
                       {it.scanState === 'done' && (!(it.scanResult?.no_overlays_pass && it.scanResult?.nav_clearance_pass)
@@ -1550,22 +1563,13 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                     the review queue and spot checks it. */}
                 {it.file && it.kind === 'image' && it.scanState === 'scanning' && (
                   <div style={{ borderRadius: 6, padding: '10px 12px', fontSize: 12.5, background: '#f3f4f6', color: '#4b5563', fontWeight: 700 }}>
-                    Checking whether any face or head is cut off or covered...
+                    Checking whether any face or head is cut off or covered<CheckingDots />
                   </div>
                 )}
                 {it.file && faceFlagged(it) && (
-                  <div role="alert" style={{ borderRadius: 6, padding: '10px 12px', fontSize: 12.5, background: it.faceOverride ? '#fdf3e0' : '#fbe9e7', color: it.faceOverride ? '#4b3200' : '#a13a2f', boxShadow: it.faceOverride ? 'inset 0 0 0 1px #f0d9a8' : 'inset 0 0 0 1px #f0c4bd' }}>
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>{it.faceOverride ? 'Sent to the District Web Team to decide' : 'Faces: this photo does not meet the requirement'}</div>
-                    <div style={{ marginBottom: 6 }}>{it.scanResult?.face_reason || 'A face or head is cut off by the top banner or covered by the navigation.'} Choose a different photo.</div>
-                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontWeight: 400 }}>
-                      <input
-                        type="checkbox"
-                        checked={it.faceOverride}
-                        onChange={e => patchItem(it.key, { faceOverride: e.target.checked })}
-                        style={{ marginTop: 2 }}
-                      />
-                      <span>I checked the preview and the automatic check is wrong: no face or head is cut off or covered. The District Web Team will make the final call.</span>
-                    </label>
+                  <div role="alert" style={{ borderRadius: 6, padding: '10px 12px', fontSize: 12.5, background: '#fbe9e7', color: '#a13a2f', boxShadow: 'inset 0 0 0 1px #f0c4bd' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>Faces: this photo does not meet the requirement</div>
+                    <div>{it.scanResult?.face_reason || 'A face or head is cut off by the top banner or covered by the navigation.'} Choose a different photo.</div>
                   </div>
                 )}
                 {it.file && !faceFlagged(it) && !(it.kind === 'image' && it.scanState === 'scanning') && (
@@ -1679,7 +1683,7 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                         <span style={{ display: 'block', fontWeight: 500, fontSize: 12, marginTop: 3 }}>{validationReason[v.key]}</span>
                       )}
                     </span>
-                    <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{chip.label}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{chip.label}{validationState[v.key] === 'checking' && <CheckingDots />}</span>
                   </div>
                 )
               })}
@@ -1863,17 +1867,13 @@ export default function BannerWidget({ startTab }: { startTab?: 'review' } = {})
                     )}
                   </div>
                 )}
-                {r.type === 'upload' && (r.checklist_ack?.face_override ? (
-                  <div style={{ marginTop: 8, fontSize: 12, background: '#fbe9e7', color: '#a13a2f', padding: '6px 10px', borderRadius: 5 }}>
-                    <strong>Face check flagged this photo</strong> - {r.content_scan?.face_reason || 'a face or head is cut off or covered.'} The WCM says the check is wrong. Look at the top and right side before you approve.
-                  </div>
-                ) : (
+                {r.type === 'upload' && (
                   <div style={{ marginTop: 8, fontSize: 12, background: r.checklist_ack?.face_clear ? '#eaf1f8' : '#fdf3e0', color: r.checklist_ack?.face_clear ? '#0a3764' : '#8a5a00', padding: '6px 10px', borderRadius: 5 }}>
                     <strong>Check faces</strong> - {r.checklist_ack?.face_clear
                       ? `${r.content_scan?.face_check === 'clear' ? 'Automatic check found no problem and the WCM confirmed' : 'WCM confirmed'} no face is cut off by the top banner or covered by the navigation. Spot check the top and right side.`
                       : 'not confirmed by the WCM (sent before the face check). Check the top and right side.'}
                   </div>
-                ))}
+                )}
                 {r.type === 'upload' && r.signed_url && (
                   <div style={{ marginTop: 8 }}>
                     {/* Original file on the left, the same school-site frame

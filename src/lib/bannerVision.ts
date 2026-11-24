@@ -77,6 +77,10 @@ export interface BannerScanResult {
   // on its own when the check could not run.
   face_check?: 'clear' | 'problem' | 'unknown'
   face_reason?: string
+  // True when Claude judged added text/graphics (not OCR). Text that is
+  // part of the scene (a shirt, a ribbon, a sign) passes with no WCM
+  // attestation (Sean + Vanessa Deslandes, 2026-11-24).
+  overlay_by_vision?: boolean
   reasons: string[]
   skipped?: boolean
   error?: string
@@ -198,23 +202,30 @@ const NAV_FRACTION = 0.22
 const FACE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['people_visible', 'problem', 'where', 'explanation'],
+  required: ['people_visible', 'problem', 'where', 'explanation', 'added_overlay', 'overlay_explanation'],
   properties: {
     people_visible: { type: 'boolean' },
     problem: { type: 'boolean' },
     where: { type: 'string', enum: ['none', 'top edge', 'white panel on the right', 'top edge and white panel', 'other edge'] },
     explanation: { type: 'string' },
+    added_overlay: { type: 'boolean' },
+    overlay_explanation: { type: 'string' },
   },
 }
 
-const FACE_SYSTEM = `You check school homepage banner photos before they go live.
-The image is exactly what the website shows: the photo cropped to the banner, with the site's white navigation panel drawn over the right side.
-Decide whether any person's face or head is cut off by the top edge, cut off by another edge, or covered (even partly) by the white panel on the right.
+const FACE_SYSTEM = `You check school homepage banner photos before they go live. You get two images.
+Image 1 is the original photo. Image 2 is exactly what the website shows: the photo cropped to the banner, with the site's white navigation panel drawn over the right side. The white panel is drawn by the site; never count it as a problem in the photo itself.
+
+Check 1, added text or graphics (use image 1): was anything added on top of the photo after it was taken? That means words, titles, captions, dates, logos, stickers, watermarks, frames, borders, color bars or graphic shapes laid over the picture. Text that is physically part of the scene is fine and is NOT an overlay: words on clothing, ribbons, medals, banners or signs people hold, posters on a wall, building signs, scoreboards. Set added_overlay and write overlay_explanation in one short plain sentence, for example "A title is printed across the top of the photo." or "No text or graphics were added to the photo."
+
+Check 2, faces (use image 2): decide whether any person's face or head is cut off by the top edge, cut off by another edge, or covered (even partly) by the white panel on the right.
 A problem means a viewer would see a head sliced off, a face cut by the frame, or a face or head behind the white panel. Bodies, hands or backs of heads at an edge, or people far in the background that are only a few pixels tall, are not a problem.
 If no people are visible, there is no problem.
 Write the explanation in one short plain sentence a school staff member will read, for example: "The girl on the left has the top of her head cut off by the top edge." or "No faces are cut off or covered."`
 
-async function checkFaces(buffer: Buffer): Promise<{ check: 'clear' | 'problem' | 'unknown'; reason?: string }> {
+type PhotoCheck = { check: 'clear' | 'problem' | 'unknown'; reason?: string; overlay?: { hit: boolean; reason: string } }
+
+async function checkFaces(buffer: Buffer): Promise<PhotoCheck> {
   try {
     const key = await anthropicKey()
     if (!key) return { check: 'unknown', reason: 'The automatic face check is not set up on this site.' }
@@ -223,6 +234,11 @@ async function checkFaces(buffer: Buffer): Promise<{ check: 'clear' | 'problem' 
       .rotate()
       .resize(VIEW_W, VIEW_H, { fit: 'cover', position: 'centre' })
       .composite([{ input: { create: { width: navW, height: VIEW_H, channels: 3, background: '#ffffff' } }, left: VIEW_W - navW, top: 0 }])
+      .jpeg({ quality: 80 })
+      .toBuffer()
+    const original = await sharp(buffer)
+      .rotate()
+      .resize(1568, 1568, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 80 })
       .toBuffer()
     const client = new Anthropic({ apiKey: key })
@@ -234,15 +250,18 @@ async function checkFaces(buffer: Buffer): Promise<{ check: 'clear' | 'problem' 
       messages: [{
         role: 'user',
         content: [
+          { type: 'text', text: 'Image 1, the original photo:' },
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: original.toString('base64') } },
+          { type: 'text', text: 'Image 2, the banner as the site shows it:' },
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: view.toString('base64') } },
-          { type: 'text', text: 'Check this banner as shown on the site.' },
+          { type: 'text', text: 'Run both checks.' },
         ],
       }],
     })
     if (msg.stop_reason !== 'end_turn') return { check: 'unknown', reason: 'The automatic face check did not finish for this photo.' }
     const text = msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('')
-    const out = JSON.parse(text) as { people_visible: boolean; problem: boolean; where: string; explanation: string }
-    return { check: out.problem ? 'problem' : 'clear', reason: out.explanation }
+    const out = JSON.parse(text) as { people_visible: boolean; problem: boolean; where: string; explanation: string; added_overlay: boolean; overlay_explanation: string }
+    return { check: out.problem ? 'problem' : 'clear', reason: out.explanation, overlay: { hit: !!out.added_overlay, reason: out.overlay_explanation } }
   } catch (e: any) {
     console.error('[bannerVision] face check failed:', e?.message || e)
     return { check: 'unknown', reason: 'The automatic face check could not run for this photo.' }
@@ -274,6 +293,23 @@ export async function analyzeBannerImage(opts: {
       detectBorderOverlay(buffer),
       opts.faces ? checkFaces(buffer) : Promise.resolve(null),
     ])
+
+    // Claude saw the photo: it decides added text/graphics, and text that is
+    // part of the scene passes without asking the WCM. OCR and the border
+    // heuristic are only the fallback when that check could not run.
+    if (faces?.overlay) {
+      if (faces.overlay.hit) reasons.push(faces.overlay.reason || 'Text or graphics were added on top of the photo.')
+      return {
+        no_overlays_pass: reasons.length === 0,
+        text_detected: false,
+        overlay_by_vision: true,
+        nav_clearance_pass: true,
+        nav_clearance_note: NAV_NOTE,
+        face_check: faces.check,
+        face_reason: faces.reason,
+        reasons,
+      }
+    }
 
     if (border.hit && border.reason) reasons.push(border.reason)
 

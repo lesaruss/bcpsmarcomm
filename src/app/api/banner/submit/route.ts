@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
   if (!alt_text?.trim()) return NextResponse.json({ error: 'Alternative text is required' }, { status: 400 })
   // Face check is the WCM's one-click confirmation (Sean + Vanessa Deslandes,
   // 2026-11-24); the scanner cannot see faces, so it is never auto-passed.
-  if (checklist_ack?.face_clear !== true && checklist_ack?.face_override !== true) return NextResponse.json({ error: 'Check the preview and confirm no face is cut off by the top banner or covered by the navigation.' }, { status: 400 })
+  if (checklist_ack?.face_clear !== true) return NextResponse.json({ error: 'Check the preview and confirm no face is cut off by the top banner or covered by the navigation.' }, { status: 400 })
 
   const { data: schoolRow, error: schoolErr } = await svc
     .from('bcps_school_directory')
@@ -187,10 +187,11 @@ export async function POST(req: NextRequest) {
         error: 'This image did not pass the automated content scan.',
         reasons: contentScan.reasons,
       }, 400)
-    } else if (contentScan.face_check === 'problem' && checklist_ack?.face_override !== true) {
+    } else if (contentScan.face_check === 'problem') {
       // The face check found a face or head cut off or covered (Sean +
-      // Vanessa Deslandes, 2026-11-24). The WCM picks another photo, or
-      // says the check is wrong and the District Web Team decides.
+      // Vanessa Deslandes, 2026-11-24): a hard fail, the WCM picks another
+      // photo. No "the check is wrong" override for now; if a WCM shows a
+      // screenshot of a wrong call, bring the override back.
       return refuse({
         error: contentScan.face_reason || 'A face or head is cut off by the top of the banner or covered by the navigation. Choose a different photo.',
         reasons: contentScan.face_reason ? [contentScan.face_reason] : [],
