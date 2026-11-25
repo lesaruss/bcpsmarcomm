@@ -279,7 +279,7 @@ export default function BCPSLoginPage() {
   }
 
   return (
-    <div style={{
+    <main style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #f4f7fb 0%, #e7eef6 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -319,7 +319,7 @@ export default function BCPSLoginPage() {
                   fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
                   fontFamily: "'Open Sans', sans-serif",
                   background: mode === 'signin' ? '#ffffff' : 'transparent',
-                  color: mode === 'signin' ? '#0e4e73' : '#6b7280',
+                  color: mode === 'signin' ? '#0e4e73' : '#4b5563',
                   boxShadow: mode === 'signin' ? '0 1px 4px rgba(0,0,0,0.10)' : 'none',
                 }}
               >
@@ -333,7 +333,7 @@ export default function BCPSLoginPage() {
                   fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
                   fontFamily: "'Open Sans', sans-serif",
                   background: mode === 'register' ? '#ffffff' : 'transparent',
-                  color: mode === 'register' ? '#0e4e73' : '#6b7280',
+                  color: mode === 'register' ? '#0e4e73' : '#4b5563',
                   boxShadow: mode === 'register' ? '0 1px 4px rgba(0,0,0,0.10)' : 'none',
                 }}
               >
@@ -531,7 +531,7 @@ export default function BCPSLoginPage() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                 <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
-                <span style={{ color: '#9ca3af', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>or email</span>
+                <span style={{ color: '#6b7280', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>or email</span>
                 <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
               </div>
 
@@ -597,6 +597,6 @@ export default function BCPSLoginPage() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   )
 }
